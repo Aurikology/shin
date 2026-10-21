@@ -690,6 +690,17 @@ before any Gemini call or counting. A missing Origin header is allowed and marke
 can legitimately send none); a present-and-mismatched Origin is refused outright. · 2026-09-19 · log: docs/decisions.md#Calls that cost money are limited per invite code and per address, and the cap charges the search fee
 Retired wording: none
 Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
+### An App Store Connect key signs and uploads builds, and the worker Mac may hold it
+An App Store Connect API key is set up and used on the worker Mac so that machine creates signing
+certificates, signs archives and uploads builds to App Store Connect unattended, every time, instead
+of needing him in Xcode whenever a certificate expires. This lifts App Store Connect keys out of the
+worker Mac's forbidden-credential list (its CLAUDE.local.md section 1, *"Still off-limits ... API
+keys"*); nothing else on that list moves, so his Apple ID password, banking, government IDs, iMessage
+and his main email password stay forbidden there. The key file lives outside the repo, at
+`~/.appstoreconnect/private_keys`, with a copy in the vault, and never reaches a commit, a log, a
+scratch file or a run report (HARD RULE 5). · 2026-10-21 · *"go ahead and set up the api key"* · log: none
+Retired wording: none
+Governs: ~/.appstoreconnect/private_keys, xcodebuild -allowProvisioningUpdates, xcrun altool upload
 ## Anything else
 ### A plan covers every case and every requirement, never assumes it will work, and carries its own recovery and error analysis
 A plan is not acceptable until it names every case the feature meets: each input the user can
