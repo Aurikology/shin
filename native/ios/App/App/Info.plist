@@ -28,6 +28,10 @@
 	<string>This app uses the camera to scan barcodes and photograph items so it can look up the price.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Pexi uses your rough area, only if you turn it on, to tell you what an item usually costs near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pexi takes its own pictures with the camera. It asks for your photo library only if you choose a picture you already took instead of taking a new one.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Pexi asks for this only if you save a picture of an item back to your own photo library.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
