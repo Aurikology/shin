@@ -1809,11 +1809,17 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const saveLabel = saved ? say('peek_watching') : say(`peek_${zone ? tier : 'fair'}`);
   const sellers = v.n ? `<small class="vd-sellers">${escapeHtml(t(v.basis === 'own_prices' ? 'vd_based_on_sellers' : 'vd_based_on_items', { n: v.n }))}</small>` : '';
 
+  // The face sits beside the price, not in a row of its own: R-40's first position has to fit 60% of
+  // the screen with the one button on it, and a row for the face alone cost 108 px of it (2026-10-13,
+  // measured at 390 x 844: 680 px of content against a 507 px cap).
+  const faceRow = (left) => `<div class="sheet-head">${left}${shinFace(face, { size: 'face-verdict', tier })}${thumbImg(thumb)}</div>`;
   const peek = s
     ? `<h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
-        <p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>
-        <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
-        <p class="sub vd-typ" data-dist-typical>${escapeHtml(typicalLine(centre))}</p>
+        ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>`)}
+        <div class="vd-lines">
+          <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
+          <p class="sub vd-typ" data-dist-typical>${escapeHtml(typicalLine(centre))}</p>
+        </div>
         ${s.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
@@ -1822,8 +1828,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
           <button type="button" class="pill solid wide" data-act="dist-save">${saveLabel}</button>
         </div>`
     : `<h2 class="vword small" data-dist-headline>${escapeHtml(headline)}</h2>
-        <p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>
-        ${sellers}
+        ${faceRow(`<div class="vd-ask"><p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>${sellers}</div>`)}
         <p class="sub vd-line vd-typ" data-dist-line>${escapeHtml(typicalLine(centre))}</p>
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
@@ -1836,10 +1841,6 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
       ${grabber()}
       ${backButton()}
       <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinFace(face, { size: 'face-verdict', tier })}
-          ${thumbImg(thumb)}
-        </div>
         ${peek}
       </div>
       <div class="sheet-half">

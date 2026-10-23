@@ -2486,6 +2486,19 @@
 /* R-48: the name is two lines; a tap opens the whole of it. */
 .sheet.dist .itemname { cursor: pointer; }
 .sheet.dist .vd-half-actions { margin-bottom: 2px; }
+/* R-40: the first position fits 60% with its one button showing: tighter steps, the word clear of the
+   close button, the price and Pexi's face on one row, the two estimate lines as one block. */
+.sheet.dist .sheet-peek { gap: 6px; }
+.sheet.dist .vword { padding-right: 44px; }
+.sheet.dist .vword + .sheet-head { justify-content: space-between; padding-right: 0; cursor: auto; }
+.sheet.dist .vword + .sheet-head .vd-ask { flex: 1 1 auto; min-width: 0; }
+.sheet.dist .vd-lines { display: flex; flex-direction: column; gap: 2px; }
+.sheet.dist .vd-lines p { margin: 0; line-height: 1.35; }
+/* R-40 and RULINGS "V1 verdict screen mechanics" (the primary action needs no drag): when the first
+   position runs past its 60% cap (a sale lane, a "Did you mean", a long name), the one button stays
+   pinned to the bottom of the sheet, on the sheet's own field, and the rest scrolls under it. */
+.sheet.dist[data-detent="peek"] .sheet-peek { background: inherit; }
+.sheet.dist[data-detent="peek"] .actions-primary { position: sticky; bottom: -22px; margin-bottom: -22px; padding: 8px 0 22px; background: inherit; z-index: 1; }
 /* R-13: the half position's actions share its width, so none is sized by its words alone. */
 .sheet.dist .vd-half-actions .pill { flex: 1 1 0; min-width: 0; }
 .vd-suspect { margin-top: 8px; min-height: 44px; }

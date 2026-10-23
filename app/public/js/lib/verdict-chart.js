@@ -396,7 +396,7 @@ export function placeLabels(items, { rows = 3, charW = null, gap = 8, width = 34
 /**
  * Everything the SVG needs, in viewBox units.
  */
-export function bellGeometry(verdict, { width = 340, height = 196, top = 34, baseY = 124, side = 10, samples = 72, report = null } = {}) {
+export function bellGeometry(verdict, { width = 340, height = 164, top = 34, baseY = 94, side = 10, samples = 72, report = null } = {}) {
   const d = logDomain(verdict, report && pos(report.cents) ? [report.cents] : []);
   const span = d.hi - d.lo;
   const plotW = width - 2 * side;
@@ -590,7 +590,7 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
   for (const k of g.cutTicks) p.push(`<line class="vb-cut" x1="${k.x}" y1="${k.y}" x2="${k.x}" y2="${g.baseY}"/>`);
   p.push(`<line class="vb-centre" x1="${g.centreX}" y1="${g.top - 4}" x2="${g.centreX}" y2="${g.baseY}"/>`);
   if (g.hasSale) p.push(`<text class="vb-lane" x="${g.side}" y="${g.saleY + 3.5}" text-anchor="start">${esc(saleWord)}</text>`);
-  const lblY = g.baseY + 32 + (g.hasSale ? 14 : 0) + (g.report ? 14 : 0);
+  const lblY = g.baseY + 30 + (g.hasSale ? 14 : 0) + (g.report ? 14 : 0);
   // The shopper's own pending report: a diamond on its own lane, outlined and
   // labelled in words, unlike a store's small solid circle, and drawn outside
   // the bell (it does not move the bell until a second source agrees).
@@ -626,7 +626,7 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     { rows: 2, width: W, size: LABEL_SIZE },
   );
   for (const l of labels) {
-    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 18 + l.row * 16}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
+    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 16 + l.row * 15}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
   }
 
   // R-67: the shopper's price, a solid line from the base up to the curve, a dot where it meets the curve,
@@ -656,7 +656,7 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     );
   }
   const lastRow = labels.reduce((m, l) => Math.max(m, l.row), 0);
-  const h = lblY + (labels.length ? 22 + lastRow * 16 : 8);
+  const h = lblY + (labels.length ? 20 + lastRow * 15 : 8);
   return `<figure class="vbell" data-verdict-bell data-mu="${r1(g.domain.mu * 1000) / 1000}" data-sigma="${verdict.sigmaLog}">
     <svg viewBox="0 0 ${W} ${Math.round(h)}" width="100%" role="img" aria-label="${esc(alt)}" focusable="false">${p.join('')}</svg>
     ${band ? `<figcaption class="vb-cap">${esc(band)}</figcaption>` : ''}
