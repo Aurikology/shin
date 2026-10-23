@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const SR = 48000, DUR = 16, N = SR * DUR;
+const SR = 48000, DUR = 30, N = SR * DUR;
 const TAU = Math.PI * 2;
 let seed = 12345;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 * 2 - 1; };
@@ -125,7 +125,7 @@ const music = track(), hits = track();
 // a light groove, Am F C G, 120 BPM: soft kick on the beat, shaker on the off-beat, bass and a pad
 const ROOTS = [55, 43.65, 65.41, 49.0];
 const CHORDS = [[220, 261.6, 329.6], [174.6, 220, 261.6], [261.6, 329.6, 392], [196, 246.9, 293.7]];
-const BEAT_END = 12.5;
+const BEAT_END = 27.0;
 for (let b = 0; b * 0.5 < BEAT_END; b++) {
   const t = b * 0.5, bar = Math.floor(t / 2) % 4;
   const full = t >= 1.0;
@@ -138,33 +138,33 @@ add(music, BEAT_END, pad([220, 261.6, 329.6, 440], 3.2), 0.2);
 add(music, BEAT_END + 0.5, pad([329.6, 440, 523.3], 2.8), 0.12);
 
 // every cut: a short whoosh into it
-for (const at of [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.5, 12.5]) add(hits, at - 0.15, whoosh(0.3), 0.26);
-// intro: the word lands
-add(hits, 0.1, pop(900), 0.22);
-// notif: the wallpaper faces pop, the notification lands
-for (let k = 0; k < 6; k++) add(hits, 1.15 + k * 0.06, pop(700 + k * 90), 0.12);
-add(hits, 1.55, ding(), 0.3);
-// pop: the verdict card lifts out with a low boop
-add(hits, 2.35, boop(320, 160), 0.5); add(hits, 2.35, pop(600), 0.25);
+for (const at of [2.5, 5.0, 8.0, 9.5, 12.0, 15.0, 17.5, 19.5, 22.5, 24.5, 27.0]) add(hits, at - 0.15, whoosh(0.3), 0.26);
+// intro: the word, the wordmark, Pexi hops up
+add(hits, 0.3, pop(900), 0.22); add(hits, 1.1, thud(), 0.3); add(hits, 1.65, pop(1200), 0.25);
+// notif: the collage pops, the notification lands
+for (let k = 0; k < 5; k++) add(hits, 2.85 + k * 0.06, pop(700 + k * 90), 0.12);
+add(hits, 3.65, ding(), 0.3);
+// head1: the words land, the welcome collage pops
+for (let k = 0; k < 4; k++) add(hits, 5.15 + k * 0.12, pop(700 + k * 100), 0.24);
+for (let k = 0; k < 5; k++) add(hits, 5.75 + k * 0.06, pop(900 + k * 80), 0.1);
 // obj: the shoe pops, the sparkles tick in
-add(hits, 3.0, pop(500), 0.35); for (let k = 0; k < 4; k++) add(hits, 3.15 + k * 0.07, tick(), 0.18);
+add(hits, 8.05, pop(500), 0.35); for (let k = 0; k < 3; k++) add(hits, 8.35 + k * 0.1, tick(), 0.18);
+// scan: the word, the shutter tap and beep, the sheet rising
+add(hits, 9.6, pop(800), 0.25); add(hits, 11.0, click(), 0.6); add(hits, 11.02, beep(), 0.4); add(hits, 11.3, pop(700), 0.2);
+// pop: the card lifts out with a low boop, Blunt's line
+add(hits, 12.55, boop(320, 160), 0.5); add(hits, 13.45, thud(), 0.35);
 // list: three cards stack in
-for (let k = 0; k < 3; k++) add(hits, 4.25 + k * 0.12, pop(800 + k * 150), 0.2);
-// head1: the words land
-add(hits, 5.05, pop(700), 0.25); add(hits, 5.13, pop(800), 0.25); add(hits, 5.21, pop(900), 0.25);
-// stack: three cards
-for (let k = 0; k < 3; k++) add(hits, 6.1 + k * 0.1, pop(600 + k * 120), 0.22);
-// picker: the tap on Blunt
-add(hits, 7.75, click(), 0.6); add(hits, 7.78, pop(1000), 0.2);
-// scan: the shutter tap, the beep
-add(hits, 8.85, click(), 0.6); add(hits, 8.87, beep(), 0.4);
+for (let k = 0; k < 3; k++) add(hits, 15.4 + k * 0.2, pop(800 + k * 150), 0.2);
+// stack: the word, three cards
+add(hits, 17.6, pop(700), 0.2); for (let k = 0; k < 3; k++) add(hits, 17.8 + k * 0.15, pop(600 + k * 120), 0.22);
+// picker: three taps, three lines
+for (const at of [20.2, 21.0, 21.8]) { add(hits, at, click(), 0.6); add(hits, at + 0.05, pop(1000), 0.2); }
 // tumble: each pill lands
-for (let k = 0; k < 8; k++) add(hits, 9.4 + k * 0.06, thud(), 0.12, (k % 2 ? 0.3 : -0.3));
-// head2: the great price
-add(hits, 10.1, pop(900), 0.25); add(hits, 10.6, ding(), 0.45);
-// splash and the end
-add(hits, 11.6, pop(1100), 0.3);
-add(hits, 12.6, ding(), 0.4); add(hits, 12.8, pop(1300), 0.25);
+for (let k = 0; k < 8; k++) add(hits, 23.0 + k * 0.09, thud(), 0.12, (k % 2 ? 0.3 : -0.3));
+// head2: the words, the great price, the line
+add(hits, 24.6, pop(900), 0.25); add(hits, 25.4, ding(), 0.45); add(hits, 25.8, pop(1100), 0.25);
+// the end
+add(hits, 27.1, ding(), 0.4); add(hits, 27.4, pop(1300), 0.25);
 
 function write(file, parts) {
   const L = new Float32Array(N), R = new Float32Array(N);

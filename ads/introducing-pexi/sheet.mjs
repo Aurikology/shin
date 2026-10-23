@@ -66,10 +66,13 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: 'dark' });
 for (const [id, sheet] of Object.entries(SHEETS)) {
   const file = join(out, `sheet-${id}.html`);
-  // transparent behind the sheet: the video draws the camera view there
+  // transparent behind the sheet: the video draws the camera view there;
+  // Pexi shown on his own, without the pale disc and ring the app draws round him, and
+  // in his own navy outline (on a verdict colour the sheet sets currentColor to white)
   writeFileSync(file, `<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1"><style>${CSS}
-html,body{margin:0;height:100%;background:transparent!important}.screen,.cam{background:transparent!important}</style></head>
+html,body{margin:0;height:100%;background:transparent!important}.screen,.cam{background:transparent!important}
+.face-disc,.face-ring{display:none}.sheet .face{color:#12233A}</style></head>
 <body><div class="screen"><div class="cam" data-state="answered"><div class="sheet-slot">${sheet}</div></div></div></body></html>`);
   await page.goto(pathToFileURL(file).href);
   await page.evaluate(() => document.fonts.ready);

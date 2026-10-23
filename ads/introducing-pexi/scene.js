@@ -1,4 +1,4 @@
-// Every frame of "Introducing Pexi", a 16 s reel, drawn with canvas 2D.
+// Every frame of "Introducing Pexi", a 30 s reel, drawn with canvas 2D.
 // renderFrame(ctx, frame) is pure: the same frame number always draws the same picture.
 //
 // The structure follows a reference Aurik picked (the "Moolah" app-concept reel by
@@ -8,10 +8,11 @@
 // pills, and the logo beside the mascot on the end card. Only the structure and look are
 // borrowed; every picture is Pexi's own (the mascot faces as they ship, the app's real
 // verdict sheets from sheet.mjs, the studio product shots), on Pexi's palette.
-//    0.0 intro    1.0 notif    2.0 pop     3.0 obj     4.0 list    5.0 head1  "Your new price checker"
-//    6.0 stack    7.0 picker   8.0 scan    9.0 tumble 10.0 head2  "Scan anything"   11.5 splash   12.5 end
+//    0.0 intro "Introducing pexi."   2.5 notif    5.0 head1 "Your new price pal"   8.0 obj
+//    9.5 scan    12.0 pop (the real sheet, "Hard pass.")   15.0 list   17.5 stack   19.5 picker
+//   22.5 tumble  24.5 head2 "Scan anything"   27.0 end
 (function () {
-const W = 1080, H = 1920, FPS = 30, DUR = 16;
+const W = 1080, H = 1920, FPS = 30, DUR = 30;
 const SAFE = { x0: 154, y0: 285, x1: 925, y1: 1635 };
 
 // app/public/css/tokens.css, the mascot colours from js/face-art.js
@@ -27,7 +28,7 @@ const C = {
 // Inter Tight for interface text and the wordmark, Plex Mono for the handle.
 const FD = "'Outfit'", FU = "'Inter Tight'", FM = "'IBM Plex Mono'";
 // Every cut on the 120 BPM beat (sfx.mjs), like the reference.
-const T = { intro: 0, notif: 1.0, pop: 2.0, obj: 3.0, list: 4.0, head1: 5.0, stack: 6.0, picker: 7.0, scan: 8.0, tumble: 9.0, head2: 10.0, splash: 11.5, end: 12.5 };
+const T = { intro: 0, notif: 2.5, head1: 5.0, obj: 8.0, scan: 9.5, pop: 12.0, list: 15.0, stack: 17.5, picker: 19.5, tumble: 22.5, head2: 24.5, end: 27.0 };
 
 let IMG = {};
 let LOG = null;
@@ -283,6 +284,7 @@ function cameraFeed(ctx, s, t, scanning) {
 function field(ctx, col) { ctx.fillStyle = col; ctx.fillRect(0, 0, W, H); }
 // A four-point sparkle, the reference's one ornament.
 function sparkle(ctx, x, y, r, col, rot = 0) {
+  if (r <= 0) return;
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
   for (let i = 0; i < 4; i++) {
     const a = i * Math.PI / 2;
@@ -291,38 +293,50 @@ function sparkle(ctx, x, y, r, col, rot = 0) {
   }
   ctx.fillStyle = col; ctx.fill(); ctx.restore();
 }
+function diamond(ctx, x, y, r, col, rot = 0) {
+  if (r <= 0) return;
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.beginPath();
+  ctx.moveTo(0, -r * 1.4); ctx.lineTo(r, 0); ctx.lineTo(0, r * 1.4); ctx.lineTo(-r, 0); ctx.closePath();
+  ctx.fillStyle = col; ctx.fill(); ctx.restore();
+}
 // Something popping in: overshoots, settles, never blurred (the flat look is crisp).
-const popS = (t, t0, d = 0.4) => eBack((t - t0) / d, 2.2);
-// A two-line headline the reference way: line one ranged left, line two ranged right, white,
-// huge, each word gliding up. Fits the safe box.
-function bigHead(ctx, l1, l2, y, size, t, t0, col = '#fff') {
-  ctx.save(); ctx.font = FONTS.head(size); ctx.letterSpacing = `${-0.035 * size}px`;
-  const fit = Math.max(ctx.measureText(l1).width, l2 ? ctx.measureText(l2).width : 0);
-  if (fit > 765) size = Math.floor(size * 765 / fit);
-  ctx.restore();
-  const set = (c) => { c.font = FONTS.head(size); c.letterSpacing = `${-0.035 * size}px`; c.textBaseline = 'alphabetic'; };
-  const lines = [[l1, 'left', 158, y], ...(l2 ? [[l2, 'right', 922, y + size * 0.95]] : [])];
+const popS = (t, t0, d = 0.5) => eBack((t - t0) / d, 2.2);
+// A slow drift so a held shot never sits frozen.
+const drift = (t, k = 1) => Math.sin(t * 1.1 + k) * 10;
+// A two-line headline the reference way: huge, line one off the left edge, line two off the
+// right edge, each word rising out of a mask. It bleeds past the safe box on purpose, as the
+// reference does, so its words are not logged for the safe-box check.
+function bleedHead(ctx, l1, l2, y, size, t, t0, col = '#fff') {
+  const set = (c) => { c.font = FONTS.head(size); c.letterSpacing = `${-0.04 * size}px`; c.textBaseline = 'alphabetic'; };
+  const lines = [[l1, 'left', -size * 0.05, y], ...(l2 ? [[l2, 'right', W + size * 0.1, y + size * 0.92]] : [])];
   let k = 0;
   for (const [txt, al, x0, by] of lines) {
     ctx.save(); set(ctx);
     const words = txt.split(' '), sp = ctx.measureText(' ').width, ws = words.map(w => ctx.measureText(w).width);
     const total = ws.reduce((a, b) => a + b, 0) + sp * (words.length - 1);
     let x = al === 'left' ? x0 : x0 - total;
-    const m = ctx.measureText(txt);
     words.forEach((w, i) => {
-      const p = eExpo((t - t0 - k++ * 0.08) / 0.5);
+      const p = eExpo((t - t0 - k++ * 0.12) / 0.7);
       if (p > 0.01) {
-        ctx.save(); ctx.globalAlpha = clamp(p * 1.5); ctx.fillStyle = col;
-        ctx.beginPath(); ctx.rect(x - 20, by - size, ws[i] + 40, size * 1.3); ctx.clip();
-        ctx.fillText(w, x, by + (1 - p) * size * 0.9); ctx.restore();
-        if (p > 0.6) reg(ctx, 'text', w, x, by - m.actualBoundingBoxAscent, x + ws[i], by + m.actualBoundingBoxDescent);
+        ctx.save(); ctx.fillStyle = col;
+        ctx.beginPath(); ctx.rect(x - 40, by - size * 1.05, ws[i] + 80, size * 1.35); ctx.clip();
+        ctx.fillText(w, x, by + (1 - p) * size * 1.1); ctx.restore();
       }
       x += ws[i] + sp;
     });
     ctx.restore();
   }
 }
-// The phone, tilted back in 3D: a vertical squash and a skew read as perspective in a flat frame.
+// A one-word headline set huge and centred, inside the safe box.
+function wordHead(ctx, word, y, size, t, t0, col) {
+  ctx.save(); ctx.font = FONTS.head(size); ctx.letterSpacing = `${-0.04 * size}px`; ctx.textAlign = 'center';
+  const p = eExpo((t - t0) / 0.7), m = ctx.measureText(word);
+  ctx.beginPath(); ctx.rect(0, y - size * 1.05, W, size * 1.35); ctx.clip();
+  ctx.fillStyle = col; ctx.fillText(word, 540, y + (1 - p) * size * 1.1);
+  ctx.restore();
+  if (p > 0.6) reg(ctx, 'text', word, 540 - m.width / 2, y - m.actualBoundingBoxAscent, 540 + m.width / 2, y + m.actualBoundingBoxDescent);
+}
+// The phone, tilted back in 3D: a skew reads as perspective in a flat frame.
 function tiltPhone(ctx, cx, cy, s, rot, skew, content) {
   ctx.save(); ctx.translate(cx, cy); ctx.transform(1, skew * 0.4, -skew, 1, 0, 0); ctx.scale(s, s);
   phone(ctx, 0, 0, PH.w, PH.h, rot, content);
@@ -330,7 +344,6 @@ function tiltPhone(ctx, cx, cy, s, rot, skew, content) {
 }
 // Text inside a phone screen (not checked against the safe box: the phone carries it).
 function txt(ctx, s, x, y, font, col, al = 'left') { ctx.font = font; ctx.fillStyle = col; ctx.textAlign = al; ctx.fillText(s, x, y); }
-// An iOS-style status row and a back-button title, drawn in the screen's own pixels.
 function screenTitle(ctx, s, title, on, chip) {
   rr(ctx, 30, 104, 58, 58, 16); ctx.fillStyle = chip; ctx.fill();
   ctx.beginPath(); ctx.moveTo(66, 118); ctx.lineTo(52, 133); ctx.lineTo(66, 148); ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = '#fff'; ctx.stroke();
@@ -348,33 +361,119 @@ function verdictPill(ctx, v, x, y, size) {
   ctx.fillStyle = V.on; ctx.textAlign = 'left'; ctx.fillText(V.word, x + size * 0.6, y + size * 0.36);
   ctx.restore();
 }
+// A real verdict sheet over a dimmed camera view, the way the app shows it.
+function sheetScreen(ctx, s, t, img, behind) {
+  behind(s);
+  ctx.fillStyle = 'rgba(11,12,14,.35)'; ctx.fillRect(0, 0, s.w, s.h);
+  const k = s.w / img.width; ctx.drawImage(img, 0, 0, s.w, img.height * k);
+}
+
+// ---------- illustrations ----------
+// Flat shopping things in the reference's manner (solid shapes, a few colours, overlapping),
+// outlined in Pexi's navy so they sit with the mascot. All drawn about a 100 px unit.
+const NAVY = C.navy;
+function outline(ctx, w = 6) { ctx.lineWidth = w; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.strokeStyle = NAVY; ctx.stroke(); }
+function illoTag(ctx, fill, label = '$') {
+  ctx.beginPath(); ctx.moveTo(-70, -40); ctx.lineTo(40, -40); ctx.lineTo(80, 0); ctx.lineTo(40, 40); ctx.lineTo(-70, 40); ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill(); outline(ctx);
+  ctx.beginPath(); ctx.arc(42, 0, 9, 0, 7); ctx.fillStyle = '#fff'; ctx.fill(); outline(ctx, 5);
+  ctx.font = FONTS.head(54); ctx.fillStyle = NAVY; ctx.textAlign = 'center'; ctx.fillText(label, -18, 19);
+}
+function illoBag(ctx, fill, side, handle) {
+  ctx.beginPath(); ctx.moveTo(-30, -55); ctx.bezierCurveTo(-30, -110, 30, -110, 30, -55); ctx.lineWidth = 10; ctx.strokeStyle = handle; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-30, -55); ctx.bezierCurveTo(-30, -110, 30, -110, 30, -55); outline(ctx, 4);
+  rr(ctx, 20, -60, 45, 130, 6); ctx.fillStyle = side; ctx.fill(); outline(ctx);
+  rr(ctx, -65, -60, 100, 130, 8); ctx.fillStyle = fill; ctx.fill(); outline(ctx);
+  ctx.beginPath(); ctx.moveTo(-30, -25); ctx.quadraticCurveTo(-15, 5, 0, -25); ctx.lineWidth = 6; ctx.strokeStyle = NAVY; ctx.stroke();
+}
+function illoCoins(ctx, n = 4) {
+  for (let i = 0; i < n; i++) {
+    const y = 40 - i * 22;
+    ctx.beginPath(); ctx.ellipse(0, y + 8, 52, 20, 0, 0, Math.PI); ctx.lineTo(-52, y); ctx.ellipse(0, y, 52, 20, 0, Math.PI, 0, true); ctx.closePath();
+    ctx.fillStyle = '#E8A020'; ctx.fill(); outline(ctx, 5);
+    ctx.beginPath(); ctx.ellipse(0, y, 52, 20, 0, 0, 7); ctx.fillStyle = C.fairBright; ctx.fill(); outline(ctx, 5);
+  }
+}
+function illoBarcode(ctx) {
+  rr(ctx, -70, -48, 140, 96, 12); ctx.fillStyle = '#fff'; ctx.fill(); outline(ctx);
+  const bars = [4, 2, 6, 2, 3, 5, 2, 4, 2, 6, 3, 2, 5, 2];
+  let x = -52; ctx.fillStyle = NAVY;
+  for (const b of bars) { ctx.fillRect(x, -30, b * 1.4, 60); x += b * 1.4 + 3.2; }
+}
+function illoReceipt(ctx) {
+  ctx.beginPath(); ctx.moveTo(-50, -80); ctx.lineTo(50, -80); ctx.lineTo(50, 80);
+  for (let i = 0; i < 5; i++) { ctx.lineTo(40 - i * 20, 70); ctx.lineTo(30 - i * 20, 80); }
+  ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); outline(ctx);
+  ctx.fillStyle = NAVY; for (let i = 0; i < 4; i++) ctx.fillRect(-32, -54 + i * 26, i === 3 ? 34 : 64, 8);
+  ctx.fillStyle = C.walk; ctx.fillRect(10, 24, 22, 8);
+}
+function illoGlass(ctx) {
+  ctx.beginPath(); ctx.moveTo(30, 30); ctx.lineTo(80, 80); ctx.lineWidth = 22; ctx.strokeStyle = NAVY; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 0, 52, 0, 7); ctx.fillStyle = '#C9EEFF'; ctx.fill(); ctx.lineWidth = 14; ctx.strokeStyle = C.brand; ctx.stroke(); outline(ctx, 4);
+  ctx.beginPath(); ctx.arc(-14, -14, 16, Math.PI, Math.PI * 1.5); ctx.lineWidth = 8; ctx.strokeStyle = '#fff'; ctx.stroke();
+}
+function illoBlocks(ctx) {
+  // a stepped plinth in three colours for Pexi to stand on
+  [[-150, 0, 120, 70, C.cyan], [-40, -40, 150, 110, C.fairBright], [100, 10, 90, 60, C.brand]].forEach(([x, y, w, h, c]) => {
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.fillStyle = c; ctx.fill(); outline(ctx);
+  });
+  ctx.beginPath(); ctx.arc(35, 20, 18, 0, 7); ctx.fillStyle = C.walk; ctx.fill(); outline(ctx, 4);
+}
+// One placed piece: [draw, x, y, scale, rotation, delay]. Pops in at t0 + delay, then bobs.
+function piece(ctx, t, t0, [draw, x, y, s, r, d], i) {
+  const q = popS(t, t0 + d, 0.45);
+  if (q <= 0) return;
+  ctx.save(); ctx.translate(x, y + Math.sin(t * 1.8 + i) * 5); ctx.rotate(r + Math.sin(t * 1.3 + i * 2) * 0.03); ctx.scale(s * q, s * q);
+  draw(ctx); ctx.restore();
+}
+// The collage that heads Pexi's own screens: Pexi on a plinth among the things it prices.
+function collage(ctx, t, t0, cx, cy, k = 1) {
+  ctx.save(); ctx.translate(cx, cy); ctx.scale(k, k);
+  const parts = [
+    [c => illoBlocks(c), 0, 120, 1, 0, 0],
+    [c => illoCoins(c, 4), -175, 60, 0.75, 0, 0.12],
+    [c => illoBag(c, C.cyan, '#1A8CC0', C.brand), 175, 30, 0.85, 0.08, 0.18],
+    [c => illoTag(c, C.fairBright), -150, -120, 0.75, -0.35, 0.24],
+    [c => illoBarcode(c), 160, -140, 0.6, 0.2, 0.3],
+  ];
+  parts.forEach((p, i) => piece(ctx, t, t0, p, i));
+  const q = popS(t, t0 + 0.08, 0.5);
+  if (q > 0) { ctx.save(); ctx.translate(-10, -10 + Math.sin(t * 2) * 6); ctx.scale(q, q); ctx.drawImage(IMG.bluntDelighted, -105, -105, 210, 210); ctx.restore(); }
+  sparkle(ctx, -40, -170, 22 * popS(t, t0 + 0.4), '#fff', t * 0.5);
+  diamond(ctx, 70, -190, 14 * popS(t, t0 + 0.45), C.walk, 0);
+  sparkle(ctx, 230, 120, 16 * popS(t, t0 + 0.5), NAVY, 0);
+  ctx.restore();
+}
 
 // ---------- scenes ----------
-// A. "Introducing", small and white on black.
+// A. "Introducing" then the wordmark, Pexi hopping up beside it.
 function intro(ctx, t) {
   field(ctx, C.night);
-  line1(ctx, 'Introducing', 540, 990, FONTS.head(76), '#fff', t, 0.1);
+  line1(ctx, 'Introducing', 540, 830, FONTS.head(84), '#fff', t, 0.25);
+  const g = eExpo((t - 1.0) / 0.7);
+  if (g > 0.01) {
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 860, W, 330); ctx.clip();
+    ctx.translate(0, (1 - g) * 260); logo(ctx, 540, 1040, 250); ctx.restore();
+  }
+  const q = popS(t, 1.6, 0.5);
+  if (q > 0) { ctx.save(); ctx.translate(540, 1370); ctx.scale(q, q); ctx.rotate(Math.sin(t * 2.4) * 0.05); ctx.drawImage(IMG.bluntDelighted, -110, -110, 220, 220); ctx.restore(); if (q > 0.6) reg(ctx, 'face', 'mascot', 440, 1270, 640, 1470); }
+  sparkle(ctx, 300, 1250, 30 * popS(t, 1.8), C.brand, t);
+  sparkle(ctx, 790, 1320, 22 * popS(t, 1.9), C.fairBright, t);
 }
-// B. A phone on pink, cropped by the frame, Pexi's faces as its wallpaper, a notification dropping in.
-const WALL = [['bluntDelighted', 150, 260, 230, -0.2], ['warmWalk', 400, 170, 200, 0.15], ['deadpanPleased', 330, 440, 260, 0.05], ['bluntAngry', 110, 560, 170, 0.25], ['warmDelighted', 450, 640, 190, -0.15], ['deadpanWalk', 200, 820, 210, 0.1]];
+// B. A phone on amber, cropped by the frame, its wallpaper the collage, a notification dropping in.
 function notif(ctx, t) {
   const tl = t - T.notif;
-  field(ctx, C.brand);
-  const p = eExpo(tl / 0.7);
-  tiltPhone(ctx, lerp(760, 640, p), lerp(1500, 860, p), 1.35, 0.1, 0, (s) => {
+  field(ctx, C.fair);
+  const p = eExpo(tl / 0.9);
+  tiltPhone(ctx, lerp(760, 640, p), lerp(1500, 900, p) + drift(t), 1.35, 0.1, 0, (s) => {
     ctx.fillStyle = '#FF8DB5'; ctx.fillRect(0, 0, s.w, s.h);
-    WALL.forEach(([k, x, y, sz, r], i) => {
-      const q = popS(t, T.notif + 0.15 + i * 0.06);
-      if (q > 0) { ctx.save(); ctx.translate(x, y); ctx.rotate(r + Math.sin(t * 2 + i) * 0.04); ctx.scale(q, q); ctx.drawImage(IMG[k], -sz / 2, -sz / 2, sz, sz); ctx.restore(); }
-    });
-    [[60, 120, 26, C.fairBright], [480, 340, 20, '#fff'], [90, 420, 18, C.cyan], [470, 900, 24, C.fairBright]].forEach(([x, y, r, c], i) => sparkle(ctx, x, y, r * popS(t, T.notif + 0.4 + i * 0.05), c, t));
-    // the notification
-    const n = eBack((t - T.notif - 0.55) / 0.45, 1.6);
+    txt(ctx, '9:41', 60, 64, FONTS.ui(30, 600), '#fff');
+    collage(ctx, t, T.notif + 0.3, s.w / 2, 520, 1.0);
+    const n = eBack((t - T.notif - 1.1) / 0.5, 1.6);
     if (n > 0) {
-      ctx.save(); ctx.translate(s.w / 2, 990); ctx.scale(n, n);
+      ctx.save(); ctx.translate(s.w / 2, 930); ctx.scale(n, n);
       ctx.shadowColor = 'rgba(80,0,30,.25)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
-      rr(ctx, -250, -62, 500, 124, 30); ctx.fillStyle = 'rgba(255,255,255,.96)'; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-      rr(ctx, -228, -40, 80, 80, 20); ctx.fillStyle = C.brand; ctx.fill();
+      rr(ctx, -250, -62, 500, 124, 30); ctx.fillStyle = 'rgba(255,255,255,.97)'; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
       ctx.save(); rr(ctx, -228, -40, 80, 80, 20); ctx.clip(); ctx.drawImage(IMG.icon, -228, -40, 80, 80); ctx.restore();
       txt(ctx, 'Pexi', -130, -6, FONTS.ui(32, 700), C.inkDark);
       txt(ctx, 'That price is a joke.', -130, 34, FONTS.ui(28, 500), C.mutedDark);
@@ -382,20 +481,67 @@ function notif(ctx, t) {
     }
   });
 }
-// C. The real verdict sheet on a white field; a black card lifts out of it, tilted.
+// C. The reference's "Your new money app": the headline off both edges, the phone under it
+// showing Pexi's welcome screen, illustration on top, words and a button below.
+function headline1(ctx, t) {
+  const tl = t - T.head1;
+  field(ctx, C.cyan);
+  bleedHead(ctx, 'Your new', 'price pal', 470, 230, t, T.head1 + 0.1, NAVY);
+  const p = eExpo((tl - 0.2) / 0.9);
+  tiltPhone(ctx, 540, lerp(2200, 1470, p) + drift(t), 0.98, 0, 0, (s) => {
+    ctx.fillStyle = '#FF8DB5'; ctx.fillRect(0, 0, s.w, s.h);
+    txt(ctx, 'Hey, I\'m Pexi', 40, 170, FONTS.head(56), '#fff');
+    collage(ctx, t, T.head1 + 0.7, s.w / 2, 460, 0.95);
+    txt(ctx, 'Scan anything. I\'ll tell you', 40, 720, FONTS.ui(32, 600), '#fff');
+    txt(ctx, 'if the price is right.', 40, 764, FONTS.ui(32, 600), '#fff');
+    rr(ctx, 40, 820, s.w - 80, 96, 22); ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+    illoGlassMini(ctx, 92, 868); txt(ctx, 'Point at a price tag', 140, 879, FONTS.ui(30, 500), '#fff');
+    rr(ctx, 40, 950, s.w - 80, 104, 26); ctx.fillStyle = NAVY; ctx.fill();
+    txt(ctx, 'Start scanning', s.w / 2, 1014, FONTS.ui(34, 700), '#fff', 'center');
+  });
+}
+function illoGlassMini(ctx, x, y) { ctx.save(); ctx.translate(x, y); ctx.scale(0.3, 0.3); illoGlass(ctx); ctx.restore(); }
+// D. One object on white, popping in with the illustrations round it.
+function object(ctx, t) {
+  const tl = t - T.obj;
+  field(ctx, '#fff');
+  const q = popS(t, T.obj, 0.55);
+  ctx.save(); ctx.translate(540, 980 + drift(t) * 0.6); ctx.scale(q, q); ctx.rotate(Math.sin(tl * 2) * 0.03); sneaker(ctx, 0, 0, 1.05); ctx.restore();
+  [[c => illoTag(c, C.fairBright, '$'), 300, 700, 1.2, -0.3, 0.25], [c => illoGlass(c), 800, 720, 1.0, 0.2, 0.35]].forEach((p, i) => piece(ctx, t, T.obj, p, i));
+  [[230, 1180, 40, NAVY], [860, 1200, 30, C.good], [820, 560, 26, C.brand]].forEach(([x, y, r, c], i) =>
+    sparkle(ctx, x, y, r * popS(t, T.obj + 0.3 + i * 0.1), c, Math.sin(t * 2 + i) * 0.2));
+  diamond(ctx, 250, 1420, 18 * popS(t, T.obj + 0.5), C.walk);
+  if (q > 0.6) reg(ctx, 'face', 'shoe', 200, 780, 880, 1130);
+}
+// E. "Scan" on pink, the camera finding the shoe, the cursor tapping the shutter, the sheet rising.
+function scanScene(ctx, t) {
+  const tl = t - T.scan;
+  field(ctx, C.brand);
+  wordHead(ctx, 'Scan', 520, 260, t, T.scan + 0.1, '#fff');
+  const p = eExpo((tl - 0.2) / 0.9);
+  const shut = T.scan + 1.5, cy = lerp(2200, 1300, p) + drift(t);
+  tiltPhone(ctx, 540, cy, 0.9, 0, 0, (s) => {
+    cameraFeed(ctx, s, t, t < shut);
+    if (t >= shut) {
+      const f = clamp(1 - (t - shut) / 0.3); ctx.fillStyle = `rgba(255,255,255,${0.9 * f})`; ctx.fillRect(0, 0, s.w, s.h);
+      const r = eExpo((t - shut - 0.25) / 0.7), img = IMG.sheetBad, k = s.w / img.width;
+      ctx.fillStyle = `rgba(11,12,14,${0.35 * r})`; ctx.fillRect(0, 0, s.w, s.h);
+      ctx.drawImage(img, 0, (1 - r) * s.h * 0.7, s.w, img.height * k);
+    }
+  });
+  const [sx, sy] = [540, cy + (PH.h / 2 - 120) * 0.9];
+  const [x, y] = path2([[T.scan + 0.6, 980, 1800], [T.scan + 1.3, sx + 6, sy - 4]], t);
+  if (tl > 0.55 && t < shut + 0.6) cursor(ctx, x, y, t, [shut]);
+}
+// F. The real verdict sheet on white; a black card lifts out of it, tilted.
 function verdictPop(ctx, t) {
   const tl = t - T.pop;
   field(ctx, '#fff');
-  const p = eExpo(tl / 0.6);
-  tiltPhone(ctx, 540, lerp(1500, 1080, p), 0.92, 0, 0, (s) => {
-    cameraFeed(ctx, s, t, false);
-    ctx.fillStyle = 'rgba(11,12,14,.35)'; ctx.fillRect(0, 0, s.w, s.h);
-    const img = IMG.sheetBad, k = s.w / img.width; ctx.drawImage(img, 0, 0, s.w, img.height * k);
-  });
-  // the card
-  const q = eBack((tl - 0.35) / 0.5, 1.5);
+  const push = lerp(1, 1.04, clamp(tl / 3));
+  tiltPhone(ctx, 540, 1080 + drift(t), 0.92 * push, 0, 0, (s) => sheetScreen(ctx, s, t, IMG.sheetBad, (s) => cameraFeed(ctx, s, t, false)));
+  const q = eBack((tl - 0.5) / 0.6, 1.5);
   if (q > 0) {
-    ctx.save(); ctx.translate(540, 760); ctx.rotate(lerp(0, -0.07, q)); ctx.scale(lerp(0.7, 0.95, q), lerp(0.7, 0.95, q));
+    ctx.save(); ctx.translate(540, 760 + drift(t, 2) * 0.5); ctx.rotate(lerp(0, -0.07, q)); ctx.scale(lerp(0.7, 0.95, q), lerp(0.7, 0.95, q));
     ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 30;
     rr(ctx, -380, -150, 760, 300, 34); ctx.fillStyle = '#16161A'; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     txt(ctx, 'Running shoes', -330, -70, FONTS.ui(40, 600), '#fff');
@@ -406,17 +552,19 @@ function verdictPop(ctx, t) {
     reg(ctx, 'text', 'verdict card', -380, -150, 380, 150);
     ctx.restore();
   }
+  // Blunt says it out loud
+  const b = eBack((tl - 1.4) / 0.5, 1.6);
+  if (b > 0) {
+    ctx.save(); ctx.translate(700, 1560); ctx.scale(b, b);
+    ctx.font = FONTS.ui(44, 700); const w = ctx.measureText('"Hard pass."').width + 70;
+    ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    rr(ctx, -w / 2, -50, w, 100, 50); ctx.fillStyle = C.walk; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('"Hard pass."', 0, 15);
+    reg(ctx, 'text', 'Hard pass', -w / 2, -50, w / 2, 50);
+    ctx.restore();
+  }
 }
-// D. One object on white, popping in with sparkles round it.
-function object(ctx, t) {
-  const tl = t - T.obj;
-  field(ctx, '#fff');
-  const q = popS(t, T.obj, 0.45);
-  ctx.save(); ctx.translate(540, 960); ctx.scale(q, q); ctx.rotate(Math.sin(tl * 3) * 0.04); sneaker(ctx, 0, 0, 1.05); ctx.restore();
-  [[240, 760, 46, C.inkDark], [860, 780, 30, C.good], [820, 1180, 40, C.brand], [300, 1160, 26, C.fair]].forEach(([x, y, r, c], i) =>
-    sparkle(ctx, x, y, r * popS(t, T.obj + 0.15 + i * 0.07), c, Math.sin(t * 2 + i) * 0.2));
-}
-// E. A list of scans on an amber phone, cards stacked like the reference's budgets.
+// G. A list of scans on a red field, cards stacked like the reference's budgets.
 const SCANS = [
   { name: 'Running shoes', price: '$180', v: 'bad', card: '#fff', ink: C.inkDark, item: (c) => sneaker(c, 120, 92, 0.33) },
   { name: 'Headphones', price: '$119', v: 'great', card: '#16161A', ink: '#fff', item: (c) => headphones(c, 120, 70, 0.3) },
@@ -424,13 +572,13 @@ const SCANS = [
 ];
 function list(ctx, t) {
   const tl = t - T.list;
-  field(ctx, C.fair);
-  const p = eExpo(tl / 0.6);
-  tiltPhone(ctx, 560, lerp(1700, 1120, p), 1.05, -0.05, 0.08 * (1 - p) + 0.02, (s) => {
-    ctx.fillStyle = C.brand; ctx.fillRect(0, 0, s.w, s.h);
-    screenTitle(ctx, s, 'Recent scans', '#fff', 'rgba(255,255,255,.25)');
+  field(ctx, C.walk);
+  const p = eExpo(tl / 0.8);
+  tiltPhone(ctx, 560, lerp(1800, 1060, p) + drift(t), 1.05, -0.05, 0.08 * (1 - p) + 0.02, (s) => {
+    ctx.fillStyle = '#FFE3EC'; ctx.fillRect(0, 0, s.w, s.h);
+    screenTitle(ctx, s, 'Recent scans', C.inkDark, C.brand);
     SCANS.forEach((c, i) => {
-      const q = eExpo((tl - 0.25 - i * 0.12) / 0.5), y = 200 + i * 300 + (1 - q) * 300;
+      const q = eExpo((tl - 0.35 - i * 0.2) / 0.6), y = 200 + i * 300 + (1 - q) * 300;
       ctx.save(); ctx.globalAlpha = clamp(q * 1.5);
       rr(ctx, 26, y, s.w - 52, 270, 30); ctx.fillStyle = c.card; ctx.fill();
       ctx.save(); ctx.translate(26, y + 30); c.item(ctx); ctx.restore();
@@ -442,23 +590,11 @@ function list(ctx, t) {
     });
   });
 }
-// F. The headline on red, the phone rising under it with the real sheet.
-function headline1(ctx, t) {
-  const tl = t - T.head1;
-  field(ctx, C.walk);
-  bigHead(ctx, 'Your new', 'price checker', 470, 170, t, T.head1 + 0.05);
-  const p = eExpo((tl - 0.1) / 0.7);
-  tiltPhone(ctx, 540, lerp(2100, 1430, p), 0.95, 0, 0, (s) => {
-    cameraFeed(ctx, s, t, false);
-    ctx.fillStyle = 'rgba(11,12,14,.35)'; ctx.fillRect(0, 0, s.w, s.h);
-    const img = IMG.sheetBad, k = s.w / img.width; ctx.drawImage(img, 0, 0, s.w, img.height * k);
-  });
-}
-// G. The three Pexis as cards, stacked and floating in 3D on white.
+// H. The three Pexis as cards, stacked and floating in 3D on white.
 const VOICES = [
-  { who: 'Deadpan', tag: 'Dry and exact', face: 'deadpanWalk', fill: C.fair, on: C.fairOn, sub: '#7A4B00' },
-  { who: 'Warm', tag: 'Kind, never pushy', face: 'warmWalk', fill: C.brand, on: '#fff', sub: '#FFD6E4' },
-  { who: 'Blunt', tag: 'No filter at all', face: 'bluntWalk', fill: C.cyan, on: C.navy, sub: '#0A4A66' },
+  { who: 'Deadpan', tag: 'Dry and exact', face: 'deadpanWalk', fill: C.fair, on: C.fairOn, sub: '#5C3800', line: '"Two dollars. It\'s $1.47."' },
+  { who: 'Warm', tag: 'Kind, never pushy', face: 'warmWalk', fill: C.brand, on: '#fff', sub: '#FFD6E4', line: '"Ooh, that\'s steep. I\'d wait."' },
+  { who: 'Blunt', tag: 'No filter at all', face: 'bluntWalk', fill: C.cyan, on: C.navy, sub: '#0A4A66', line: '"That price is a joke."' },
 ];
 function voiceCard(ctx, v, w, h) {
   rr(ctx, -w / 2, -h / 2, w, h, 30); ctx.fillStyle = v.fill; ctx.fill();
@@ -470,112 +606,106 @@ function voiceCard(ctx, v, w, h) {
 function stack(ctx, t) {
   const tl = t - T.stack;
   field(ctx, '#fff');
+  wordHead(ctx, 'Three moods', 470, 120, t, T.stack + 0.1, NAVY);
   VOICES.forEach((v, i) => {
-    const q = eExpo((tl - i * 0.1) / 0.6), y = 700 + i * 250 + (1 - q) * 500, x = 530 + (1 - q) * 120;
+    const q = eExpo((tl - 0.2 - i * 0.15) / 0.8), y = 820 + i * 250 + (1 - q) * 500, x = 530 + (1 - q) * 120;
     ctx.save(); ctx.globalAlpha = clamp(q * 2);
-    // the soft shadow each card throws to the lower left
     ctx.save(); ctx.translate(x - 60, y + 60); ctx.transform(1, -0.32, 0, 1, 0, 0); rr(ctx, -360, -100, 720, 200, 30); ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.fill(); ctx.restore();
-    ctx.translate(x, y + Math.sin(t * 2 + i) * 6); ctx.transform(1, -0.32, 0, 1, 0, 0);
+    ctx.translate(x, y + Math.sin(t * 1.6 + i) * 8); ctx.transform(1, -0.32, 0, 1, 0, 0);
     voiceCard(ctx, v, 720, 200);
     ctx.restore();
-    if (q > 0.6) reg(ctx, 'text', v.who, x - 360, y - 215, x + 360, y + 215);
+    if (q > 0.9) reg(ctx, 'text', v.who, x - 360, y - 215, x + 360, y + 215);
   });
 }
-// H. The same cards inside the app's picker, the cursor choosing Blunt.
+// I. The app's picker: the cursor tries each Pexi in turn, each one says its line.
 function picker(ctx, t) {
   const tl = t - T.picker;
   field(ctx, '#F1F1F4');
-  const tap = T.picker + 0.75;
-  tiltPhone(ctx, 540, 1000, 1.0, 0, 0, (s) => {
+  const taps = [T.picker + 0.7, T.picker + 1.5, T.picker + 2.3];
+  const sel = taps.filter(ta => t >= ta).length - 1;
+  const PCY = 1080;
+  tiltPhone(ctx, 540, PCY, 0.92, 0, 0, (s) => {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, s.w, s.h);
     screenTitle(ctx, s, 'Pick your Pexi', C.inkDark, C.brand);
     txt(ctx, 'How should it talk to you?', 34, 220, FONTS.ui(28, 500), C.mutedDark);
     VOICES.forEach((v, i) => {
-      const q = eExpo((tl - 0.05 - i * 0.08) / 0.5), y = 400 + i * 245;
+      const q = eExpo((tl - 0.05 - i * 0.1) / 0.6), y = 400 + i * 245;
       ctx.save(); ctx.globalAlpha = clamp(q * 1.5); ctx.translate(s.w / 2 + (1 - q) * 300, y);
-      const sel = i === 2 && t >= tap;
-      if (sel) { rr(ctx, -246, -111, 492, 222, 36); ctx.lineWidth = 8; ctx.strokeStyle = C.inkDark; ctx.stroke(); }
+      if (i === sel) { rr(ctx, -246, -111, 492, 222, 36); ctx.lineWidth = 8; ctx.strokeStyle = C.inkDark; ctx.stroke(); }
       ctx.scale(0.66, 1.0); voiceCard(ctx, v, 720, 200);
       ctx.restore();
     });
-    ctx.save(); ctx.font = FONTS.ui(30, 500); ctx.restore();
     txt(ctx, 'See all moods', s.w / 2, 1120, FONTS.ui(28, 500), C.mutedDark, 'center');
   });
-  const [x, y] = path2([[T.picker + 0.1, 980, 1780], [T.picker + 0.6, 700, 1390]], t);
-  if (tl > 0.05) cursor(ctx, x, y, t, [tap]);
+  // its line, in a bubble above the phone
+  if (sel >= 0) {
+    const v = VOICES[sel], b = eBack((t - taps[sel] - 0.05) / 0.4, 1.6);
+    ctx.save(); ctx.translate(540, 380); ctx.scale(b, b);
+    ctx.font = FONTS.ui(46, 700); const w = ctx.measureText(v.line).width + 80;
+    ctx.shadowColor = 'rgba(0,0,0,.14)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    rr(ctx, -w / 2, -55, w, 110, 55); ctx.fillStyle = v.fill; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    ctx.beginPath(); ctx.moveTo(-20, 52); ctx.lineTo(0, 80); ctx.lineTo(20, 52); ctx.fill();
+    ctx.fillStyle = v.on; ctx.textAlign = 'center'; ctx.fillText(v.line, 0, 16);
+    ctx.restore();
+    if (b > 0.9) reg(ctx, 'text', v.line, 540 - w / 2, 325, 540 + w / 2, 435);
+  }
+  // card centres on screen: phone top + (y in screen) * 0.92
+  const top = PCY - PH.h * 0.92 / 2, ys = [400, 645, 890].map(y => top + y * 0.92);
+  const pts = [[T.picker + 0.1, 980, 1800]];
+  ys.forEach((y, i) => { pts.push([taps[i] - 0.15, 700, y + 20]); pts.push([taps[i] + 0.3, 700, y + 20]); });
+  const [x, y] = path2(pts, t);
+  if (tl > 0.05) cursor(ctx, x, y, t, taps);
 }
-// I. "Scan" on cyan, the camera finding the shoe, the cursor tapping the shutter.
-function scanScene(ctx, t) {
-  const tl = t - T.scan;
-  field(ctx, C.cyan);
-  bigHead(ctx, 'Scan', null, 470, 230, t, T.scan + 0.05, C.navy);
-  const p = eExpo((tl - 0.1) / 0.7);
-  const shut = T.scan + 0.85;
-  tiltPhone(ctx, 540, lerp(2100, 1260, p), 0.9, 0, 0, (s) => {
-    cameraFeed(ctx, s, t, true);
-    if (t >= shut) { const f = clamp(1 - (t - shut) / 0.25); ctx.fillStyle = `rgba(255,255,255,${0.9 * f})`; ctx.fillRect(0, 0, s.w, s.h); }
-  });
-  const [sx, sy] = [540, 1260 + (PH.h / 2 - 120) * 0.9];
-  const [x, y] = path2([[T.scan + 0.35, 980, 1800], [T.scan + 0.75, sx + 6, sy - 4]], t);
-  if (tl > 0.3) cursor(ctx, x, y, t, [shut]);
-}
-// J. Things people scan, as pills tumbling down and piling up.
+// J. Things people scan, as pills tumbling down and piling up on amber.
 const PILLS = [
   ['Sneakers', C.brand, '#fff', 360, 520, -0.35], ['Headphones', '#16161A', '#fff', 690, 640, 0.25],
-  ['Skincare', C.cyan, C.navy, 380, 830, 0.18], ['Snacks', C.fair, C.fairOn, 760, 930, -0.3],
-  ['Toys', C.good, C.goodOn, 290, 1060, -0.12], ['Tools', C.walk, '#fff', 560, 1200, 0.3],
-  ['Gaming', '#FFC24D', C.fairOn, 740, 1420, -0.22], ['Coffee', C.navy, '#fff', 350, 1460, 0.15],
+  ['Skincare', C.cyan, C.navy, 380, 830, 0.18], ['Snacks', '#fff', C.inkDark, 760, 930, -0.3],
+  ['Toys', C.good, C.goodOn, 285, 1010, -0.12], ['Tools', C.walk, '#fff', 560, 1200, 0.3],
+  ['Gaming', C.navy, '#fff', 740, 1420, -0.22], ['Coffee', '#fff', C.walk, 420, 1480, 0.15],
 ];
 function tumble(ctx, t) {
   const tl = t - T.tumble;
-  field(ctx, '#fff');
+  field(ctx, C.fair);
   PILLS.forEach(([word, fill, on, x, y, rot], i) => {
-    const q = eBack((tl - i * 0.06) / 0.55, 1.3);
+    const q = eBack((tl - i * 0.09) / 0.7, 1.3);
     if (q <= 0) return;
-    const yy = lerp(-200, y, q), r = lerp(rot - 1.6, rot, eOut((tl - i * 0.06) / 0.6));
+    const yy = lerp(-200, y, q) + (q >= 1 ? Math.sin(t * 1.6 + i) * 5 : 0), r = lerp(rot - 1.6, rot, eOut((tl - i * 0.09) / 0.75));
     ctx.save(); ctx.translate(x, yy); ctx.rotate(r);
     ctx.font = FONTS.head(60); const w = ctx.measureText(word).width + 90, h = 116;
-    rr(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = fill; ctx.fill();
-    if (fill === '#16161A') { ctx.lineWidth = 6; ctx.strokeStyle = C.good; ctx.stroke(); }
+    rr(ctx, -w / 2, -h / 2, w, h, h / 2); ctx.fillStyle = fill; ctx.fill(); outline(ctx, 5);
     ctx.fillStyle = on; ctx.textAlign = 'center'; ctx.fillText(word, 0, 21);
     if (q > 0.95) reg(ctx, 'text', word, -w / 2, -h / 2, w / 2, h / 2);
     ctx.restore();
   });
-  [[200, 400, 30, C.fair], [880, 470, 24, C.brand], [940, 1100, 34, C.cyan], [170, 1300, 26, C.good]].forEach(([x, y, r, c], i) => sparkle(ctx, x, y, r * popS(t, T.tumble + 0.4 + i * 0.06), c, t * 0.6));
+  [[200, 400, 30, '#fff'], [880, 470, 24, C.brand], [940, 1100, 34, NAVY], [170, 1300, 26, '#fff']].forEach(([x, y, r, c], i) => sparkle(ctx, x, y, r * popS(t, T.tumble + 0.6 + i * 0.08), c, t * 0.6));
 }
-// K. "Scan anything" on green, the real great-price sheet.
+// K. "Scan anything" off both edges on green, the real great-price sheet.
 function headline2(ctx, t) {
   const tl = t - T.head2;
   field(ctx, C.good);
-  bigHead(ctx, 'Scan', 'anything', 470, 190, t, T.head2 + 0.05, C.goodOn);
-  const p = eExpo((tl - 0.1) / 0.7);
-  tiltPhone(ctx, 540, lerp(2100, 1430, p), 0.95, 0, 0, (s) => {
-    ctx.fillStyle = '#DCE6EE'; ctx.fillRect(0, 0, s.w, s.h);
-    headphones(ctx, s.w / 2, s.h * 0.3, 0.75);
-    ctx.fillStyle = 'rgba(11,12,14,.35)'; ctx.fillRect(0, 0, s.w, s.h);
-    const img = IMG.sheetGreat, k = s.w / img.width; ctx.drawImage(img, 0, 0, s.w, img.height * k);
-  });
+  bleedHead(ctx, 'Scan', 'anything', 470, 240, t, T.head2 + 0.1, C.goodOn);
+  const p = eExpo((tl - 0.2) / 0.9);
+  tiltPhone(ctx, 540, lerp(2200, 1470, p) + drift(t), 0.95, 0, 0, (s) => sheetScreen(ctx, s, t, IMG.sheetGreat, (s) => {
+    ctx.fillStyle = '#DCE6EE'; ctx.fillRect(0, 0, s.w, s.h); headphones(ctx, s.w / 2, s.h * 0.3, 0.75);
+  }));
+  const b = eBack((tl - 1.3) / 0.5, 1.6);
+  if (b > 0) {
+    ctx.save(); ctx.translate(380, 870); ctx.rotate(-0.06); ctx.scale(b, b);
+    ctx.font = FONTS.ui(44, 700); const w = ctx.measureText('"Somebody made a mistake."').width + 70;
+    ctx.shadowColor = 'rgba(0,0,0,.18)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    rr(ctx, -w / 2, -50, w, 100, 50); ctx.fillStyle = '#fff'; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.fillStyle = C.goodOn; ctx.textAlign = 'center'; ctx.fillText('"Somebody made a mistake."', 0, 15);
+    ctx.restore();
+  }
 }
-// L. The same words, the field flips to pink, the phone shows the launch screen.
-function splash(ctx, t) {
-  const tl = t - T.splash;
-  field(ctx, C.brand);
-  bigHead(ctx, 'Scan', 'anything', 470, 190, t, -10, '#fff');
-  tiltPhone(ctx, 540, 1430, 0.95, 0, 0, (s) => {
-    ctx.fillStyle = C.night; ctx.fillRect(0, 0, s.w, s.h);
-    const q = popS(t, T.splash + 0.1, 0.45);
-    ctx.save(); ctx.translate(s.w / 2, 480); ctx.scale(q, q); ctx.drawImage(IMG.bluntDelighted, -110, -110, 220, 220); ctx.restore();
-    if (tl > 0.25) logo(ctx, s.w / 2, 680, 96);
-  });
-}
-// M. The end card: Pexi and the wordmark side by side, one line, on black.
+// L. The end card: Pexi and the wordmark side by side, one line, on black.
 function end(ctx, t) {
   const tl = t - T.end;
   field(ctx, C.night);
-  const q = popS(t, T.end + 0.05, 0.5);
+  const q = popS(t, T.end + 0.1, 0.6);
   ctx.save(); ctx.translate(330, 930); ctx.scale(q, q); ctx.rotate(Math.sin(tl * 2.4) * 0.05); ctx.drawImage(IMG.bluntDelighted, -120, -120, 240, 240); ctx.restore();
   if (q > 0.5) reg(ctx, 'face', 'mascot', 230, 830, 430, 1030);
-  const g = eExpo((tl - 0.2) / 0.5);
+  const g = eExpo((tl - 0.35) / 0.6);
   if (g > 0.01) {
     ctx.save(); ctx.globalAlpha = g; ctx.translate((1 - g) * 40, 0);
     ctx.font = FONTS.ui(150, 700); ctx.letterSpacing = `${-0.035 * 150}px`;
@@ -583,18 +713,19 @@ function end(ctx, t) {
     logo(ctx, 480 + w / 2, 900, 150);
     ctx.restore();
   }
-  line1(ctx, "Know if it's a rip-off.", 668, 1010, FONTS.ui(42, 500), C.muted, t, T.end + 0.45);
-  line1(ctx, '@pexi.app', 540, 1540, FONTS.mono(34), C.ink, t, T.end + 0.9);
+  line1(ctx, "Know if it's a rip-off.", 668, 1010, FONTS.ui(42, 500), C.muted, t, T.end + 0.7);
+  sparkle(ctx, 860, 760, 26 * popS(t, T.end + 1.0), C.brand, t * 0.5);
+  sparkle(ctx, 210, 1110, 20 * popS(t, T.end + 1.1), C.fairBright, t * 0.5);
+  line1(ctx, '@pexi.app', 540, 1540, FONTS.mono(34), C.ink, t, T.end + 1.2);
 }
 
 // ---------- the timeline ----------
 // Hard cuts on the beat, like the reference: a scene change is a new colour field, not a fade.
 const SCENES = [
-  { start: T.intro, draw: intro }, { start: T.notif, draw: notif }, { start: T.pop, draw: verdictPop },
-  { start: T.obj, draw: object }, { start: T.list, draw: list }, { start: T.head1, draw: headline1 },
-  { start: T.stack, draw: stack }, { start: T.picker, draw: picker }, { start: T.scan, draw: scanScene },
-  { start: T.tumble, draw: tumble }, { start: T.head2, draw: headline2 }, { start: T.splash, draw: splash },
-  { start: T.end, draw: end },
+  { start: T.intro, draw: intro }, { start: T.notif, draw: notif }, { start: T.head1, draw: headline1 },
+  { start: T.obj, draw: object }, { start: T.scan, draw: scanScene }, { start: T.pop, draw: verdictPop },
+  { start: T.list, draw: list }, { start: T.stack, draw: stack }, { start: T.picker, draw: picker },
+  { start: T.tumble, draw: tumble }, { start: T.head2, draw: headline2 }, { start: T.end, draw: end },
 ];
 function renderFrame(ctx, f, log) {
   LOG = log || null;
