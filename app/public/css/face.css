@@ -39,6 +39,12 @@
   animation-fill-mode: both;
   transform-origin: 50% 50%;
 }
+/* On a verdict field the face sat in its pale disc and ring and inherited the
+   field's white ink, which read as a white silhouette round him. Aurik
+   2026-10-23: just Pexi there, no disc, no ring, his own navy outline. */
+.sheet.verdict .face { color: var(--face-ink); }
+.sheet.verdict .face .face-disc,
+.sheet.verdict .face .face-ring { display: none; }
 
 /* Inner groups scale and tilt about their own centre, not the viewBox origin.
    Without this, a `scaleY` blink slides the eyes to the top of the face. */
