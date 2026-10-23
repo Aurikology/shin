@@ -21,6 +21,9 @@ const svg = (rel) => fs.readFileSync(path.join(app, rel), 'utf8');
 // The ad shows Pexi on its own: the pale disc and the outline ring the app draws round him are removed.
 const bare = (rel) => svg(rel).replace(/<circle class="face-disc"[^>]*\/>/, '').replace(/<circle class="face-ring"[^>]*\/>/, '');
 
+// Studio shots of the scanned things, generated in Gemini, backgrounds cut out with rembg.
+const PRODUCTS = Object.fromEntries(['shoe', 'headphones', 'serum'].map(n => [n, b64(path.join(here, 'products', n + '.png'))]));
+
 const sheetPng = path.join(out, 'sheet-bad-shoes.png');
 if (!fs.existsSync(sheetPng)) { console.error(`missing ${sheetPng}: run sheet.mjs first`); process.exit(1); }
 
@@ -55,6 +58,7 @@ window.boot = (async () => {
   const imgs = {};
   for (const [k, s] of Object.entries(svgs)) imgs[k] = await load('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(s))));
   imgs.sheet = await load('data:image/png;base64,${b64(sheetPng)}');
+  for (const n of ['shoe', 'headphones', 'serum']) imgs[n] = await load('data:image/png;base64,' + ${JSON.stringify(PRODUCTS)}[n]);
   LAUNCH.setImages(imgs);
   window.ctx = document.getElementById('c').getContext('2d');
   return document.fonts.check("800 100px 'Bricolage Grotesque'") && document.fonts.check("600 40px 'Instrument Sans'") && document.fonts.check("600 30px 'IBM Plex Mono'") && document.fonts.check("800 30px 'Inter Tight'");

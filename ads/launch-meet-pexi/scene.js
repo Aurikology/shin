@@ -186,124 +186,39 @@ function neonRing(ctx, cx, cy, r, p, col = C.brand, wobble = 0, t = 0) {
   }
   ctx.restore();
 }
-// Three things people actually scan, drawn to look like objects rather than icons:
-// soft gradients, a highlight, a contact shadow, no outlines, no brand anywhere.
+// Three things people actually scan, as studio product shots (products/*.png: generated in
+// Gemini, unbranded, background cut out). Each keeps the footprint the old drawings had, so
+// every call site still places it the same way: (cx, cy) is the object's centre at s = 1.
 function contactShadow(ctx, y, w, a = 0.26) {
   ctx.save(); ctx.translate(0, y); ctx.scale(1, 0.13);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, w);
   g.addColorStop(0, `rgba(20,20,45,${a})`); g.addColorStop(1, 'rgba(20,20,45,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, w, 0, 7); ctx.fill(); ctx.restore();
 }
-// A running shoe, side on, toe to the right. About 610 x 290 at s = 1.
+// Draw a cut-out photo h px tall with its top at y, centred on x.
+function product(ctx, img, x, y, h) {
+  const w = h * img.width / img.height;
+  ctx.drawImage(img, x - w / 2, y, w, h);
+}
+// A leather sneaker, side on, toe to the right. About 640 x 288 at s = 1.
 function sneaker(ctx, cx, cy, s) {
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
-  contactShadow(ctx, 122, 330);
-  const upper = () => {
-    ctx.beginPath(); ctx.moveTo(-270, 44);
-    ctx.bezierCurveTo(-294, -10, -284, -84, -250, -114);
-    ctx.bezierCurveTo(-224, -132, -188, -126, -168, -106);
-    ctx.bezierCurveTo(-138, -82, -98, -80, -70, -102);
-    ctx.lineTo(-52, -152); ctx.bezierCurveTo(-42, -172, -10, -174, 2, -152);
-    ctx.bezierCurveTo(44, -110, 124, -62, 204, -32);
-    ctx.bezierCurveTo(274, -8, 308, 20, 302, 50); ctx.lineTo(-270, 50); ctx.closePath();
-  };
-  const sole = () => {
-    ctx.beginPath(); ctx.moveTo(-292, 38);
-    ctx.bezierCurveTo(-302, 80, -296, 114, -262, 118); ctx.lineTo(232, 118);
-    ctx.bezierCurveTo(292, 118, 320, 92, 314, 52); ctx.bezierCurveTo(302, 38, 262, 36, 200, 42);
-    ctx.lineTo(-150, 44); ctx.bezierCurveTo(-232, 42, -282, 28, -292, 38); ctx.closePath();
-  };
-  // the opening, seen past the collar
-  ctx.beginPath(); ctx.moveTo(-170, -104); ctx.bezierCurveTo(-140, -122, -96, -124, -68, -104); ctx.bezierCurveTo(-98, -86, -140, -86, -170, -104); ctx.fillStyle = '#2C2B30'; ctx.fill();
-  // upper
-  let g = ctx.createLinearGradient(0, -170, 0, 50); g.addColorStop(0, '#FBFAF7'); g.addColorStop(1, '#D9D5CC');
-  upper(); ctx.fillStyle = g; ctx.fill();
-  ctx.save(); upper(); ctx.clip();
-  // overlays: heel counter, toe cap, eyestay, in a deep navy suede
-  const suede = ctx.createLinearGradient(0, -150, 0, 50); suede.addColorStop(0, '#2A3A5C'); suede.addColorStop(1, '#17223A');
-  ctx.fillStyle = suede;
-  ctx.beginPath(); ctx.moveTo(-300, 60); ctx.lineTo(-300, -140); ctx.bezierCurveTo(-230, -120, -190, -40, -200, 60); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(320, 60); ctx.lineTo(320, -40); ctx.bezierCurveTo(250, -40, 200, 0, 190, 60); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(-60, -160); ctx.bezierCurveTo(10, -120, 110, -60, 210, -24); ctx.lineTo(196, 8); ctx.bezierCurveTo(100, -30, 10, -84, -70, -122); ctx.closePath(); ctx.fill();
-  // two side lines, stitched: generic, nobody's mark
-  ctx.setLineDash([9, 7]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(30,40,70,.35)';
-  for (const d of [0, 18]) { ctx.beginPath(); ctx.moveTo(-190, 20 - d); ctx.bezierCurveTo(-80, -10 - d, 60, -20 - d, 180, 14 - d); ctx.stroke(); }
-  ctx.setLineDash([]);
-  // soft top light
-  const hl = ctx.createLinearGradient(0, -170, 0, -40); hl.addColorStop(0, 'rgba(255,255,255,.35)'); hl.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = hl; ctx.fillRect(-300, -180, 620, 140);
-  ctx.restore();
-  // laces
-  for (let i = 0; i < 6; i++) {
-    const x = -28 + i * 38, y = -132 + i * 21;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(0.5);
-    rr(ctx, -22, -6, 44, 12, 6); ctx.fillStyle = '#FFFFFF'; ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 2; ctx.fill();
-    ctx.restore();
-  }
-  // pull tab
-  rr(ctx, -268, -138, 26, 52, 8); ctx.fillStyle = '#E5E1D8'; ctx.fill();
-  // midsole and outsole
-  g = ctx.createLinearGradient(0, 36, 0, 118); g.addColorStop(0, '#FFFFFF'); g.addColorStop(1, '#E3E0DA');
-  sole(); ctx.fillStyle = g; ctx.fill();
-  ctx.save(); sole(); ctx.clip();
-  ctx.fillStyle = '#B77D4A'; ctx.fillRect(-320, 100, 660, 30);
-  ctx.fillStyle = 'rgba(0,0,0,.06)'; ctx.fillRect(-320, 92, 660, 8);
-  ctx.restore();
+  contactShadow(ctx, 126, 320);
+  product(ctx, IMG.shoe, 10, -170, 288);
   ctx.restore();
 }
-// Over-ear headphones, front on. About 470 x 500 at s = 1.
+// Over-ear headphones, three-quarter. About 400 x 520 at s = 1.
 function headphones(ctx, cx, cy, s) {
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
-  contactShadow(ctx, 250, 260, 0.35);
-  // headband
-  ctx.lineCap = 'round';
-  let g = ctx.createLinearGradient(-220, -200, 220, 0); g.addColorStop(0, '#E9E3D9'); g.addColorStop(0.5, '#D4CBBD'); g.addColorStop(1, '#B9AE9E');
-  ctx.beginPath(); ctx.arc(0, 30, 205, Math.PI * 1.04, Math.PI * 1.96); ctx.lineWidth = 46; ctx.strokeStyle = g; ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 30, 205, Math.PI * 1.15, Math.PI * 1.85); ctx.lineWidth = 12; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
-  ctx.beginPath(); ctx.arc(0, 30, 182, Math.PI * 1.12, Math.PI * 1.88); ctx.lineWidth = 16; ctx.strokeStyle = '#3A3733'; ctx.stroke();
-  for (const sx of [-1, 1]) {
-    // slider
-    const m = ctx.createLinearGradient(sx * 200 - 10, 0, sx * 200 + 10, 0); m.addColorStop(0, '#9DA3AA'); m.addColorStop(0.5, '#EEF0F2'); m.addColorStop(1, '#8A9097');
-    rr(ctx, sx * 205 - 9, 10, 18, 110, 9); ctx.fillStyle = m; ctx.fill();
-    // cup
-    ctx.save(); ctx.translate(sx * 200, 190);
-    g = ctx.createLinearGradient(-90, -130, 90, 130); g.addColorStop(0, '#EFE9E0'); g.addColorStop(0.55, '#CFC5B6'); g.addColorStop(1, '#A99D8B');
-    ctx.beginPath(); ctx.ellipse(0, 0, 84, 128, 0, 0, 7); ctx.fillStyle = g; ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 14; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-    // cushion on the inner side
-    ctx.beginPath(); ctx.ellipse(-sx * 46, 0, 40, 116, 0, 0, 7); ctx.fillStyle = '#2E2C29'; ctx.fill();
-    ctx.beginPath(); ctx.ellipse(-sx * 40, -10, 18, 80, 0, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fill();
-    // highlight
-    ctx.beginPath(); ctx.ellipse(sx * 28, -50, 22, 56, sx * 0.25, 0, 7); ctx.fillStyle = 'rgba(255,255,255,.4)'; ctx.fill();
-    ctx.restore();
-  }
+  contactShadow(ctx, 330, 230, 0.35);
+  product(ctx, IMG.headphones, 0, -210, 520);
   ctx.restore();
 }
-// A face serum in an amber dropper bottle. About 200 x 470 at s = 1.
+// A face serum in an amber dropper bottle. About 150 x 480 at s = 1.
 function serum(ctx, cx, cy, s) {
   ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s);
-  contactShadow(ctx, 232, 150, 0.32);
-  // bulb
-  let g = ctx.createLinearGradient(-40, 0, 40, 0); g.addColorStop(0, '#26252A'); g.addColorStop(0.35, '#4A4950'); g.addColorStop(1, '#141417');
-  rr(ctx, -38, -250, 76, 120, 38); ctx.fillStyle = g; ctx.fill();
-  // collar, ribbed
-  g = ctx.createLinearGradient(-54, 0, 54, 0); g.addColorStop(0, '#DCDAD5'); g.addColorStop(0.4, '#FFFFFF'); g.addColorStop(1, '#BDB9B2');
-  rr(ctx, -54, -150, 108, 62, 10); ctx.fillStyle = g; ctx.fill();
-  ctx.fillStyle = 'rgba(0,0,0,.07)'; for (let x = -46; x <= 46; x += 8) ctx.fillRect(x, -146, 3, 54);
-  // glass
-  const body = () => rr(ctx, -92, -92, 184, 320, 34);
-  g = ctx.createLinearGradient(-92, 0, 92, 0); g.addColorStop(0, '#8E4A16'); g.addColorStop(0.3, '#C97A30'); g.addColorStop(0.7, '#B5651E'); g.addColorStop(1, '#6E3410');
-  body(); ctx.fillStyle = g; ctx.shadowColor = 'rgba(80,40,10,.35)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = 20; ctx.fill(); ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-  ctx.save(); body(); ctx.clip();
-  ctx.fillStyle = 'rgba(255,190,110,.25)'; ctx.fillRect(-92, 10, 184, 220);
-  ctx.fillStyle = 'rgba(255,255,255,.42)'; rr(ctx, -70, -80, 14, 290, 7); ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,.15)'; rr(ctx, 52, -60, 8, 240, 4); ctx.fill();
-  ctx.restore();
-  // label: plain, no brand
-  rr(ctx, -66, 30, 132, 150, 8); ctx.fillStyle = '#F5F0E7'; ctx.fill();
-  ctx.fillStyle = '#3A2A1C'; ctx.textAlign = 'center';
-  ctx.font = `700 24px 'Inter Tight'`; ctx.letterSpacing = '3px'; ctx.fillText('FACE', 0, 92); ctx.fillText('SERUM', 0, 122);
-  ctx.font = `500 18px 'Inter Tight'`; ctx.letterSpacing = '1px'; ctx.fillStyle = '#8A7B6A'; ctx.fillText('30 mL', 0, 158);
-  ctx.letterSpacing = '0px';
+  contactShadow(ctx, 246, 120, 0.32);
+  product(ctx, IMG.serum, 0, -250, 480);
   ctx.restore();
 }
 // A price tag on a thread, swinging gently.
@@ -480,9 +395,9 @@ function sheet(ctx, t) {
   ctx.restore();
 }
 const RANGE = [
-  { at: T.range, item: 'Wireless headphones', here: '$249', normal: '$179', word: 'Bad price', fill: C.walk, on: '#FFFFFF', bright: C.walkBright, face: 'bluntAngry', line: '"Hard pass."', draw: (c) => headphones(c, 540, 520, 0.78) },
-  { at: T.range + 1.5, item: 'Face serum, 30 mL', here: '$34', normal: '$32', word: 'Reasonable', fill: C.fair, on: C.fairOn, bright: C.fairBright, face: 'bluntFair', line: '"Fair enough."', draw: (c) => serum(c, 540, 540, 0.82) },
-  { at: T.range + 3.0, item: 'The same shoes, another store', here: '$79', normal: '$120', word: 'Great price', fill: C.good, on: C.goodOn, bright: C.goodBright, face: 'bluntDelighted', line: '"Somebody made a mistake."', draw: (c) => sneaker(c, 520, 600, 0.82) },
+  { at: T.range, item: 'Wireless headphones', here: '$249', normal: '$179', word: 'Bad price', fill: C.walk, on: '#FFFFFF', bright: C.walkBright, face: 'bluntAngry', line: '"Hard pass."', draw: (c) => headphones(c, 500, 520, 0.78) },
+  { at: T.range + 1.5, item: 'Face serum, 30 mL', here: '$34', normal: '$32', word: 'Reasonable', fill: C.fair, on: C.fairOn, bright: C.fairBright, face: 'bluntFair', line: '"Fair enough."', draw: (c) => serum(c, 520, 530, 0.92) },
+  { at: T.range + 3.0, item: 'The same shoes, another store', here: '$79', normal: '$120', word: 'Great price', fill: C.good, on: C.goodOn, bright: C.goodBright, face: 'bluntDelighted', line: '"Somebody made a mistake."', draw: (c) => sneaker(c, 465, 610, 0.74) },
 ];
 function range(ctx, t) {
   const i = RANGE.findLastIndex(r => t >= r.at), S = RANGE[i], P = RANGE[i - 1];
