@@ -12,9 +12,10 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   35e50a4, 55a3b52, eb6d06d, e7aa8df, bed4384, c619c07). Canadian Tire terms read 2026-10-12
   (c619c07): its Policies page bars copying or republishing site content, so its automated reader
   is refused like Save-On-Foods, Walmart and ANBL. No seller's basis is unknown now (the PC's
-  prices.db carries the appended entry). 4.8's audit still FAILS on one count: 187 Save-On and 10
-  Walmart rows collected before the gate, with no gated reader run; removing them is a delete and
-  waits on Aurik's yes. Enforced is still false.
+  prices.db carries the appended entry). The 197 pre-gate rows (187 Save-On, 10 Walmart) were
+  deleted 2026-10-22 on Aurik's yes (backup price/data/prices.db.before-pregate-delete-2026-10-22;
+  the log holds 197 delete events). The audit now lists no ungated rows; it fails only because
+  enforced is still false (`node src/registry.ts enforce` not run).
 - **Stage 0 (trustworthy tests): tooling built** (442bc30). Every bench rebuild now stops with exit 3
   on real data: each of the 17 priced products is alone in its category, so the whole-category
   control cannot fail on width. 4.9 (Ontario prices on 2+ dates: 0 rows), 7.7 (a person marks the
@@ -56,9 +57,8 @@ History moved out of NOW.md on 2026-09-27: `docs/archive/now-history-2026-09-27.
   Stage 4: 3.2, 3.5, 3.8, 6.6. 3.8's
   hierarchy version waits on the live catalogue being placed (Stage 2/3); 3.2, 3.5, 6.6 need prices. Logged: docs/decisions.md "No price pool crosses a department".
 - Open for a person: an Ontario source; the 7.7 sheet; the 2.2 sheet; the outlier numbers (19%, 4
-  prices); deletes waiting on Aurik's yes: the PC user catalogue's test rows (D-222: 21 products,
-  5,132 observations, 16,593 offers, 27 branch rows, 0 pass the real-scan test) and the 197
-  pre-gate Save-On/Walmart rows in prices.db.
+  prices); the 5,605 user_review rows left from the D-222 fixture
+  (the rest of D-222 deleted 2026-10-22 on Aurik's yes).
 
 ## Current state of the beta: the catalogue
 
