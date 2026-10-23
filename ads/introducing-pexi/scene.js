@@ -22,7 +22,7 @@ const C = {
   good: '#12B76A', goodBright: '#38E08B', goodOn: '#04140C',
   walk: '#C23619', walkBright: '#FF6A45',
   fair: '#E8A020', fairBright: '#FFC24D', fairOn: '#1F1400',
-  cyan: '#2BB5F0',
+  cyan: '#2BB5F0', orange: '#F26B1D',
 };
 // Outfit (fonts/, OFL) for headlines: the free geometric sans closest to the reference's.
 // Inter Tight for interface text and the wordmark, Plex Mono for the handle.
@@ -460,10 +460,10 @@ function intro(ctx, t) {
   sparkle(ctx, 300, 1250, 30 * popS(t, 1.8), C.brand, t);
   sparkle(ctx, 790, 1320, 22 * popS(t, 1.9), C.fairBright, t);
 }
-// B. A phone on amber, cropped by the frame, its wallpaper the collage, a notification dropping in.
+// B. A phone on orange, cropped by the frame, its wallpaper the collage, a notification dropping in.
 function notif(ctx, t) {
   const tl = t - T.notif;
-  field(ctx, C.fair);
+  field(ctx, C.orange);
   const p = eExpo(tl / 0.9);
   tiltPhone(ctx, lerp(760, 640, p), lerp(1500, 900, p) + drift(t), 1.35, 0.1, 0, (s) => {
     ctx.fillStyle = '#FF8DB5'; ctx.fillRect(0, 0, s.w, s.h);
@@ -490,12 +490,12 @@ function headline1(ctx, t) {
   const p = eExpo((tl - 0.2) / 0.9);
   tiltPhone(ctx, 540, lerp(2200, 1470, p) + drift(t), 0.98, 0, 0, (s) => {
     ctx.fillStyle = '#FF8DB5'; ctx.fillRect(0, 0, s.w, s.h);
-    txt(ctx, 'Hey, I\'m Pexi', 40, 170, FONTS.head(56), '#fff');
+    txt(ctx, 'Hey, I\'m Pexi', 40, 170, FONTS.head(56), NAVY);
     collage(ctx, t, T.head1 + 0.7, s.w / 2, 460, 0.95);
-    txt(ctx, 'Scan anything. I\'ll tell you', 40, 720, FONTS.ui(32, 600), '#fff');
-    txt(ctx, 'if the price is right.', 40, 764, FONTS.ui(32, 600), '#fff');
-    rr(ctx, 40, 820, s.w - 80, 96, 22); ctx.fillStyle = 'rgba(255,255,255,.22)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
-    illoGlassMini(ctx, 92, 868); txt(ctx, 'Point at a price tag', 140, 879, FONTS.ui(30, 500), '#fff');
+    txt(ctx, 'Scan anything. I\'ll tell you', 40, 720, FONTS.ui(32, 600), NAVY);
+    txt(ctx, 'if the price is right.', 40, 764, FONTS.ui(32, 600), NAVY);
+    rr(ctx, 40, 820, s.w - 80, 96, 22); ctx.fillStyle = 'rgba(255,255,255,.45)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = NAVY; ctx.stroke();
+    illoGlassMini(ctx, 92, 868); txt(ctx, 'Point at a price tag', 140, 879, FONTS.ui(30, 500), NAVY);
     rr(ctx, 40, 950, s.w - 80, 104, 26); ctx.fillStyle = NAVY; ctx.fill();
     txt(ctx, 'Start scanning', s.w / 2, 1014, FONTS.ui(34, 700), '#fff', 'center');
   });
@@ -508,9 +508,9 @@ function object(ctx, t) {
   const q = popS(t, T.obj, 0.55);
   ctx.save(); ctx.translate(540, 980 + drift(t) * 0.6); ctx.scale(q, q); ctx.rotate(Math.sin(tl * 2) * 0.03); sneaker(ctx, 0, 0, 1.05); ctx.restore();
   [[c => illoTag(c, C.fairBright, '$'), 300, 700, 1.2, -0.3, 0.25], [c => illoGlass(c), 800, 720, 1.0, 0.2, 0.35]].forEach((p, i) => piece(ctx, t, T.obj, p, i));
-  [[230, 1180, 40, NAVY], [860, 1200, 30, C.good], [820, 560, 26, C.brand]].forEach(([x, y, r, c], i) =>
+  [[230, 1180, 40, NAVY], [860, 1200, 30, C.cyan], [820, 560, 26, C.brand]].forEach(([x, y, r, c], i) =>
     sparkle(ctx, x, y, r * popS(t, T.obj + 0.3 + i * 0.1), c, Math.sin(t * 2 + i) * 0.2));
-  diamond(ctx, 250, 1420, 18 * popS(t, T.obj + 0.5), C.walk);
+  diamond(ctx, 250, 1420, 18 * popS(t, T.obj + 0.5), C.brand);
   if (q > 0.6) reg(ctx, 'face', 'shoe', 200, 780, 880, 1130);
 }
 // E. "Scan" on pink, the camera finding the shoe, the cursor tapping the shutter, the sheet rising.
@@ -564,7 +564,7 @@ function verdictPop(ctx, t) {
     ctx.restore();
   }
 }
-// G. A list of scans on a red field, cards stacked like the reference's budgets.
+// G. A list of scans on a navy field, cards stacked like the reference's budgets.
 const SCANS = [
   { name: 'Running shoes', price: '$180', v: 'bad', card: '#fff', ink: C.inkDark, item: (c) => sneaker(c, 120, 92, 0.33) },
   { name: 'Headphones', price: '$119', v: 'great', card: '#16161A', ink: '#fff', item: (c) => headphones(c, 120, 70, 0.3) },
@@ -572,7 +572,7 @@ const SCANS = [
 ];
 function list(ctx, t) {
   const tl = t - T.list;
-  field(ctx, C.walk);
+  field(ctx, NAVY);
   const p = eExpo(tl / 0.8);
   tiltPhone(ctx, 560, lerp(1800, 1060, p) + drift(t), 1.05, -0.05, 0.08 * (1 - p) + 0.02, (s) => {
     ctx.fillStyle = '#FFE3EC'; ctx.fillRect(0, 0, s.w, s.h);
@@ -592,7 +592,7 @@ function list(ctx, t) {
 }
 // H. The three Pexis as cards, stacked and floating in 3D on white.
 const VOICES = [
-  { who: 'Deadpan', tag: 'Dry and exact', face: 'deadpanWalk', fill: C.fair, on: C.fairOn, sub: '#5C3800', line: '"Two dollars. It\'s $1.47."' },
+  { who: 'Deadpan', tag: 'Dry and exact', face: 'deadpanWalk', fill: C.orange, on: C.navy, sub: '#4A1E00', line: '"Two dollars. It\'s $1.47."' },
   { who: 'Warm', tag: 'Kind, never pushy', face: 'warmWalk', fill: C.brand, on: '#fff', sub: '#FFD6E4', line: '"Ooh, that\'s steep. I\'d wait."' },
   { who: 'Blunt', tag: 'No filter at all', face: 'bluntWalk', fill: C.cyan, on: C.navy, sub: '#0A4A66', line: '"That price is a joke."' },
 ];
@@ -656,16 +656,16 @@ function picker(ctx, t) {
   const [x, y] = path2(pts, t);
   if (tl > 0.05) cursor(ctx, x, y, t, taps);
 }
-// J. Things people scan, as pills tumbling down and piling up on amber.
+// J. Things people scan, as pills tumbling down and piling up on cyan. Pills take brand colours, never a verdict's.
 const PILLS = [
   ['Sneakers', C.brand, '#fff', 360, 520, -0.35], ['Headphones', '#16161A', '#fff', 690, 640, 0.25],
-  ['Skincare', C.cyan, C.navy, 380, 830, 0.18], ['Snacks', '#fff', C.inkDark, 760, 930, -0.3],
-  ['Toys', C.good, C.goodOn, 285, 1010, -0.12], ['Tools', C.walk, '#fff', 560, 1200, 0.3],
-  ['Gaming', C.navy, '#fff', 740, 1420, -0.22], ['Coffee', '#fff', C.walk, 420, 1480, 0.15],
+  ['Skincare', C.orange, C.navy, 380, 830, 0.18], ['Snacks', '#fff', C.navy, 760, 930, -0.3],
+  ['Toys', C.navy, '#fff', 285, 1010, -0.12], ['Tools', C.brand, '#fff', 560, 1200, 0.3],
+  ['Gaming', '#16161A', '#fff', 740, 1420, -0.22], ['Coffee', C.orange, C.navy, 420, 1460, 0.15],
 ];
 function tumble(ctx, t) {
   const tl = t - T.tumble;
-  field(ctx, C.fair);
+  field(ctx, C.cyan);
   PILLS.forEach(([word, fill, on, x, y, rot], i) => {
     const q = eBack((tl - i * 0.09) / 0.7, 1.3);
     if (q <= 0) return;
