@@ -596,12 +596,14 @@ const VOICES = [
   { who: 'Warm', tag: 'Kind, never pushy', face: 'warmWalk', fill: C.brand, on: '#fff', sub: '#FFD6E4', line: '"Ooh, that\'s steep. I\'d wait."' },
   { who: 'Blunt', tag: 'No filter at all', face: 'bluntWalk', fill: C.cyan, on: C.navy, sub: '#0A4A66', line: '"That price is a joke."' },
 ];
-function voiceCard(ctx, v, w, h) {
+// sz: type sizes and face size, smaller in the picker so the name fits beside the face.
+function voiceCard(ctx, v, w, h, sz = { tag: 30, who: 88, face: h - 20 }) {
   rr(ctx, -w / 2, -h / 2, w, h, 30); ctx.fillStyle = v.fill; ctx.fill();
-  txt(ctx, v.tag, -w / 2 + 40, -h / 2 + 62, FONTS.ui(30, 600), v.sub);
-  txt(ctx, v.who, -w / 2 + 40, -h / 2 + 150, FONTS.head(88), v.on);
-  ctx.drawImage(IMG[v.face], w / 2 - 210, -h / 2 + 10, h - 20, h - 20);
-  sparkle(ctx, w / 2 - 230, -h / 2 + 50, 18, '#fff', 0);
+  const pad = sz.tag + 10, whoY = sz.who * 0.55 - 2;
+  txt(ctx, v.tag, -w / 2 + pad, whoY - sz.who, FONTS.ui(sz.tag, 600), v.sub);
+  txt(ctx, v.who, -w / 2 + pad, whoY, FONTS.head(sz.who), v.on);
+  ctx.drawImage(IMG[v.face], w / 2 - sz.face - 30, -h / 2 + (h - sz.face) / 2, sz.face, sz.face);
+  sparkle(ctx, w / 2 - sz.face - 50, -h / 2 + 50, 18, '#fff', 0);
 }
 function stack(ctx, t) {
   const tl = t - T.stack;
@@ -632,7 +634,7 @@ function picker(ctx, t) {
       const q = eExpo((tl - 0.05 - i * 0.1) / 0.6), y = 400 + i * 245;
       ctx.save(); ctx.globalAlpha = clamp(q * 1.5); ctx.translate(s.w / 2 + (1 - q) * 300, y);
       if (i === sel) { rr(ctx, -246, -111, 492, 222, 36); ctx.lineWidth = 8; ctx.strokeStyle = C.inkDark; ctx.stroke(); }
-      ctx.scale(0.66, 1.0); voiceCard(ctx, v, 720, 200);
+      voiceCard(ctx, v, 476, 206, { tag: 24, who: 56, face: 160 });
       ctx.restore();
     });
     txt(ctx, 'See all moods', s.w / 2, 1120, FONTS.ui(28, 500), C.mutedDark, 'center');
