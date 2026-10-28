@@ -156,6 +156,8 @@ async function pressTheShutter(levels: number[], failEncode = false) {
   const fired: string[] = [];
   const camera = new Camera({
     video: { videoWidth: 640, videoHeight: 480 } as unknown as HTMLVideoElement,
+    // Never started here: a source that is asked for a stream is a test fault.
+    source: { acquire: async () => { throw new Error('scene-change never starts the camera'); }, suspend: () => {} },
     events: {
       onBoxes: () => {},
       onCapture: () => { fired.push('capture'); },

@@ -164,6 +164,7 @@ async function rig(
     autoCapture: false,
     autoZoom: false,
     torch: { mode: opts.mode ?? 'auto', threshold: 52 },
+    source: { acquire: async () => ({ stream }), suspend: () => { for (const t of stream.getTracks()) t.stop(); } },
     events: {
       onBarcode: noop,
       onBoxes: noop,

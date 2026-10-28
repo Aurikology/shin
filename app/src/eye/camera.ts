@@ -126,6 +126,19 @@ export interface CameraOptions {
   readonly torch?: { mode?: unknown; threshold?: unknown };
   /** Decode barcodes from the first frame. Off means photo mode. On unless told otherwise. */
   readonly barcodeMode?: boolean;
+  /**
+   * Where the stream comes from and where it goes back to (R-11): the app's one
+   * camera session (public/js/camera-session.js). The eye never asks the phone
+   * for a camera itself, so leaving the screen suspends the stream rather than
+   * stopping it, and coming back does not ask again.
+   */
+  readonly source: StreamSource;
+}
+
+/** The app's camera session, as the eye sees it. */
+export interface StreamSource {
+  acquire(): Promise<{ stream: MediaStream }>;
+  suspend(): void;
 }
 
 const DETECT_EVERY_MS = 180;
@@ -219,6 +232,7 @@ const PICK_IOU = 0.3;
 
 export class Camera {
   readonly #video: HTMLVideoElement;
+  readonly #source: StreamSource;
   readonly #events: CameraEvents;
   readonly #scanner: BarcodeScanner;
   readonly #detector: ObjectDetector | null;
@@ -285,6 +299,7 @@ export class Camera {
 
   constructor(options: CameraOptions) {
     this.#video = options.video;
+    this.#source = options.source;
     this.#events = options.events;
     this.#autoCapture = options.autoCapture ?? true;
     this.#autoZoom = options.autoZoom ?? true;
@@ -302,16 +317,10 @@ export class Camera {
   }
 
   async start(): Promise<void> {
-    // The back camera, as high as it will go. Decision 12's fine print has to
-    // survive being cropped to a fifth of the frame.
-    this.#stream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { ideal: 'environment' },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-      },
-      audio: false,
-    });
+    // The back camera, as high as it will go (the session's constraints):
+    // decision 12's fine print has to survive being cropped to a fifth of the
+    // frame. A stream already held is handed back turned on, not asked for again.
+    this.#stream = (await this.#source.acquire()).stream;
     this.#video.srcObject = this.#stream;
     await this.#video.play();
     this.#readZoomCapability();
@@ -368,7 +377,9 @@ export class Camera {
     // that hand the same track back on a fast re-entry to the screen.
     void this.#applyZoom(this.#zoomCaps?.min ?? 1);
     this.#unwatchTorch();
-    for (const track of this.#stream?.getTracks() ?? []) track.stop();
+    // R-11: suspended, not stopped. The session keeps the stream for the next
+    // visit, so coming back is not a second permission ask.
+    if (this.#stream) this.#source.suspend();
     this.#stream = null;
     this.#torch.reset();
   }

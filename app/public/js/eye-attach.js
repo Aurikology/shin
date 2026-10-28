@@ -41,6 +41,7 @@
 import { postEvent } from './api.js';
 import { getDeviceId } from './device.js';
 import { FLAGS } from './flags.js';
+import * as cameraSession from './camera-session.js';
 
 /** How far the box must move before the reticle bothers, as a fraction of the frame. */
 const SNAP = 0.045;
@@ -326,6 +327,8 @@ export async function attachEye(video, surfaces, handlers = {}) {
       // The user's torch setting and the starting mode, read by the screen.
       torch: handlers.torch,
       barcodeMode: handlers.barcodeMode ?? true,
+      // R-11: the one camera session; leaving the screen suspends it, never stops it.
+      source: { acquire: () => cameraSession.acquire(), suspend: () => cameraSession.suspend() },
       events: {
         onBarcode: (read) => { if (!dead.value) handlers.onBarcode?.(read); },
         onBoxes: (boxes, fw, fh) => {

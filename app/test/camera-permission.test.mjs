@@ -37,10 +37,18 @@ function between(text, from, to) {
 const SRC = between(CAMERA, START, END);
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 
-/** Runs the real `startCamera` body against a stub `navigator`/`video`. */
+/**
+ * Runs the real `startCamera` body against a stub `navigator`/`video`. Since R-11
+ * the body asks the app's camera session, which hands back whatever the phone's
+ * getUserMedia gives or throws; the stand-in here does exactly that and no more,
+ * so these tests still read only how `startCamera` classifies the outcome.
+ */
+const passThroughSession = {
+  acquire: async ({ nav }) => ({ stream: await nav.mediaDevices.getUserMedia({ video: true }) }),
+};
 function run(navigator, video = { play: () => Promise.resolve() }) {
-  const fn = new AsyncFunction('video', 'navigator', SRC.slice(START.length, SRC.lastIndexOf('}')));
-  return fn(video, navigator);
+  const fn = new AsyncFunction('video', 'navigator', 'cameraSession', SRC.slice(START.length, SRC.lastIndexOf('}')));
+  return fn(video, navigator, passThroughSession);
 }
 
 test('no getUserMedia at all is unavailable, not denied', async () => {

@@ -27,6 +27,7 @@ import { faceBlock, confidenceOf, dotsHtml, tierOf, sellerOf, animateFace, shinS
 import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { attachEye, startCaptureQueue } from '../eye-attach.js';
+import * as cameraSession from '../camera-session.js';
 import { startShelfCapture } from '../eye-shelf.js';
 import { escapeHtml, ago, priceAge } from '../lib/dom.js';
 import { rowCheck } from '../lib/pagebar.js';
@@ -134,10 +135,8 @@ const COACH_LINES = {
 async function startCamera(video) {
   if (!navigator.mediaDevices?.getUserMedia) return { stream: false, reason: 'unavailable' };
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
-      audio: false,
-    });
+    // R-11: the app's one camera session, never a stream of its own.
+    const { stream } = await cameraSession.acquire({ nav: navigator });
     video.srcObject = stream;
     await video.play().catch(() => {});
     return { stream, reason: 'granted' };
@@ -146,10 +145,9 @@ async function startCamera(video) {
   }
 }
 
+/** Leaving the screen suspends the session's stream (R-11): tracks off, kept for the next visit. */
 function stopCamera(stream) {
-  if (stream && typeof stream.getTracks === 'function') {
-    for (const t of stream.getTracks()) t.stop();
-  }
+  if (stream && typeof stream.getTracks === 'function') cameraSession.suspend();
 }
 
 /**
