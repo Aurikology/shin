@@ -18,7 +18,7 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ### To do
 
-- **Jamin or Aurik: order the open bugs from the walk** (DEFECTS.md D-240 to D-245). The two that
+- **Jamin or Aurik: order the open bugs from the walk** (DEFECTS.md D-240, D-241's server half, D-242, D-245). The two that
   need a product call: what a Past scans or Saved row shows for a broad guess (D-240), and what a
   typed name that matches nothing should answer (D-241).
 
@@ -28,6 +28,13 @@ state, and RULINGS.md/NOW.md win on any disagreement.
   wide $2.78 to $36.02 guess, and any cheap item used to land "Great" against its middle. The
   sheet now leads with the item's name, the range and "A broad guess".
 - **The share card's range matches the sheet's** (D-243): both ends rounded the same way.
+- **A typed name that matches nothing no longer asks to be typed again (D-241).** It says "No price
+  for “<the words>” yet" and its one button is Scan the barcode. The server still gives that route
+  no range at all, which is open.
+- **"% off" and "N for $" no longer push "Price it" off the bottom of the screen (D-247).** The
+  number field now sits beside the two pills. Measured in a desktop browser at six phone sizes;
+  nobody has tried it on a real phone.
+- **On the bell, a price past the chart's edge has its label above the curve, not across it (D-244).**
 
 ### Read by
 
