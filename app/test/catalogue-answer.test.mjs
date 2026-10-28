@@ -153,6 +153,18 @@ test('3.1 last rungs are drawn: an estimate from the department says similar pro
   assert.equal(between(fr, 'data-cat-basis'), 'Une estimation large : Pexi n’a pas encore de prix pour ce genre d’article');
 });
 
+/* 2026-10-28: docs/decisions.md "Every request ends in a range" says no "Great price" is read off
+   the bell, yet $4.99 Oreos against the $2.78 to $36.02 bell read "Great price" on a phone. */
+test('the fixed bell places no shelf price: no zone word, the product is the headline, never drawn as sure', () => {
+  const bell = RANGE({ basis: 'fixed_prior', lowCents: 278, highCents: 3602, medianCents: null, n: 0, confidence: 'low' });
+  assert.equal(placeShelf(499, bell, TEN_TEN), null);
+  const html = inLocale('en', () => catalogueSheet(hit(bell, { rangeSource: 'fixed_prior' }), { shelfCents: 499, state: TEN_TEN }));
+  assert.equal(attr(html, 'data-zone'), '');
+  assert.equal(between(html, 'data-cat-headline'), 'Kraft Crunchy Peanut Butter 1 kg');
+  assert.notEqual(attr(html, 'data-conf'), 'sure');
+  assert.match(between(html, 'data-cat-shelf'), /4\.99/, 'the shelf price is still shown');
+});
+
 /* Changed 2026-10-10 (top-of-screen audit row 12): the line said "asked <date>", an
    internal fact no shopper acts on. It now says it was estimated by AI and never
    the date; the date it was asked is still on the wire, just not on the sheet. */

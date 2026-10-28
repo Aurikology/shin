@@ -364,7 +364,11 @@ async function attachCatalogue(): Promise<void> {
     console.log(
       vectorsOn
         ? `meaning search on (${embeddedRows.toLocaleString()} rows embedded)`
-        : `meaning search off: ${embeddedRows.toLocaleString()} rows embedded is past the ${VECTOR_ROW_CEILING.toLocaleString()} row ceiling, one query would scan all of them. Text search still runs.`,
+        : settings.SHIN_VECTORS() === 'off'
+          ? 'meaning search off: SHIN_VECTORS is off. Text search still runs.'
+          : embeddedRows === 0
+            ? 'meaning search off: no rows are embedded. Text search still runs.'
+            : `meaning search off: ${embeddedRows.toLocaleString()} rows embedded is past the ${VECTOR_ROW_CEILING.toLocaleString()} row ceiling, one query would scan all of them. Text search still runs.`,
     );
   } catch (err) {
     // Named, not swallowed. "The catalogue is missing" and "we have never seen

@@ -88,6 +88,8 @@ export function placeShelf(shelfCents, range, state) {
   const r = usableRange(range);
   if (!r) return null;
   if (typeof r.unit === 'string' && r.unit.trim() !== '') return null;
+  // The fixed bell says Pexi holds nothing; no zone word is read off it (decisions.md, 2026-10-13).
+  if (r.basis === 'fixed_prior') return null;
   const mid = middleCents(r);
   if (!isNum(mid) || mid <= 0) return null;
   const lines = rangesOf(state);

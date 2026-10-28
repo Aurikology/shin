@@ -36,6 +36,7 @@ import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
 import { canShareCard, shareCard } from '../lib/native-share.js';
 import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { roundEstimateCents } from '../lib/verdict-chart.js';
 
 const W = 1080;
 const H = 1350;
@@ -493,7 +494,8 @@ export function answerCard(entry) {
     elsewhereText: money(a.centreCents, a.currency),
     elsewhereSub: a.p10Cents === a.p90Cents
       ? t('share_one_price_one_seller')
-      : t('share_range', { low: money(a.p10Cents, a.currency), high: money(a.p90Cents, a.currency) }),
+      // R-42/R-43: both band ends as the sheet showed them, rounded.
+      : t('share_range', { low: money(roundEstimateCents(a.p10Cents), a.currency), high: money(roundEstimateCents(a.p90Cents), a.currency) }),
     // A card meant to be posted carries no hedge (2026-10-10 audit row 41): a sure answer says so, any other says nothing.
     confidence: a.confidence === 'high' ? t('share_conf_high').toUpperCase() : '',
     stamp: new Date(entry.at ?? Date.now())

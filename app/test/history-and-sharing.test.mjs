@@ -243,6 +243,15 @@ test('D08: the card for a bell answer says the zone word and both prices, never 
   assert.match(card, /a\.confidence === 'high' \? t\('share_conf_high'\)/);
 });
 
+/* 2026-10-28: the sheet showed "$10.30 to $11.70" (R-42/R-43 round both band ends) and the card
+   for the same Nesquik answer printed "$10.31 to $11.72". The card reads the band as the sheet showed it. */
+test('the share card prints the band ends rounded the way the sheet showed them', async () => {
+  const { answerCard } = await import('../public/js/screens/share.js');
+  const card = answerCard(bellEntry({ centreCents: 1100, p10Cents: 1031, p90Cents: 1172 }));
+  assert.match(card.elsewhereSub, /10\.30/);
+  assert.match(card.elsewhereSub, /11\.70/);
+});
+
 /* ------------------------------------------------------------------ D17, D37 */
 
 test('D17: a 5xx is a server fault and a network failure is not', () => {

@@ -1991,7 +1991,7 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
     : '';
 
   return `
-    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${range ? 'sure' : 'refuses'}" data-detent="peek" aria-live="polite" tabindex="-1">
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${!range ? 'refuses' : range.basis === 'fixed_prior' ? 'reading' : 'sure'}" data-detent="peek" aria-live="polite" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
@@ -6708,7 +6708,7 @@ export default {
       lastKeepable = null;
       slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
       // The catalogue sheet with a range is drawn at data-conf "sure"; without one it is a refusal band, no haptic.
-      if (answer.outcome === 'catalogue_hit' && answer.range) landHaptic('sure');
+      if (answer.outcome === 'catalogue_hit' && answer.range && answer.range.basis !== 'fixed_prior') landHaptic('sure');
       else playRefusalLanding(slot);
       setState('result');
       mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);
