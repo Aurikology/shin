@@ -891,7 +891,7 @@ const LINES_EN = {
    */
   cam_reader_model_down: {
     deadpan: () => 'Pexi’s reader is not answering right now. Try again in a moment.',
-    warm: () => 'The reader is not answering, not your scan. Try again.',
+    warm: () => 'Pexi’s reader is not answering, not your scan. Try again.',
     blunt: () => 'Reader is down. Try again.',
   },
   /* A typed search with no item and price in Pexi's own data (Jamin,
@@ -1085,7 +1085,7 @@ const LINES_EN = {
    */
   cam_photo_model_client_error: {
     deadpan: () => 'The photo reader is not answering. Barcode and typing work.',
-    warm: () => 'The reader is not answering, not your shot. Barcode or typing works.',
+    warm: () => 'The photo reader is down, not your shot. Barcode or typing works.',
     blunt: () => 'Reader is not answering. Try the barcode or type it.',
   },
   /**

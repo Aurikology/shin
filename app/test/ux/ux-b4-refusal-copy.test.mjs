@@ -266,10 +266,10 @@ test('R-60: every "Try again" button is at least 48 px high', () => {
 test('R-60 (KEEP): the offline and server-fault sheets are plain, owned by Pexi, with no humour', () => {
   const offline = text(camera.needsConnectionSheet());
   const fault = text(camera.serverFaultSheet());
+  // One line each since the 2026-10-10 audit of 90 screens (row 18, "errors one line", da10d57):
+  // the second sentences this test once pinned were cut there on purpose.
   assert.match(offline, /I need a connection for this/);
-  assert.match(offline, /Pexi needs an internet connection to look anything up/);
   assert.match(fault, /Pexi hit a problem on its side/);
-  assert.match(fault, /Your connection is fine\. The fault is on Pexi's side/);
   for (const s of [offline, fault]) {
     assert.ok(!/!|oops|whoops|uh.?oh|yikes|sorry|my bad|lol/i.test(s), `humour or blame in: ${s}`);
     assert.match(s, /Try again/);
