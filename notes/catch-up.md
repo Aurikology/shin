@@ -14,6 +14,27 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-28 (Aurik's PC): a bug hunt; the broad guess stops saying "Great price"
+
+### To do
+
+- **Jamin or Aurik: order the open bugs from the walk** (DEFECTS.md D-240 to D-245). The two that
+  need a product call: what a Past scans or Saved row shows for a broad guess (D-240), and what a
+  typed name that matches nothing should answer (D-241).
+
+### What changed
+
+- **An item Pexi holds no prices for no longer reads "Great price" (D-239).** Its answer is the
+  wide $2.78 to $36.02 guess, and any cheap item used to land "Great" against its middle. The
+  sheet now leads with the item's name, the range and "A broad guess".
+- **The share card's range matches the sheet's** (D-243): both ends rounded the same way.
+
+### Read by
+
+- Aurik (Windows PC), 2026-10-28
+
+---
+
 ## 2026-10-27 (Aurik's PC): the price pad fits short phones, and the camera is asked for once
 
 ### To do
