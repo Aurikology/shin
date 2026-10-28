@@ -273,10 +273,12 @@ humans, the loop is decoration and every mechanism failed at once. Two columns, 
 | D-244 | 2026-10-28 | **Minor.** On the bell, the shopper's label ("$8.99, 0.8x the typical price") is drawn across the curve and the shaded band, and the store labels ("Bridgwater 700 ml", "Airdrie East 700 ml") stack under the axis prices, away from their dots. Seen at 390 x 844 and 375 x 575. | **Agent**, Playwright walk 2026-10-28. | **Fixed 2026-10-28 (the shopper label):** a price pinned past an end has its label above the bell's peak (1 test red first); seen clear in the browser on Nesquik at $8.99. The store labels are under their own dots by R-46's design; not a defect. |
 | D-245 | 2026-10-28 | **Minor.** Typed search shows rows nobody can tell apart: "oreo" lists "Oreo / OREO" and "Oreo" (two barcodes, neither with a size). | **Agent**, Playwright walk 2026-10-28. | **Open.** |
 | D-246 | 2026-10-28 | **Minor.** The server's startup line said "0 rows embedded is past the 90,000 row ceiling" whenever meaning search was off, including with no rows embedded or SHIN_VECTORS off. | **Agent**, server start 2026-10-28. | **Fixed 2026-10-28:** the line names which of the three it is. |
+| D-247 | 2026-10-28 | **Major.** D-238's shape again, through the pad's modifiers: opening "% off" or "N for $" added a row under the pills, and at 390 x 664 (an iPhone 13 in Safari) the 0 key and "Price it" sat 44 px below the fold. D-238 measured the pad with no modifier open. | **Agent**, Playwright walk of the price pad, 2026-10-28. | **Fixed 2026-10-28:** the field sits in the pills' own row (its label kept for a screen reader; the lit pill says what the number is), so a modifier adds no height (1 test red first). Measured with N for $ on and the effective line showing: the confirm key ends inside the screen at 375 x 548, 375 x 575, 390 x 640, 390 x 664, 390 x 700 and 430 x 739. |
+| D-248 | 2026-10-28 | **Minor.** The pad's effective-price line ("$8.80 after 20% off", "$3.67 each") was English in every language, written straight into camera.js. | **Agent**, reading the pad code during D-247, 2026-10-28. | **Fixed 2026-10-28:** two ui-strings keys, English and French (1 test red first). |
 
-Counts so far: **246 rows.** The total is counted from the rows themselves
-(`grep -cE "^\| D-[0-9]{3} \|"`) and the highest id is D-246, so it is checkable in one command.
-One of the 246, D-170, is recorded as not a defect. D-165 to D-207 came from the 2026-10-06
+Counts so far: **248 rows.** The total is counted from the rows themselves
+(`grep -cE "^\| D-[0-9]{3} \|"`) and the highest id is D-248, so it is checkable in one command.
+One of the 248, D-170, is recorded as not a defect. D-165 to D-207 came from the 2026-10-06
 end-to-end walkthrough (`docs/walkthrough-e2e-2026-10-06.md`, 43 defects D01 to D43) plus D-207, the
 name. Its D14 was already listed, so D-157 was updated instead of getting a new row; D15 and D25
 extend D-031 and D-050 and carry cross-references both ways. Walkthrough D01 to D13 are D-165 to

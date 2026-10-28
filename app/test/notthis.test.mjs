@@ -131,3 +131,17 @@ test('a failed second look leaves the pad standing', () => {
   assert.ok(catchBlock.length > 0, 'the not-this catch block moved');
   assert.doesNotMatch(catchBlock, /slot\.innerHTML/);
 });
+
+/* D-247 (2026-10-28): opening "% off" or "N for $" added a row under the pills, and at 390 x 664
+   (an iPhone 13 in Safari) the 0 key and "Price it" went below the fold again, the D-238 shape.
+   The field sits in the pills' own row, so opening a modifier adds no height. */
+test('D-247: a modifier field sits in the pills\' row, never a row of its own', () => {
+  for (const modifier of [{ kind: 'percent', pct: null }, { kind: 'nfor', n: null }]) {
+    const html = pricePadSheet(item(), '', modifier);
+    assert.ok(!html.includes('class="pad-mod-input"'), `${modifier.kind}: a separate row was drawn`);
+    const row = html.slice(html.indexOf('<div class="pad-mods"'), html.indexOf('</div>', html.indexOf('<div class="pad-mods"')));
+    assert.match(row, /data-mod-value/, `${modifier.kind}: the field is not in the pills' row`);
+    assert.match(row, /<span class="sr-only">/, `${modifier.kind}: the field lost its spoken label`);
+  }
+  assert.doesNotMatch(pricePadSheet(item()), /data-mod-value/, 'a field with no modifier on');
+});

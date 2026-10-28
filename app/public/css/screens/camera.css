@@ -1775,10 +1775,14 @@
   outline: var(--ring-width, 2px) solid currentColor;
   outline-offset: var(--ring-offset, 3px);
 }
+/* D-247: the modifier field inline in the pills' row, as tall as the pills beside it. */
+.pad-mods { align-items: center; }
+.pad-mod-field input { min-height: 44px; box-sizing: border-box; }
 .pad-mod-input label {
   display: flex; align-items: center; justify-content: center; gap: 8px;
   font-size: 12px; color: var(--ink-muted);
 }
+.pad-mod-field input,
 .pad-mod-input input {
   width: 60px;
   padding: 6px 8px;
@@ -1792,6 +1796,7 @@
 /* Same ring as components.css `.field`, which is the baseline for an input.
    Not migrated onto `.field` itself: that is a full-width control at var(--tap)
    and this is a 60px spinner sitting inline in a sentence. */
+.pad-mod-field input:focus-visible,
 .pad-mod-input input:focus-visible {
   outline: var(--ring-width, 2px) solid currentColor;
   outline-offset: var(--ring-offset, 3px);

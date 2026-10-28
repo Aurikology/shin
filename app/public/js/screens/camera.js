@@ -317,8 +317,9 @@ function modifierLabel(typedCents, modifier) {
   if (typedCents == null || !modifier) return '';
   const eff = effectivePriceCents(typedCents, modifier);
   if (eff === null || eff === typedCents) return '';
-  if (modifier.kind === 'percent') return `${money(eff)} after ${modifier.pct}% off`;
-  return `${money(eff)} each`;
+  // D-248: in the reader's language, like every other line on the pad.
+  if (modifier.kind === 'percent') return t('cam_pad_after_pct', { price: money(eff), pct: String(modifier.pct) });
+  return t('cam_pad_each', { price: money(eff) });
 }
 
 /**
@@ -2563,15 +2564,12 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
         <div class="pad-mods" role="group" aria-label="${escapeHtml(t('cam_price_modifiers'))}">
           <button type="button" class="modbtn${modifier?.kind === 'percent' ? ' on' : ''}" data-modtoggle="percent">${escapeHtml(t('cam_percent_off_suffix'))}</button>
           <button type="button" class="modbtn${modifier?.kind === 'nfor' ? ' on' : ''}" data-modtoggle="nfor">${escapeHtml(t('cam_n_for'))}</button>
+          ${/* D-247: the field sits in this row, so opening a modifier adds no height under the pills
+               (a row of its own put "Price it" below the fold at 390 x 664). The lit pill says what the
+               number is; the label stays for a screen reader. */ ''}
+          ${modifier?.kind === 'percent' ? `<label class="pad-mod-field"><span class="sr-only">${escapeHtml(t('cam_percent_off'))}</span><input type="number" inputmode="numeric" min="1" max="95" data-mod-value value="${modifier.pct ?? ''}" placeholder="20"></label>` : ''}
+          ${modifier?.kind === 'nfor' ? `<label class="pad-mod-field"><span class="sr-only">${escapeHtml(t('cam_items_in_the_deal'))}</span><input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>` : ''}
         </div>
-        ${modifier?.kind === 'percent' ? `
-        <div class="pad-mod-input">
-          <label>${escapeHtml(t('cam_percent_off'))} <input type="number" inputmode="numeric" min="1" max="95" data-mod-value value="${modifier.pct ?? ''}" placeholder="20"></label>
-        </div>` : ''}
-        ${modifier?.kind === 'nfor' ? `
-        <div class="pad-mod-input">
-          <label>${escapeHtml(t('cam_items_in_the_deal'))} <input type="number" inputmode="numeric" min="2" max="20" data-mod-value value="${modifier.n ?? ''}" placeholder="3"></label>
-        </div>` : ''}
         ${keypadHtml({ confirm: true, canConfirm, centsFirst })}
       </div>
     </section>`;

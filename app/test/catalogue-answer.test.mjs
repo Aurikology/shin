@@ -481,3 +481,17 @@ test('helpers: provenance keys, dates', () => {
   assert.equal(askedDate('', 'en-CA'), '');
   assert.equal(askedDate(null, 'en-CA'), '');
 });
+
+/* D-248 (2026-10-28): the pad's effective price ("$8.80 after 20% off", "$3.67 each") was English
+   in every language, written straight into camera.js. */
+test('D-248: the pad\'s effective-price line speaks the reader\'s language', async () => {
+  const { pricePadSheet } = await import('../public/js/screens/camera.js');
+  const line = (html) => html.match(/data-pad-effective>([^<]*)</)?.[1] ?? '';
+  const item = { id: 'x', text: 'Nesquik 700 ml', category: 'grocery' };
+  assert.match(line(inLocale('en', () => pricePadSheet(item, '11.00', { kind: 'percent', pct: 20 }))), /after 20% off/);
+  const frPct = line(inLocale('fr', () => pricePadSheet(item, '11.00', { kind: 'percent', pct: 20 })));
+  const frEach = line(inLocale('fr', () => pricePadSheet(item, '11.00', { kind: 'nfor', n: 3 })));
+  assert.doesNotMatch(frPct, /after|off/, frPct);
+  assert.doesNotMatch(frEach, /each/, frEach);
+  assert.match(frPct, /8,80/, 'French money is written 8,80 $');
+});
