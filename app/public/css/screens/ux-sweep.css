@@ -50,7 +50,7 @@
   .cam-bar { gap: 8px; }
 }
 
-/* R-13: 52 px pad keys on a screen 640 px or taller, 48 on a shorter one; 8 px between neighbours. */
+/* R-13: 52 px pad keys on a screen taller than 800 px, 48 on a shorter one (D-238 below); 8 px between neighbours. */
 .padsheet .keypad {
   grid-template-rows: repeat(3, 52px);
   gap: 8px;
@@ -60,9 +60,45 @@
   gap: 8px;
   margin-top: 8px;
 }
-@media (max-height: 640px) {
-  .padsheet .keypad { grid-template-rows: repeat(3, 48px); }
+/*
+ * D-238 (2026-10-27): the 52/48 keys above pushed "Price it" below the fold on most phones. Measured
+ * with Playwright, pad open on a typed name: 152 px past the sheet at 375 x 575, 127 at 390 x 664 (an
+ * iPhone 13 in Safari), 91 at 390 x 700, 52 at 430 x 739; it fitted only at 390 x 844. That broke
+ * `.sheet`'s own rule (camera.css) that the primary action is visible with no drag at every height.
+ * The Shop row and the two intent pills joined the pad after the 575 budget was measured.
+ *
+ * R-13's 48 px keys and 8 px gaps are kept at every height. The room comes from the frame strip above
+ * the pad and from spacing that is not a control: under 800 tall the strip goes from 120 px to 56 (the
+ * torch and wordmark band, which nothing on an open pad needs), the face row to 56 and the named
+ * margins tighten; under 640 the strip is 16 px and the face row 44; under 600 the pad takes the whole
+ * screen. Measured after, no drag to the confirm key at 375 x 548 (an iPhone SE in Safari), 375 x 575,
+ * 390 x 640, 390 x 664, 390 x 700, 430 x 739 and 390 x 844.
+ */
+@media (max-height: 800px) {
+  .padsheet { max-height: calc(100% - 56px); padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .padsheet .sheet-head { height: 56px; }
+  .padsheet .sheet-head .face-block svg { width: 56px; height: 56px; }
+  .padsheet .itemname { margin-top: 6px; }
+  .padsheet .pad-alt { margin: 4px 0; }
+  .padsheet .amount { margin-top: 4px; }
+  .padsheet .pad-mods { margin-top: 8px; }
+  .padsheet .keypad:not(.keypad-bottom) { margin-top: 10px; grid-template-rows: repeat(3, 48px); }
   .padsheet .keypad-bottom { grid-template-rows: 48px; }
+}
+@media (max-height: 640px) {
+  .padsheet { max-height: calc(100% - 16px); gap: 4px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .padsheet .sheet-peek { gap: 2px; }
+  .padsheet .sheet-head { height: 44px; }
+  .padsheet .sheet-head .face-block svg { width: 44px; height: 44px; }
+  .padsheet .itemname,
+  .padsheet .amount,
+  .padsheet .pad-mods { margin-top: 0; }
+  .padsheet .pad-alt { margin: 2px 0; }
+  .padsheet .pad-shop { padding-top: 10px; padding-bottom: 10px; margin: 2px 0; }
+  .padsheet .keypad:not(.keypad-bottom) { margin-top: 4px; }
+}
+@media (max-height: 600px) {
+  .padsheet { max-height: 100%; padding-top: 2px; }
 }
 
 /* R-58: the voice picker in You prints one sample line under each voice, so the choice is heard, not read about. */
