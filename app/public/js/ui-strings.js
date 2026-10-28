@@ -466,6 +466,8 @@ const EN = {
   past_scans_no_price: 'no price given',
   past_scans_remove_of: 'Remove the scan of',
   past_scans_that_one: 'that one',
+  past_scans_search: 'Search past scans',
+  past_scans_no_match: 'No past scan matches that.',
 
   /* ------------------------------------------------------------- the removed */
   removed_title: 'Recently removed',
@@ -1090,6 +1092,8 @@ const FR = {
   past_scans_no_price: 'aucun prix donné',
   past_scans_remove_of: 'Retirer le scan de',
   past_scans_that_one: 'celui-là',
+  past_scans_search: 'Chercher dans les scans passés',
+  past_scans_no_match: 'Aucun scan passé ne correspond.',
 
   /* ----------------------------------------------------------- les retirés */
   removed_title: 'Retirés récemment',

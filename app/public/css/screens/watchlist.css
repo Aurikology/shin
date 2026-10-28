@@ -36,6 +36,12 @@
   overflow: hidden;
 }
 
+/* Past scans' search field, shown from SEARCH_MIN rows (pastscans.js). 16px text so iOS does not
+   zoom the page when it takes focus; the same field the market search uses. */
+.plist-search { display: block; margin-bottom: 12px; }
+.plist-q { width: 100%; font-size: 16px; }
+.plist-none { padding: 16px; margin: 0; }
+
 /* ------------------------------------------------------- the row internals */
 
 /*
@@ -316,6 +322,15 @@
   font-size: 17px;
   letter-spacing: -.02em;
   white-space: nowrap;
+}
+/* No price on the row: a quiet note, not a figure. Set in the price's 17px
+   display weight it took half the row and cut the item's name to a few letters. */
+.prow-p.prow-p--none {
+  font-family: var(--f-ui);
+  font-weight: 400;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--ink-muted);
 }
 
 /* ---------------------------------------------- the reopened verdict modal */

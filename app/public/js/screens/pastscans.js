@@ -32,6 +32,7 @@ import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pag
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
 import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { normalize } from '../lib/countries.js';
 
 /*
  * The eight refusal reasons used to be a map here, described in this comment
@@ -52,6 +53,25 @@ function labelOf(h) {
 function rawLabelOf(h) {
   const isVerdict = h.result?.kind === 'verdict';
   return isVerdict ? h.result.identity.label : (h.result?.identity?.label || h.query?.text || t('past_scans_unknown_item'));
+}
+
+/**
+ * The search field shows from this many rows up. Under it the whole list fits
+ * on a phone and a field would be chrome for its own sake.
+ */
+export const SEARCH_MIN = 8;
+
+/**
+ * Whether a history entry matches what was typed in the search field: every
+ * word of the query found in the item's name or the shop, ignoring case and
+ * accents ("creme" finds "Crème fraîche"). An empty query matches everything.
+ */
+export function matchesScan(h, query) {
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const isVerdict = h?.result?.kind === 'verdict';
+  const hay = normalize([labelOf(h), isVerdict ? sellerOf(h.result) : null, h?.query?.text].filter(Boolean).join(' '));
+  return words.every((w) => hay.includes(w));
 }
 
 /**
@@ -88,7 +108,9 @@ export function row(h) {
           <b class="row-title">${label}</b>
           <span class="row-sub">${sub}</span>
         </span>
-        <span class="prow-p">${typeof askingCents === 'number' ? money(askingCents) : t('past_scans_no_price')}</span>
+        ${raw(typeof askingCents === 'number'
+          ? html`<span class="prow-p">${money(askingCents)}</span>`
+          : html`<span class="prow-p prow-p--none">${t('past_scans_no_price')}</span>`)}
         ${raw(rowChevron())}
       </button>
       <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
@@ -210,6 +232,16 @@ export default {
      * have saved nothing" over somebody's actual data.
      */
     let phase = store.loadFault() ? 'error' : 'ready';
+    /** What is typed in the search field; kept across repaints, never stored. */
+    let query = '';
+
+    /** The rows that match the search, or the one line that says none do. */
+    function listBody(list) {
+      const shown = list.filter((h) => matchesScan(h, query));
+      return shown.length
+        ? shown.map(row).join('')
+        : html`<p class="fineprint plist-none" role="status">${t('past_scans_no_match')}</p>`;
+    }
 
     function paint() {
       const list = store.get().history;
@@ -242,8 +274,18 @@ export default {
             <button type="button" class="linky linky-retry" data-act="retry" data-fk="retry:pastscans">${t('try_again')}</button>
           </div>`;
       } else if (list.length) {
+        const search = list.length >= SEARCH_MIN
+          ? html`
+            <label class="plist-search">
+              <span class="sr-only">${t('past_scans_search')}</span>
+              <input type="search" class="field plist-q" data-q data-fk="search:pastscans" autocomplete="off"
+                     autocapitalize="off" spellcheck="false" enterkeyhint="search"
+                     placeholder="${t('past_scans_search')}" value="${query}">
+            </label>`
+          : '';
         body = html`
-          <div class="plist">${raw(list.map(row).join(''))}</div>`;
+          ${raw(search)}
+          <div class="plist" data-plist>${raw(listBody(list))}</div>`;
       } else {
         body = html`
           <div class="empty">
@@ -317,6 +359,14 @@ export default {
 
       const open = e.target.closest('[data-open]');
       if (open) { openId = open.dataset.open; returnKey = open.dataset.fk ?? null; repaint(); }
+    }, listeners.signal);
+
+    // Typing filters the rows in place, so the field keeps its focus and caret.
+    on(root, 'input', (e) => {
+      if (!e.target.matches('[data-q]')) return;
+      query = e.target.value;
+      const box = root.querySelector('[data-plist]');
+      if (box) box.innerHTML = listBody(store.get().history);
     }, listeners.signal);
 
     on(document, 'keydown', modalKeys(root, () => openId !== null, closeModal), listeners.signal);
