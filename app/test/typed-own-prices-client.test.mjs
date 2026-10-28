@@ -87,7 +87,7 @@ test('the typed route draws an own-data answer itself and never hands it to proc
   const show = CAMERA.slice(end, CAMERA.indexOf('\n    }\n', end));
   assert.ok(!/proceed\(|openPad\(|api\.price/.test(show), 'showOwnData reaches the paid price route');
   assert.ok(show.includes("say('cam_text_no_own_price')"), 'the no-match answer is not the plain sentence');
-  assert.ok(show.includes('{ priceRoute: false }'), 'the no-match answer offers the paid "just the price" route');
+  assert.ok(show.includes('{ priceRoute: false, typedText: text }'), 'the no-match answer offers the paid "just the price" route');
   assert.ok(show.includes('geminiSheet(result, item, scanThumb, earlier)') && show.includes('fillGrounded(slot, result)'),
     'a match is not drawn on the answer sheet');
 });

@@ -215,3 +215,23 @@ test('D42: the one action on an unhued sheet is ink on ground, not a pale pill w
   assert.match(rule, /background: var\(--ink\)/);
   assert.match(rule, /color: var\(--ground\)/);
 });
+
+/* D-241 (2026-10-28): "kraft dinner original 225g", a price, then "None of these" landed on "I could
+   not tell what this is. Type what it is" with a "Type what it is" button, right after it was typed.
+   A typed miss names what was typed and points at the barcode; it never asks to type it again. */
+test('D-241: a typed name with no match names the words and offers the barcode, not "Type what it is"', async () => {
+  const { refusalSheet } = await import('../public/js/screens/camera.js');
+  const miss = { kind: 'refusal', reason: 'no_identity', detail: say('cam_text_no_own_price'), identity: null, evidence: [] };
+  for (const p of ['deadpan', 'warm', 'blunt']) {
+    setPersonality(p);
+    const html = refusalSheet(miss, null, [], null, { priceRoute: false, typedText: 'kraft dinner original 225g' });
+    assert.ok(!html.includes('data-act="typeit"'), `${p}: the typed miss asks to type it again`);
+    assert.ok(!html.includes(say('refuse_unknown_why')), `${p}: "Type what it is and I will look it up" is still said`);
+    assert.ok(!html.includes(say('refuse_unknown')), `${p}: the title says Pexi could not tell what it is`);
+    assert.match(html, /kraft dinner original 225g/, `${p}: the typed words are not named`);
+    assert.match(html, new RegExp(`data-act="cancel-scan"[^>]*>${t('cam_scan_barcode')}<`), `${p}: no way back to scan the barcode`);
+  }
+  setPersonality('deadpan');
+  // A barcode or photo with no identity still offers the typed route.
+  assert.ok(refusalSheet(miss, null, [], null, {}).includes('data-act="typeit"'));
+});

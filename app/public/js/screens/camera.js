@@ -1085,6 +1085,8 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   const isCategory = r.reason === 'category_unsupported';
   const isUnsure = r.reason === 'identity_unsure';
   const isNoIdentity = r.reason === 'no_identity';
+  // D-241: a typed name nothing matched. Its words are named and its one action is the barcode.
+  const typedText = isNoIdentity && typeof opts.typedText === 'string' && opts.typedText.trim() ? opts.typedText.trim() : null;
   const isThin = isThinReason(r.reason);
   const isModelDown = MODEL_DOWN_REASONS.has(r.reason);
   const isThrottled = THROTTLE_REASONS.has(r.reason);
@@ -1099,16 +1101,18 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
           ? 'refuse_declined'
           : isThin
             ? 'refuse_thin'
-            : isNoIdentity
-              ? 'refuse_unknown'
-              : null;
+            : typedText
+              ? 'refuse_typed_none'
+              : isNoIdentity
+                ? 'refuse_unknown'
+                : null;
   /* RULINGS.md "Errors never go unnoticed": a reason this sheet has no wording
      for throws. It used to fall through to the generic title, which said the
      wrong thing under a stored or newly added reason and hid that it had. The
      throw reaches the scan loop's catch (the retryable failure sheet) or the
      page's error handler, which track.js reports. */
   if (titleKey === null) throw new Error(`refusalSheet: no wording for the refusal reason "${r.reason}"`);
-  const titleFacts = isCategory ? { category } : {};
+  const titleFacts = isCategory ? { category } : typedText ? { text: typedText } : {};
 
   // Row 8: a category refusal's detail is the engine's own paragraph, true
   // and real, but written for someone auditing the rule, not a shopper mid
@@ -1138,7 +1142,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
   // facts, what happened and what still works, in almost the same words. The
   // per-class line already carries both; this line only repeated them.
   //
-  const mine = isCategory || isThin || isModelDown || isThrottled
+  const mine = isCategory || isThin || isModelDown || isThrottled || typedText
       ? ''
       : `<p class="said">${say(isUnsure ? 'refuse_unsure_why' : 'refuse_unknown_why')}</p>`;
 
@@ -1168,6 +1172,8 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
              and the same button on every attitude. What Pexi SAYS about it is
              keep_it_ack, which has all three. */
           ? `<button type="button" class="pill solid" data-act="keepit">${escapeHtml(t('cam_keep_it'))}</button>`
+          : typedText
+            ? `<button type="button" class="pill solid" data-act="cancel-scan">${escapeHtml(t('cam_scan_barcode'))}</button>`
           : isNoIdentity || isModelDown || isThrottled
             ? `<button type="button" class="pill solid" data-act="typeit">${escapeHtml(t('cam_type_what_it_is'))}</button>`
             : `<button type="button" class="pill solid" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>`
@@ -1192,7 +1198,7 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
         <p class="detail">${escapeHtml(isCategory ? categoryShort : renderProse(r.structuredDetail, r.detail))}</p>
         ${repairBlock}
         ${priceRouteBtn(opts.priceRoute)}
-        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : scenario?.unchecked && scenario?.text ? scenario.text : t('cam_no_confident_match'))} &middot; ${
+        <p class="itemname">${escapeHtml(r.identity ? r.identity.label : scenario?.unchecked && scenario?.text ? scenario.text : typedText ?? t('cam_no_confident_match'))} &middot; ${
           /*
            * `refusalLabel` restates the reason as a full sentence, e.g.
            * "Refused. The photo reader took too long." -- exactly the fact
@@ -1203,7 +1209,8 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
            * (the plain word "Refused") without repeating the one it does not
            * need to say twice.
            */
-          isModelDown ? t('cam_refused_sentence') : refusalLabel(r.reason)
+          // D-241: "I could not identify it" is false of words the shopper typed; the plain word stays.
+          isModelDown || typedText ? t('cam_refused_sentence') : refusalLabel(r.reason)
         }</p>
       </div>
       <div class="sheet-half">
@@ -6600,7 +6607,7 @@ export default {
         null,
         supportedCategories,
         null,
-        { priceRoute: lastScanId !== null },
+        { priceRoute: lastScanId !== null, typedText: text },
       );
       playRefusalLanding(slot);
       setState('result');
@@ -6663,7 +6670,7 @@ export default {
         null,
         supportedCategories,
         null,
-        { priceRoute: false },
+        { priceRoute: false, typedText: text },
       );
       playRefusalLanding(slot);
       setState('result');

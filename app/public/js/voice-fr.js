@@ -129,6 +129,11 @@ export const LINES_FR = {
     warm: () => "Je n'ai pas encore trouvé ce que c'est",
     blunt: () => "Aucune correspondance",
   },
+  refuse_typed_none: {
+    deadpan: (f) => `Pas encore de prix pour « ${f.text} »`,
+    warm: (f) => `Je n'ai pas encore de prix pour « ${f.text} »`,
+    blunt: (f) => `« ${f.text} » : pas encore de prix`,
+  },
   refuse_unknown_why: {
     deadpan: () => "Écris ce que c'est et je le cherche.",
     warm: () => "Dis-moi ce que c'est en l'écrivant, et je le cherche.",
@@ -945,6 +950,11 @@ export const LINES_FR = {
  * deuxième voix.
  */
 export const BARE_FR = {
+  refuse_typed_none: {
+    deadpan: () => "Pas encore de prix pour ça",
+    warm: () => "Je n'ai pas encore de prix pour ça",
+    blunt: () => "Pas encore de prix pour ça",
+  },
   cam_text_no_match: {
     deadpan: () => "Rien dans ce qu'on a appris à Pexi ne correspond à ça.",
     warm: () => "Je n'ai rien trouvé que je connais qui corresponde à ça. Essaie le code-barres, ou un ou deux mots différents.",

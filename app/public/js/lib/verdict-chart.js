@@ -638,7 +638,8 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     const text = [format(s.cents), s.pinned ? multiple : ''].filter(Boolean).join(', ');
     const half = labelWidth(text, YOU_SIZE) / 2;
     const labelX = s.pinned === 'high' ? W - 2 : s.pinned === 'low' ? 2 : r1(Math.min(W - 2 - half, Math.max(2 + half, s.x)));
-    const labelY = r1(Math.max(YOU_SIZE, s.curveY - YOU_R - 6));
+    // D-244: pinned at an end, the label runs inward across the curve, so it sits above the peak instead.
+    const labelY = r1(Math.max(YOU_SIZE, s.pinned ? Math.min(s.curveY - YOU_R - 6, g.top - 8) : s.curveY - YOU_R - 6));
     const arrow = s.pinned
       ? (() => {
           const dir = s.pinned === 'high' ? 1 : -1;

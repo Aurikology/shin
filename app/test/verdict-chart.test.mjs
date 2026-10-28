@@ -48,7 +48,7 @@ function inLocale(id, fn) {
 const VC = await import('../public/js/lib/verdict-chart.js');
 const {
   Z90, Z99, usableVerdict, zoneFor, shopperFor, shopperOf, multipleOf, bellHeight, logDomain, bellGeometry, bellSvg,
-  placeLabels, spreadLabels, tweenVerdict, ZONE_TIER, DEFAULT_THRESHOLDS,
+  placeLabels, spreadLabels, tweenVerdict, ZONE_TIER, DEFAULT_THRESHOLDS, YOU_SIZE,
 } = VC;
 const F = await import('./verdict-fixtures.mjs');
 const { distributionSheet, catalogueSheet, distFace } = await import('../public/js/screens/camera.js');
@@ -285,6 +285,19 @@ test('case 25, beyond: pinned at the edge with the multiple', () => {
   const low = inLocale('fr', () => distributionSheet(F.BEYOND_LOW));
   assert.match(low, /data-vb-pin="low"/);
   assert.match(low, /, 0,2 fois le prix habituel</);
+});
+
+/* D-244 (2026-10-28): a price pinned past an end put "$8.99, 0.8x the typical price" just above the
+   baseline, running across the curve and the shaded band. A pinned label sits above the bell's peak. */
+test('D-244: a pinned shopper label sits above the curve, never across it', () => {
+  for (const fx of [F.BEYOND_LOW, F.BEYOND_HIGH]) {
+    const v = usableVerdict(fx);
+    const g = bellGeometry(v);
+    const svg = bellSvg(v, { format: (c) => `$${(c / 100).toFixed(2)}`, multiple: '3x the typical price' });
+    const y = Number(svg.match(/class="vb-youlbl" x="[^"]*" y="([^"]*)"/)[1]);
+    assert.ok(y <= g.top - 6, `label baseline ${y} is not above the peak at ${g.top}`);
+    assert.ok(y - YOU_SIZE >= 0, 'the label was lifted out of the chart');
+  }
 });
 
 test('low confidence carries the reason in the half detent, none under the word; medium and high carry none (D13, 2026-10-10)', () => {

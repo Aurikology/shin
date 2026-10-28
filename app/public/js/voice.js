@@ -217,6 +217,13 @@ const LINES_EN = {
     warm: () => 'I could not work out what this is yet',
     blunt: () => 'No match for this one',
   },
+  /* D-241 (2026-10-28): a typed name nothing matched. The shopper already typed it, so the title
+     names their words and never asks them to type it again; the sheet's one action is the barcode. */
+  refuse_typed_none: {
+    deadpan: (f) => `No price for “${f.text}” yet`,
+    warm: (f) => `I have no price for “${f.text}” yet`,
+    blunt: (f) => `“${f.text}”: no price yet`,
+  },
   refuse_unknown_why: {
     deadpan: () => 'Type what it is and I will look it up.',
     warm: () => 'Type what it is and I will look it up.',
@@ -1708,6 +1715,11 @@ const LINES_EN = {
  * unknown key has always done.
  */
 const BARE_EN = {
+  refuse_typed_none: {
+    deadpan: () => 'No price for that yet',
+    warm: () => 'I have no price for that yet',
+    blunt: () => 'No price for that yet',
+  },
   cam_text_no_match: {
     deadpan: () => 'Nothing in what Pexi has been taught matches that.',
     warm: () => 'Nothing I know matches that. Try the barcode.',
