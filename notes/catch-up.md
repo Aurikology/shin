@@ -14,6 +14,37 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-10-27 (Aurik's PC): the price pad fits short phones, and the camera is asked for once
+
+### To do
+
+- **Jamin, or the Mac session: pull and restart, then on a phone (ideally the installed TestFlight
+  build and Safari) type a price on the pad and go camera -> Saved -> camera a few times.** Check
+  "Price it" shows without dragging the sheet, and the phone does not ask for the camera again.
+  Nobody has tried either on a real phone yet; both were measured in a desktop browser at phone sizes.
+- **Jamin or Aurik: the bell's timing (R-89).** Two UX tests still fail: they ask the verdict bell to
+  finish moving in 400 ms and finish its first draw in 260 ms; today it takes 620 ms and 1,480 ms.
+  Shortening it changes how the verdict feels, so it waits for a yes either way.
+
+### What changed
+
+- **The price pad's confirm key no longer hides below the fold (D-238).** On most phones in Safari
+  it sat 50 to 150 px under the bottom edge and needed a drag. Under 800 px tall the pad now covers
+  more of the camera and its spacing tightens; the keys stay 48 px.
+- **The camera is asked for once, not on every visit (R-11).** Leaving the camera page pauses the
+  camera instead of switching it off, so coming back is instant and cannot trigger a second
+  permission prompt. It is switched off when the app is closed. If a phone does ask again after a
+  yes, the app now records `camera_prompt_repeat`, so it can be counted.
+- **Past scans has a search field** once there are 8 or more, and a row with no price shows a small
+  "no price given" instead of a big one that cut the item's name short.
+- **The Warm voice no longer says the retired line "The reader is not answering".**
+
+### Read by
+
+- Aurik (Windows PC), 2026-10-27
+
+---
+
 ## 2026-10-13 later (Aurik's PC): the verdict screen is rebuilt
 
 ### To do
