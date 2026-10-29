@@ -168,6 +168,26 @@ export interface ScannerOptions {
   readonly wasmUrl?: string;
 }
 
+/**
+ * D-249: one overrides object per .wasm address, for the life of the page.
+ * zxing-wasm keeps its loaded module only while each new `prepareZXingModule`
+ * call passes overrides whose values are `===` to the last ones, and a fresh
+ * `locateFile` arrow per scanner never was. Every camera visit builds a new
+ * scanner, so every visit threw the module away and compiled a 22 MB one
+ * again: eleven after ten trips to Saved and back. Desktop Chrome collects
+ * the old ones; an iPhone holding a compiled module per visit is the page
+ * that dies after a few taps on the home screen.
+ */
+const zxingOverrides = new Map<string, { locateFile: () => string }>();
+export function overridesFor(wasmUrl: string): { locateFile: () => string } {
+  let o = zxingOverrides.get(wasmUrl);
+  if (!o) {
+    o = { locateFile: () => wasmUrl };
+    zxingOverrides.set(wasmUrl, o);
+  }
+  return o;
+}
+
 export class BarcodeScanner {
   #ready: Promise<unknown> | null = null;
   /** Set when the reader stopped answering at all. See `scan`. */
@@ -197,11 +217,7 @@ export class BarcodeScanner {
   lastUnreadable: Sighting[] = [];
 
   constructor(options: ScannerOptions = {}) {
-    if (options.wasmUrl) {
-      prepareZXingModule({
-        overrides: { locateFile: () => options.wasmUrl as string },
-      });
-    }
+    if (options.wasmUrl) prepareZXingModule({ overrides: overridesFor(options.wasmUrl) });
   }
 
   /**
