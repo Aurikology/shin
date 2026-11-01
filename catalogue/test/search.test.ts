@@ -748,6 +748,37 @@ test('D-019: the same product listed three times takes one slot, not three', asy
   assert.ok(codes.includes('0068100903249'), 'buffalo wings is a different product');
 });
 
+test('D-245: two rows a shopper cannot tell apart ("Oreo / OREO" and "Oreo", no size) take one slot; a sized or different one keeps its own', async () => {
+  // Seen 2026-10-28 in typed search: "oreo" listed "Oreo / OREO" and "Oreo", two barcodes, neither with
+  // a size. The client's label drops a brand the name already leads with, so both read as the word Oreo.
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  insert.run('0044000000011', 'Oreo / OREO', 'Oreo / OREO', null, 'Oreo', null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0044000000028', 'Oreo', 'Oreo', null, 'OREO', null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0044000000035', 'Oreo', 'Oreo', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  // Different by size: a different product and a different price, never merged.
+  insert.run('0044000000042', 'Oreo', 'Oreo', null, 'Oreo', '303 g', 303, 'g', '[]', null, '[]', 1, 'openfoodfacts');
+  // Different by name and by brand: kept.
+  insert.run('0044000000059', 'Oreo Double Stuf', 'Oreo Double Stuf', null, 'Oreo', null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  insert.run('0044000000066', 'Oreo', 'Oreo', null, 'Mondelez', null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  rebuildFts(db);
+  rebuildCategories(db);
+
+  const cat = new Catalogue(db, new HashEmbedder());
+  const r = await cat.search({ text: 'oreo', limit: 10, vectors: false });
+  const codes = r.candidates.map((c) => c.code);
+
+  const plain = codes.filter((c) => ['0044000000011', '0044000000028', '0044000000035'].includes(c));
+  assert.equal(plain.length, 1, `rows that all read "Oreo" with no size came back ${plain.length} times: ${codes.join(', ')}`);
+  assert.ok(codes.includes('0044000000042'), 'the 303 g pack differs by size and was dropped');
+  assert.ok(codes.includes('0044000000059'), 'Double Stuf is a different product and was dropped');
+  assert.ok(codes.includes('0044000000066'), 'the Mondelez row reads differently and was dropped');
+  assert.equal(r.candidates.length, 4);
+});
+
 test('a UPC-A row and its EAN-13 twin are one product, not two results', async () => {
   const db = openCatalogue(':memory:');
   const insert = db.prepare(`

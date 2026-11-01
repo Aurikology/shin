@@ -756,6 +756,15 @@ function inRing(row: Row, tag: string): boolean {
  * subject of this app, and collapsing them would be a worse defect than the one
  * being fixed.
  *
+ * THREE (D-245, 2026-10-28): two rows that READ the same to a shopper. "oreo"
+ * listed "Oreo / OREO" (brand Oreo) and "Oreo" (brand OREO), two barcodes and
+ * no size: the label a shopper reads is brand, name and size with a brand the
+ * name already says left out, so both read "Oreo". The `shown` key is the words
+ * of brand and name in order with a repeated word said once, plus the size: two
+ * rows with the same shown key have nothing on screen to choose between, and
+ * keeping both only makes the shopper guess. Order is kept so "chocolate milk"
+ * and "milk chocolate" stay two rows; size stays in the key for the reason above.
+ *
  * The list arrives sorted, so the row kept is always the best-ranked of its
  * group.
  */
@@ -764,19 +773,33 @@ function dedupeListings(ranked: readonly Fused[]): Fused[] {
   const out: Fused[] = [];
   for (const m of ranked) {
     const barcode = m.row.code.replace(/\D/g, '').replace(/^0+/, '') || m.row.code;
-    const name = normalizeName(m.row.name_en ?? m.row.name);
+    const rawName = m.row.name_en ?? m.row.name;
+    const name = normalizeName(rawName);
     const brand = m.row.brands ? normalizeBrand(m.row.brands) : '';
     const size =
       m.row.size_value !== null && m.row.size_unit
         ? `${m.row.size_value}${m.row.size_unit.toLowerCase()}`
         : (m.row.quantity ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
     const listing = `${brand}|${name}|${size}`;
-    if (seen.has(barcode) || seen.has(listing)) continue;
+    const shown = `shown|${shownWords(`${m.row.brands ?? ''} ${rawName}`)}|${size}`;
+    if (seen.has(barcode) || seen.has(listing) || seen.has(shown)) continue;
     seen.add(barcode);
     seen.add(listing);
+    seen.add(shown);
     out.push(m);
   }
   return out;
+}
+
+/** The words a label reads, accent folded and lower-cased, in order, each said once ("Oreo Oreo / OREO" -> "oreo"). */
+function shownWords(text: string): string {
+  const words = text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  return [...new Set(words)].join(' ');
 }
 
 /** Does this row carry the brand the caller pinned? Null when none was pinned. */
