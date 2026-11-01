@@ -35,7 +35,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, isAnswer, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { answerOf, isAnswer, answerLook, answerWord, answerLine, rangeOf, isRangeAnswer, rangeWord, rangeFigure } from '../lib/history-answer.js';
 
 /**
  * The most recent history entry whose answer matches a saved row's id: a
@@ -43,7 +43,7 @@ import { answerOf, isAnswer, answerLook, answerWord, answerLine } from '../lib/h
  * under (D07).
  */
 function matchFor(history, id) {
-  return history.find((h) => (h.result?.kind === 'verdict' && h.result.identity?.id === id) || answerOf(h)?.id === id) ?? null;
+  return history.find((h) => (h.result?.kind === 'verdict' && h.result.identity?.id === id) || answerOf(h)?.id === id || rangeOf(h)?.id === id) ?? null;
 }
 
 /**
@@ -55,6 +55,11 @@ function answerFor(w, match) {
   return (w.answer && isAnswer(w.answer) ? w.answer : null) ?? answerOf(match);
 }
 
+/** D-240: the range snapshot a saved range answer carries, else the one its scan left in history. */
+function rangeFor(w, match) {
+  return (isRangeAnswer(w.answer) ? w.answer : null) ?? rangeOf(match);
+}
+
 /**
  * One saved row.
  *
@@ -63,6 +68,31 @@ function answerFor(w, match) {
  * on, and asserting on them needs no DOM.
  */
 export function row(w, history) {
+  /* D-240: a saved range answer: the name, its label and the range. No usual price, no delta, no verdict face. */
+  const range = answerFor(w, matchFor(history, w.id)) ? null : rangeFor(w, matchFor(history, w.id));
+  if (range) {
+    const savedOnR = dateLabel(w.savedAt);
+    return html`
+    <div class="wrow-wrap" data-swipe-row>
+      <button type="button" class="row wrow" data-open="${w.id}" data-fk="open:${w.id}" data-tier="unknown" data-conf="reading" data-range>
+        ${raw(faceSvg('idle', { size: 'face-row' }))}
+        <span class="row-n">
+          <b class="row-title">${cleanName(w.label || range.label)}</b>
+          <span class="row-sub">${rangeWord(range)} · saved ${savedOnR}</span>
+        </span>
+        <span class="wrow-p">
+          ${typeof w.lastCents === 'number' ? money(w.lastCents, range.currency) : ''}
+          <em data-range-figure>${rangeFigure(range)}</em>
+        </span>
+        ${raw(rowChevron())}
+      </button>
+      <button type="button" class="rowdel wrow-del" data-unwatch="${w.id}" data-fk="del:${w.id}">
+        ${raw(removeGlyph())}
+        <span class="wrow-del-t">${t('remove')}</span>
+        <span class="sr-only">${cleanName(w.label || range.label)} ${t('saved_remove_from')}</span>
+      </button>
+    </div>`;
+  }
   // OLMA row 70: when the saved row still has its original scan in history,
   // the row's face carries the same solid-vs-hollow confidence treatment the
   // verdict sheet gave it, not a second opinion recomputed from nothing.
@@ -141,6 +171,21 @@ export function detailModal(w, match) {
      it was saved under, in the words and face the sheet used. One template with
      the older verdict result below. */
   const answer = answerFor(w, match);
+  /* D-240: a saved range answer opens with its label and the range, never a verdict word or a typical price. */
+  const range = answer ? null : rangeFor(w, match);
+  if (range) {
+    return html`
+      <div class="pmodal" data-act="modal" data-pmodal="range">
+        <div class="pmodal-card" data-tier="unknown" tabindex="-1">
+          ${raw(faceBlock('idle', { size: 'face-verdict' }))}
+          <h2>${rangeWord(range)}</h2>
+          <p class="said">${rangeFigure(range)}</p>
+          <p class="pmodal-meta">${cleanName(w.label || range.label)} · ${ago(match?.at ?? w.savedAt)}</p>
+          <button type="button" class="btn btn--ghost" data-unwatch="${w.id}" data-fk="del-detail:${w.id}">${t('remove')}</button>
+          <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
+        </div>
+      </div>`;
+  }
   if (answer || (match && match.result?.kind === 'verdict')) {
     let view;
     if (answer) {

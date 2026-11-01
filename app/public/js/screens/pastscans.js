@@ -31,7 +31,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { answerOf, answerLook, answerWord, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
 import { normalize } from '../lib/countries.js';
 
 /*
@@ -52,7 +52,7 @@ function labelOf(h) {
 }
 function rawLabelOf(h) {
   const isVerdict = h.result?.kind === 'verdict';
-  return isVerdict ? h.result.identity.label : (h.result?.identity?.label || h.query?.text || t('past_scans_unknown_item'));
+  return isVerdict ? h.result.identity.label : (h.result?.identity?.label || h.result?.label || h.query?.text || t('past_scans_unknown_item'));
 }
 
 /**
@@ -81,6 +81,30 @@ export function matchesScan(h, query) {
  */
 export function row(h) {
   const isVerdict = h.result?.kind === 'verdict';
+  /* D-240: a range answer with no verdict: its name, its label ("A broad guess") and the range.
+     No verdict word, no face that judges, no typical price. */
+  const range = rangeOf(h);
+  if (range) {
+    const label = labelOf(h);
+    const sub = [rangeWord(range), dateLabel(h.at)].join(' · ');
+    return html`
+    <div class="prow-wrap">
+      <button type="button" class="row prow" data-open="${h.id}" data-fk="open:${h.id}"
+              data-tier="unknown" data-conf="reading" data-range>
+        ${raw(faceSvg('idle', { size: 'face-row' }))}
+        <span class="row-n">
+          <b class="row-title">${label}</b>
+          <span class="row-sub">${sub}</span>
+        </span>
+        <span class="prow-p" data-range-figure>${rangeFigure(range)}</span>
+        ${raw(rowChevron())}
+      </button>
+      <button type="button" class="rowdel prow-del" data-remove="${h.id}" data-fk="del:${h.id}">
+        ${raw(removeGlyph())}
+        <span class="sr-only">${t('past_scans_remove_of')} ${label}</span>
+      </button>
+    </div>`;
+  }
   /* D07: a verdict-bell answer (catalogue-first, or a Gemini route that ended
      in the bell) wears the face and word the sheet gave it. */
   const answer = answerOf(h);
@@ -131,6 +155,22 @@ export function row(h) {
  */
 export function detail(h) {
   const isVerdict = h.result?.kind === 'verdict';
+
+  /* D-240: a range answer reopened: its label, the range, the price on the tag if one was typed. Never a verdict. */
+  const range = rangeOf(h);
+  if (range) {
+    return html`
+      <div class="pmodal" data-act="modal" data-pmodal="range">
+        <div class="pmodal-card" data-tier="unknown" tabindex="-1">
+          ${raw(faceBlock('idle', { size: 'face-verdict' }))}
+          <h2>${rangeWord(range)}</h2>
+          <p class="said">${rangeFigure(range)}</p>
+          ${raw(typeof range.askingCents === 'number' ? html`<p class="pmodal-conf">${t('cam_gem_shelf', { label: money(range.askingCents, range.currency) })}</p>` : '')}
+          <p class="pmodal-meta">${labelOf(h)} · ${ago(h.at)}</p>
+          <button type="button" class="linky" data-act="close-detail">${t('close')}</button>
+        </div>
+      </div>`;
+  }
 
   /* One template for the two shapes that carry a verdict: the older `verdict`
      result, and a verdict-bell answer (D07), which wears the face and word the

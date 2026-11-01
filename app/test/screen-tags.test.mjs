@@ -339,8 +339,9 @@ test('the guard sees the answer sheet, the failure sheet and every modal variant
   assert.deepEqual(tagOf('screens/camera.js <sheet refusal gemini-failed>', 'peek'), ['a90']);
   assert.deepEqual(['peek', 'half', 'full'].map((h) => tagOf('screens/camera.js <sheet verdict>', h)[0]), ['a38', 'a39', 'a40']);
   const modals = surfaceTemplates().filter((t) => t.root === 'pmodal');
-  assert.equal(modals.length, 5, 'expected three past-scan modals and two saved-item modals');
-  assert.deepEqual(modals.map((t) => tagsNaming(t, null).map(([tag]) => tag)), [['a61'], ['a91'], ['a62'], ['a56'], ['a57']]);
+  // D-240: Past scans and Saved each gained a range modal (a110, a111).
+  assert.equal(modals.length, 7, 'expected four past-scan modals and three saved-item modals');
+  assert.deepEqual(modals.map((t) => tagsNaming(t, null).map(([tag]) => tag)), [['a110'], ['a61'], ['a91'], ['a62'], ['a111'], ['a56'], ['a57']]);
 });
 
 test('a sheet class the registry cannot name is caught, and so is a tag two surfaces share', () => {

@@ -57,6 +57,58 @@ let rootEl = null;
 let ctxBase = null;
 let painted = false;
 
+/*
+ * D-242 (2026-10-28): a sheet on the camera (the search, the price pad, a
+ * verdict) is one history entry of its own, so Android's back and a browser's
+ * back close the sheet and land on the live camera instead of leaving the app.
+ * `sheetClose` is what the screen asked to run when back is pressed with its
+ * sheet up; `sheetEntry` says the top history entry is the one this router
+ * pushed for it. One entry per sheet stack: the pad turning into a verdict
+ * reuses it, so one back always reaches the camera.
+ *
+ * `swallowPop` is set when the screen closes its own sheet (Done, the X): the
+ * router pops the entry it pushed, and the popstate that pop fires is not a
+ * navigation and must not repaint anything. Without the pop the next back
+ * would land on the same camera URL and appear to do nothing.
+ */
+let sheetClose = null;
+let sheetEntry = false;
+let swallowPop = 0;
+
+/** The screen opened a sheet: push one entry for it (only one, however many sheets follow). */
+export function openSheet(onBack) {
+  if (typeof onBack !== 'function') throw new Error('router.openSheet: onBack must be a function');
+  sheetClose = onBack;
+  if (sheetEntry) return;
+  const state = history.state && typeof history.state === 'object' ? history.state : { id: current, params: {} };
+  history.pushState({ ...state, sheet: true }, '', location.href);
+  sheetEntry = true;
+}
+
+/** The screen closed its sheet itself: pop the entry it was given, so the next back is a real one. */
+export function closeSheet() {
+  sheetClose = null;
+  if (!sheetEntry) return;
+  sheetEntry = false;
+  if (history.state?.sheet) {
+    swallowPop += 1;
+    history.back();
+  }
+}
+
+/** Whether a sheet entry is on top of the history right now. For tests and the measurement. */
+export function sheetOpen() {
+  return sheetEntry;
+}
+
+/** A sheet entry about to be left by a forward move: the move replaces it rather than stacking on it. */
+function dropSheetEntry() {
+  const was = sheetEntry && history.state?.sheet === true;
+  sheetClose = null;
+  sheetEntry = false;
+  return was;
+}
+
 /**
  * Where each screen was scrolled to when it was last left.
  *
@@ -160,7 +212,10 @@ export function go(id, params = {}) {
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) next.set(k, String(v));
   }
-  history.pushState({ id, params }, '', `?${next.toString()}`);
+  /* D-242: leaving the camera from an open sheet replaces the sheet's entry, so back from the
+     next screen lands on the camera and not on a second copy of it. */
+  if (dropSheetEntry()) history.replaceState({ id, params }, '', `?${next.toString()}`);
+  else history.pushState({ id, params }, '', `?${next.toString()}`);
   paint(id, params);
 }
 
@@ -235,6 +290,7 @@ export function replace(id, params = {}) {
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) next.set(k, String(v));
   }
+  dropSheetEntry();
   history.replaceState({ id, params }, '', `?${next.toString()}`);
   paint(id, params);
 }
@@ -258,6 +314,9 @@ function paint(id, params, restore = false) {
     }
   }
   cleanup = null;
+  // The outgoing screen's sheets are gone with its DOM.
+  sheetClose = null;
+  sheetEntry = false;
   current = id;
   rootEl.innerHTML = '';
   rootEl.dataset.screen = id;
@@ -285,7 +344,7 @@ function paint(id, params, restore = false) {
   document.title = titleFor(screenTitle);
   const gen = ++paintGen;
   try {
-    const returned = screen.render(rootEl, { ...ctxBase, go, replace, params }) ?? null;
+    const returned = screen.render(rootEl, { ...ctxBase, go, replace, params, sheet: { open: openSheet, close: closeSheet } }) ?? null;
     if (gen === paintGen) cleanup = returned;
   } catch (err) {
     console.error('render failed for', id, err);
@@ -332,7 +391,26 @@ export function start(root, base, fallbackId) {
   ctxBase = base;
   /* D28: `?dev=1` is remembered here, before the first navigation rewrites the query. */
   captureDevParam(location.search);
-  window.addEventListener('popstate', () => {
+  window.addEventListener('popstate', (event) => {
+    // The pop closeSheet asked for: the sheet is already closed and the screen stays.
+    if (swallowPop > 0) {
+      swallowPop -= 1;
+      return;
+    }
+    // Back with a sheet up: close the sheet, stay on the screen (D-242).
+    if (sheetEntry && !event?.state?.sheet) {
+      const close = sheetClose;
+      sheetClose = null;
+      sheetEntry = false;
+      if (close) {
+        try {
+          close();
+        } catch (err) {
+          console.error('closing the sheet on back failed', err);
+        }
+        return;
+      }
+    }
     const q = new URLSearchParams(location.search);
     const id = q.get('s');
     const params = Object.fromEntries([...q.entries()].filter(([k]) => k !== 's'));

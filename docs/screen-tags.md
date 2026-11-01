@@ -168,6 +168,8 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
 | a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
 | a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |
+| a110 | Past scan detail, a price range with no verdict (read only) | Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for). | `app/public/js/screens/pastscans.js` |
+| a111 | Saved item detail, a price range with no verdict | Saved, tap a row labelled A broad guess. | `app/public/js/screens/watchlist.js` |
 
 ## Not tagged, with reason
 

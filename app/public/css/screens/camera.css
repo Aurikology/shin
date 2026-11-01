@@ -2508,6 +2508,8 @@
 .sheet.dist .vd-half-actions .pill { flex: 1 1 0; min-width: 0; }
 .vd-suspect { margin-top: 8px; min-height: 44px; }
 .vd-chart { margin: 8px 0 2px; }
+/* R-89: the bell's first draw ends within 260 ms, with the sheet's own 260 ms rise; every
+   delay plus duration below stays at or under 260 (the dots' stagger is capped at 80 ms). */
 .vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }
 .sheet[data-conf="thin"] .vbell { --vb-halo: color-mix(in srgb, var(--tier) 12%, var(--ground)); }
 .vbell svg { display: block; width: 100%; height: auto; overflow: visible; }
@@ -2526,17 +2528,17 @@
   stroke-linejoin: round;
   stroke-dasharray: 1;
   stroke-dashoffset: 0;
-  animation: vb-draw 780ms cubic-bezier(.32,.72,0,1) 120ms backwards;
+  animation: vb-draw 240ms cubic-bezier(.32,.72,0,1) backwards;
 }
-.vb-area, .vb-band { animation: vb-fade 420ms ease-out 520ms backwards; }
+.vb-area, .vb-band { animation: vb-fade 180ms ease-out 60ms backwards; }
 /* The shopper's zones, on a neutral track so the tier hues read on a field of the same hue. */
-.vb-track { fill: var(--surface); animation: vb-fade 320ms ease-out 700ms backwards; }
-.vb-zone { animation: vb-fade 320ms ease-out 700ms backwards; }
+.vb-track { fill: var(--surface); animation: vb-fade 160ms ease-out 80ms backwards; }
+.vb-zone { animation: vb-fade 160ms ease-out 80ms backwards; }
 .vb-zone-great { fill: var(--good-bright); }
 .vb-zone-good { fill: var(--good); }
 .vb-zone-reasonable { fill: var(--fair); }
 .vb-zone-bad { fill: var(--walk); }
-.vb-dot { stroke: var(--vb-halo); stroke-width: 1.5; animation: vb-pop 220ms ease-out backwards; animation-delay: calc(760ms + var(--i, 0) * 40ms); transform-box: fill-box; transform-origin: center; }
+.vb-dot { stroke: var(--vb-halo); stroke-width: 1.5; animation: vb-pop 120ms ease-out backwards; animation-delay: calc(60ms + min(var(--i, 0) * 20ms, 80ms)); transform-box: fill-box; transform-origin: center; }
 .vb-dot-regular { fill: currentColor; }
 /* R-47: a sale price is a diamond, outlined, on its own lane: a different shape, not only a dashed line. */
 .vb-dot-sale { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
@@ -2546,7 +2548,7 @@
 .vb-cut { stroke: currentColor; stroke-width: 1; opacity: .4; stroke-linecap: round; }
 /* The shopper's own pending report (not in the bell): an outlined diamond with
    its own word, a different shape from the stores' small solid circles. */
-.vb-report { animation: vb-fade 320ms ease-out 900ms backwards; }
+.vb-report { animation: vb-fade 160ms ease-out 100ms backwards; }
 .vb-reportdot { fill: var(--vb-halo); stroke: currentColor; stroke-width: 1.75; stroke-linejoin: round; }
 .vb-reportlbl { font: 600 13px var(--f-ui); fill: currentColor; opacity: .95; }
 /* R-68: no label on the chart under 12 px on the glass: 13 units is 12.2 px on a 360 px phone. */
@@ -2561,7 +2563,7 @@
    and the price all inherit it through currentColor. */
 .vb-you { color: var(--tier-on); }
 .sheet[data-conf="thin"] .vb-you { color: var(--ink); }
-.vb-you { animation: vb-settle 480ms cubic-bezier(.34,1.56,.64,1) 1000ms backwards; }
+.vb-you { animation: vb-settle 160ms cubic-bezier(.34,1.56,.64,1) 100ms backwards; }
 /* R-67: the shopper's mark. A solid 2 px line (2.125 units), a 12 px dot on the curve, the price bold 16 px (17 units). */
 .vb-guide { stroke: currentColor; stroke-width: 2.125; stroke-linecap: round; }
 .vb-arrow { fill: none; stroke: currentColor; stroke-width: 2.125; stroke-linecap: round; stroke-linejoin: round; }

@@ -173,6 +173,8 @@ export const SCREEN_TAGS = {
   a107: { id: 'camera.typedpick', title: 'Which one is it? (the typed name\'s top three catalogue matches)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.typedpick', rank: 40, how: 'Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit.' },
   a108: { id: 'camera.servererror', title: 'Pexi hit a problem sheet (server fault on a scan)', kind: 'sheet', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.sheet.refusal[data-server-fault]', rank: 45, how: 'Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi\'s side, not the phone\'s connection, and offers Try again.' },
   a109: { id: 'camera.correction.toast', title: 'Price saved toast after a correction, back on the viewfinder', kind: 'overlay', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.toast[data-corr-toast]', rank: 50, how: 'Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in.' },
+  a110: { id: 'pastscans.detail.range', title: 'Past scan detail, a price range with no verdict (read only)', kind: 'modal', file: 'app/public/js/screens/pastscans.js', route: 'pastscans', sel: '.pmodal[data-pmodal="range"]', rank: 55, how: 'Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for).' },
+  a111: { id: 'watchlist.detail.range', title: 'Saved item detail, a price range with no verdict', kind: 'modal', file: 'app/public/js/screens/watchlist.js', route: 'watchlist', sel: '.pmodal[data-pmodal="range"]', rank: 55, how: 'Saved, tap a row labelled A broad guess.' },
 };
 
 /**

@@ -35,7 +35,7 @@ import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
 import { canShareCard, shareCard } from '../lib/native-share.js';
-import { answerOf, answerLook, answerWord, answerLine } from '../lib/history-answer.js';
+import { answerOf, answerLook, answerWord, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
 import { roundEstimateCents } from '../lib/verdict-chart.js';
 
 const W = 1080;
@@ -504,6 +504,32 @@ export function answerCard(entry) {
   };
 }
 
+/**
+ * D-240: the card for a range answer with no verdict. Its label where the verdict word goes, the
+ * range in the "elsewhere" column, the item under the label. No verdict, no typical price (D-239).
+ */
+export function rangeCard(entry) {
+  const a = rangeOf(entry);
+  const label = a.label || entry.query?.text || t('past_scans_unknown_item');
+  return {
+    tierId: 'unknown',
+    expression: 'idle',
+    who: undefined,
+    level: 'reading',
+    word: rangeWord(a),
+    line: '',
+    label,
+    askingText: typeof a.askingCents === 'number' ? money(a.askingCents, a.currency) : t('share_no_price_caps'),
+    askingSub: '',
+    elsewhereText: rangeFigure(a),
+    elsewhereSub: '',
+    confidence: '',
+    stamp: new Date(entry.at ?? Date.now())
+      .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+      .toUpperCase(),
+  };
+}
+
 export default {
   id: 'share',
   title: 'Share',
@@ -512,7 +538,8 @@ export default {
   render(root, ctx) {
     const entry = ctx.store.get().history.find(
       (h) => (h.result?.kind === 'verdict' && (!ctx.params.id || h.result.identity?.id === ctx.params.id))
-        || (answerOf(h) && (!ctx.params.id || answerOf(h).id === ctx.params.id)),
+        || (answerOf(h) && (!ctx.params.id || answerOf(h).id === ctx.params.id))
+        || (rangeOf(h) && (!ctx.params.id || rangeOf(h).id === ctx.params.id)),
     );
     if (!entry) {
       ctx.replace('camera');
@@ -520,10 +547,10 @@ export default {
     }
 
     const v = entry.result;
-    const conf = answerOf(entry) ? null : confidenceOf(v);
-    const tier = answerOf(entry) ? null : tierOf(v.tier);
+    const conf = answerOf(entry) || rangeOf(entry) ? null : confidenceOf(v);
+    const tier = answerOf(entry) || rangeOf(entry) ? null : tierOf(v.tier);
 
-    const card = answerOf(entry) ? answerCard(entry) : {
+    const card = answerOf(entry) ? answerCard(entry) : rangeOf(entry) ? rangeCard(entry) : {
       tierId: v.tier,
       expression: tier.face,
       who: undefined,

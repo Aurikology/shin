@@ -121,3 +121,39 @@ export function answerLine(a) {
   }
   return t('vd_typical', { centre });
 }
+
+/*
+ * D-240 (Aurik's call, 2026-11-01): a range answer with no verdict (the broad
+ * bell, an AI range, an estimate) is kept too, as camera.js `rangeAnswerSnapshot`
+ * writes it: `{ kind: 'range', id, label, basis, lowCents, highCents, currency,
+ * unit, askingCents }`. It has no centre and no zone on purpose, so no list can
+ * print a typical price or a verdict word for it (D-239).
+ */
+
+/** True for a stored range snapshot. */
+export function isRangeAnswer(x) {
+  return !!x && x.kind === 'range' && typeof x.lowCents === 'number' && typeof x.highCents === 'number';
+}
+
+/** The range snapshot a history row carries, as its result or beside it. */
+export function rangeOf(entry) {
+  if (!entry) return null;
+  if (isRangeAnswer(entry.result)) return entry.result;
+  if (isRangeAnswer(entry.answer)) return entry.answer;
+  return null;
+}
+
+/** The label a range answer wears where a verdict word would go: "A broad guess", "Estimated by AI", ... */
+export function rangeWord(a) {
+  if (a.basis === 'fixed_prior') return t('range_word_broad');
+  if (a.basis === 'gemini_typical') return t('range_word_ai');
+  if (a.basis === 'this_product') return t('range_word_own');
+  return t('range_word_estimate');
+}
+
+/** "$2.78 to $36.02", the range as the sheet printed it. */
+export function rangeFigure(a) {
+  const low = money(a.lowCents, a.currency);
+  const high = money(a.highCents, a.currency);
+  return a.unit ? t('cat_range_unit', { low, high, unit: a.unit }) : t('cat_range', { low, high });
+}

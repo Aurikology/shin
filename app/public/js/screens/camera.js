@@ -1913,10 +1913,11 @@ function correctionHtml(corr, { centsFirst, gate }) {
 /**
  * A better answer arriving while the bell is on screen (design case 28): the
  * bell eases from the old centre and spread to the new ones, the axis words
- * already the new answer's. Under prefers-reduced-motion it is simply redrawn.
+ * already the new answer's, in 360 ms (R-89: at most 400). Under
+ * prefers-reduced-motion it is simply redrawn.
  * Returns a cancel function.
  */
-function morphBell(host, fromRaw, toRaw, { ms = 620, reduced = prefersReducedMotion(), report = null } = {}) {
+function morphBell(host, fromRaw, toRaw, { ms = 360, reduced = prefersReducedMotion(), report = null } = {}) {
   const from = usableVerdict(fromRaw);
   const to = usableVerdict(toRaw);
   if (!host || !to) return () => {};
@@ -1946,7 +1947,34 @@ function prefersReducedMotion() {
   }
 }
 
-function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get() } = {}) {
+/**
+ * D-240 (Aurik's call, 2026-11-01): a catalogue answer with a range and no
+ * verdict (the broad bell, an AI range, an estimate) is written to history.
+ * The row keeps what the sheet showed: the product, the range and where the
+ * range came from (`basis`), and the shelf price when one was typed. Never a
+ * centre, a median or a zone word: the broad bell's midpoint is not a typical
+ * price (D-239), so the snapshot has no field a list could print as one.
+ * Null when the range cannot be drawn.
+ */
+function rangeAnswerSnapshot(rawRange, { key = null, name = '', shelfCents = null, scanId = null, code = null } = {}) {
+  const r = usableRange(rawRange);
+  if (!r) return null;
+  return {
+    kind: 'range',
+    id: key ?? (name ? `name:${name}` : null),
+    label: name,
+    identity: { label: name, ...(code ? { gtin: code } : {}) },
+    basis: r.basis,
+    lowCents: Math.round(r.lowCents),
+    highCents: Math.round(r.highCents),
+    currency: r.currency ?? null,
+    unit: r.unit ?? null,
+    askingCents: Number.isInteger(shelfCents) && shelfCents > 0 ? shelfCents : null,
+    ...(Number.isInteger(scanId) && scanId > 0 ? { scanId } : {}),
+  };
+}
+
+function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store.get(), saved = false, typed = null } = {}) {
   const identity = answer?.outcome === 'catalogue_hit' || answer?.outcome === 'named_outside_catalogue' ? answer.identity : null;
   if (!identity) {
     return `
@@ -1972,8 +2000,10 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
   const placed = range && shelf !== null ? placeShelf(shelf, range, state) : null;
   const zone = placed?.zone ?? null;
   const name = candidateRow({ brand: identity.brand, name: identity.name, size: identity.size }).label;
+  /* D-241: a typed name nothing matched keeps the shopper's own words in the title, never "type it again". */
+  const typedMiss = typeof typed === 'string' && typed.trim() !== '';
   // The bell's own four words (RULINGS.md "The verdict speaks his words against the shopper's own thresholds").
-  const headline = zone ? t(`vd_zone_${zone}`) : name;
+  const headline = zone ? t(`vd_zone_${zone}`) : typedMiss ? say('refuse_typed_none', { text: typed.trim() }) : name;
   const figure = range
     ? t(range.unit ? 'cat_range_unit' : 'cat_range', {
         low: money(range.lowCents, currency),
@@ -1998,9 +2028,33 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
         .join('')}</ul>`
     : '';
 
+  /* D-240: a sheet with a range gets the actions every other answer has: Save it, Fix Results,
+     Share and the thumbs, on the same three detents as the verdict bell. The typed miss (D-241)
+     keeps Scan the barcode as its one action in the peek and moves Save it to the half. */
+  const saveLabel = saved ? say('peek_watching') : say('peek_fair');
+  const peekAction = !range
+    ? `<button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>`
+    : typedMiss
+      ? `<button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('cam_scan_barcode'))}</button>`
+      : `<button type="button" class="pill solid wide" data-act="range-save">${saveLabel}</button>`;
+  const more = range
+    ? `<div class="sheet-half">
+        <div class="actions vd-half-actions">
+          ${typedMiss ? `<button type="button" class="pill ghost" data-act="range-save">${saveLabel}</button>` : ''}
+          <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
+          <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
+        </div>
+      </div>
+      <div class="sheet-full">
+        ${thumbsBlock()}
+        <div class="toast-slot" data-toast-slot></div>
+        <button type="button" class="pill solid wide done-btn" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+      </div>`
+    : '';
+
   return `
-    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${!range ? 'refuses' : range.basis === 'fixed_prior' ? 'reading' : 'sure'}" data-detent="peek" aria-live="polite" tabindex="-1">
-      <span class="grabber" aria-hidden="true"></span>
+    <section class="sheet catalogue" data-kind="catalogue" data-outcome="catalogue_hit" data-basis="${escapeHtml(range?.basis ?? '')}" data-tier="${ZONE_TIER[zone] ?? 'unknown'}" data-zone="${escapeHtml(zone ?? '')}" data-conf="${!range ? 'refuses' : range.basis === 'fixed_prior' ? 'reading' : 'sure'}"${typedMiss ? ' data-typed' : ''} data-detent="peek" aria-live="polite" tabindex="-1">
+      ${range ? grabber() : '<span class="grabber" aria-hidden="true"></span>'}
       ${backButton()}
       <div class="sheet-peek">
         ${/* The mascot sits beside the headline with no words (2026-10-10 audit row 10:
@@ -2019,9 +2073,10 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
         ${nameSource ? `<p class="conf-label cat-source" data-cat-source>${escapeHtml(nameSource)}</p>` : ''}
         ${poolList}
         <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="cancel-scan">${escapeHtml(t('done'))}</button>
+          ${peekAction}
         </div>
       </div>
+      ${more}
     </section>`;
 }
 
@@ -2961,7 +3016,7 @@ export { verdictSheet, refusalSheet, pricePadSheet, goingRateCard, workingSheet,
 // The Gemini answer, its plain failure state, and the one test that tells them apart.
 export { geminiSheet, geminiFailureSheet, geminiFailed };
 // The catalogue-first answer (SHIN_CATALOGUE_FIRST on), for test/catalogue-answer.test.mjs.
-export { catalogueSheet };
+export { catalogueSheet, rangeAnswerSnapshot };
 // The verdict bell (RULINGS.md "V1 verdict screen mechanics"), for the tests and the fixture walk.
 export { distributionSheet, morphBell, distFace };
 
@@ -3759,11 +3814,35 @@ export default {
      * actually says the thing: this subtree is not interactive right now, in
      * the tab order and in the accessibility tree together.
      */
+    /*
+     * D-242: a sheet up (the search, the pad, a verdict, the candidates) owns one
+     * history entry, so the phone's back closes it and stays on the camera. The
+     * router pushes one entry for the whole stack and runs `reset` on back; the
+     * return to idle pops the entry again, a microtask later so a reset that goes
+     * straight on to another sheet (the type-it route off a verdict) keeps it.
+     * `ctx.sheet` is absent when a test renders this screen without the router.
+     */
+    let sheetPopQueued = false;
+    function syncSheetHistory(next, sheetUp) {
+      if (!ctx.sheet) return;
+      if (sheetUp) {
+        ctx.sheet.open(() => { if (!dead) reset(); });
+        return;
+      }
+      if (next !== 'idle' || sheetPopQueued) return;
+      sheetPopQueued = true;
+      queueMicrotask(() => {
+        sheetPopQueued = false;
+        if (!dead && cam.dataset.state === 'idle') ctx.sheet.close();
+      });
+    }
+
     function setState(next) {
       if (cam.dataset.state !== next) stateEnteredAt = Date.now();
       cam.dataset.state = next;
       const sheetUp = next === 'result' || next === 'choosing' || next === 'asking' || next === 'texting';
       if (camBar) camBar.inert = sheetUp;
+      syncSheetHistory(next, sheetUp);
       /*
        * The alternate-object buttons the eye draws are hidden by opacity while
        * a sheet is up (camera.css, `.frame-marks`), which hides them from the
@@ -5692,6 +5771,7 @@ export default {
       cancelSuggest();
       slot.innerHTML = '';
       last = null;
+      cat = null;
       lastKeepable = null;
       lastScanId = null;
       shelfFiledFor = null;
@@ -6135,26 +6215,50 @@ export default {
         }
         return;
       }
-      if (act === 'dist-save' && dist?.key) {
-        const v = usableVerdict(dist.raw);
-        const shopper = dist.typedCents ?? v?.shopper?.cents ?? null;
-        const wasSaved = store.isWatched(dist.key);
-        store.toggleWatch({
-          id: dist.key,
-          label: dist.name,
-          category: null,
-          lastCents: shopper,
-          askingSeller: null,
-          usualCents: v ? Math.round(v.centreCents) : null,
-          thumb: last?.thumb ?? null,
-          /* D07, D20: the verdict on file travels with the saved row, so Saved
-             opens with it and wears the zone word's face. */
-          answer: answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents }),
-        });
-        paintDistribution(true);
+      /* D-240: Save on a range answer goes through the same handler, so one Save haptic fires for
+         either. The saved range row carries the range snapshot and no usual price: the range's
+         middle is not one (D-239). */
+      if ((act === 'dist-save' && dist?.key) || (act === 'range-save' && cat?.snap?.id)) {
+        let wasSaved;
+        if (act === 'dist-save') {
+          const v = usableVerdict(dist.raw);
+          const shopper = dist.typedCents ?? v?.shopper?.cents ?? null;
+          wasSaved = store.isWatched(dist.key);
+          store.toggleWatch({
+            id: dist.key,
+            label: dist.name,
+            category: null,
+            lastCents: shopper,
+            askingSeller: null,
+            usualCents: v ? Math.round(v.centreCents) : null,
+            thumb: last?.thumb ?? null,
+            /* D07, D20: the verdict on file travels with the saved row, so Saved
+               opens with it and wears the zone word's face. */
+            answer: answerSnapshot(dist.raw, { key: dist.key, name: dist.name, typedCents: dist.typedCents }),
+          });
+          paintDistribution(true);
+        } else {
+          // D-240, range-save: the range snapshot, no usual price.
+          const snap = cat.snap;
+          wasSaved = store.isWatched(snap.id);
+          store.toggleWatch({
+            id: snap.id,
+            label: snap.label,
+            category: null,
+            lastCents: snap.askingCents,
+            askingSeller: null,
+            usualCents: null,
+            thumb: last?.thumb ?? null,
+            answer: snap,
+          });
+          const detent = slot.querySelector('.sheet.catalogue')?.dataset.detent;
+          slot.innerHTML = catalogueSheet(cat.answer, { shelfCents: cat.cents, thumb: scanThumb, typed: cat.typed, saved: !wasSaved });
+          const next = slot.querySelector('.sheet');
+          if (next && detent) setDetent(next, detent);
+        }
         // R-1: one haptic when the answer becomes saved, none when it is un-saved.
         if (!wasSaved) { try { haptic('saved'); } catch (err) { reportHapticFault(err, 'saved'); } }
-        mounted('[data-act="dist-save"]');
+        mounted(`[data-act="${act}"]`);
         return;
       }
 
@@ -6257,6 +6361,10 @@ export default {
       if (act === 'share' && dist?.key && last?.result?.kind === 'distribution') {
         syncAnswer();
         ctx.go('share', { id: dist.key });
+        return;
+      }
+      if (act === 'share' && cat?.snap?.id && last?.result?.kind === 'range') {
+        ctx.go('share', { id: cat.snap.id });
         return;
       }
       if (act === 'share' && last?.result?.kind === 'verdict') {
@@ -6633,6 +6741,20 @@ export default {
         });
         return;
       }
+      /* D-241: no bell, but a range (the broad guess for a typed name nothing matched, or a
+         product with no price yet): the same range sheet a barcode's broad guess gets, drawn
+         `reading`, no haptic, nothing placed against it, and written to history (D-240). */
+      if (!(id.found && id.grounded) && usableRange(id?.range)) {
+        const m = id.ownMatch ?? null;
+        const identity = id.identity ?? (m ? { brand: m.brand, name: m.name, size: m.size, barcode: m.code ?? null } : { name: text });
+        showCatalogue({
+          outcome: id.identity ? 'catalogue_hit' : 'named_outside_catalogue',
+          identity,
+          range: id.range,
+          ...(Number.isInteger(id.scanId) ? { scanId: id.scanId } : {}),
+        }, cents ?? null, { typed: id.identity || m ? null : text });
+        return;
+      }
       const askingCents = cents ?? undefined;
       if (id.found && id.grounded) {
         const item = { id: null, text: id.ownMatch?.name ?? text, category: null, gtin: null };
@@ -6679,11 +6801,12 @@ export default {
      * The catalogue-first answer (`kind: 'catalogue'`), drawn by
      * `catalogueSheet`. `cents` is the price the shopper typed on the pad at
      * scan time, or null for a skipped one; it is what gets placed against
-     * their lines. Not written to history: the past-scans screens know only
-     * the verdict and Gemini shapes, and a row they cannot draw is worse than
-     * none (flagged in the lane report).
+     * their lines. A range with no verdict is written to history as a
+     * `range` snapshot (D-240, `rangeAnswerSnapshot`): the product, the range
+     * and its basis, never a typical price or a verdict word. `typed` is the
+     * shopper's words when a typed name matched nothing (D-241).
      */
-    function showCatalogue(answer, cents) {
+    function showCatalogue(answer, cents, { typed = null } = {}) {
       // The verdict bell, when the answer carries one (RULINGS.md "V1 verdict screen mechanics").
       if (usableVerdict(answer?.verdict)) {
         const id = answer.identity;
@@ -6711,9 +6834,28 @@ export default {
       }
       last = null;
       lastKeepable = null;
-      slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb });
+      cat = null;
+      const id = answer?.identity ?? null;
+      const shelf = shelfCentsOf(cents ?? null, answer?.shelfPrice);
+      if (id && usableRange(answer.range)) {
+        const name = candidateRow({ brand: id.brand, name: id.name, size: id.size }).label;
+        const code = id.barcode ?? answer.barcode ?? null;
+        const scanId = Number.isInteger(answer.scanId) ? answer.scanId : (Number.isInteger(lastScanId) ? lastScanId : null);
+        const snap = rangeAnswerSnapshot(answer.range, { key: code ?? (name ? `name:${name}` : null), name, shelfCents: shelf, scanId, code });
+        const historyId = store.recordVerdict(snap, {
+          text: name,
+          askingCents: snap.askingCents ?? undefined,
+          thumb: scanThumb,
+          ...(code ? { gtin: code } : {}),
+          answered: true,
+        });
+        noteAnswer({ code, label: name, category: null });
+        cat = { answer, cents: cents ?? null, typed, snap, historyId };
+        last = { result: snap, scenario: { text: name, category: null, ...(code ? { gtin: code } : {}) }, thumb: scanThumb, askingCents: snap.askingCents ?? undefined };
+      }
+      slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb, typed, saved: cat ? store.isWatched(cat.snap.id) : false });
       // The catalogue sheet with a range is drawn at data-conf "sure"; without one it is a refusal band, no haptic.
-      if (answer.outcome === 'catalogue_hit' && answer.range && answer.range.basis !== 'fixed_prior') landHaptic('sure');
+      if (answer.outcome === 'catalogue_hit' && usableRange(answer.range) && answer.range.basis !== 'fixed_prior') landHaptic('sure');
       else playRefusalLanding(slot);
       setState('result');
       mounted(answer.offerManualEntry ? '[data-act="typeit"]' : undefined);
@@ -6727,6 +6869,8 @@ export default {
      * the bell does not redraw; only the shopper's new dot drops in.
      */
     let dist = null;
+    /** The range answer on screen (D-240): what the catalogue sheet was drawn from, so Save repaints it in place. */
+    let cat = null;
 
     /*
      * THE CORRECTION, a detent of the verdict sheet (UX build 5, R-30). `corr` is
