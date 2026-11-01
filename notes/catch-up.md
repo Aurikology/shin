@@ -14,6 +14,38 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-11-01 (Aurik's PC): broad guesses are saved, typed misses get one, back closes a sheet
+
+### To do
+
+- **Jamin, or the Mac session: pull and restart, then on a phone type a name nothing matches
+  ("kraft dinner original 225g", Skip, None of these, Search with the words as typed).** It should
+  answer "No price for ... yet" with $2.78 to $36.02 and "A broad guess", and it should then be
+  in Past scans. On Android, press back with any sheet open: it should close the sheet, not the app.
+  None of it has been tried on a real phone; all of it was checked in a desktop browser at phone size.
+- **Jamin: the TestFlight build** still waits from the 30 October message; it should now be built
+  from this push or later so the phone gets these fixes as well as the D-249 crash fix.
+
+### What changed
+
+- **A scan with only a broad guess is now saved** (D-240, Aurik's call). Past scans and Saved show
+  the name, "A broad guess" and the range, never a verdict word or a typical price. Its sheet gets
+  Save, Fix, Share and the thumbs like any other answer, and the You screen counts it.
+- **A typed name that matches nothing now gets the broad guess** (D-241, Aurik's call), the same
+  wide range a barcode with no prices gets, instead of no range.
+- **Back closes an open sheet** (D-242). Before, back from a verdict left the app.
+- **Typed search no longer lists two rows that read the same** (D-245): "oreo" lists Oreo,
+  Oreo 40 x 22 g and Oreo Thins on the real catalogue.
+- **The bell is faster** (R-89, Aurik's yes): it finishes drawing with the sheet (260 ms, was about
+  1.5 s) and a better answer moves it in 360 ms (was 620).
+- The live server was checked today: it answers, and its barcode reader carries the D-249 fix.
+
+### Read by
+
+- Aurik (Windows PC), 2026-11-01
+
+---
+
 ## 2026-10-28 (Aurik's PC): a bug hunt; the broad guess stops saying "Great price"
 
 ### To do

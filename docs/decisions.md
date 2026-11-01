@@ -2910,3 +2910,21 @@ program; not yet run on the Mac.
 Cost: Aurik's sessions read only GitLab and cannot see the mailbox, so the deploy status is no
 longer on a page he reads. **Reverses if:** Aurik needs the deploy status (then publish the status
 file somewhere he reads), or the Notion workspace gets room again and someone prefers the page.
+
+## A broad guess is saved, a typed miss gets one, and the bell moves faster
+**Date:** 2026-11-01 · **Status:** active
+
+Aurik, 2026-11-01, picking the recommended option on three open calls from the 2026-10-28 walk:
+
+- **D-240, what history shows for a broad guess:** *"Save it, show range."* A catalogue answer
+  with a range and no verdict is written to Past scans and Saved. Its row shows the product name
+  and the range labelled as a broad guess, with no verdict word and no typical price (the bell's
+  midpoint is not one). Its sheet gets Save, Fix, Share and thumbs like any other answer.
+- **D-241, what a typed name that matches nothing answers:** *"Broad guess range."* The same wide
+  range a no-price barcode gets, marked as a broad guess, with Scan the barcode as its button. This
+  closes the typed route's gap in requirement 3.1 (every request ends in a range).
+- **R-89, the bell's timing:** *"Yes, 260/400 ms."* The first draw finishes with the sheet in
+  260 ms (was about 1,480 ms) and a better answer morphs it in 400 ms or less (was 620 ms).
+
+**Reverses if:** testers read a saved broad guess as a real price judgement (then drop the range
+from the row and show the name only), or the faster bell is rated harder to read by testers.
