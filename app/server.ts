@@ -66,6 +66,7 @@ import {
   answerNamedItem,
   catalogueFaults,
   catalogueFirstOn,
+  lastRungRange,
   matchText,
   packReadSettings,
   pickCandidate,
@@ -77,6 +78,7 @@ import {
   type BarcodeDeps,
   type MatchTextAnswer,
   type NamedElsewhere,
+  type NoRangeReason,
   type TypedRow,
 } from './src/catalogue-first.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, shownRange, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
@@ -1984,8 +1986,17 @@ interface TypedVerdictContext {
  * The typed answer's verdict (design cases 7 and 8). A match is priced as its
  * barcode would be; no match is priced from the typed words alone, sorted by
  * the catalogue search and, when that finds nothing, asked of Claude once.
+ *
+ * D-241 / requirement 3.1: the answer always carries a range. A verdict's own bell is that range;
+ * a too-thin or empty estimate (no verdict) gets the same last rung a no-price barcode gets
+ * (`lastRungRange`: the fixed wide bell, `fixed_prior`), which carries no verdict and so no word.
  */
-async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerdictContext, device: string): Promise<Verdict | null> {
+async function typedVerdict(
+  text: string,
+  match: OwnMatch | null,
+  ctx: TypedVerdictContext,
+  device: string,
+): Promise<{ verdict: Verdict | null; last: ReturnType<typeof lastRungRange>; noRangeReason: NoRangeReason }> {
   const prices = openPricesReadOnly(defaultPricesPath(), device);
   try {
     const once = onceAsk(ctx.askRange);
@@ -2004,7 +2015,12 @@ async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerd
       },
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
-    return shownVerdict(est, `typed:${match?.code ?? text.slice(0, 40)}`);
+    const verdict = shownVerdict(est, `typed:${match?.code ?? text.slice(0, 40)}`);
+    return {
+      verdict,
+      last: lastRungRange(est, ctx.market.currency ?? 'CAD'),
+      noRangeReason: est?.trace.tooThin ? 'pool_too_wide' : 'no_shin_prices',
+    };
   } finally {
     try {
       prices?.close();
@@ -2020,6 +2036,12 @@ async function typedVerdict(text: string, match: OwnMatch | null, ctx: TypedVerd
  * band downgrade), asked for five rows so a rival behind the top three is seen.
  * A search that fails is an empty list, never a thrown request.
  */
+/** Whether the catalogue `typedCatalogueSearch` searches is attached: the test seam's, else the worker. */
+function typedCatalogueAttached(): boolean {
+  const seam = catalogueFirstTest?.searcher;
+  return seam !== undefined ? seam !== null : !!searchService;
+}
+
 async function typedCatalogueSearch(text: string, device: string): Promise<{ rows: TypedRow[]; band: string }> {
   const seam = catalogueFirstTest?.searcher;
   const q = { text, limit: 5, vectors: vectorsOn };
@@ -2096,6 +2118,8 @@ async function typedFromOwnData(
   // Every typed answer carries the verdict when the caller passed its context (catalogue first on).
   let verdict: Verdict | null = null;
   let barcodeAnswer: Awaited<ReturnType<typeof catalogueFirstBarcode>> | null = null;
+  /** The typed estimate's range when no barcode answer brought one (D-241, requirement 3.1). */
+  let typedRange: Awaited<ReturnType<typeof typedVerdict>> | null = null;
   if (first && verdictCtx) {
     const code = resolution?.row?.code ?? match?.code ?? null;
     const canonical = code ? canonicalBarcode(code) : null;
@@ -2106,7 +2130,13 @@ async function typedFromOwnData(
         logError({ where: 'identify.typed_barcode_answer', deviceId: device, scanId: null, err });
       }
     }
-    verdict = barcodeAnswer?.answer.verdict ?? (await typedVerdict(text, match, verdictCtx, device));
+    if (barcodeAnswer?.answer.verdict) verdict = barcodeAnswer.answer.verdict;
+    else {
+      const own = await typedVerdict(text, match, verdictCtx, device);
+      verdict = own.verdict;
+      // 3.1: a barcode answer brings its own range; anything else takes the typed estimate's last rung.
+      if (!(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit' && barcodeAnswer.answer.range)) typedRange = own;
+    }
   }
   const ms = Date.now() - startedAt;
   const label = named ? [named.brand && !named.name.toLowerCase().includes(named.brand.toLowerCase()) ? named.brand : null, named.name, named.size].filter(Boolean).join(' ') : null;
@@ -2126,8 +2156,9 @@ async function typedFromOwnData(
           rangeBasis: barcodeAnswer.record.rangeBasis,
           rangeMissReason: barcodeAnswer.record.rangeMissReason,
         }
-      : // D-235: a typed answer with no barcode ladder behind it still says what its shown verdict stood on.
-        { ...shownRange(verdict) }),
+      : // D-235: a typed answer with no barcode ladder behind it still says what its shown verdict stood on;
+        // with no verdict, its last-rung range is recorded the way the barcode's is (source 'none', basis named).
+        { ...(shownRange(verdict) ?? (typedRange ? { rangeSource: 'none' as const, rangeBasis: typedRange.last.range.basis } : {})) }),
     ...verdictRecord(verdict),
     appVersion: telemetry.appVersion,
     platform: telemetry.platform,
@@ -2154,7 +2185,8 @@ async function typedFromOwnData(
     ring: null,
     otherCandidates: 0,
     route: null,
-    catalogueUp: false,
+    // D-241: whether the catalogue the typed words were searched in is attached (it was always false).
+    catalogueUp: typedCatalogueAttached(),
     ms,
     model: null,
     failure: null,
@@ -2170,6 +2202,12 @@ async function typedFromOwnData(
           noRangeReason: barcodeAnswer.answer.noRangeReason,
         }
       : {}),
+    /*
+     * D-241 / 3.1: no barcode answer brought a range, so the typed estimate's last rung does. With no
+     * verdict it is the broad guess (`rangeSource` and `range.basis` 'fixed_prior', `confidence: 'low'`),
+     * the very range a no-price barcode gets, and carries no verdict, so no word is read off it (D-239).
+     */
+    ...(typedRange ? { range: typedRange.last.range, rangeSource: typedRange.last.source, noRangeReason: typedRange.noRangeReason } : {}),
     ...shopperReportField(device, named?.code || match?.code || null),
     ...(scanId === null ? {} : { scanId }),
   };
