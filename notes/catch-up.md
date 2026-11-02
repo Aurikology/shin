@@ -18,6 +18,13 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ### To do
 
+- **Jamin: the TestFlight crashes (D-250).** Aurik's TestFlight check crashes noticeably, and the
+  PC cannot reproduce it (WebKit sweep, 35 buttons, 0 crashes). Send the build number and the
+  crash reports from App Store Connect (TestFlight, Crashes); the steps are in the 2026-11-01
+  message in comms/messages.
+- **Aurik: for each crash, write down the screen, the tap, and whether the app closed or went
+  white.** Then share the matching `Pexi-...` or `JetsamEvent-...` file from Settings, Privacy and
+  Security, Analytics and Improvements, Analytics Data.
 - **Jamin, or the Mac session: pull and restart, then on a phone type a name nothing matches
   ("kraft dinner original 225g", Skip, None of these, Search with the words as typed).** It should
   answer "No price for ... yet" with $2.78 to $36.02 and "A broad guess", and it should then be
