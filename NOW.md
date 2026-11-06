@@ -126,11 +126,10 @@ No one should quote 32/52 as current.
 
 ## Open blockers
 
-**The paid Gemini key EXISTS, Jamin 2026-09-28:** *"The paid ai key already exists"*. It is not
-in the Windows PC's `.env` (only `ICECAT_*` and `EBAY_*` there), so where it lives is the Mac's
-config, and whether the live server runs on it is asked of the Mac (mail 2026-09-28): `/api/health`
-must report the paid tier and a real barcode scan must return prices. The refusal path lives in
-`photoTierRefusal` (`app/server.ts:823`) and `geminiKeyProblem` (`app/server.ts:4103`).
+**App Store submission of 1.0 (Jamin 2026-11-05: submit, manual release, EU left out).** Build 4
+code is 64e653c; it needs the RevenueCat iOS key, the subscriptions set up, screenshots and the
+listing (`docs/store/`) before Add for Review. The 2026-09-28 Gemini-key blocker and two 09-27/28
+Mac asks moved to `docs/archive/now-history-2026-11-05.md`.
 
 ## Waiting on Jamin or Aurik
 - **Aurik: does build 3 still crash?** (D-250, D-249.) TestFlight build 3 went up 2026-11-04
@@ -143,11 +142,6 @@ must report the paid tier and a real barcode scan must return prices. The refusa
   answer has to come from him.
 - **Aurik:** the range ask on Claude with no web search (his claim, 2026-09-28 17:00 UTC). The
   server makes no range ask until it is wired back in.
-- **The Mac:** pull, restart onto catalogue first, verify own prices on barcode scans, and move
-  the iOS project to CocoaPods for the ML Kit plugins (mail 2026-09-28, see mailbox).
-- **The Mac (asked by mail 2026-09-27, no receipt yet):** is SHIN_GEMINI_TIER paid (unset or free
-  refuses every shopper photo), SHIN_REQUIRE_DB, SHIN_GEMINI_GROUNDED_MODEL, and SHIN_GEMINI_SPLIT;
-  then pull main and restart the beta server (becf7d8 removed the 2.5 split).
 
 ## Next steps
 
