@@ -161,10 +161,10 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a100 | Price verdict bell, first look (his word, the bell, Save) | Any scan whose answer carries a verdict (kind distribution). With no shelf price yet the bell shows a price field. | `app/public/js/screens/camera.js` |
 | a101 | Price verdict bell, half open (notes, prices seen, correct it) | Price verdict bell, tap or drag the grabber up once. | `app/public/js/screens/camera.js` |
 | a102 | Price verdict bell, fully open (thumbs, Done) | Price verdict bell, tap or drag the grabber up twice. | `app/public/js/screens/camera.js` |
-| a103 | Page: Terms of Use | You, Terms of use. Or open /legal/terms.html. The tag is in the page source as a meta tag; no badge is drawn. | `app/public/legal/terms.html` |
-| a104 | Page: Privacy Policy | You, Privacy policy. Or open /legal/privacy.html. The tag is in the page source as a meta tag; no badge is drawn. | `app/public/legal/privacy.html` |
-| a105 | Page: Terms of Use, French | Terms of Use, tap the French link at the top. Or open /legal/terms-fr.html. No badge is drawn. | `app/public/legal/terms-fr.html` |
-| a106 | Page: Privacy Policy, French | Privacy Policy, tap the French link at the top. Or open /legal/privacy-fr.html. No badge is drawn. | `app/public/legal/privacy-fr.html` |
+| a103 | Retired: Page: Terms of Use | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/terms.html` |
+| a104 | Retired: Page: Privacy Policy | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/privacy.html` |
+| a105 | Retired: Page: Terms of Use, French | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/terms.html` |
+| a106 | Retired: Page: Privacy Policy, French | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/privacy.html` |
 | a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
 | a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
 | a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |

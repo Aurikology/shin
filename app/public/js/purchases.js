@@ -94,12 +94,19 @@ export function resetPurchasesForTests() {
   configured = null;
 }
 
+/** RevenueCat's ISO 8601 `subscriptionPeriod` for the two plans, as the word the screen prints. */
+const PERIODS = Object.freeze({ P1M: 'month', P1Y: 'year' });
+
 /**
  * The two plans, with the store's own price strings, or why there are none.
  *
  *   { store: false }                    no store here: say "Subscribe in the app"
  *   { store: true, plans: [] }          the store answered with nothing to sell
- *   { store: true, plans: [{ id, priceString, pkg }, ...] }
+ *   { store: true, plans: [{ id, priceString, pkg, title?, period? }, ...] }
+ *
+ * `title` is the product's own title and `period` its billing period ('month'
+ * or 'year', from `subscriptionPeriod`); each is left off when the store sends
+ * none, and the screen then falls back to the plan id.
  *
  * Throws when the store could not be reached; the screen offers Try again.
  * The offering is `PLUS.offering` ("default"), falling back to the current
@@ -134,6 +141,10 @@ export async function loadPlans(win = globalThis.window) {
     if (typeof priceString === 'string' && priceString.trim() !== '') {
       const per = pkg.product.pricePerMonthString;
       const plan = { id, priceString: priceString.trim(), pkg };
+      const title = pkg.product.title;
+      if (typeof title === 'string' && title.trim() !== '') plan.title = title.trim();
+      const period = PERIODS[pkg.product.subscriptionPeriod];
+      if (period) plan.period = period;
       if (id === 'yearly' && typeof per === 'string' && per.trim() !== '') plan.perMonthString = per.trim();
       plans.push(plan);
     } else {

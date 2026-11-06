@@ -92,11 +92,11 @@ test('D14: an empty week says nothing scanned and counts zero from the same obje
 test('D15: no line says there is no privacy policy; the real pages are linked; one deletion email', () => {
   const html = youMarkup();
   assert.doesNotMatch(html, /no privacy policy|no terms page/i);
-  assert.match(html, /href="\/legal\/privacy\.html"/);
-  assert.match(html, /href="\/legal\/terms\.html"/);
+  assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/privacy\.html"/);
+  assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/terms\.html"/);
   assert.match(html, /mailto:useshinapp@gmail\.com/);
   assert.ok(!html.includes('privacy@shin.app'));
-  const policy = read('../public/legal/privacy.html');
+  const policy = read('../../docs/store/privacy.html');
   assert.ok(policy.includes(youModule.DELETE_MY_DATA_EMAIL), 'the policy and the You page disagree on the deletion address');
   for (const f of ['../public/js/screens/you.js', '../public/js/ui-strings.js', '../public/js/voice.js']) {
     assert.ok(!read(f).includes('privacy@shin.app'), `${f} still names the placeholder address`);
@@ -232,27 +232,10 @@ test('D36: the market screen is not routable while its flag is off', () => {
   assert.match(src, /routes\.has\(id\) && screenAllowed\(id\) \? id : fallbackId/);
 });
 
-/* ------------------------------------------------------------ D31 and D43 */
-
-const LEGAL = { 'terms.html': 'a103', 'privacy.html': 'a104', 'terms-fr.html': 'a105', 'privacy-fr.html': 'a106' };
-
-test('D31: each legal page names its screen tag, and every tag is registered', () => {
-  for (const [file, tag] of Object.entries(LEGAL)) {
-    const html = read(`../public/legal/${file}`);
-    assert.match(html, new RegExp(`<meta name="screen-tag" content="${tag}">`), `${file} carries no tag`);
-    assert.equal(SCREEN_TAGS[tag]?.file, `app/public/legal/${file}`);
-    assert.equal(SCREEN_TAGS[tag]?.kind, 'static');
-  }
-});
-
-test('D31: the legal pages declare an icon, so the browser stops asking for /favicon.ico (the 404)', () => {
-  for (const file of Object.keys(LEGAL)) {
-    const html = read(`../public/legal/${file}`);
-    const m = /<link rel="icon" href="([^"]+)"/.exec(html);
-    assert.ok(m, `${file} has no icon link`);
-    assert.ok(existsSync(readUrl(`../public/legal/${m[1]}`)), `${file} points at an icon that is not there`);
-  }
-});
+/* ------------------------------------------------------------ D43 */
+/* D31 (the legal pages' screen tags and icon) ended 2026-11-05 with the pages:
+   the app links the hosted pages in docs/store, and test/paywall-review.test.mjs
+   pins that app/public/legal is gone. */
 
 test('D43: the four static plan pages carry a phone viewport meta', () => {
   for (const f of ['shin-build-plan', 'shin-hard-dozen', 'shin-terminating-loop', 'shin-walkthrough']) {

@@ -121,8 +121,11 @@ function reportFault(where, err, detail = {}) {
 function planRow(plan, chosen) {
   if (!PLAN_IDS.includes(plan?.id)) throw new Error(`paywall: plan id "${plan?.id}" is not one of ${PLAN_IDS.join(', ')}`);
   if (!usable(plan.priceString)) throw new Error(`paywall: the ${plan.id} plan has no usable store price string (${JSON.stringify(plan.priceString)})`);
-  const label = plan.id === 'yearly' ? t('paywall_yearly') : t('paywall_monthly');
-  const price = plan.id === 'yearly' ? t('paywall_per_year', { price: plan.priceString }) : t('paywall_per_month', { price: plan.priceString });
+  // 3.1.2: a title, the store's price and the billing period. The title and
+  // period are the store's own when it sent them; otherwise the plan id's.
+  const label = usable(plan.title) ? plan.title : t(plan.id === 'yearly' ? 'paywall_plan_yearly' : 'paywall_plan_monthly');
+  const period = plan.period ?? (plan.id === 'yearly' ? 'year' : 'month');
+  const price = t(period === 'year' ? 'paywall_per_year' : 'paywall_per_month', { price: plan.priceString });
   const equiv = plan.id === 'yearly' && usable(plan.perMonthString)
     ? `<span class="pw-equiv" data-pw-equiv>${escapeHtml(t('paywall_equiv', { price: plan.perMonthString }))}</span>`
     : '';
@@ -149,7 +152,7 @@ export function defaultPlan(plans) {
  * not load: somebody who already paid must never be stuck behind a list that
  * failed to arrive.
  */
-export function paywallBody(state, { plans = [], chosen = null, message = '' } = {}) {
+export function paywallBody(state, { plans = [], chosen = null, message = '', platform = 'ios' } = {}) {
   const restore = `<button type="button" class="btn--ghost pw-restore" data-act="restore">${escapeHtml(t('paywall_restore'))}</button>`;
   const note = message ? `<p class="fineprint pw-msg" role="status" data-pw-msg>${escapeHtml(message)}</p>` : '';
   switch (state) {
@@ -186,7 +189,7 @@ export function paywallBody(state, { plans = [], chosen = null, message = '' } =
           <div class="ilist" role="radiogroup" aria-labelledby="pw-plans-l">
             ${shown.map((p) => planRow(p, pick)).join('')}
           </div>
-          <p class="fineprint pw-renews">${escapeHtml(t('paywall_renews'))}</p>
+          <p class="fineprint pw-renews">${escapeHtml(t(platform === 'android' ? 'paywall_renews_android' : 'paywall_renews'))}</p>
           <button type="button" class="cta" data-act="subscribe">${escapeHtml(t('paywall_subscribe'))}</button>
           ${restore}
           ${note}
@@ -263,7 +266,7 @@ export default {
     const paint = (state, extra = {}) => {
       if (gone()) return;
       try {
-        body.innerHTML = paywallBody(state, { plans, chosen, ...extra });
+        body.innerHTML = paywallBody(state, { plans, chosen, platform: purchases.platformOf(win), ...extra });
       } catch (err) {
         // A state that cannot be drawn truthfully (bad price, bad plan id) is
         // reported and replaced by the failed state, never left blank.

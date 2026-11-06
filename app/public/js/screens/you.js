@@ -48,7 +48,7 @@ import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 import { devOn, packReadOn, setPackReadOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
-import { MANAGE_URLS, LEGAL_URLS, LEGAL_URLS_FR } from '../plus-config.js';
+import { MANAGE_URLS, LEGAL_URLS } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
 
 /**
@@ -97,7 +97,7 @@ export function quotaText(q) {
  * person to go find an id themselves.
  *
  * THE ADDRESS IS THE PRIVACY POLICY'S OWN (D15, 2026-10-06). It used to be a
- * named placeholder at a made-up domain, while public/legal/privacy.html told
+ * named placeholder at a made-up domain, while the privacy policy page told
  * people to write to useshinapp@gmail.com for the same request. One address,
  * everywhere: this one, and a test reads the policy to keep it so.
  */
@@ -423,14 +423,14 @@ export default {
             deliberately nothing to write. That decision is not an embarrassment to
             hide behind a placeholder; said plainly, it is the paragraph above.
           -->
-          ${/* D15: the privacy policy and the terms exist (app/public/legal), so this links
-               them instead of saying there are none. */ ''}
+          ${/* D15: the privacy policy and the terms exist (the hosted pages, plus-config.js
+               LEGAL_URLS), so this links them instead of saying there are none. */ ''}
           <div class="ilist">
-            <a class="ilist-row" href="${escapeHtml(chosenLocale === 'fr' ? LEGAL_URLS_FR.privacy : LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
+            <a class="ilist-row" href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
               <span class="ilist-l">${escapeHtml(t('paywall_privacy'))}</span>
               ${rowChevron()}
             </a>
-            <a class="ilist-row" href="${escapeHtml(chosenLocale === 'fr' ? LEGAL_URLS_FR.terms : LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-legal-terms>
+            <a class="ilist-row" href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-legal-terms>
               <span class="ilist-l">${escapeHtml(t('paywall_terms'))}</span>
               ${rowChevron()}
             </a>

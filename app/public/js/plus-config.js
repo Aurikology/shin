@@ -25,32 +25,17 @@ export const PLUS = Object.freeze({
  * Terms and Privacy, linked from the subscription screen (Apple rejects a
  * subscription screen without both).
  *
- * Both pages are hosted as plain HTML by the same server as the rest of the
- * app: `app/public/legal/terms.html` and `app/public/legal/privacy.html`
- * (French: `terms-fr.html`, `privacy-fr.html`, linked from each page itself).
- * The server's static route serves `public/` without the invite code
- * (`app/server.ts`, "Static files are not gated"), so these load for anyone,
- * including a store reviewer with no invite.
- *
- * ABSOLUTE ON NATIVE, RELATIVE ON THE WEB. `window.SHIN_API_BASE` is the one
- * global `native/scripts/sync-web.mjs` injects into the native wrapper's copy
- * of this file, from `native/config/shin-api.config.json`'s `apiBase`; it is
- * never set when this file runs in an ordinary browser tab, where the page
- * that imported it is already being served by this same host. A native app
- * has no "same origin" of its own to be relative to, so it needs the real
- * hostname; a browser tab already has one, so a relative path keeps working
- * even if the hostname changes later and nobody has to touch this file.
+ * Both pages are static files hosted on GitHub Pages, away from the app's own
+ * server (source: `docs/store/`, the same pages the App Store listing's
+ * Privacy Policy and Support URLs name). They load for anyone, including a
+ * store reviewer, with the server asleep or the invite gate on. There is one
+ * copy, in English; the old pages under `app/public/legal/`, French twins
+ * included, were removed 2026-11-05 because they described exact GPS and
+ * photos sent to Gemini, which this build does not do.
  */
-const API_BASE = typeof window !== 'undefined' && window.SHIN_API_BASE ? window.SHIN_API_BASE : '';
 export const LEGAL_URLS = Object.freeze({
-  terms: `${API_BASE}/legal/terms.html`,
-  privacy: `${API_BASE}/legal/privacy.html`,
-});
-
-/** The same two pages in French. Each page also links to its other-language twin. */
-export const LEGAL_URLS_FR = Object.freeze({
-  terms: `${API_BASE}/legal/terms-fr.html`,
-  privacy: `${API_BASE}/legal/privacy-fr.html`,
+  terms: 'https://xu826jamin.github.io/pexi/terms.html',
+  privacy: 'https://xu826jamin.github.io/pexi/privacy.html',
 });
 
 /**

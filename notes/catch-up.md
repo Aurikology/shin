@@ -14,6 +14,40 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-11-05 (Jamin's PC): Pexi 1.0 goes to App Review with working subscriptions; build 4
+
+### To do
+
+- **Aurik: read this.** Jamin decided on 2026-11-05 to submit Pexi 1.0 to App Review with working
+  subscriptions (Pexi Plus, CA$3.99 a month or CA$29.99 a year, as RULINGS.md "Pexi Plus pricing and
+  free scans" sets them). Nothing about the scan limit, the server settings or Gemini changed.
+- **Jamin, before the build is made: the RevenueCat public iOS key must be in
+  `native/config/revenuecat.config.json`** (another session is setting up RevenueCat and the App
+  Store products). With an empty key the Pexi Plus screen says plans are unavailable.
+- **Jamin: make TestFlight build 4** from this push or later (version 1.0.0, build number now 4),
+  and in App Store Connect enter the App Privacy answers from `docs/store/listing.md`, which now
+  include Purchase History.
+
+### What changed
+
+- **The Pexi Plus screen meets App Review guideline 3.1.2.** Each plan shows its title, the store's
+  own price and its billing period (from the RevenueCat offering). It states that the subscription
+  renews automatically unless cancelled at least 24 hours before the period ends, and that it is
+  managed in Apple ID settings. Restore Purchases and links to the Terms of Use and Privacy Policy
+  are on it. If the plans cannot load it says plans are unavailable and offers Try again and
+  Restore; it is never an empty sheet. The benefit line says only "unlimited scans".
+- **Terms and Privacy links everywhere open the hosted pages** at xu826jamin.github.io/pexi. The old
+  pages in `app/public/legal/` (they said exact GPS and photos to Gemini) are deleted, French
+  twins included; their screen tags a103 to a106 are retired. There is one English copy now.
+- **The privacy manifest was rewritten** to the App Privacy answers in `docs/store/listing.md` (all
+  linked, no photos) plus Purchase History through RevenueCat; a test compares the two. The hosted
+  privacy page and terms now describe the subscription.
+- **Tests:** `app/test/paywall-review.test.mjs` pins the paywall states (plans, failed, restore).
+
+### Read by
+
+---
+
 ## 2026-11-01 (Aurik's PC): broad guesses are saved, typed misses get one, back closes a sheet
 
 ### To do
