@@ -104,9 +104,9 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the
 cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled in code: a typed name
 answers only from Shin's own data (no Gemini call), and the barcode button sends no photo. Settled
-in `docs/decisions.md`: CA$3.99 a month, CA$29.99 a year, 5 free barcode scans a week once
-purchases work (this matches RULINGS.md, "Shin Plus pricing and free scans": 5 a week for the
-beta, 3 a week at public launch). The invite code is set on the Mac (D-164).
+in `docs/decisions.md`: CA$3.99 a month, CA$29.99 a year; RULINGS.md, "Shin Plus pricing and
+free scans" (2026-11-05): 10 barcode scans a week free, 100 with Plus, once a test purchase works.
+The invite code is set on the Mac (D-164).
 
 **Shin is catalogue first, switched on for testers 2026-09-28 (RULINGS.md, "Catalogue first;
 Claude, with no web search, is the capped price-range fallback").** The catalogue names the product

@@ -309,8 +309,8 @@ state, and RULINGS.md/NOW.md win on any disagreement.
   setup or `onBarcode`.
 - **Jamin: the launch list is QUEUE.md band 7 and 7B.** Start with the Apple enrolment (7.2) if it is
   not done, since it has the longest wait, then the DataForSEO account (7B.2).
-- **Whoever runs the Mac:** nothing to set yet. `SHIN_FREE_SCANS_PER_WEEK=5` goes on only once a
-  test purchase works (7.15).
+- **Whoever runs the Mac:** nothing to set yet. The weekly limits (10 free, 100 with Plus, Jamin
+  2026-11-05) go on only once a test purchase works (7.15).
 
 ### What changed
 

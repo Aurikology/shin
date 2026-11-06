@@ -2928,3 +2928,27 @@ Aurik, 2026-11-01, picking the recommended option on three open calls from the 2
 
 **Reverses if:** testers read a saved broad guess as a real price judgement (then drop the range
 from the row and show the name only), or the faster bell is rated harder to read by testers.
+
+## Free 10 scans a week, Plus 100
+
+**2026-11-05, Jamin:** *"turn on 10 scans per week for free and 100 scans per week for pro. Do the
+economics of this work"*. Replaces the RULINGS.md text set 2026-09-23 (5 free a week for the beta,
+3 at public launch, Plus unlimited), which read: "Free scans: 5 a week for the beta, 3 a week at
+public launch, on the cheaper lookup path; typed searches are free and uncounted ... switches on
+only once a test purchase works end to end." The switch-on condition is kept.
+
+**Economics, derived, not measured.** The only per-scan model cost on the live path is the
+catalogue-first price-range fallback (`identify/src/range-ask.ts`): Claude Haiku 4.5, text only,
+no web search, max 1,024 output tokens, cached 90 days per product for every shopper. List price
+US$1 in / US$5 out per million tokens (Anthropic's published table, read 2026-11-05). Estimated
+~1,000 tokens in and ~250 out, about US$0.0023 a call; a call that fills all 1,024 output tokens
+is about US$0.006. A catalogue or cache answer costs no model call. Per-scan worst case (every
+scan a never-seen product): free 43 scans a month = US$0.10; Plus 433 a month = US$1.00. Plus
+proceeds a month after Apple's cut and before sales tax, at about 0.72 USD per CAD (not checked
+live): monthly US$2.44 at 15% (Small Business Program) or US$2.01 at 30%; yearly US$1.53 or
+US$1.26. A Plus user stays profitable at worst case on every plan. Free users are carried by
+payers: at 1 in 100 paying, break-even allows about US$0.01 to 0.02 of model cost per free user a
+month, about 5 to 9 never-seen-product calls. Unknown that decides it: the share of real scans
+that reach the model, held in the Mac's scan table.
+
+**Reverses if:** the measured model-call share makes free users cost more than payers bring in.

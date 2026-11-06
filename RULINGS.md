@@ -444,17 +444,15 @@ counted only over certain/fairly-sure scans, never using the word "saved". · 20
 Retired wording: `Shin saved you $412`, `Pays for Itself, With one good find`, `$1,000 a year`
 Governs: to fill
 ### Shin Plus pricing and free scans
-CA$3.99/month, CA$29.99/year, set in each store's own product config, not the app. Free scans: 5 a
-week for the beta, 3 a week at public launch, on the cheaper lookup path; typed searches are free
-and uncounted, revised same-day after Jamin corrected the payer-rate assumption to 1-in-100 and
-flagged the per-scan cost assumption as stale given the cheaper system planned.
-`SHIN_FREE_SCANS_PER_WEEK=5` switches on only once a test purchase works end to end, so no tester
-hits the wall against a subscribe button that can't yet take a purchase. The price and free-scan
-numbers are Claude's to set at the most reasonable value until he or Aurik changes them. ·
-2026-09-23 · *"For now, you decide the most reasonable for price and free scans. Figure out the
-logistics of the cheaper looup design and add all items not already added to the work item list"*
-· 2026-09-23 · *"we should assume only 1 in 100 people pay"* · log: docs/decisions.md#Shin Plus price and the weekly free scans
-Retired wording: `assuming a scan cost 0.6 cents`
+CA$3.99/month, CA$29.99/year, set in each store's own product config, not the app. Barcode scans:
+10 a week free, 100 a week with Pexi Plus, rolling 7 days (`SHIN_FREE_SCANS_PER_WEEK=10`,
+`SHIN_PLUS_SCANS_PER_WEEK=100`); typed searches are free and uncounted. Both switch on only once a
+test purchase works end to end, so no tester hits the wall against a subscribe button that can't
+yet take a purchase. · 2026-11-05 · *"turn on 10 scans per week for free and 100 scans per week for
+pro"* (replaces 5 a week for the beta, 3 at public launch, Plus unlimited, which Claude set
+2026-09-23 under *"For now, you decide the most reasonable for price and free scans"*) · log:
+docs/decisions.md#Free 10 scans a week, Plus 100
+Retired wording: `assuming a scan cost 0.6 cents`, `SHIN_FREE_SCANS_PER_WEEK=5`
 Governs: SHIN_FREE_SCANS_PER_WEEK, app/public/js/plus-config.js
 ### Model spend cap
 Model calls (Gemini in the running beta, Claude as the catalogue-first price-range fallback) stay
