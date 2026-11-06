@@ -222,6 +222,9 @@ function headers(extra = {}) {
   /* The secret beside it (device.js): the server answers about this device
      only to requests that carry it, so knowing the id is not enough. */
   if (device) h['x-shin-device-key'] = getDeviceSecret();
+  /* The shopper's yes to product names going to Claude (screens/agree.js). No
+     header, no call: the server answers with a broad-guess range instead. */
+  if (storeState()?.agreement?.claude === true) h['x-shin-claude'] = '1';
   /* Beta seam: a device whose store entitlement is active says so, and the
      server skips the weekly limit for it. The server is meant to verify this
      with RevenueCat by the device id above; until it does, this is trust. */

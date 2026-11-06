@@ -22,8 +22,11 @@
  * wants to GROUP BY a field in there, that field becomes a column and this
  * comment is wrong.
  *
- * WHAT MAY GO IN A PAYLOAD. Free text a person typed may (2026-09-14, "build
- * everything for collecting EVERYTHING"). AN EXACT POSITION MAY NOT, and this
+ * WHAT MAY GO IN A PAYLOAD. Free text a person typed and sent may. Words they
+ * deleted or never sent may not (Jamin's App Store list, 2026-11-05, item 7:
+ * Apple 5.1.1 and Canada's privacy law need consent for that), so `recordEvent`
+ * drops the text of an abandoned typed search, whatever an older app sends. AN
+ * EXACT POSITION MAY NOT, and this
  * reverses what this comment said from 2026-09-14 to 2026-10-09 ("coordinates
  * ... are no longer refused here"): Aurik's ruling the same day (RULINGS.md
  * "Location and photo consent default off until answered": "only a coarse
@@ -56,6 +59,13 @@ import { customerDataFault } from './customer-data-faults.ts';
 /** Three or more decimals on both halves of a "lat,lon" pair: finer than the kilometre cell. */
 const PRECISE_PAIR = /-?\d{1,3}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/g;
 const POSITION_KEY_SET: ReadonlySet<string> = new Set(POSITION_KEYS);
+
+/** Item 7: that a typed search was abandoned is kept, what it said is not. */
+function withoutAbandonedText(type: string, payload: unknown): unknown {
+  if (type !== 'typed_search' || !payload || typeof payload !== 'object') return payload;
+  const { text: _dropped, ...rest } = payload as Record<string, unknown>;
+  return rest.abandoned === true ? rest : payload;
+}
 
 function positionKey(key: string): boolean {
   return POSITION_KEY_SET.has(key.toLowerCase().replace(/[_\-\s]/g, ''));
@@ -168,7 +178,7 @@ export function recordEvent(input: EventInput): number | null {
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     // Requirement 5.6: no exact position reaches this table. The event is kept; the position is not.
-    const scrub = scrubPosition(input.payload);
+    const scrub = scrubPosition(withoutAbandonedText(type, input.payload));
     if (scrub.scrubbed > 0) {
       customerDataFault('exact_position_dropped', `event type ${type.slice(0, MAX_EVENT_TYPE_CHARS)}: ${scrub.scrubbed} position field(s) dropped or snapped`);
     }

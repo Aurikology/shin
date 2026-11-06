@@ -106,6 +106,14 @@ export function answerWord(a) {
   return a.zone ? t(`vd_zone_${a.zone}`) : t('cam_gem_answered_word');
 }
 
+/**
+ * The label that goes beside a verdict word wherever one is shown (Jamin's App Store list, item 10:
+ * "great price" is a claim under the Competition Act). Empty when the answer has no verdict.
+ */
+export function answerEstimateLabel(a) {
+  return a.zone ? t('vd_estimate') : '';
+}
+
 /*
  * No doubt sentence and no "prices vary a lot" sentence is kept for the Saved
  * and Past scans copies (2026-10-10 audit rows 3 and 29): the sheet no longer

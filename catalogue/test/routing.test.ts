@@ -19,6 +19,7 @@ import { rebuildCategoriesFromPaths as rebuildCategories } from './helpers/path-
 import { Catalogue } from '../src/search.ts';
 import type { Embedder } from '../src/embed.ts';
 import { decideRoute, restrictedSearch, type Route, type ScanEvent } from '../src/routing.ts';
+import { modelAllowedSql } from '../src/source-rights.ts';
 
 // A search miss writes the gap log, and the user catalogue beside it, at SHIN_GAPS or
 // else the cwd-relative data/gaps.db, which is real data. Point it at a temp folder.
@@ -438,9 +439,9 @@ test('a restricted result carries no ring, because the pool ring was drawn at th
   // Two chargers under one leaf, so the pool leader has a sibling and a ring is
   // drawn at `en:chargers`; one produce row the route will keep.
   insert.run('2200000000001', 'Apple MagSafe Charger', 'Apple MagSafe Charger', null, 'Apple', '1 ea', null, null,
-    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'icecat');
+    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'openproductsfacts');
   insert.run('2200000000002', 'Apple USB-C Charger 20 W', 'Apple USB-C Charger 20 W', null, 'Apple', '1 ea', null, null,
-    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'icecat');
+    '["en:computers-peripherals","en:chargers"]', 'en:chargers', '[]', 1, 'openproductsfacts');
   insert.run('2200000000003', 'Fresh Apples 1 kg', 'Fresh Apples 1 kg', null, null, '1 kg', 1000, 'g',
     '["en:fruits","en:fresh-apples"]', 'en:fresh-apples', '[]', 1, 'openfoodfacts');
   rebuildFts(db);
@@ -465,4 +466,16 @@ test('a restricted result carries no ring, because the pool ring was drawn at th
   assert.equal(routed.restricted, true, 'the produce route did not narrow; the fixture needs a produce row matching "apple"');
   assert.ok(routed.result.candidates.every((c) => c.code === '2200000000003'));
   assert.equal(routed.result.ring, null);
+});
+
+test('item 13: the SQL that feeds a model leaves Open Icecat out and keeps every other source', () => {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  insert.run('2200000000011', 'Charger', 'Charger', null, null, null, null, null, '[]', null, '[]', 1, 'icecat');
+  insert.run('2200000000012', 'Oats', 'Oats', null, null, null, null, null, '[]', null, '[]', 1, 'openfoodfacts');
+  const kept = db.prepare(`SELECT p.name FROM product p WHERE ${modelAllowedSql('p.')}`).all() as unknown as { name: string }[];
+  assert.deepEqual(kept.map((r) => r.name), ['Oats']);
 });

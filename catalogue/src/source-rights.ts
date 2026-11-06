@@ -25,6 +25,15 @@ export const UNLICENSED_SOURCES: readonly string[] = ['returnit', 'consignaction
  */
 export const NEVER_SENT_TO_A_MODEL_SOURCES: readonly string[] = ['icecat'];
 
+/**
+ * An SQL condition that keeps out the sources whose licence bars machine learning, to AND into the
+ * WHERE clause of anything that feeds a model. `alias` as in `licensedOnlySql`.
+ */
+export function modelAllowedSql(alias = ''): string {
+  const list = NEVER_SENT_TO_A_MODEL_SOURCES.map((s) => `'${s.replace(/'/g, "''")}'`).join(', ');
+  return `(${alias}source IS NULL OR ${alias}source NOT IN (${list}))`;
+}
+
 /** True when the row's source may not be read at all. */
 export function isUnlicensedSource(source: unknown): boolean {
   return typeof source === 'string' && UNLICENSED_SOURCES.includes(source);

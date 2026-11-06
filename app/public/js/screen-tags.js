@@ -175,6 +175,7 @@ export const SCREEN_TAGS = {
   a109: { id: 'camera.correction.toast', title: 'Price saved toast after a correction, back on the viewfinder', kind: 'overlay', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.toast[data-corr-toast]', rank: 50, how: 'Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in.' },
   a110: { id: 'pastscans.detail.range', title: 'Past scan detail, a price range with no verdict (read only)', kind: 'modal', file: 'app/public/js/screens/pastscans.js', route: 'pastscans', sel: '.pmodal[data-pmodal="range"]', rank: 55, how: 'Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for).' },
   a111: { id: 'watchlist.detail.range', title: 'Saved item detail, a price range with no verdict', kind: 'modal', file: 'app/public/js/screens/watchlist.js', route: 'watchlist', sel: '.pmodal[data-pmodal="range"]', rank: 55, how: 'Saved, tap a row labelled A broad guess.' },
+  a112: { id: 'agree', title: 'Before you start (18+, terms, and the Claude choice)', kind: 'screen', file: 'app/public/js/screens/agree.js', route: 'agree', how: 'First launch, before anything else. It cannot be skipped.' },
 };
 
 /**

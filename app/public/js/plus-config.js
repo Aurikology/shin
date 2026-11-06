@@ -48,6 +48,12 @@ export const LEGAL_URLS = Object.freeze({
   privacy: 'https://xu826jamin.github.io/pexi/privacy.html',
 });
 
+/** The hosted page in the shopper's language. Quebec requires consumer contracts in French (Jamin's list, item 12). */
+export function legalUrl(kind, lang = 'en') {
+  const url = LEGAL_URLS[kind];
+  return lang === 'fr' ? url.replace('.html', '-fr.html') : url;
+}
+
 /**
  * The two plans as RULINGS.md "Pexi Plus pricing and free scans" sets them,
  * in cents of Canadian dollars (the monthly plan and the yearly plan). D32

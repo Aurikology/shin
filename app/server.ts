@@ -109,6 +109,7 @@ import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorWindows, 
 import { logError } from './src/errlog.ts';
 import { markScan } from './src/scan-marks.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
+import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
 import { estimatedCostCents, groundedScanCapChargeUsdCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
 import { ADMIN_HEADER, adminAllows, handleAdmin } from './src/admin.ts';
@@ -255,6 +256,8 @@ let catalogueFirstTest: {
   searcher?: { search(q: unknown): Promise<unknown> } | null;
   db?: DatabaseSync | null;
   rangeAskProvider?: Provider;
+  /** Test the real consent check. Otherwise a test's fake provider counts as the shopper's yes. */
+  requireClaudeConsent?: boolean;
   /** The Claude provider the frame read (identify/src/pack-read.ts) would build from ANTHROPIC_API_KEY. */
   packReadProvider?: Provider;
   /** How long a verdict waits for the Claude ask (design case 27), shortened under test. */
@@ -1026,6 +1029,16 @@ function matchTextRefusal(req: IncomingMessage): { retryAfterSeconds: number } |
   const byAddress = matchTextAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
   if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
   return null;
+}
+
+/**
+ * Has this shopper said yes to product names going to Claude? Anything but the phone's `1` is no, so
+ * an older app and an unanswered screen fail toward not sharing. The suite's fake provider counts as
+ * a yes unless a test asks for the real check: no name leaves the machine in a test.
+ */
+function claudeAllowed(req: IncomingMessage): boolean {
+  if (req.headers['x-shin-claude'] === '1') return true;
+  return catalogueFirstTest !== null && catalogueFirstTest !== undefined && catalogueFirstTest.requireClaudeConsent !== true;
 }
 
 /** Item 4: every API request, counted by address before anything else happens to it. The uptime ping is exempt. */
@@ -2479,8 +2492,12 @@ async function withCatalogueFirstDeps<T>(
  * the paid-call limiter. The one model call any catalogue-first answer may make,
  * and only when Shin's own data cannot answer. RULINGS.md "Catalogue first;
  * Claude, with no web search, is the capped price-range fallback".
+ *
+ * Undefined without the shopper's yes (Jamin's App Store list, item 9; screens/agree.js): the
+ * product name stays here and the answer is the broad-guess range every unpriced item can get.
  */
-function claudeRangeAsk(req: IncomingMessage): RangeAsk {
+function claudeRangeAsk(req: IncomingMessage): RangeAsk | undefined {
+  if (!claudeAllowed(req)) return undefined;
   return async (identity) => {
     // Checked here, not at the top of the route: only this call can cost money.
     if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
@@ -2503,6 +2520,7 @@ function claudeRangeAsk(req: IncomingMessage): RangeAsk {
  */
 function claudePackRead(req: IncomingMessage): (frame: Buffer, gtin: string | null) => Promise<{ ok: true; named: NamedElsewhere } | { ok: false; reason: string }> {
   return async (frame, gtin) => {
+    if (!claudeAllowed(req)) return { ok: false, reason: 'no_claude_consent' };
     if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' };
     const { readPack } = await import('../identify/src/pack-read.ts');
     const s = packReadSettings();
@@ -5458,6 +5476,21 @@ server.listen(PORT, () => {
         `Cleared ${g.cleared} grounded result(s) past two years (before ${g.cutoff}) and ${g.interimCleared} never shown to anybody.`,
       );
     }
+    /*
+     * What the privacy policy promises (src/retention.ts): usage events at 12 months, device ids off
+     * scans, ratings and shopper prices at 24, request logs at 90 days. Same timer, same reason.
+     */
+    const kept = sweepScanData();
+    const shopperPrices = sweepShopperPrices();
+    if (kept.eventsDeleted > 0 || kept.deviceIdsRemoved > 0 || shopperPrices.removed > 0) {
+      console.log(`Retention: deleted ${kept.eventsDeleted} usage event(s); took the device id off ${kept.deviceIdsRemoved} scan row(s) and ${shopperPrices.removed} shopper price(s).`);
+    }
+    const retentionFailures = [...kept.failed, ...(shopperPrices.failed ? [`corrections: ${shopperPrices.failed}`] : [])];
+    if (retentionFailures.length > 0) logError({ where: 'retention.sweep', err: new Error(retentionFailures.join('; ')) });
+    void sweepRequestLog().then((log) => {
+      if (log.deleted > 0) console.log(`Retention: deleted ${log.deleted} request-log line(s) past 90 days.`);
+      if (log.failed) logError({ where: 'retention.request_log', err: new Error(log.failed) });
+    });
   };
   sweep();
   setInterval(sweep, 24 * 60 * 60 * 1000).unref();

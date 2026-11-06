@@ -42,7 +42,7 @@ import {
  */
 import { variantCarriedBy, variantTokens } from './variant-words.ts';
 import { upcEOf, upcAOf } from './upc.ts';
-import { isUnlicensedSource, licensedOnlySql } from './source-rights.ts';
+import { isNeverSentToAModel, isUnlicensedSource, licensedOnlySql } from './source-rights.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
@@ -1217,8 +1217,9 @@ export class Catalogue {
     const out: { row: Row; similarity: number }[] = [];
     for (const h of hits) {
       const row = byId.get(Number(h.rowid));
-      // The KNN cannot join to `source`, so the unlicensed rows are dropped here (source-rights.ts).
-      if (row && !isUnlicensedSource(row.source)) out.push({ row, similarity: similarityFromDistance(h.distance) });
+      // The KNN cannot join to `source`, so the unlicensed rows are dropped here (source-rights.ts). So are
+      // Open Icecat's, whose licence bars machine learning, until the next index rebuild removes their vectors.
+      if (row && !isUnlicensedSource(row.source) && !isNeverSentToAModel(row.source)) out.push({ row, similarity: similarityFromDistance(h.distance) });
     }
     return out;
   }

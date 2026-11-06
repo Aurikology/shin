@@ -236,6 +236,18 @@ const EN = {
      words are his. The typical price is always labelled as Pexi's estimate.
      Never "saved" and no savings tally (hard rule 2). Amounts arrive already
      formatted by lib/money.js. */
+  vd_estimate: 'Pexi’s estimate',
+  agree_title: 'Before you start',
+  agree_terms_line: 'I am 18 or older and I agree to the Terms of Use and the Privacy Policy.',
+  agree_terms_link: 'Terms of Use',
+  agree_privacy_link: 'Privacy Policy',
+  agree_claude_q: 'May Pexi send product names to Claude?',
+  agree_claude_what: 'When Pexi has no price for an item, it can ask Claude, an AI made by Anthropic, for a typical price. Only the product’s name, brand, size, category and country are sent, never anything about you. If you say no, Pexi still answers, with a wider range called a broad guess.',
+  agree_claude_yes: 'Yes, send product names to Claude',
+  agree_claude_no: 'No, use broad guesses',
+  agree_change_later: 'You can change this choice any time on the You screen.',
+  you_claude: 'Send product names to Claude',
+  you_claude_desc: 'For a typical price when Pexi has none. Only the product’s name, brand, size, category and country go to Anthropic. Off, you get a broad guess instead.',
   vd_zone_great: 'Great price',
   vd_zone_good: 'Good price',
   vd_zone_reasonable: 'Reasonable price',
@@ -924,6 +936,18 @@ const FR = {
 
   /* LA COURBE DU VERDICT. Les quatre mots de zone sont les siens. Le prix
      habituel est toujours dit estimation de Pexi. Jamais « économisé ». */
+  vd_estimate: 'Estimation de Pexi',
+  agree_title: 'Avant de commencer',
+  agree_terms_line: 'J’ai 18 ans ou plus et j’accepte les conditions d’utilisation et la politique de confidentialité.',
+  agree_terms_link: 'Conditions d’utilisation',
+  agree_privacy_link: 'Politique de confidentialité',
+  agree_claude_q: 'Pexi peut-il envoyer le nom des produits à Claude?',
+  agree_claude_what: 'Quand Pexi n’a aucun prix pour un article, il peut demander un prix typique à Claude, une IA créée par Anthropic. Seuls le nom, la marque, le format, la catégorie et le pays du produit sont envoyés, jamais rien à votre sujet. Si vous refusez, Pexi répond quand même, avec une fourchette plus large appelée estimation large.',
+  agree_claude_yes: 'Oui, envoyer le nom des produits à Claude',
+  agree_claude_no: 'Non, utiliser des estimations larges',
+  agree_change_later: 'Vous pouvez changer ce choix à tout moment dans l’écran Vous.',
+  you_claude: 'Envoyer le nom des produits à Claude',
+  you_claude_desc: 'Pour obtenir un prix typique quand Pexi n’en a aucun. Seuls le nom, la marque, le format, la catégorie et le pays du produit sont envoyés à Anthropic. Si c’est désactivé, vous obtenez une estimation large.',
   vd_zone_great: 'Excellent prix',
   vd_zone_good: 'Bon prix',
   vd_zone_reasonable: 'Prix raisonnable',

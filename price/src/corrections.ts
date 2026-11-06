@@ -223,6 +223,24 @@ function store(): CorrectionStore {
   return active ?? openCorrectionStore();
 }
 
+/** The store this process is using, opened if it has not been yet. */
+export function currentCorrectionStore(): CorrectionStore {
+  return store();
+}
+
+/**
+ * Takes the device id off every price recorded before `cutoffIso` (the app's retention sweep,
+ * app/src/retention.ts). The price stays as evidence. Each row gets its own mark, so the rows stay
+ * separate witnesses and the one-report-per-shop-per-day index cannot collide. Returns the count.
+ */
+export function removeOldDeviceIds(s: CorrectionStore, cutoffIso: string, prefix: string): number {
+  if (!s.db) return 0;
+  const r = s.db
+    .prepare(`UPDATE correction SET device_id = ? || id WHERE recorded_at < ? AND device_id NOT LIKE ? || '%'`)
+    .run(prefix, cutoffIso, prefix);
+  return Number(r.changes);
+}
+
 export function padGtin(gtin: string): string {
   return gtin.padStart(13, '0');
 }

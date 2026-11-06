@@ -1462,6 +1462,7 @@ function geminiSheet(result, item, thumb, earlier = []) {
           ${thumbImg(thumb)}
         </div>
         <h2 class="vword${zoneKey ? '' : ' small'}" data-gemini-headline>${escapeHtml(headline)}</h2>
+        ${zoneKey ? `<div class="vd-estimate" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
         ${lines ? `<div class="priceline"><span class="sub" data-gemini-figures>${lines}</span></div>` : ''}
         ${unsure ? `<div class="confrow"><span class="conf-label" data-not-confident>${escapeHtml(conf.label)}</span></div>` : ''}
         ${zoneKey && name ? `<p class="itemname">${escapeHtml(name)}</p>` : ''}
@@ -1821,6 +1822,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   const faceRow = (left) => `<div class="sheet-head">${left}${shinFace(face, { size: 'face-verdict', tier })}${thumbImg(thumb)}</div>`;
   const peek = s
     ? `<h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
+        ${zone ? `<div class="vd-estimate" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
         ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>`)}
         <div class="vd-lines">
           <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
@@ -2064,6 +2066,7 @@ function catalogueSheet(answer, { shelfCents = null, thumb = null, state = store
              gate: the happy face for great, never the intense one past it. */
           thumb ? `<div class="sheet-head">${thumbImg(thumb)}</div>` : ''}
         ${headingWithFace(zone ? distFace(zone, 'medium') : range ? 'idle' : 'unknown', `<h2 class="vword${zone ? '' : ' small'}" data-cat-headline>${escapeHtml(headline)}</h2>`, { size: zone ? 36 : 'face-row' })}
+        ${zone ? `<div class="vd-estimate" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
         ${zone ? `<p class="itemname" data-cat-name>${escapeHtml(name)}</p>` : ''}
         ${range
           ? `<div class="priceline cat-range" role="group" aria-label="${escapeHtml(t('cat_range_label'))}"><span class="cat-range-figure" data-cat-range>${escapeHtml(figure)}</span></div>`
@@ -5747,13 +5750,11 @@ export default {
     }
 
     function reset() {
-      // Leaving the type-it route with nothing submitted is an abandoned
-      // typed search, task item 4's own phrase: "typed search text including
-      // text typed then abandoned". Read before `slot.innerHTML` below wipes
-      // the field that holds it.
+      // Leaving the type-it route with nothing submitted is an abandoned typed
+      // search. That it happened is kept; the words are not (Jamin's App Store
+      // list, item 7: words a person deleted or never sent need consent).
       if (typedSearchPending) {
-        const abandonedText = (slot.querySelector('[data-textroute-input]')?.value ?? '').trim();
-        track('typed_search', { text: abandonedText, abandoned: true });
+        track('typed_search', { abandoned: true });
         typedSearchPending = false;
       }
       trackScanAbandonedIfMidScan('reset');

@@ -2952,3 +2952,16 @@ month, about 5 to 9 never-seen-product calls. Unknown that decides it: the share
 that reach the model, held in the Mac's scan table.
 
 **Reverses if:** the measured model-call share makes free users cost more than payers bring in.
+
+## The App Store list narrows what is recorded, and a first screen asks before Claude
+**Date:** 2026-11-06 · **Status:** active
+
+Jamin's list of 2026-11-05 (comms/messages, 13 changes before Apple sees 1.0), built by Aurik's session on his word, "do everything he said". Choices the list left open:
+
+- **Consent travels as a header from the phone, not a server table.** `x-shin-claude: 1` on each request, and an `agreement` event as the record. It needs no migration, works with no signal, takes effect on the next request when withdrawn, and an older app fails toward not sharing. A caller can forge it, but all that buys is a Claude ask inside the existing caps.
+- **Plus fails closed without the key.** The list said to set the key on the Mac. That cannot be done from a PC and the hole was open, so the code no longer believes the header either; `SHIN_PLUS_TRUST_CLIENT=1` restores it on purpose.
+- **Past retention a row loses its device id and stays.** The id becomes `removed:<row id>`, so each row stays its own witness and the one-report-per-day index cannot collide. Migration 21 allows exactly this edit.
+- **Local requests are not rate limited.** A loopback socket with no tunnel header is the machine itself; the tunnel always sets the header.
+- **Old abandoned text stays until it ages out, unless Jamin says otherwise.** Deleting it is a change to real data that the list did not ask for.
+
+**Reverses if:** the legal review wants consent recorded server-side, or the header is found being forged at a cost that matters; or testers on one network hit the address limits (they are settings).

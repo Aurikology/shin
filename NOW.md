@@ -126,10 +126,11 @@ No one should quote 32/52 as current.
 
 ## Open blockers
 
-**App Store submission of 1.0 (Jamin 2026-11-05: submit, manual release, EU left out).** Build 4
-code is 64e653c; it needs the RevenueCat iOS key, the subscriptions set up, screenshots and the
-listing (`docs/store/`) before Add for Review. The 2026-09-28 Gemini-key blocker and two 09-27/28
-Mac asks moved to `docs/archive/now-history-2026-11-05.md`.
+**App Store submission of 1.0 (Jamin 2026-11-05: submit, manual release, EU left out).** His 13
+changes are in code (2026-11-06, desktop browsers only). Left, all his, in order: the RevenueCat
+key on the Mac, pull and restart, `embed-all.ts` to drop Icecat vectors, publish `docs/store/`, the
+Quebec note, then build 4, screenshots, sandbox purchase, limits, submit (comms/messages, 2026-11-06).
+Older blockers: `docs/archive/now-history-2026-11-05.md`.
 
 ## Waiting on Jamin or Aurik
 - **Aurik: does build 3 still crash?** (D-250, D-249.) TestFlight build 3 went up 2026-11-04

@@ -35,7 +35,7 @@ import { wordFor, say } from '../voice.js';
 import { on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
 import { canShareCard, shareCard } from '../lib/native-share.js';
-import { answerOf, answerLook, answerWord, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
+import { answerOf, answerLook, answerWord, answerEstimateLabel, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
 import { roundEstimateCents } from '../lib/verdict-chart.js';
 
 const W = 1080;
@@ -361,6 +361,11 @@ async function drawCard(canvas, card) {
   track(g, f.verdictTrack(SIZE.verdict));
   g.fillText(card.word, mid, 520);
   track(g, '0px');
+  // Item 10: a verdict that leaves the app says whose estimate it is.
+  if (card.estimate) {
+    g.font = `${f.bodyWeight} ${Math.max(32, Math.round(SIZE.line * 0.7))}px ${f.ui}`;
+    g.fillText(card.estimate, mid, 552);
+  }
 
   // Pexi's own sentence, which is the part people quote. Body role: UI face,
   // 400, 1.45 leading, and section 2's two lines maximum.
@@ -466,7 +471,7 @@ async function drawCard(canvas, card) {
 /** What the card would say if it had to be typed into a message box. */
 function cardText(card) {
   return [
-    `${t('share_shin_says')} ${card.word}.`,
+    `${t('share_shin_says')} ${card.word}${card.estimate ? ` (${card.estimate})` : ''}.`,
     card.label,
     `${t('share_on_the_tag')} ${card.askingText}${card.askingSub ? ` (${card.askingSub})` : ''}`,
     `${t('share_elsewhere')} ${card.elsewhereText}${card.elsewhereSub ? ` (${card.elsewhereSub})` : ''}`,
@@ -487,6 +492,7 @@ export function answerCard(entry) {
     who: undefined,
     level: look.level,
     word: answerWord(a),
+    estimate: answerEstimateLabel(a),
     line: answerLine(a),
     label,
     askingText: hasAsk ? money(a.askingCents, a.currency) : t('share_no_price_caps'),

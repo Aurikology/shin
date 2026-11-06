@@ -170,6 +170,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |
 | a110 | Past scan detail, a price range with no verdict (read only) | Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for). | `app/public/js/screens/pastscans.js` |
 | a111 | Saved item detail, a price range with no verdict | Saved, tap a row labelled A broad guess. | `app/public/js/screens/watchlist.js` |
+| a112 | Before you start (18+, terms, and the Claude choice) | First launch, before anything else. It cannot be skipped. | `app/public/js/screens/agree.js` |
 
 ## Not tagged, with reason
 

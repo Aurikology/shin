@@ -300,7 +300,14 @@ export function replace(id, params = {}) {
  *                 screen to be where they left it. A forward move to a screen is
  *                 a fresh arrival and starts at the top.
  */
-function paint(id, params, restore = false) {
+/** Set once by main.js: a screen every route must go to first. Answers its id, or null for none. */
+let guard = null;
+export function setGuard(fn) {
+  guard = fn;
+}
+
+function paint(requestedId, params, restore = false) {
+  const id = guard?.(requestedId) ?? requestedId;
   const screen = routes.get(id);
   if (!screen) return;
   // Remember where the outgoing screen was, before its DOM is thrown away.

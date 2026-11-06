@@ -34,11 +34,11 @@
  * comment is "the only place the client talks to the server" and this file
  * does not get to be the second one.
  *
- * WHAT MAY BE IN A PAYLOAD, changed alongside `events.ts`'s own header the
- * same day: coordinates and typed text, including text typed and then
- * abandoned, are captured on purpose now. Never a photo's own bytes -- those
- * still go through the photo route behind the photo consent flag, never
- * through this queue.
+ * WHAT MAY BE IN A PAYLOAD: text a person typed and sent. Never words they
+ * deleted or left unsent (Jamin's App Store list, item 7; `recordEvent` drops
+ * them at the server too), never an exact position (`events.ts`), and never a
+ * photo's own bytes -- those still go through the photo route behind the photo
+ * consent flag, never through this queue.
  */
 import { getDeviceId } from './device.js';
 import { postEventsBatch } from './api.js';

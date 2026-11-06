@@ -35,7 +35,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, isAnswer, answerLook, answerWord, answerLine, rangeOf, isRangeAnswer, rangeWord, rangeFigure } from '../lib/history-answer.js';
+import { answerOf, isAnswer, answerLook, answerWord, answerEstimateLabel, answerLine, rangeOf, isRangeAnswer, rangeWord, rangeFigure } from '../lib/history-answer.js';
 
 /**
  * The most recent history entry whose answer matches a saved row's id: a
@@ -194,6 +194,7 @@ export function detailModal(w, match) {
         tier: look.tier,
         face: look.face,
         word: answerWord(answer),
+        estimate: answerEstimateLabel(answer),
         said: answerLine(answer),
         meta: `${cleanName(w.label || answer.label)}${w.askingSeller ? ` · ${w.askingSeller}` : ''} · ${ago(match?.at ?? w.savedAt)}`,
       };
@@ -215,6 +216,7 @@ export function detailModal(w, match) {
         <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
           ${raw(faceBlock(view.face, { size: 'face-verdict' }))}
           <h2>${view.word}</h2>
+          ${view.estimate ? raw(`<p class="vd-estimate" data-vd-estimate>${escapeHtml(view.estimate)}</p>`) : ''}
           <p class="said">${view.said}</p>
           <p class="pmodal-meta">${view.meta}</p>
           <button type="button" class="btn btn--ghost" data-unwatch="${w.id}" data-fk="del-detail:${w.id}">${t('remove')}</button>

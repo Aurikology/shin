@@ -35,6 +35,7 @@
 import { PERSONALITIES, personalityCopy, setPersonality, personality, say } from '../voice.js';
 import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
+import { track } from '../track.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
@@ -398,6 +399,14 @@ export default {
           <p class="fineprint">${escapeHtml(say(FLAGS.photoId ? 'you_data_intro' : 'you_data_intro_nophoto'))}</p>
 
           <div class="ilist consent-list">
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l">${escapeHtml(t('you_claude'))}</span>
+                <p class="fineprint">${escapeHtml(t('you_claude_desc'))}</p>
+              </div>
+              <button type="button" class="switch${store.get().agreement?.claude === true ? ' on' : ''}" data-act="claude-consent" role="switch"
+                      aria-checked="${store.get().agreement?.claude === true}" aria-label="${escapeHtml(t('you_claude'))}"></button>
+            </div>
             ${/* D24: no Photos switch while photo identification is off; nothing is kept to switch. */ !FLAGS.photoId ? '' : `<div class="ilist-row consent-row">
               <div class="consent-text">
                 <span class="ilist-l">${escapeHtml(t('you_photos'))}</span>
@@ -648,6 +657,15 @@ export default {
           el.classList.toggle('on', picked);
           el.setAttribute('aria-checked', String(picked));
         }
+        return;
+      }
+      const claudeSwitch = e.target.closest('[data-act="claude-consent"]');
+      if (claudeSwitch) {
+        const now = store.get().agreement?.claude !== true;
+        store.update({ agreement: { ...store.get().agreement, claude: now } });
+        track('agreement_change', { claude: now });
+        claudeSwitch.setAttribute('aria-checked', String(now));
+        claudeSwitch.classList.toggle('on', now);
         return;
       }
       if (e.target.closest('[data-act="buzz"]')) {

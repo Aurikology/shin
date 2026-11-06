@@ -490,6 +490,7 @@ recorded: photo or barcode, typed price, location, store, and the user's own goo
 on their own scale (not Gemini's), so a median can later be computed against it. Anything he
 mentioned that is not currently recorded should prompt a review of the data collection system.
 · 2026-09-17 · *"Shin should try to save as much data as possible... all user data should be recorded"* · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
+Narrowed by Jamin 2026-11-05 (his App Store list, items 2, 7, 8, built 2026-11-06): the shutter log is off unless `SHIN_SHUTTER_LOG=on`; text a person deletes or never sends is not recorded; request logs go at 90 days, usage events at 12 months, and the device id comes off scans, ratings and shopper prices at 24 months. · log: docs/decisions.md#The App Store list narrows what is recorded, and a first screen asks before Claude
 Retired wording: none
 Governs: SHIN_ACCESS_LOG, SHIN_SHUTTER_LOG, SHIN_SHUTTER_DIR
 ### Collective user data reduces computation, and the privacy policy names both uses

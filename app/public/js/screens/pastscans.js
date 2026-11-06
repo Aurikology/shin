@@ -31,7 +31,7 @@ import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.j
 import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
-import { answerOf, answerLook, answerWord, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
+import { answerOf, answerLook, answerWord, answerEstimateLabel, answerLine, rangeOf, rangeWord, rangeFigure } from '../lib/history-answer.js';
 import { normalize } from '../lib/countries.js';
 
 /*
@@ -184,6 +184,7 @@ export function detail(h) {
         tier: look.tier,
         face: look.face,
         word: answerWord(answer),
+        estimate: answerEstimateLabel(answer),
         said: answerLine(answer),
         meta: `${labelOf(h)} · ${ago(h.at)}`,
       };
@@ -207,6 +208,7 @@ export function detail(h) {
         <div class="pmodal-card" data-tier="${view.tier}" tabindex="-1">
           ${raw(faceBlock(view.face, { size: 'face-verdict' }))}
           <h2>${view.word}</h2>
+          ${view.estimate ? raw(`<p class="vd-estimate" data-vd-estimate>${escapeHtml(view.estimate)}</p>`) : ''}
           <p class="said">${view.said}</p>
           <p class="pmodal-meta">${view.meta}</p>
           <button type="button" class="linky" data-act="close-detail">${t('close')}</button>

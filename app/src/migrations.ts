@@ -879,6 +879,44 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 21,
+    name: 'a row past its retention period may have its device id removed, and nothing else',
+    apply(db) {
+      /*
+       * Jamin's App Store list, 2026-11-05, item 8: after 24 months a scan keeps its answer and loses
+       * its device id (src/retention.ts). Migration 20's triggers refuse every edit to those rows, as
+       * they should. These are the same triggers with one exception: the id may become `removed:...`.
+       * Any other edit, and any other value for the id, is still refused.
+       */
+      const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'scan_shown_answer_immutable'").get() as { sql: string } | undefined;
+      if (row) {
+        const fixed = 'NEW.device_id IS NOT OLD.device_id';
+        if (!row.sql.includes(fixed)) throw new Error('migration 21: scan_shown_answer_immutable has changed shape');
+        db.exec('DROP TRIGGER scan_shown_answer_immutable');
+        db.exec(row.sql.replace(fixed, "(NEW.device_id IS NOT OLD.device_id AND NEW.device_id NOT LIKE 'removed:%')"));
+      }
+      const appendOnly: Record<string, readonly string[]> = {
+        scan_pick: ['id', 'scan_id', 'picked_code', 'source', 'picked_at'],
+        scan_later_answer: ['id', 'scan_id', 'via', 'answer_json', 'recorded_at'],
+      };
+      for (const [table, columns] of Object.entries(appendOnly)) {
+        const when = [
+          ...columns.map((c) => `NEW.${c} IS NOT OLD.${c}`),
+          "(NEW.device_id IS NOT OLD.device_id AND NEW.device_id NOT LIKE 'removed:%')",
+        ].join(' OR ');
+        db.exec(`DROP TRIGGER IF EXISTS ${table}_append_only`);
+        db.exec(`
+          CREATE TRIGGER ${table}_append_only
+          BEFORE UPDATE ON ${table} FOR EACH ROW
+          WHEN ${when}
+          BEGIN
+            SELECT RAISE(ABORT, 'a stored shown answer, later answer or pick is never edited (requirement 3.9)');
+          END;
+        `);
+      }
+    },
+  },
 ];
 
 /**

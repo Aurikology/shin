@@ -13,6 +13,7 @@
 
 import { openCatalogue, toVecBlob } from './schema.ts';
 import { defaultEmbedder, passageText } from './embed.ts';
+import { modelAllowedSql } from './source-rights.ts';
 
 const DB_PATH = process.env.SHIN_CATALOGUE ?? 'data/catalogue.db';
 const BATCH = Number(process.env.SHIN_EMBED_BATCH ?? 64);
@@ -38,10 +39,15 @@ async function main(): Promise<number> {
     console.log('vector index cleared for rebuild');
   }
 
+  // Open Icecat's licence bars machine learning (source-rights.ts): any vector already made from one
+  // of its names goes on every run, and none is made below.
+  const purged = db.prepare(`DELETE FROM product_vec WHERE rowid IN (SELECT rowid FROM product WHERE NOT ${modelAllowedSql()})`).run();
+  console.log(`removed ${purged.changes} vector(s) made from a source that bars machine learning`);
+
   const pending = db
     .prepare(
       `SELECT count(*) AS n FROM product p
-       WHERE NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)`,
+       WHERE ${modelAllowedSql('p.')} AND NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)`,
     )
     .get() as { n: number };
   console.log(`to embed: ${pending.n}`);
@@ -64,7 +70,7 @@ async function main(): Promise<number> {
   const select = db.prepare(
     `SELECT p.rowid, p.name, p.name_en, p.name_fr, p.brands, p.leaf_category, p.quantity
      FROM product p
-     WHERE NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)
+     WHERE ${modelAllowedSql('p.')} AND NOT EXISTS (SELECT 1 FROM product_vec v WHERE v.rowid = p.rowid)
      ORDER BY p.sold_in_canada DESC, p.rowid
      LIMIT ?`,
   );

@@ -617,6 +617,7 @@ const NOT_SHOWN = [
   { file: 'correct.js', text: 'Tell Pexi the price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
   { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },
   { file: 'market.js', text: 'Where do you shop?', why: 'The registered title, translated through market_title. Same split.' },
+  { file: 'agree.js', text: 'Before you start', why: 'The registered title, translated through agree_title. Same split.' },
   { file: 'paywall.js', text: 'Pexi Plus', why: 'The registered title, translated through paywall_title. Same split.' },
   { file: 'pastscans.js', text: 'Past scans', why: 'The registered title, translated through past_scans. Same split.' },
   { file: 'removed.js', text: 'Recently removed', why: 'The registered title, translated through removed_title. Same split.' },

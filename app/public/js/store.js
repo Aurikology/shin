@@ -166,6 +166,8 @@ const EMPTY = {
    * a half-finished first launch actually reached.
    */
   consentSeen: false,
+  /* The first-run answers (screens/agree.js): { at, version, over18, claude }. Null until given. */
+  agreement: null,
   /**
    * Whether the camera-and-location permission screen (screens/permissions.js)
    * has been shown and left. Its own flag for the same reason `consentSeen` is

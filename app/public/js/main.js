@@ -36,6 +36,8 @@ import './track.js';
 
 import camera from './screens/camera.js';
 import onboarding from './screens/onboarding.js';
+import agree from './screens/agree.js';
+import { needsAgreement } from './screens/agree.js';
 import permissions from './screens/permissions.js';
 import setup from './screens/setup.js';
 import consent from './screens/consent.js';
@@ -57,7 +59,7 @@ import { applyFlags } from './flags-boot.js';
 applyFlags();
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings]) {
+for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings]) {
   router.register(s);
 }
 
@@ -100,6 +102,8 @@ startThemeColourSync();
    (screens/permissions.js), which is that flow's own step 24 standing on its
    own: switching the flow off must not take the camera and location ask with
    it. The flow module reads the flags itself; this passes nothing. */
+// Item 9: nothing opens before the 18+ tick and the Claude choice, whatever the link says.
+router.setGuard((id) => (id !== 'agree' && needsAgreement(store.get()) ? 'agree' : null));
 const first = firstScreen(store.get());
 /* `?onboarding=1` replays the welcome once, for someone who has finished it
    already; the flow module decides, and the URL is rewritten so a reload does

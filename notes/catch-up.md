@@ -14,6 +14,53 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-11-06 (Aurik's PC): Jamin's 13 App Store changes are in code
+
+### To do
+
+- **Jamin: the list in the 2026-11-06 message in comms/messages, in its order:** the RevenueCat key on
+  the Mac, pull and restart, `node src/embed-all.ts` in `catalogue/` on the real catalogue, publish
+  the four `docs/store/` pages, answer the three questions in `docs/store/quebec-transfer-note.md`,
+  then build 4, screenshots, a sandbox purchase, the limits, App Store Connect.
+- **Jamin: two calls.** Whether to delete the abandoned typed text already on the Mac (it otherwise
+  ages out at 12 months), and whether Quebec needs a French first run (the app is pinned to English).
+- **Whoever installs build 4 first: check the app is not blank.** The phone build's content security
+  policy has only been run in desktop browsers, and against the server's header rather than the tag.
+- **Aurik: does build 3 still crash?** Still open from NOW.md.
+
+### What changed
+
+- **Anyone could claim Plus; now nobody can without RevenueCat.** With no key on the server nobody is
+  Plus, paying subscribers included, so the key has to go on before the limits do.
+- **The shutter log is off**, and capped when on. **Only a scan's own device can change its price or
+  outcome.** **Developer-only routes need the device's secret**, not just a listed id, and the routes
+  that took a device on its word now check it.
+- **Limits per network address:** every API request (1,200 per 10 minutes, 15,000 a day), and free
+  barcode scans (30 a day, only while the free limit is on), so a new device id does not reset it.
+- **A full content security policy and no source maps**, and two unescaped strings on the refusal
+  sheet are escaped.
+- **Words a person deleted or never sent are no longer recorded.** New rows only; see the call above.
+- **Retention is real** (`app/src/retention.ts`, on the daily timer): request logs 90 days, usage
+  events 12 months, device id off scans, ratings and shopper prices at 24 months. Migration 21 lets
+  the database accept that one edit and still refuses every other. Backups and stdout are outside it.
+- **A new first screen nothing gets past:** the 18+ and terms tick, and a yes or no on sending product
+  names to Claude, nothing preselected. No still answers, with a broad guess; the You screen changes
+  it. The server makes no Claude call without `x-shin-claude: 1`, so older apps get broad guesses.
+- **"Pexi's estimate" sits beside every verdict word**, including the share card.
+- **Policy and terms rewritten to match, with French versions and the person in charge named**, plus
+  a Quebec transfer note. All drafts for the legal review; not published.
+- **Open Icecat names are out of vector search** and out of the next index build.
+- **Checked:** app 2,056 tests, ux 533, catalogue 554, price 429, typecheck in all three, and a fresh
+  install walked in desktop Chromium, with the content security policy also checked in WebKit. **Not
+  checked:** any phone, the live server, the real catalogue, real RevenueCat, the MediaPipe reader
+  under the policy, and the label by eye.
+
+### Read by
+
+- Aurik (Windows PC), 2026-11-06
+
+---
+
 ## 2026-11-05 (Jamin's PC): Pexi 1.0 goes to App Review with working subscriptions; build 4
 
 ### To do
@@ -45,6 +92,8 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 - **Tests:** `app/test/paywall-review.test.mjs` pins the paywall states (plans, failed, restore).
 
 ### Read by
+
+- Aurik (Windows PC), 2026-11-06
 
 ---
 
