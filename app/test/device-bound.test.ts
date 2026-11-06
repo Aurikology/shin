@@ -33,7 +33,7 @@ process.env.SHIN_ADMIN_TOKEN = 'admin-token-for-tests';
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_INVITES;
-delete process.env.SHIN_SHUTTER_LOG;
+process.env.SHIN_SHUTTER_LOG = 'on';
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
 const { server } = await import('../server.ts');

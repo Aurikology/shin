@@ -98,22 +98,22 @@ import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
-import { deviceFromHeaders, entitlementStartupWarning, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
+import { deviceFromHeaders, entitlementStartupWarning, freeScanLimit, isPlus, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
 import { priceMatchLine } from './src/price-match-line.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
-import { KeyedLimiter, addressWindows, clientAddress, codeWindows } from './src/rate-limit.ts';
+import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorWindows, freeScanAddressWindows, isLocalRequest } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { markScan } from './src/scan-marks.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { estimatedCostCents, groundedScanCapChargeUsdCents } from './src/model-cost.ts';
 import { recordAccess } from './src/access-log.ts';
 import { ADMIN_HEADER, adminAllows, handleAdmin } from './src/admin.ts';
-import { DEVICE_REFUSAL, bindDevice, deviceHeaderOf, ownsDevice } from './src/device-key.ts';
-import { recordShutterRequest, shutterDir } from './src/shutter-log.ts';
+import { DEVICE_REFUSAL, bindDevice, deviceHeaderOf, ownsDevice, provesDevice } from './src/device-key.ts';
+import { recordShutterRequest, shutterDir, shutterLogOn } from './src/shutter-log.ts';
 import { saveCappedShutterFrame } from './src/shutter-frame.ts';
 import { diskHasRoom } from './src/disk-guard.ts';
 import { saveShelfFrame, MAX_SHELF_FRAME_BYTES } from './src/shelf.ts';
@@ -998,9 +998,13 @@ function photoRateAllows(deviceId: string): boolean {
  */
 let codeLimiter = new KeyedLimiter(codeWindows());
 let addressLimiter = new KeyedLimiter(addressWindows());
+let doorLimiter = new KeyedLimiter(doorWindows());
+let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows());
 export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
   codeLimiter = new KeyedLimiter(codeWindows(env));
   addressLimiter = new KeyedLimiter(addressWindows(env));
+  doorLimiter = new KeyedLimiter(doorWindows(env));
+  freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(env));
   matchTextCodeLimiter = new KeyedLimiter(codeWindows(env));
   matchTextAddressLimiter = new KeyedLimiter(addressWindows(env));
 }
@@ -1022,6 +1026,25 @@ function matchTextRefusal(req: IncomingMessage): { retryAfterSeconds: number } |
   const byAddress = matchTextAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
   if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
   return null;
+}
+
+/** Item 4: every API request, counted by address before anything else happens to it. The uptime ping is exempt. */
+function doorRefusal(req: IncomingMessage, pathname: string): { retryAfterSeconds: number } | null {
+  if (!pathname.startsWith('/api/') || INVITE_EXEMPT.includes(pathname)) return null;
+  if (isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
+  const decision = doorLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
+}
+
+/**
+ * Item 4: free barcode scans per address per day. On only while the free limit is on, so it changes
+ * nothing until the limits go on. Subscribers are not counted: they paid and they have their own cap.
+ */
+async function freeScanAddressRefusal(req: IncomingMessage, device: string): Promise<{ retryAfterSeconds: number } | null> {
+  if (freeScanLimit() === null || isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
+  if (await isPlus(device, req.headers)) return null;
+  const decision = freeScanAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
 }
 
 function paidCallRefusal(req: IncomingMessage): { retryAfterSeconds: number } | null {
@@ -2501,14 +2524,15 @@ const PACK_READ_DEVELOPER_ONLY = 'pack_read_developer_only';
  * never ends with no result", amended 2026-10-10 (Jamin: "sending picture to
  * claude is a developer only setting"): off for every shopper. The client's
  * own switch is not proof (a flag is one query parameter, and the call costs
- * money), so the server decides: a developer is a device id listed in
- * SHIN_DEVELOPER_DEVICES (comma-separated), or a request carrying the admin
- * token. Null when allowed, otherwise the reason.
+ * money), so the server decides: a developer is a device listed in
+ * SHIN_DEVELOPER_DEVICES (comma-separated) that proves it with its bound secret,
+ * or a request carrying the admin token. Null when allowed, otherwise the reason.
  */
 function packReadRefusal(req: IncomingMessage, device: string): string | null {
   if (adminAllows(req.headers[ADMIN_HEADER])) return null;
   const listed = (settings.SHIN_DEVELOPER_DEVICES() ?? '').split(',').map((d) => d.trim()).filter((d) => d !== '');
-  return device !== UNATTRIBUTED && listed.includes(device) ? null : PACK_READ_DEVELOPER_ONLY;
+  // Item 5: a listed id is not enough, because an id is a name. The request has to carry its bound secret.
+  return device !== UNATTRIBUTED && listed.includes(device) && provesDevice(device, req.headers) ? null : PACK_READ_DEVELOPER_ONLY;
 }
 
 /**
@@ -3078,6 +3102,28 @@ const DEMO_SAMPLE = {
   zone: 'middle',
 } as const;
 
+/**
+ * What a page from this server may load (Jamin's App Store list, item 6). Scripts come only from
+ * this server's own files, so text that reached the page unescaped cannot run. `wasm-unsafe-eval`
+ * is the barcode and vision readers' WebAssembly and allows no JavaScript eval; inline styles stay
+ * because the screens set them throughout. `native/scripts/sync-web.mjs` carries the same list for
+ * the phone build, which is served from the phone and never sees this header.
+ */
+const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "media-src 'self' blob:",
+  "font-src 'self'",
+  "connect-src 'self'",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join('; ');
+
 export const server = createServer(async (req, res) => {
   /*
    * THE HOST HEADER IS NOT PARSED, AND THAT IS THE FIX RATHER THAN THE
@@ -3121,6 +3167,17 @@ export const server = createServer(async (req, res) => {
   // a JSON file per request, about 589 a second, with no invite at all. The
   // decision is the same one the invite check and `handleAdmin` make, taken
   // here without reading anything, so a refusal writes nothing to disk.
+  const floodRefused = doorRefusal(req, url.pathname);
+  if (floodRefused) {
+    req.resume();
+    res.writeHead(429, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'retry-after': String(floodRefused.retryAfterSeconds),
+    });
+    res.end(JSON.stringify({ error: 'That is a lot of requests in a short time. Give it a few minutes and try again.', retryAfterSeconds: floodRefused.retryAfterSeconds }));
+    return;
+  }
   if (!refusedAtTheDoor(req, url.pathname)) {
     recordAccess(req, res);
     // The same low-disk floor the frames have (D-160), asked only when the
@@ -3141,7 +3198,7 @@ export const server = createServer(async (req, res) => {
    * that runs the camera can never be loaded inside someone else's frame.
    */
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+  res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY);
 
   const json = (status: number, body: unknown) => {
     const payload = JSON.stringify(body);
@@ -3326,6 +3383,11 @@ export const server = createServer(async (req, res) => {
 
     if (url.pathname === '/api/shutter/frame') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      // Off (the default): the picture is never read into memory.
+      if (!shutterLogOn()) {
+        req.resume();
+        return json(404, { error: 'the shutter log is off' });
+      }
       const body = await readBody(req, MAX_SHUTTER_FRAME_BYTES);
       if (body === TOO_LARGE) return refuseTooLarge(MAX_SHUTTER_FRAME_BYTES);
       // D-160: the frame is counted against the device that sent it, and
@@ -3475,9 +3537,10 @@ export const server = createServer(async (req, res) => {
         return json(400, { error: "outcome must be 'bought_elsewhere', 'price_matched', 'bought_here' or 'not_bought'" });
       }
       const outcomeDevice = (typeof o.deviceId === 'string' ? o.deviceId.trim() : '') || deviceFromHeaders(req.headers);
-      if (outcomeDevice && !owns(outcomeDevice)) return notYours();
-      if (outcomeDevice) deviceForLog = outcomeDevice;
-      const kept = recordScanOutcome(outcomeScan, outcomeDevice ?? null, o.outcome);
+      // Item 3: only the device that made this scan says what happened after it.
+      if (!outcomeDevice || outcomeDevice !== getScan(outcomeScan)?.device_id || !owns(outcomeDevice)) return notYours();
+      deviceForLog = outcomeDevice;
+      const kept = recordScanOutcome(outcomeScan, outcomeDevice, o.outcome);
       return json(200, kept ? { stored: true } : { stored: false, why: 'that outcome could not be written down' });
     }
 
@@ -3537,6 +3600,7 @@ export const server = createServer(async (req, res) => {
       const text = pickText('text')?.trim() || undefined;
       if (!rawGtin && !text) return json(400, { error: 'gtin or text is required' });
       const device = pickText('deviceId')?.trim() || deviceFromHeaders(req.headers) || UNATTRIBUTED;
+      if (!owns(device)) return notYours();
       deviceForLog = device;
       const identifyStarted = Date.now();
       const telemetry = telemetryFrom(posted ?? url.searchParams);
@@ -3652,6 +3716,8 @@ export const server = createServer(async (req, res) => {
       if (gtin && rawGtin && catalogueFirstOn()) {
         const overLimitFirst = await scanLimitRefusal(device, req.headers);
         if (overLimitFirst) return json(402, overLimitFirst);
+        const overAddress = await freeScanAddressRefusal(req, device);
+        if (overAddress) return tooManyCalls(overAddress.retryAfterSeconds);
         const canonical = canonicalBarcode(rawGtin);
         if (canonical) {
           // The pack read is developer-only: a shopper's `canSendFrame` is ignored and the miss goes to typing, with the reason.
@@ -3841,6 +3907,7 @@ export const server = createServer(async (req, res) => {
       const posted = body as Record<string, unknown>;
       const device =
         (typeof posted.deviceId === 'string' ? posted.deviceId.trim() : '') || deviceFromHeaders(req.headers) || UNATTRIBUTED;
+      if (!owns(device)) return notYours();
       deviceForLog = device;
       const started = Date.now();
       const telemetry = telemetryFrom(posted);
@@ -4050,6 +4117,7 @@ export const server = createServer(async (req, res) => {
       if (!frame || frame.length === 0) return json(400, { error: 'frame is required and must be a base64 JPEG or PNG' });
       if (imageKind(frame) === null) return json(400, { error: 'frame must be a PNG or a JPEG' });
       const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : deviceFromHeaders(req.headers) || UNATTRIBUTED;
+      if (!owns(device)) return notYours();
       deviceForLog = device;
       /* Developer-only (2026-10-10). The phone sends a frame only with its Developer switch on, but that switch
          is the client's word; this is the check that holds. Refused before anything is spent, and said out loud. */
@@ -4209,6 +4277,7 @@ export const server = createServer(async (req, res) => {
       }
 
       const device = typeof p.deviceId === 'string' && p.deviceId.trim() !== '' ? p.deviceId.trim() : UNATTRIBUTED;
+      if (!owns(device)) return notYours();
       deviceForLog = device;
       /*
        * Counted after the body is read, which is deliberate and is the cost of
@@ -4382,6 +4451,7 @@ export const server = createServer(async (req, res) => {
       }
       const pricedDevice =
         typeof q.deviceId === 'string' && q.deviceId.trim() !== '' ? q.deviceId.trim() : UNATTRIBUTED;
+      if (!owns(pricedDevice)) return notYours();
       deviceForLog = pricedDevice;
       const owner = groundedOwner(pricedDevice);
 
@@ -4535,6 +4605,8 @@ export const server = createServer(async (req, res) => {
         return json(200, { stored: false, why: 'a correction needs its own id and the device it came from' });
       }
       deviceForLog = deviceId;
+      // Item 3: a price is filed only as the device it says it came from.
+      if (!owns(deviceId)) return notYours();
 
       /*
        * THE SCAN THIS PRICE IS ABOUT. Plan item 7c.
@@ -4548,6 +4620,8 @@ export const server = createServer(async (req, res) => {
        */
       const sentScanId = Number(c.scanId);
       const scanRow = Number.isInteger(sentScanId) && sentScanId > 0 ? getScan(sentScanId) : null;
+      // Item 3: and only that device may change its scan's price or mark it wrong.
+      if (scanRow && scanRow.device_id !== deviceId) return notYours();
       if (scanRow) scanForLog = scanRow.id;
 
       /*
@@ -5182,6 +5256,8 @@ export const server = createServer(async (req, res) => {
     if (!resolved.startsWith(PUBLIC_DIR.replace(/[\\/]$/, '') + sep)) {
       return json(403, { error: 'outside the public directory' });
     }
+    // Item 6: a source map left in the folder by an older build is never served.
+    if (extname(resolved) === '.map') return json(404, { error: 'no such file' });
     const file = await readFile(resolved);
     res.writeHead(200, {
       'content-type': TYPES[extname(resolved)] ?? 'application/octet-stream',

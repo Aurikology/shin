@@ -27,6 +27,7 @@ delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_FREE_SCANS_PER_WEEK;
 delete process.env.SHIN_PLUS_SCANS_PER_WEEK;
 delete process.env.REVENUECAT_SECRET_KEY;
+process.env.SHIN_PLUS_TRUST_CLIENT = '1';
 process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
 const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');

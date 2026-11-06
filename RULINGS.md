@@ -687,7 +687,7 @@ network address (90/10min, 600/day), each overridable by env, refusing with 429 
 before any Gemini call or counting. A missing Origin header is allowed and marked (a native wrapper
 can legitimately send none); a present-and-mismatched Origin is refused outright. · 2026-09-19 · log: docs/decisions.md#Calls that cost money are limited per invite code and per address, and the cap charges the search fee
 Retired wording: none
-Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
+Governs: SHIN_RATE_CODE_PER_10MIN, SHIN_RATE_CODE_PER_DAY, SHIN_RATE_IP_PER_10MIN, SHIN_RATE_IP_PER_DAY, SHIN_RATE_DOOR_IP_PER_10MIN, SHIN_RATE_DOOR_IP_PER_DAY, SHIN_FREE_SCANS_PER_IP_DAY, app/src/rate-limit.ts (the 2,000-calls-per-process cap this paragraph also describes is not read from any environment variable in the code today)
 ### An App Store Connect key signs and uploads builds, and the worker Mac may hold it
 An App Store Connect API key is set up and used on the worker Mac so that machine creates signing
 certificates, signs archives and uploads builds to App Store Connect unattended, every time, instead

@@ -12,10 +12,13 @@
  *   <time>-sent.<ext>    any image inside such a request (the crop the photo
  *                        route reads), saved as a file rather than base64
  *
- * NOT CONSENT-GATED, unlike photos.ts. The founder asked for every press. The
- * switch is SHIN_SHUTTER_LOG=off; the folder is SHIN_SHUTTER_DIR, defaulting
- * to <SHIN_DATA_DIR>/shutter. Nothing here may break a request: every write is
- * wrapped, and a failure is dropped rather than thrown into the route.
+ * OFF UNLESS SHIN_SHUTTER_LOG=on (Jamin's App Store list, 2026-11-05, item 2).
+ * It was on by default for the family beta, and with the invite gate off that
+ * let anyone buffer and write a whole request body to the Mac's disk with one
+ * header. When it is on, what one request can make it keep and how many requests
+ * it keeps in a day are both capped below. The folder is SHIN_SHUTTER_DIR,
+ * defaulting to <SHIN_DATA_DIR>/shutter. Nothing here may break a request: every
+ * write is wrapped, and a failure is dropped rather than thrown into the route.
  */
 import * as settings from '../../settings/src/index.ts';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -25,8 +28,33 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 const SHUTTER_HEADER = 'x-shin-shutter';
 const ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
+/** The most of one direction of one request this log holds; past it the bytes are counted, not kept. */
+export const SHUTTER_MAX_KEPT_BYTES = 4 * 1024 * 1024;
+/** Requests logged in a UTC day, across every device. Device ids are invented, so a per-device count would not hold. */
+export const SHUTTER_REQUESTS_PER_DAY = 3000;
+
+let countedDay = '';
+let countedToday = 0;
+
+/** Counts one logged request against today, or says today is full. */
+function roomToday(now: Date): boolean {
+  const day = now.toISOString().slice(0, 10);
+  if (day !== countedDay) {
+    countedDay = day;
+    countedToday = 0;
+  }
+  if (countedToday >= SHUTTER_REQUESTS_PER_DAY) return false;
+  countedToday += 1;
+  return true;
+}
+
+export function resetShutterRequestCountForTests(): void {
+  countedDay = '';
+  countedToday = 0;
+}
+
 export function shutterLogOn(env: NodeJS.ProcessEnv = process.env): boolean {
-  return settings.SHIN_SHUTTER_LOG(env)?.trim().toLowerCase() !== 'off';
+  return settings.SHIN_SHUTTER_LOG(env)?.trim().toLowerCase() === 'on';
 }
 
 export function shutterDir(env: NodeJS.ProcessEnv = process.env): string {
@@ -66,16 +94,24 @@ export function recordShutterRequest(
   if (!shutterLogOn(env) || !path.startsWith('/api/') || path === '/api/shutter/frame') return;
   const id = shutterIdOf(req);
   if (!id) return;
+  if (!roomToday(new Date())) return;
 
   const sent: Buffer[] = [];
-  req.on('data', (c: Buffer) => sent.push(c));
+  let sentBytes = 0;
+  req.on('data', (c: Buffer) => {
+    sentBytes += c.length;
+    if (sentBytes <= SHUTTER_MAX_KEPT_BYTES) sent.push(c);
+  });
 
   const returned: Buffer[] = [];
+  let returnedBytes = 0;
   const write = res.write.bind(res) as (...a: unknown[]) => boolean;
   const end = res.end.bind(res) as (...a: unknown[]) => ServerResponse;
   const keep = (chunk: unknown) => {
-    if (typeof chunk === 'string') returned.push(Buffer.from(chunk));
-    else if (chunk instanceof Uint8Array) returned.push(Buffer.from(chunk));
+    const bytes = typeof chunk === 'string' ? Buffer.from(chunk) : chunk instanceof Uint8Array ? Buffer.from(chunk) : null;
+    if (!bytes) return;
+    returnedBytes += bytes.length;
+    if (returnedBytes <= SHUTTER_MAX_KEPT_BYTES) returned.push(bytes);
   };
   (res as { write: unknown }).write = (...a: unknown[]) => {
     keep(a[0]);
@@ -95,7 +131,9 @@ export function recordShutterRequest(
       const route = path.replace(/^\/api\//, '').replace(/[^a-z0-9]+/gi, '-');
       let body: unknown = null;
       const raw = Buffer.concat(sent);
-      if (raw.length > 0) {
+      if (sentBytes > SHUTTER_MAX_KEPT_BYTES) {
+        body = { overCapBytes: sentBytes };
+      } else if (raw.length > 0) {
         try {
           body = JSON.parse(raw.toString('utf8'));
         } catch {
@@ -112,9 +150,10 @@ export function recordShutterRequest(
       const out = Buffer.concat(returned);
       let response: unknown;
       try {
+        if (returnedBytes > SHUTTER_MAX_KEPT_BYTES) throw new Error('over the cap');
         response = JSON.parse(out.toString('utf8'));
       } catch {
-        response = { bytes: out.length };
+        response = { bytes: returnedBytes };
       }
       writeFileSync(
         join(dir, `${at}-${route}.json`),

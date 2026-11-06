@@ -94,6 +94,23 @@ export function bindDevice(headers: IncomingHttpHeaders, now: Date = new Date())
 }
 
 /**
+ * Has this request PROVEN it is `deviceId`? Stricter than `ownsDevice`: an id
+ * with no secret bound is not proof of anything, so it reads false. For the
+ * routes that spend money or unlock something because of who the device is
+ * (Jamin's App Store list, item 5: `SHIN_DEVELOPER_DEVICES` trusted a bare id).
+ */
+export function provesDevice(deviceId: string, headers: IncomingHttpHeaders): boolean {
+  const id = deviceId?.trim();
+  if (!id || !deviceKeyOf(headers)) return false;
+  try {
+    const row = db().prepare('SELECT key_hash FROM device_key WHERE device_id = ?').get(id);
+    return row !== undefined && ownsDevice(id, headers);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * May this request act for `deviceId`? True for an id with no secret bound
  * yet (see the header), and for a bound id only when the request carries the
  * same secret. An empty id is left to the route's own 400.

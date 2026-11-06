@@ -74,7 +74,7 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_FREE_SCANS_PER_WEEK', default: 'unset/empty/0/NaN -> unlimited (off)', ruling: 'Shin Plus pricing and free scans' },
   // -- Record everything the user does -------------------------------------
   { env: 'SHIN_ACCESS_LOG', default: '<SHIN_DATA_DIR>/access.log', ruling: 'Record everything the user does' },
-  { env: 'SHIN_SHUTTER_LOG', default: "on; 'off' disables", ruling: 'Record everything the user does' },
+  { env: 'SHIN_SHUTTER_LOG', default: "off; 'on' enables", ruling: 'Record everything the user does' },
   { env: 'SHIN_SHUTTER_DIR', default: '<SHIN_DATA_DIR>/shutter', ruling: 'Record everything the user does' },
   // -- Server-side guards and limits ----------------------------------------
   { env: 'SHIN_RATE_CODE_PER_10MIN', default: '200', ruling: 'Server-side guards and limits' },
@@ -117,7 +117,11 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_GEMINI_THINKING', default: 'unset -> per-tier default thinking level', ruling: 'operational' },
   { env: 'SHIN_CORRECTIONS', default: 'price/data/corrections.db', ruling: 'operational' },
   { env: 'SHIN_PYTHON', default: "'python' on Windows, 'python3' elsewhere (printout intake's PDF reader)", ruling: 'operational' },
-  { env: 'REVENUECAT_SECRET_KEY', default: "unset -> 'client_trusted' mode (beta only)", ruling: 'operational', secret: true },
+  { env: 'REVENUECAT_SECRET_KEY', default: 'unset -> nobody is Plus', ruling: 'operational', secret: true },
+  { env: 'SHIN_PLUS_TRUST_CLIENT', default: "unset; '1' believes x-shin-plus when no RevenueCat key is set", ruling: 'operational' },
+  { env: 'SHIN_RATE_DOOR_IP_PER_10MIN', default: '1200', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_RATE_DOOR_IP_PER_DAY', default: '15000', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_FREE_SCANS_PER_IP_DAY', default: '30, only while the free scan limit is on', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_ADMIN_TOKEN', default: 'unset -> every /api/admin/* path answers 404', ruling: 'operational', secret: true },
   { env: 'SHIN_DATA_DIR', default: 'process.cwd()/data', ruling: 'operational' },
   { env: 'SHIN_PHOTOS', default: '<repo>/app/data/photos/', ruling: 'operational' },
@@ -284,6 +288,22 @@ export function SHIN_CORRECTIONS(env: NodeJS.ProcessEnv = process.env): string |
 export function SHIN_PYTHON(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_PYTHON');
 }
+export function SHIN_PLUS_TRUST_CLIENT(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_PLUS_TRUST_CLIENT');
+}
+
+export function SHIN_RATE_DOOR_IP_PER_10MIN(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_RATE_DOOR_IP_PER_10MIN');
+}
+
+export function SHIN_RATE_DOOR_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_RATE_DOOR_IP_PER_DAY');
+}
+
+export function SHIN_FREE_SCANS_PER_IP_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_FREE_SCANS_PER_IP_DAY');
+}
+
 export function REVENUECAT_SECRET_KEY(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'REVENUECAT_SECRET_KEY');
 }

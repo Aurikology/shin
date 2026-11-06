@@ -191,8 +191,13 @@ after(async () => {
   }
 });
 
+/** The way api.js sends a phone's id and secret: a listed id only counts when it proves itself. */
+function proving(device: string): Record<string, string> {
+  return { 'x-shin-device': device, 'x-shin-device-key': `key-for-${device}-0000000000` };
+}
+
 async function identify(gtin: string, extra = '', device = 'sne-test'): Promise<Record<string, unknown>> {
-  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA${extra}`);
+  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA${extra}`, { headers: proving(device) });
   assert.equal(r.status, 200, `/api/identify answered ${r.status}`);
   return (await r.json()) as Record<string, unknown>;
 }
@@ -200,7 +205,7 @@ async function identify(gtin: string, extra = '', device = 'sne-test'): Promise<
 async function sendFrame(gtin: string, device = 'sne-test', frame: string | null = FRAME): Promise<{ status: number; body: Record<string, unknown> }> {
   const r = await fetch(`${base}/api/identify/pack`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...proving(device) },
     body: JSON.stringify({ gtin, deviceId: device, countryCode: 'CA', ...(frame ? { frame } : {}) }),
   });
   return { status: r.status, body: (await r.json()) as Record<string, unknown> };
@@ -389,7 +394,7 @@ test('the frame is written to disk only with photo consent (and is written with 
   assert.equal(scanRow(no.body.scanId).photo_path, null);
   const c = await fetch(`${base}/api/consent`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', ...proving('sne-consent') },
     body: JSON.stringify({ deviceId: 'sne-consent', photos: true, location: false }),
   });
   assert.equal(c.status, 200);

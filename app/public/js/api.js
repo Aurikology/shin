@@ -169,11 +169,14 @@ function newShutterId() {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20)}`;
 }
 
+let shutterFramesOff = false;
+
 /** Call at the shutter press with the live video element. Never throws. */
 export function beginShutter(video) {
   shutterId = newShutterId();
   const id = shutterId;
   const takenAt = new Date().toISOString();
+  if (shutterFramesOff) return id;
   try {
     const width = video?.videoWidth ?? 0;
     const height = video?.videoHeight ?? 0;
@@ -186,11 +189,13 @@ export function beginShutter(video) {
       if (!blob) return;
       try {
         const frame = await blobToBase64(blob);
-        await fetch(`${BASE}/api/shutter/frame`, {
+        const res = await fetch(`${BASE}/api/shutter/frame`, {
           method: 'POST',
           headers: headers({ 'content-type': 'application/json' }),
           body: JSON.stringify({ id, frame, width, height, takenAt }),
         });
+        // 404 is the server saying the shutter log is off: stop paying to upload frames.
+        if (res?.status === 404) shutterFramesOff = true;
       } catch (err) {
         console.error('shutter frame not sent:', err);
       }

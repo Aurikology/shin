@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Copies app/public into native/www, then injects one inline script into the
- * copy that sets window.SHIN_API_BASE and window.SHIN_INVITE_CODE before
- * /js/main.js loads.
+ * Copies app/public into native/www, then writes js/native-config.js, which sets
+ * window.SHIN_API_BASE and window.SHIN_INVITE_CODE before /js/main.js loads, and
+ * adds the content security policy tag to the copy of the page.
  *
  * This never touches app/public/index.html. It only edits the copy that lands
  * in native/www, which is generated build output (gitignored) and owned by
@@ -94,13 +94,39 @@ if (!html.includes(marker)) {
 
 cpSync(capacitorBuild, path.join(dest, 'js', 'capacitor.js'));
 
+// A file, not an inline script, so the page's script rule can stay "this app's own files only".
+writeFileSync(
+  path.join(dest, 'js', 'native-config.js'),
+  `window.SHIN_API_BASE = ${JSON.stringify(config.apiBase)};\n` +
+    `window.SHIN_INVITE_CODE = ${JSON.stringify(config.inviteCode)};\n` +
+    `window.SHIN_NATIVE_CAMERA_FALLBACK = ${JSON.stringify(Boolean(config.nativeCameraFallback))};\n` +
+    `window.SHIN_RC_KEYS = ${JSON.stringify(rcKeys)};\n`,
+);
+
+// The same policy app/server.ts sends as a header, as a tag: the phone build is served from the phone.
+const self = "'self' capacitor://localhost https://localhost";
+const contentSecurityPolicy = [
+  `default-src ${self}`,
+  `script-src ${self} 'wasm-unsafe-eval'`,
+  `style-src ${self} 'unsafe-inline'`,
+  `img-src ${self} data: blob:`,
+  `media-src ${self} blob:`,
+  `font-src ${self}`,
+  `connect-src ${self} ${new URL(config.apiBase).origin}`,
+  `worker-src ${self} blob:`,
+  "object-src 'none'",
+  "base-uri 'self'",
+].join('; ');
+
+// In <head>: a policy tag anywhere later is ignored by the browser.
+html = html.replace('<meta charset="utf-8">', `<meta charset="utf-8">\n<meta http-equiv="Content-Security-Policy" content="${contentSecurityPolicy}">`);
+if (!html.includes('Content-Security-Policy')) {
+  console.error('[sync-web] the charset tag was not found, so the page would ship with no content security policy.');
+  process.exit(1);
+}
+
 const configScript =
-  `<script>\n` +
-  `  window.SHIN_API_BASE = ${JSON.stringify(config.apiBase)};\n` +
-  `  window.SHIN_INVITE_CODE = ${JSON.stringify(config.inviteCode)};\n` +
-  `  window.SHIN_NATIVE_CAMERA_FALLBACK = ${JSON.stringify(Boolean(config.nativeCameraFallback))};\n` +
-  `  window.SHIN_RC_KEYS = ${JSON.stringify(rcKeys)};\n` +
-  `</script>\n` +
+  `<script src="/js/native-config.js"></script>\n` +
   `<script src="/js/capacitor.js"></script>\n`;
 
 html = html.replace(marker, configScript + marker);

@@ -30,8 +30,10 @@
  *
  * PLUS. With `REVENUECAT_SECRET_KEY` set, the server asks RevenueCat whether
  * this device's app user id holds the `plus` entitlement, and remembers the
- * answer for ten minutes. Without it, the client's `x-shin-plus: 1` header is
- * believed, which is a beta seam and says so once at startup.
+ * answer for ten minutes. Without it nobody is Plus, and the server says so once
+ * at startup (Jamin's App Store list, item 1: anyone could claim Plus with
+ * `x-shin-plus: 1` while the key was unset). `SHIN_PLUS_TRUST_CLIENT=1` puts the
+ * old beta seam back, believing that header, for a machine with no key on purpose.
  */
 import * as settings from '../../settings/src/index.ts';
 import type { IncomingHttpHeaders } from 'node:http';
@@ -137,15 +139,20 @@ export function setEntitlementFetchForTests(f: FetchLike | null): void {
 
 export type EntitlementMode = 'revenuecat' | 'client_trusted';
 
+function trustsClientPlus(env: NodeJS.ProcessEnv): boolean {
+  return (settings.SHIN_PLUS_TRUST_CLIENT(env) ?? '').trim() === '1';
+}
+
 export function entitlementMode(env: NodeJS.ProcessEnv = process.env): EntitlementMode {
   return (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim() ? 'revenuecat' : 'client_trusted';
 }
 
 /** The one startup line, or null when RevenueCat is doing the checking. */
 export function entitlementStartupWarning(env: NodeJS.ProcessEnv = process.env): string | null {
-  return entitlementMode(env) === 'client_trusted'
-    ? 'WARNING: REVENUECAT_SECRET_KEY is not set, so Pexi Plus is whatever the phone says it is (x-shin-plus: 1). Beta only.'
-    : null;
+  if (entitlementMode(env) !== 'client_trusted') return null;
+  return trustsClientPlus(env)
+    ? 'WARNING: SHIN_PLUS_TRUST_CLIENT=1 and REVENUECAT_SECRET_KEY is not set, so Pexi Plus is whatever the phone says it is (x-shin-plus: 1). Never on a public server.'
+    : 'WARNING: REVENUECAT_SECRET_KEY is not set, so nobody is Pexi Plus on this server, paying subscribers included. Set it before the scan limits go on.';
 }
 
 /** True when RevenueCat's subscriber record holds an unexpired `plus`. */
@@ -169,7 +176,7 @@ export async function isPlus(
   env: NodeJS.ProcessEnv = process.env,
   now: Date = new Date(),
 ): Promise<boolean> {
-  if (entitlementMode(env) === 'client_trusted') return headerText(headers, PLUS_HEADER) === '1';
+  if (entitlementMode(env) === 'client_trusted') return trustsClientPlus(env) && headerText(headers, PLUS_HEADER) === '1';
   const cached = entitlementCache.get(deviceId);
   if (cached && cached.until > now.getTime()) return cached.plus;
   const key = (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim();

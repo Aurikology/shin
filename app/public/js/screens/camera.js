@@ -1159,10 +1159,10 @@ function refusalSheet(r, scenario, categoryLabels = [], keepable = null, opts = 
     ? `<div class="actions-primary cat-repair">
         <p class="said">${say('refuse_category_repair')}</p>
         ${categoryLabels.length
-          ? `<ul class="cat-chips">${categoryLabels.map((c) => `<li>${c}</li>`).join('')}</ul>`
+          ? `<ul class="cat-chips">${categoryLabels.map((c) => `<li>${escapeHtml(c)}</li>`).join('')}</ul>`
           : `<p class="detail">${escapeHtml(t('cam_list_failed'))}</p>`}
         ${categoryWhy
-          ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${categoryWhy}</p></details>`
+          ? `<details class="why"><summary>${escapeHtml(t('cam_why'))}</summary><p class="detail">${escapeHtml(categoryWhy)}</p></details>`
           : ''}
       </div>`
     : `<div class="actions actions-primary">${

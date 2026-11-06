@@ -95,6 +95,36 @@ export function addressWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
 }
 
 /**
+ * Every API request from one address (Jamin's App Store list, item 4). Far above a phone: the usage
+ * queue alone sends a batch every five seconds, and a household or a carrier can share one address.
+ * This stops a flood; the paid-call windows above stop spending.
+ */
+export function doorWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
+  return [
+    { ms: TEN_MINUTES, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_10MIN(env), 1_200) },
+    { ms: ONE_DAY, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_DAY(env), 15_000) },
+  ];
+}
+
+/**
+ * Free barcode scans from one address in a day. The free limit is keyed on a device id the phone
+ * makes up, so a new id is a new week; this is what a new id cannot reset.
+ */
+export function freeScanAddressWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
+  return [{ ms: ONE_DAY, limit: envCount(settings.SHIN_FREE_SCANS_PER_IP_DAY(env), 30) }];
+}
+
+/**
+ * True for a request this machine made to itself: a loopback socket with no tunnel header. The
+ * tunnel always sets the header, so a shopper never reads as local. A laptop, the suite and the
+ * Mac's own health checks are not who these limits are for.
+ */
+export function isLocalRequest(headers: Record<string, string | string[] | undefined>, socketAddress: string | undefined): boolean {
+  if (headers['cf-connecting-ip']) return false;
+  return socketAddress === '127.0.0.1' || socketAddress === '::1' || socketAddress === '::ffff:127.0.0.1';
+}
+
+/**
  * The address a request came from.
  *
  * Behind the Cloudflare tunnel every connection reaches this process from the tunnel itself, so the

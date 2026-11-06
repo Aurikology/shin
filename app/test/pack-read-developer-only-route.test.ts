@@ -152,15 +152,20 @@ after(async () => {
 });
 
 async function identify(gtin: string, device: string, extra = ''): Promise<Record<string, unknown>> {
-  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA${extra}`);
+  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA${extra}`, { headers: proving(device) });
   assert.equal(r.status, 200, `/api/identify answered ${r.status}`);
   return (await r.json()) as Record<string, unknown>;
+}
+
+/** The way api.js sends a phone's id and secret: a listed id only counts when it proves itself. */
+function proving(device: string): Record<string, string> {
+  return { 'x-shin-device': device, 'x-shin-device-key': `key-for-${device}-0000000000` };
 }
 
 async function sendFrame(gtin: string, device: string, headers: Record<string, string> = {}): Promise<{ status: number; body: Record<string, unknown> }> {
   const r = await fetch(`${base}/api/identify/pack`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', ...headers },
+    headers: { 'content-type': 'application/json', ...proving(device), ...headers },
     body: JSON.stringify({ gtin, deviceId: device, countryCode: 'CA', frame: FRAME }),
   });
   return { status: r.status, body: (await r.json()) as Record<string, unknown> };

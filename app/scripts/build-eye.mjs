@@ -47,7 +47,7 @@ async function main() {
     outdir: outDir,
     entryNames: 'eye',
     chunkNames: 'chunks/[name]-[hash]',
-    sourcemap: true,
+    sourcemap: false, // Jamin's App Store list, item 6: no source maps on the live server.
     // Not minified. This is read and argued with far more often than it is
     // shipped over a slow link, and the entry chunk is small either way.
     minify: false,
