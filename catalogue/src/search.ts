@@ -42,6 +42,7 @@ import {
  */
 import { variantCarriedBy, variantTokens } from './variant-words.ts';
 import { upcEOf, upcAOf } from './upc.ts';
+import { isUnlicensedSource, licensedOnlySql } from './source-rights.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
@@ -1057,7 +1058,7 @@ export class Catalogue {
     for (const form of forms) {
       if (!form) continue;
       const row = this.#db
-        .prepare(`SELECT ${SELECT_COLS} FROM product WHERE code = ?`)
+        .prepare(`SELECT ${SELECT_COLS} FROM product WHERE code = ? AND ${licensedOnlySql()}`)
         .get(form) as Row | undefined;
       if (row) {
         return rowToCandidate(
@@ -1154,7 +1155,8 @@ export class Catalogue {
    */
   #runFts(match: string, sources?: readonly string[], text?: string): { row: Row; bm25: number }[] {
     const narrowed = sources && sources.length > 0;
-    const clause = narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : '';
+    // Rows whose source grants no reuse licence are never read (source-rights.ts), narrowed or not.
+    const clause = ` AND ${licensedOnlySql('p.')}${narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : ''}`;
     // Unit 8: THE ONE LINE THAT REVERSES THIS is the flag itself, in
     // part-number.ts (EXCLUDE_BARE_PART_NUMBERS_FROM_TEXT_SEARCH). byGtin is
     // untouched either way because it never calls #runFts.
@@ -1215,7 +1217,8 @@ export class Catalogue {
     const out: { row: Row; similarity: number }[] = [];
     for (const h of hits) {
       const row = byId.get(Number(h.rowid));
-      if (row) out.push({ row, similarity: similarityFromDistance(h.distance) });
+      // The KNN cannot join to `source`, so the unlicensed rows are dropped here (source-rights.ts).
+      if (row && !isUnlicensedSource(row.source)) out.push({ row, similarity: similarityFromDistance(h.distance) });
     }
     return out;
   }
@@ -1240,7 +1243,7 @@ export class Catalogue {
         `SELECT ${SELECT_COLS.split(', ').map((c) => `p.${c.trim()}`).join(', ')}
            FROM product_category pc
            JOIN product p ON p.rowid = pc.rowid_ref
-           WHERE pc.tag = ? AND p.code != ?
+           WHERE pc.tag = ? AND p.code != ? AND ${licensedOnlySql('p.')}
            ORDER BY p.sold_in_canada DESC, (p.size_value IS NOT NULL) DESC, p.name
            LIMIT ?`,
       ).all(found.tag, exclude ?? '', want) as unknown as Row[];
@@ -1309,7 +1312,7 @@ export class Catalogue {
             `SELECT 1 AS found
              FROM product_category pc
              JOIN product p ON p.rowid = pc.rowid_ref
-             WHERE pc.tag = ? AND p.code != ?
+             WHERE pc.tag = ? AND p.code != ? AND ${licensedOnlySql('p.')}
              LIMIT 1`,
           ).get(tag, exclude ?? '') !== undefined,
     }, this.#taxonomy);

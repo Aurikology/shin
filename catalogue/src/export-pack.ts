@@ -53,6 +53,7 @@
 import * as settings from '../../settings/src/index.ts';
 import { openCatalogueReadOnly } from './schema.ts';
 import { writeFileSync } from 'node:fs';
+import { licensedOnlySql } from './source-rights.ts';
 import { gzipSync, brotliCompressSync, constants as zlibConstants } from 'node:zlib';
 
 const DB_PATH = settings.SHIN_CATALOGUE() ?? 'data/catalogue.db';
@@ -90,7 +91,7 @@ interface PackRow {
 function scopeSql(scope: Scope): string {
   return scope === 'grocery'
     ? `WHERE sold_in_canada = 1 AND source = 'openfoodfacts'`
-    : `WHERE sold_in_canada = 1`;
+    : `WHERE sold_in_canada = 1 AND ${licensedOnlySql()}`;
 }
 
 /**

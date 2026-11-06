@@ -39,6 +39,7 @@ import {
   type ConstraintLabel,
   type UserConstraintPrefs,
 } from './alternative-modes.ts';
+import { licensedOnlySql } from './source-rights.ts';
 import { UNKNOWN_MARKET, formatMoney, samePriceBasis, type Market } from './market.ts';
 import { sameFamily, sqlBaseValue, sqlFamily, toComparison, unitPriceCents } from './units.ts';
 
@@ -349,7 +350,8 @@ const MARKET_COLUMN: Readonly<Record<string, string>> = { CA: 'sold_in_canada' }
 
 function marketFilterSql(market: Market, alias: string): string {
   const col = market.country === null ? undefined : MARKET_COLUMN[market.country];
-  return col ? `AND ${alias}.${col} = 1` : '';
+  // An unlicensed source's rows are never offered as an alternative (source-rights.ts).
+  return `${col ? `AND ${alias}.${col} = 1` : ''} AND ${licensedOnlySql(`${alias}.`)}`;
 }
 
 function marketVouchedByCatalogue(market: Market): boolean {

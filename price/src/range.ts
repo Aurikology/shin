@@ -60,6 +60,7 @@ import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 // width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
 import { flagWide } from './width-flag.ts';
+import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 
 /* ------------------------------------------------------------ thresholds */
 
@@ -452,7 +453,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
     const rows = db
       .prepare(
         `SELECT code, size_value, size_unit, quantity, category_path, leaf_category, ${hasSource ? 'source' : 'NULL AS source'}
-           FROM product WHERE code IN (${chunk.map(() => '?').join(',')})`,
+           FROM product WHERE code IN (${chunk.map(() => '?').join(',')})${hasSource ? ` AND ${licensedOnlySql()}` : ''}`,
       )
       .all(...chunk) as Record<string, unknown>[];
     for (const r of rows) {

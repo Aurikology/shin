@@ -36,6 +36,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { toBaseSize } from './search.ts';
 import type { Catalogue, Candidate, SearchQuery } from './search.ts';
 import { parseQuantity, toComparison } from './units.ts';
+import { licensedOnlySql } from './source-rights.ts';
 
 /* ------------------------------------------------------------------------ */
 /* Public types                                                             */
@@ -532,7 +533,7 @@ export function brandLookupFromDb(db: DatabaseSync): BrandLookup {
   const stmt = db.prepare(
     `SELECT DISTINCT p.brands AS brands
        FROM product_fts f JOIN product p ON p.rowid = f.rowid
-      WHERE product_fts MATCH ?
+      WHERE product_fts MATCH ? AND ${licensedOnlySql('p.')}
       LIMIT 25`,
   );
   return {

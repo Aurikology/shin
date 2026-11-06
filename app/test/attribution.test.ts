@@ -143,6 +143,15 @@ test('each licence is stated as that source actually carries it', () => {
   }
 });
 
+test('the screen says the two unlicensed registries are unused, and carries Icecat\'s notice and disclaimer', () => {
+  const by = (key: string) => ATTRIBUTION.find((e) => e.keys.includes(key))!;
+  for (const k of ['returnit', 'consignaction']) {
+    assert.match(by(k).what, /^Not used in any answer since 2026-11-05\./, `${k} still reads as if it were in use`);
+  }
+  assert.match(by('icecat').what, /Database Right data-sheet 2026 Icecat\. All rights reserved\./);
+  assert.match(by('icecat').what, /Provided AS IS, without warranty\./);
+});
+
 test('Open Facts and Open Prices say what they are, with counts that carry a date', () => {
   for (const e of ATTRIBUTION) {
     const hasCount = /\d{1,3}(,\d{3})+|\b\d{2,}\b/.test(e.what);

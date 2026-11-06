@@ -81,6 +81,7 @@ import {
   type NoRangeReason,
   type TypedRow,
 } from './src/catalogue-first.ts';
+import { isNeverSentToAModel } from '../catalogue/src/source-rights.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, shownRange, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
 import type { Verdict } from '../price/src/estimate.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
@@ -1996,10 +1997,12 @@ async function typedVerdict(
   match: OwnMatch | null,
   ctx: TypedVerdictContext,
   device: string,
+  /** The typed words resolved to a product whose identity rests only on Open Icecat: no model sees it (decision 2026-11-05). */
+  modelBarred = false,
 ): Promise<{ verdict: Verdict | null; last: ReturnType<typeof lastRungRange>; noRangeReason: NoRangeReason }> {
   const prices = openPricesReadOnly(defaultPricesPath(), device);
   try {
-    const once = onceAsk(ctx.askRange);
+    const once = modelBarred ? null : onceAsk(ctx.askRange);
     const est = await safeEstimate(
       match
         ? { barcode: match.code, name: match.name, brand: match.brand, size: match.size, region: ctx.market.region ?? null, country: ctx.market.country, currency: ctx.market.currency ?? 'CAD', asOf: new Date().toISOString().slice(0, 10) }
@@ -2064,6 +2067,17 @@ async function typedCatalogueSearch(text: string, device: string): Promise<{ row
   } catch (err) {
     logError({ where: 'identify.typed_search', deviceId: device, scanId: null, err });
     return { rows: [], band: 'miss' };
+  }
+}
+
+/** `product.source` of a barcode in the attached catalogue, or null (no code, no catalogue, no row, a lookup that threw). */
+function catalogueSourceOf(code: string | null | undefined): string | null {
+  if (!code || !fastLookup) return null;
+  try {
+    const hit = fastLookup.byGtin(code) as { source?: unknown } | null;
+    return typeof hit?.source === 'string' ? hit.source : null;
+  } catch {
+    return null;
   }
 }
 
@@ -2132,7 +2146,7 @@ async function typedFromOwnData(
     }
     if (barcodeAnswer?.answer.verdict) verdict = barcodeAnswer.answer.verdict;
     else {
-      const own = await typedVerdict(text, match, verdictCtx, device);
+      const own = await typedVerdict(text, match, verdictCtx, device, isNeverSentToAModel(resolution?.row?.source) || isNeverSentToAModel(catalogueSourceOf(match?.code)));
       verdict = own.verdict;
       // 3.1: a barcode answer brings its own range; anything else takes the typed estimate's last rung.
       if (!(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit' && barcodeAnswer.answer.range)) typedRange = own;

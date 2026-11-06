@@ -125,6 +125,7 @@ import {
   type EstimateTrace,
   type Verdict,
 } from '../../price/src/estimate.ts';
+import { isNeverSentToAModel } from '../../catalogue/src/source-rights.ts';
 import { onceAsk, shownRange, type RangeAskOutcome } from './distribution.ts';
 import { positionalParent, type CategoryFaultKind, type CategoryGuard } from './category-guard.ts';
 
@@ -356,6 +357,8 @@ export interface CatalogueRow {
   readonly sizeUnit?: string | null;
   readonly leafCategory: string | null;
   readonly categoryPath: readonly string[];
+  /** `product.source` of the catalogue row, when the lookup gives it (catalogue/src/source-rights.ts says what a source allows). */
+  readonly source?: string | null;
 }
 
 export interface BarcodeDeps {
@@ -545,6 +548,7 @@ function normaliseRow(row: CatalogueRow): CatalogueRow {
     sizeUnit: s(row.sizeUnit),
     leafCategory: s(row.leafCategory),
     categoryPath: path,
+    source: s(row.source),
   };
 }
 
@@ -807,7 +811,12 @@ async function priceIdentity(
    * ask it makes is shared with the older `range` field below, so a scan never
    * spends two cap slots.
    */
-  const once = onceAsk(deps.askRange, identity.category?.name ?? null);
+  /*
+   * Open Icecat's licence bars machine learning and generative AI (clause 10, decision 2026-11-05): a product whose
+   * identity rests only on an Icecat row is never described to Claude. With no ask, the ladders below run on Pexi's
+   * own data and the last rung gives it the broad-guess range a product with no price gets (D-241).
+   */
+  const once = isNeverSentToAModel(row.source) ? null : onceAsk(deps.askRange, identity.category?.name ?? null);
   const taxonomy = safeTaxonomy(deps.categoryGuard);
   let verdict: Verdict | null = null;
   let conflict: EstimateTrace['conflict'] = null;
@@ -1149,6 +1158,8 @@ export interface TypedRow {
   readonly quantity: string | null;
   readonly leafCategory?: string | null;
   readonly categoryPath?: readonly string[];
+  /** `product.source`, when the search gives it. */
+  readonly source?: string | null;
 }
 
 /** Lower case, accents off, apostrophes dropped ("Tater's" is "taters"), split on anything else. */

@@ -58,6 +58,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide } from './width-flag.ts';
+import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
@@ -488,7 +489,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
       .prepare(
         `SELECT code, name, ${col('name_en')}, ${col('brands')}, ${col('quantity')}, ${col('size_value')}, ${col('size_unit')},
                 ${col('category_path')}, ${col('leaf_category')}, ${col('source')}
-           FROM product WHERE code IN (${chunk.map(() => '?').join(',')})`,
+           FROM product WHERE code IN (${chunk.map(() => '?').join(',')})${have.has('source') ? ` AND ${licensedOnlySql()}` : ''}`,
       )
       .all(...chunk) as Record<string, unknown>[];
     for (const r of rows) {

@@ -31,6 +31,12 @@
  * slice named beside them where it differs. When a source is reloaded, change
  * the number and the date in the same commit.
  *
+ * ONE EXCEPTION since 2026-11-05: the Return-It and Consignaction rows are
+ * still in the database and still counted below, but no answer, search, typed
+ * lookup, barcode lookup, alternative or offline pack reads them
+ * (catalogue/src/source-rights.ts UNLICENSED_SOURCES). Their counts are rows
+ * held on 2026-10-06, not rows used. Nothing was recounted on 2026-11-05.
+ *
  * `keys` is what the loaders write into `product.source` and
  * `observation.seller` (and `openstreetmap`, which has no column of its own:
  * it rides in through `observation.store_osm` and the live shop lookup). The
@@ -45,7 +51,9 @@
  * they do not carry. None of the four grants reuse. ANBL's robots.txt,
  * Walmart's terms and Return-It's robots.txt forbid the automated reading that
  * collected the data; Consignaction's terms allow personal non-commercial
- * copying only.
+ * copying only. Decision 2026-11-05: Pexi must hold the rights to everything
+ * it shows, so these two sources are no longer used in answers; their entries
+ * stay because the rows are still held and the loaders can still write them.
  *
  * Open Icecat and USDA FoodData Central each get their own entry: their terms
  * are their own, not ODbL, and an entry that implied otherwise would misstate
@@ -92,7 +100,7 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
   },
   {
     name: 'Open Icecat',
-    what: 'The electronics and general product catalogue, 3,596,403 products, 296,300 of them listed for the Canadian market (counted 2026-10-06). Provided AS IS, without warranty.',
+    what: 'The electronics and general product catalogue, 3,596,403 products, 296,300 of them listed for the Canadian market (counted 2026-10-06). Database Right data-sheet 2026 Icecat. All rights reserved. Provided AS IS, without warranty.',
     // Deliberately not ODbL. Icecat publishes its own terms (the Open Content
     // License Agreement and its fair use policy) and this entry must never be
     // read as claiming the same licence as the OpenStreetMap and Open Facts rows.
@@ -130,14 +138,14 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
   },
   {
     name: 'Return-It (British Columbia)',
-    what: "Non-alcohol drink containers from BC's beverage container deposit registry: 8,940 products, all listed as sold in Canada (counted 2026-10-06). Collected by an automated crawler of the paged registry search, using a browser user agent. Return-It (Encorp Pacific (Canada)) states no reuse licence, and no website terms of use were found on return-it.ca (only a privacy policy and a copyright line, checked 2026-10-06). Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /registeredbrands/', which is the path crawled. Verdict: automated reading of that registry is disallowed by the site; reuse terms are unclear and need Encorp's written answer.",
+    what: "Not used in any answer since 2026-11-05. Non-alcohol drink containers from BC's beverage container deposit registry: 8,940 products, all listed as sold in Canada (counted 2026-10-06). Collected by an automated crawler of the paged registry search, using a browser user agent. Return-It (Encorp Pacific (Canada)) states no reuse licence, and no website terms of use were found on return-it.ca (only a privacy policy and a copyright line, checked 2026-10-06). Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /registeredbrands/', which is the path crawled. Verdict: automated reading of that registry is disallowed by the site; reuse terms are unclear and need Encorp's written answer.",
     licence: 'No reuse licence and no website terms found 2026-10-06; robots.txt disallows the registry path to automated readers; reuse unclear, ask Encorp Pacific',
     url: 'https://www.return-it.ca/registeredbrands/',
     keys: ['returnit'],
   },
   {
     name: 'Consignaction (Quebec)',
-    what: "Drink containers from Quebec's beverage container deposit registry spreadsheet: 44,862 products, all listed as sold in Canada (counted 2026-10-06). One spreadsheet downloaded by a script from the site's public file link. Consignaction states no reuse licence. Its Termes et conditions (consignaction.ca/termes-et-conditions, read 2026-10-06) say copying or storing any element for purposes other than personal use is 'absolument defendue' without prior written permission, and allow download or copying 'pour utilisation personnelle a des fins non commerciales seulement'. They have no clause on robots or automated access, and robots.txt (read 2026-10-06) disallows only /wp/wp-admin/. Verdict: automated download of the one file is not barred, but reuse in a product is not licensed; written permission is needed.",
+    what: "Not used in any answer since 2026-11-05. Drink containers from Quebec's beverage container deposit registry spreadsheet: 44,862 products, all listed as sold in Canada (counted 2026-10-06). One spreadsheet downloaded by a script from the site's public file link. Consignaction states no reuse licence. Its Termes et conditions (consignaction.ca/termes-et-conditions, read 2026-10-06) say copying or storing any element for purposes other than personal use is 'absolument defendue' without prior written permission, and allow download or copying 'pour utilisation personnelle a des fins non commerciales seulement'. They have no clause on robots or automated access, and robots.txt (read 2026-10-06) disallows only /wp/wp-admin/. Verdict: automated download of the one file is not barred, but reuse in a product is not licensed; written permission is needed.",
     licence: 'No reuse licence; terms read 2026-10-06 allow personal non-commercial copying only, no automation clause; reuse unclear, permission needed',
     url: 'https://consignaction.ca/termes-et-conditions/',
     keys: ['consignaction'],
