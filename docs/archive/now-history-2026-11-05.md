@@ -19,3 +19,4 @@ must report the paid tier and a real barcode scan must return prices. The refusa
 - **The Mac (asked by mail 2026-09-27, no receipt yet):** is SHIN_GEMINI_TIER paid (unset or free
   refuses every shopper photo), SHIN_REQUIRE_DB, SHIN_GEMINI_GROUNDED_MODEL, and SHIN_GEMINI_SPLIT;
   then pull main and restart the beta server (becf7d8 removed the 2.5 split).
+2. Once the paid key lands, re-measure retrieval before building against the old 32/52 number. (Next step, moved from NOW.md.)

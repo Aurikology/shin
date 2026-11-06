@@ -146,5 +146,4 @@ Mac asks moved to `docs/archive/now-history-2026-11-05.md`.
 ## Next steps
 
 1. Ship `QUEUE.md` bands 7 and 7B to get to 10-20 testers.
-2. Once the paid key lands, re-measure retrieval before building against the old 32/52 number.
-3. Confirm unit 16 is live on the Mac server and close the catalogue plan out fully.
+2. Confirm unit 16 is live on the Mac server and close the catalogue plan out fully.
