@@ -35,7 +35,6 @@
 import { PERSONALITIES, personalityCopy, setPersonality, personality, say } from '../voice.js';
 import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
-import { track } from '../track.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
@@ -663,7 +662,7 @@ export default {
       if (claudeSwitch) {
         const now = store.get().agreement?.claude !== true;
         store.update({ agreement: { ...store.get().agreement, claude: now } });
-        track('agreement_change', { claude: now });
+        void ctx.api?.postEvent?.({ deviceId: getDeviceId()?.id, type: 'agreement_change', payload: { claude: now } });
         claudeSwitch.setAttribute('aria-checked', String(now));
         claudeSwitch.classList.toggle('on', now);
         return;
