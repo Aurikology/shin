@@ -1683,9 +1683,9 @@ const LINES_EN = {
    * at the person; the limit is a fact about the week, not about them.
    */
   paywall_say: {
-    deadpan: () => 'Free scans are done for this week. Plus takes the limit off.',
-    warm: () => 'That is all the free scans this week. Plus has no limit.',
-    blunt: () => 'Free scans done for the week. Plus: no limit.',
+    deadpan: () => 'Free scans are done for this week. Plus gives more each week.',
+    warm: () => 'That is all the free scans this week. Plus has more.',
+    blunt: () => 'Free scans done for the week. Plus: more each week.',
   },
   /**
    * The spent screen (UX build 2, R-84): the disappointment is pointed at Pexi,

@@ -289,13 +289,13 @@ test('every step can be left with nothing chosen, and Skip leaves from any step'
 test('the plan steps show the real plan prices, no invented trial and no "PEXI Pro" (D32)', () => {
   resetStore();
   const trial = render('trial');
-  assert.match(trial.html, /Pexi Plus is for unlimited scans/);
+  assert.match(trial.html, /Pexi Plus gives you 100 barcode scans a week/);
   assert.match(trial.html, /CA\$3\.99 a month or CA\$29\.99 a year/);
   assert.match(trial.html, /See the plans/);
   assert.doesNotMatch(trial.html, /PEXI Pro|free trial|No Payment Due/i);
   trial.cleanup();
   const plans = render('plans');
-  assert.match(plans.html, /Choose a plan to unlock unlimited scans/);
+  assert.match(plans.html, /Choose a plan for 100 barcode scans a week/);
   assert.match(plans.html, /CA\$29\.99 billed annually/);
   assert.match(plans.html, /\(CA\$2\.50\/mo\)/);
   assert.match(plans.html, /CA\$3\.99\/mo/);

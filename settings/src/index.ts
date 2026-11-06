@@ -178,6 +178,9 @@ export function SHIN_SPEND_CAP_STORE_PATH(env: NodeJS.ProcessEnv = process.env):
 export function SHIN_FREE_SCANS_PER_WEEK(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_FREE_SCANS_PER_WEEK');
 }
+export function SHIN_PLUS_SCANS_PER_WEEK(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_PLUS_SCANS_PER_WEEK');
+}
 export function SHIN_ACCESS_LOG(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_ACCESS_LOG');
 }

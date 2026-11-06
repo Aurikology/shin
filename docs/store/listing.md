@@ -18,7 +18,7 @@ Is this price a good deal?
 Scan a barcode or type a product name and see whether the shelf price is great, good, reasonable or bad, judged against typical prices in Canada.
 ```
 
-**Description** (1,953 of 4,000):
+**Description** (1,985 of 4,000):
 
 ```
 Pexi is a price checker for shoppers. Point your camera at a barcode, or type what the product is, and Pexi tells you whether the price is a great price, a good price, a reasonable price or a bad price.
@@ -45,7 +45,7 @@ GOOD TO KNOW
 - Pexi needs an internet connection to answer.
 - Prices and estimates are information only. Check the price at the till.
 - Pexi is for people aged 18 and over.
-- Pexi is free to use. Pexi Plus, an optional subscription for unlimited scans, costs CA$3.99 a month or CA$29.99 a year and renews automatically until you cancel it in your Apple ID settings.
+- Pexi is free to use. Pexi Plus, an optional subscription for 100 barcode scans a week instead of the free 10, costs CA$3.99 a month or CA$29.99 a year and renews automatically until you cancel it in your Apple ID settings.
 ```
 
 **Keywords** (91 of 100; no spaces after commas; none of the words in the name or subtitle: pexi, is, this, price, a, good, deal):
@@ -117,7 +117,7 @@ Without a barcode or a product in front of you:
 
 Pexi does not upload photos or camera images. Text recognition of the camera view runs on the device and only the text lines are sent.
 
-Subscriptions: Pexi Plus (unlimited scans beyond the weekly free ones) is an auto-renewing subscription, CA$3.99 a month or CA$29.99 a year. To see it, open the You screen and tap "Pexi Plus". The screen shows both plans with their prices, the renewal terms, Restore Purchases, and links to the Terms of Use and Privacy Policy. Purchases can be made with a sandbox Apple ID.
+Subscriptions: Pexi Plus (100 barcode scans a week; the free allowance is 10 a week; typed searches are free and uncounted) is an auto-renewing subscription, CA$3.99 a month or CA$29.99 a year. To see it, open the You screen and tap "Pexi Plus". The screen shows both plans with their prices, the renewal terms, Restore Purchases, and links to the Terms of Use and Privacy Policy. Purchases can be made with a sandbox Apple ID.
 ```
 
 Server and gate facts behind these notes:
@@ -125,7 +125,7 @@ Server and gate facts behind these notes:
 - Needs its server up: every answer route is `/api/...` on the server; the app's only built-in fallback is a barcode pack fetched once and kept for offline use (`app/public/js/main.js` `primeOfflineAisle`, `/api/pack`, `app/server.ts:5157`). The demo link calls `/api/identify/demo` (`app/server.ts:3386`) and shows "unavailable" if the server is down.
 - Login: none. There is no auth code in the client.
 - Invite gate: `app/src/invite.ts` makes the gate pass everything when neither of its two invite-code environment settings is set; otherwise every `/api/` route except `/api/health` answers 401 unless the request carries the invite header (`app/server.ts:3280-3284`). The app sends the code automatically from the value built into the app (`app/public/js/api.js` reads the invite code the build injects; `native/scripts/sync-web.mjs:99-100`), so a reviewer never types it. The repo's last statement is that it is SET on the Mac (`notes/catch-up.md:283`, D-164 answered 2026-09-23; `NOW.md:109`). I found no record in the repo of it being switched off on 2026-10-28. That has to be checked on the server (OPEN QUESTIONS 2).
-- Free scans and subscriptions: The weekly free-scan setting, when unset, means unlimited (`settings/src/index.ts:74`), so a reviewer hits no wall. The Pexi Plus screen is reached from the You screen regardless. Plans come from RevenueCat's "default" offering (products `pexi_plus_monthly`, `pexi_plus_yearly`; entitlement `plus`); if the offering cannot load, the screen says plans are unavailable and offers Try again and Restore Purchases.
+- Free scans and subscriptions: Free users get 10 barcode scans a week and Pexi Plus subscribers 100 a week (Jamin, 2026-11-05). Each cap is a server setting (`SHIN_FREE_SCANS_PER_WEEK`, `SHIN_PLUS_SCANS_PER_WEEK`, `settings/src/index.ts`); a cap left unset means no cap, so a reviewer hits no wall until they are switched on. A subscriber who reaches 100 sees a screen saying so and when scans come back, not the subscribe screen. The Pexi Plus screen is reached from the You screen regardless. Plans come from RevenueCat's "default" offering (products `pexi_plus_monthly`, `pexi_plus_yearly`; entitlement `plus`); if the offering cannot load, the screen says plans are unavailable and offers Try again and Restore Purchases.
 
 ## OPEN QUESTIONS
 

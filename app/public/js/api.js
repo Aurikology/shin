@@ -467,7 +467,9 @@ export async function matchText(lines) {
  * The weekly free scans are used up (2026-09-21, docs/mvp-plan.md
  * "Subscription"). The server answers `/api/identify` with 402
  * `{ error: "scan_limit", limit, used, resetsAt }`, and the camera opens the
- * subscription screen on it. A shape, not a throw: this is the server saying
+ * subscription screen on it. For a Plus subscriber at the Plus cap (100 a
+ * week) the body also says `plus: true` and the camera opens the used-this-week
+ * screen, which has no plans on it. A shape, not a throw: this is the server saying
  * no on purpose, and a throw here would be read as "no connection".
  */
 export function scanLimitFrom(body) {
@@ -478,6 +480,8 @@ export function scanLimitFrom(body) {
     limit: num(body?.limit),
     used: num(body?.used),
     resetsAt: typeof body?.resetsAt === 'string' ? body.resetsAt : null,
+    // A Plus subscriber at the Plus cap: the used-this-week screen, never the subscribe paywall.
+    ...(body?.plus === true ? { plus: true } : {}),
   };
 }
 

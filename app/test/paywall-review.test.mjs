@@ -10,7 +10,7 @@
  *   - Terms of Use and Privacy Policy links to the hosted pages, and Restore;
  *   - a plan list that fails to load says so and offers Try again (never blank);
  *   - Plus says only what RULINGS.md "Pexi Plus pricing and free scans" gives:
- *     unlimited scans beyond the weekly free ones.
+ *     100 barcode scans a week against the free 10 (not unlimited).
  * And the files that have to agree with it: the privacy manifest against the
  * App Privacy answers in docs/store/listing.md, the hosted pages, the build number.
  */
@@ -145,10 +145,11 @@ test('3.1.2: Terms of Use and Privacy Policy open the hosted pages, and Restore 
   stop();
 });
 
-test('3.1.2: the benefit lines say only what Plus gives, unlimited scans, and make no other claim', async () => {
+test('3.1.2: the benefit lines say only what Plus gives, 100 barcode scans a week, and make no other claim', async () => {
   const { page, stop } = await open({}, { limit: '5', used: '5', resetsAt: '2026-11-09T12:00:00.000Z' });
   const words = text(page);
-  assert.match(words, /Pexi Plus: unlimited scans/);
+  assert.match(words, /Pexi Plus: 100 barcode scans a week \(free: 10\)/);
+  assert.doesNotMatch(words, /unlimited|no limit/i, 'Plus is capped at 100 a week; nothing may call it unlimited');
   for (const claim of [/ad[- ]free/i, /\bAI\b/, /\bsaves? (you|money)|\bsavings\b/i,/\bdeals?\b/i, /unlimited (searches|alerts|lists|watch)/i, /premium/i, /exclusive/i, /\bpro\b/i]) {
     assert.doesNotMatch(words, claim, `the paywall claims something Plus does not give: ${claim}`);
   }

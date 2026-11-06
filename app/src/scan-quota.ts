@@ -7,6 +7,9 @@
  * beta server, and the testers on it use the web app with no way to
  * subscribe. So `SHIN_FREE_SCANS_PER_WEEK` unset, empty, 0 or not a number
  * means no limit and no 402, ever. Only a positive whole number turns it on.
+ * `SHIN_PLUS_SCANS_PER_WEEK` (Jamin 2026-11-05: 100 a week for Plus, 10 for
+ * free) works the same way for subscribers, over the same rolling 7 days and
+ * with the same counting rules; unset, Plus has no cap.
  *
  * WHAT COUNTS. A barcode scan this server answered: `kind = 'barcode'`,
  * `outcome = 'answered'`, no failure class, a name Gemini gave (a barcode row
@@ -43,12 +46,26 @@ const ENTITLEMENT_CACHE_MS = 10 * 60 * 1000;
 /** A failed RevenueCat call is retried after a minute, not after ten. */
 const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
 
-/** The weekly limit, or null when there is none. See the header: unset is off. */
-export function freeScanLimit(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (settings.SHIN_FREE_SCANS_PER_WEEK(env) ?? '').trim();
+/** A cap setting's value: a positive whole number, else null (no cap). */
+function positiveWhole(rawValue: string | undefined): number | null {
+  const raw = (rawValue ?? '').trim();
   if (!/^\d+$/.test(raw)) return null;
   const n = Number(raw);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
+/** The weekly limit, or null when there is none. See the header: unset is off. */
+export function freeScanLimit(env: NodeJS.ProcessEnv = process.env): number | null {
+  return positiveWhole(settings.SHIN_FREE_SCANS_PER_WEEK(env));
+}
+
+/**
+ * The weekly cap on Pexi Plus subscribers (Jamin, 2026-11-05: 100 a week), or
+ * null when there is none. Read exactly as the free limit is: unset, empty, 0
+ * or not a number means no cap, so Plus stays unlimited until it is set.
+ */
+export function plusScanLimit(env: NodeJS.ProcessEnv = process.env): number | null {
+  return positiveWhole(settings.SHIN_PLUS_SCANS_PER_WEEK(env));
 }
 
 function headerText(headers: IncomingHttpHeaders, name: string): string | null {
@@ -182,7 +199,7 @@ export interface Quota {
   readonly plus: boolean;
 }
 
-/** What `GET /api/quota` serves. `limit` and `remaining` are null when there is no limit (off, or Plus). */
+/** What `GET /api/quota` serves. `limit` and `remaining` are null when there is no limit (off, or Plus with no cap set). */
 export async function quotaFor(
   deviceId: string,
   headers: IncomingHttpHeaders,
@@ -190,7 +207,7 @@ export async function quotaFor(
   now: Date = new Date(),
 ): Promise<Quota> {
   const plus = await isPlus(deviceId, headers, env, now);
-  const limit = plus ? null : freeScanLimit(env);
+  const limit = plus ? plusScanLimit(env) : freeScanLimit(env);
   const { used, resetsAt } = usageFor(deviceId, limit, now);
   return { limit, used, remaining: limit === null ? null : Math.max(0, limit - used), resetsAt, plus };
 }
@@ -200,12 +217,16 @@ export interface ScanLimitRefusal {
   readonly limit: number;
   readonly used: number;
   readonly resetsAt: string | null;
+  /** True only when the refused device is a Plus subscriber at its own cap: the client shows the used-this-week screen, never the subscribe paywall. */
+  readonly plus?: true;
 }
 
 /**
- * The 402 body when this device has used its week and is not Plus, else null.
- * Called before any Gemini call. With the limit off it returns null without
- * touching RevenueCat or the database.
+ * The 402 body when this device has used its week, else null: a free device
+ * at the free limit gets the subscribe paywall's body; a Plus device at the
+ * Plus cap gets the same body marked `plus: true`. Called before any Gemini
+ * call. With both limits off it returns null without touching RevenueCat or
+ * the database, and a device under the smaller set limit never asks RevenueCat.
  */
 export async function scanLimitRefusal(
   deviceId: string,
@@ -213,12 +234,17 @@ export async function scanLimitRefusal(
   env: NodeJS.ProcessEnv = process.env,
   now: Date = new Date(),
 ): Promise<ScanLimitRefusal | null> {
-  const limit = freeScanLimit(env);
+  const free = freeScanLimit(env);
+  const cap = plusScanLimit(env);
+  if (free === null && cap === null) return null;
+  const smallest = Math.min(free ?? Infinity, cap ?? Infinity);
+  if (usageFor(deviceId, smallest, now).used < smallest) return null;
+  const plus = await isPlus(deviceId, headers, env, now);
+  const limit = plus ? cap : free;
   if (limit === null) return null;
   const { used, resetsAt } = usageFor(deviceId, limit, now);
   if (used < limit) return null;
-  if (await isPlus(deviceId, headers, env, now)) return null;
-  return { error: 'scan_limit', limit, used, resetsAt };
+  return plus ? { error: 'scan_limit', limit, used, resetsAt, plus: true } : { error: 'scan_limit', limit, used, resetsAt };
 }
 
 /* --------------------------------------------------------------- outcome */

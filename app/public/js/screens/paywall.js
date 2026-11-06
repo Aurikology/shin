@@ -4,7 +4,9 @@
  *
  * Opened by the camera when `/api/identify` answers 402 `scan_limit` (the
  * scan after the weekly free ones), with `{ limit, used, resetsAt }` as its
- * params. Also reachable as `?s=paywall` for a check by hand.
+ * params. Also reachable as `?s=paywall` for a check by hand. With `plus: true`
+ * (a subscriber who has used the Plus week's scans) it draws `plusSpentPage`
+ * instead: no plans, no Subscribe, no Restore.
  *
  * WHAT IS ON IT, and why each thing is: the mascot (his call, the mascot stays
  * everywhere); what Plus gives, in one line; the two plans with the store's own
@@ -218,6 +220,34 @@ export function spentLines(params = {}) {
         <p class="pw-buys" data-pw-buys>${escapeHtml(t('paywall_heading'))}</p>`;
 }
 
+/**
+ * A Plus subscriber who has used the week's Plus scans (`plus: true` in the
+ * 402). They already subscribe, so this is NOT the subscribe screen: no plans,
+ * no Subscribe, no Restore. It says the week's scans are used and when they
+ * start coming back. An unreadable reset time THROWS, like `spentLines`.
+ */
+export function plusSpentPage(params = {}, tag = localeTag()) {
+  const limit = numOf(params.limit);
+  const present = params.resetsAt !== undefined && params.resetsAt !== null && params.resetsAt !== '';
+  const when = present ? resetDay(params.resetsAt, tag) : null;
+  if (present && when === null) throw new Error(`paywall: resetsAt ${JSON.stringify(params.resetsAt)} is not a readable time`);
+  const heading = Number.isInteger(limit) && limit > 0 ? t('plus_spent_heading', { limit: String(limit) }) : t('plus_spent_heading_bare');
+  const resets = when ? t('plus_spent_resets', { when }) : t('plus_spent_resets_bare');
+  return `<div class="page paywall-page" data-paywall data-paywall-plus>
+        <header class="page-head">
+          <button type="button" class="pbk pw-close" data-act="close" aria-label="${escapeHtml(t('paywall_close'))}">${CLOSE_ICON}</button>
+          ${headingWithFace('idle', `<h1 data-pw-plus-heading>${escapeHtml(heading)}</h1>`)}
+        </header>
+        <p class="pw-way" data-pw-plus-resets>${escapeHtml(resets)}</p>
+        <p class="pw-way" data-pw-way>${escapeHtml(t('paywall_still_works'))}</p>
+        <p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>
+        <p class="pw-legal">
+          <a href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
+          <a href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
+        </p>
+      </div>`;
+}
+
 export default {
   id: 'paywall',
   title: 'Pexi Plus',
@@ -228,6 +258,16 @@ export default {
     const gone = () => ac.signal.aborted;
     const win = ctx.win ?? globalThis.window;
     const params = ctx.params ?? {};
+
+    // A Plus subscriber at the Plus cap sees the used-this-week page, never the subscribe paywall.
+    if (params.plus === true) {
+      root.innerHTML = plusSpentPage(params);
+      on(root, 'click', (e) => {
+        if (e.target.closest('[data-act="close"]')) { goBack(ctx, 'camera'); return; }
+        if (e.target.closest('[data-act="type-name"]')) ctx.go('camera', { open: 'type-name' });
+      }, ac.signal);
+      return () => ac.abort();
+    }
     let plans = [];
     let chosen = null;
 

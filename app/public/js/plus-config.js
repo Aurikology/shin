@@ -22,6 +22,16 @@ export const PLUS = Object.freeze({
 });
 
 /**
+ * The barcode scans a week each tier is promised (Jamin, 2026-11-05: free 10,
+ * Pexi Plus 100; typed searches are free and uncounted). These are the numbers
+ * the copy states ("Pexi Plus: 100 barcode scans a week (free: 10)"). They do
+ * NOT enforce anything: the server enforces with SHIN_FREE_SCANS_PER_WEEK and
+ * SHIN_PLUS_SCANS_PER_WEEK, and a test keeps the two in step with the copy.
+ * Plus is not unlimited, and nothing may say it is.
+ */
+export const SCANS_PER_WEEK = Object.freeze({ free: 10, plus: 100 });
+
+/**
  * Terms and Privacy, linked from the subscription screen (Apple rejects a
  * subscription screen without both).
  *

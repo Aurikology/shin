@@ -5741,9 +5741,9 @@ export default {
      * counts. Nothing was priced, so nothing is recorded as an answer.
      */
     function openPaywall(limit) {
-      track('scan_limit_hit', { limit: limit?.limit ?? null, used: limit?.used ?? null });
+      track('scan_limit_hit', { limit: limit?.limit ?? null, used: limit?.used ?? null, ...(limit?.plus === true ? { plus: true } : {}) });
       reset();
-      ctx.go('paywall', { limit: limit?.limit ?? undefined, used: limit?.used ?? undefined, resetsAt: limit?.resetsAt ?? undefined });
+      ctx.go('paywall', { limit: limit?.limit ?? undefined, used: limit?.used ?? undefined, resetsAt: limit?.resetsAt ?? undefined, ...(limit?.plus === true ? { plus: true } : {}) });
     }
 
     function reset() {

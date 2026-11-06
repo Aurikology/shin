@@ -61,7 +61,7 @@ const EN = {
      written here: every price is the store's own string, passed in as `price`.
      No savings claim (hard rule 2) and nothing aimed at the person (rule 3). */
   paywall_title: 'Pexi Plus',
-  paywall_heading: 'Pexi Plus: unlimited scans',
+  paywall_heading: 'Pexi Plus: 100 barcode scans a week (free: 10)',
   paywall_limit: (f) => `The ${f.limit} free scans for this week are used.`,
   paywall_limit_bare: 'The free scans for this week are used.',
   paywall_resets: (f) => `They come back ${f.when}.`,
@@ -84,12 +84,13 @@ const EN = {
   paywall_none: 'Plans are unavailable right now. Try again in a moment.',
   paywall_in_app: 'Subscribe in the app',
   paywall_working: 'Waiting for the store',
-  paywall_done: 'Pexi Plus is on. Scans are unlimited.',
+  paywall_done: 'Pexi Plus is on. You get 100 barcode scans a week.',
   paywall_restore_none: 'No Pexi Plus subscription was found for this store account.',
   paywall_buy_failed: 'The purchase did not go through.',
   you_manage_sub: 'Manage subscription',
   you_scans_left: (f) => `${f.remaining} of ${f.limit} free scans left this week`,
-  you_plus_on: 'Pexi Plus: unlimited scans',
+  you_plus_on: 'Pexi Plus: 100 barcode scans a week',
+  you_plus_scans_left: (f) => `${f.remaining} of ${f.limit} Pexi Plus scans left this week`,
 
   /* The answer sheet, 2026-09-21: the price-match line and the one-tap
      "What did you do?" after an answer that found it cheaper elsewhere. */
@@ -774,7 +775,7 @@ const FR = {
   open: 'Ouvrir',
 
   paywall_title: 'Pexi Plus',
-  paywall_heading: 'Pexi Plus : scans illimités',
+  paywall_heading: 'Pexi Plus : 100 scans de codes-barres par semaine (gratuit : 10)',
   paywall_limit: (f) => `Les ${f.limit} scans gratuits de cette semaine sont utilisés.`,
   paywall_limit_bare: 'Les scans gratuits de cette semaine sont utilisés.',
   paywall_resets: (f) => `Ils reviennent ${f.when}.`,
@@ -797,12 +798,13 @@ const FR = {
   paywall_none: 'Les forfaits sont indisponibles pour le moment. Réessaie dans un instant.',
   paywall_in_app: 'Abonne-toi dans l’application',
   paywall_working: 'En attente de la boutique',
-  paywall_done: 'Pexi Plus est actif. Les scans sont illimités.',
+  paywall_done: 'Pexi Plus est actif. Tu as 100 scans de codes-barres par semaine.',
   paywall_restore_none: 'Aucun abonnement Pexi Plus trouvé pour ce compte de boutique.',
   paywall_buy_failed: 'L’achat n’a pas abouti.',
   you_manage_sub: 'Gérer l’abonnement',
   you_scans_left: (f) => `${f.remaining} scans gratuits sur ${f.limit} restants cette semaine`,
-  you_plus_on: 'Pexi Plus : scans illimités',
+  you_plus_on: 'Pexi Plus : 100 scans de codes-barres par semaine',
+  you_plus_scans_left: (f) => `${f.remaining} scans Pexi Plus sur ${f.limit} restants cette semaine`,
 
   pm_heading: 'Correspondance de prix',
   outcome_q: 'Qu’as-tu fait ?',

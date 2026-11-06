@@ -80,12 +80,18 @@ export async function buildStamp(fetchFn = globalThis.fetch, win = globalThis.wi
 }
 
 /**
- * The quota row's text, or '' for no row: Plus says so; a limit the server
+ * The quota row's text, or '' for no row: Plus says its 100 a week, or how many
+ * of the Plus cap are left when the server sets one; a limit the server
  * set says how many are left; no limit (null from the server) says nothing.
  */
 export function quotaText(q) {
   if (!q || typeof q !== 'object') return '';
-  if (q.plus === true) return t('you_plus_on');
+  if (q.plus === true) {
+    if (Number.isInteger(q.limit) && Number.isInteger(q.remaining)) {
+      return t('you_plus_scans_left', { remaining: String(Math.max(0, q.remaining)), limit: String(q.limit) });
+    }
+    return t('you_plus_on');
+  }
   if (!Number.isInteger(q.limit) || !Number.isInteger(q.remaining)) return '';
   return t('you_scans_left', { remaining: String(Math.max(0, q.remaining)), limit: String(q.limit) });
 }

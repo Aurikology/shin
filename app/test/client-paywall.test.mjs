@@ -100,6 +100,49 @@ test('the camera opens the paywall with the server counts on scan_limit, on the 
     ['reset'],
     ['go', 'paywall', { limit: 10, used: 10, resetsAt: '2026-09-28T00:00:00.000Z' }],
   ]);
+
+  // A Plus subscriber at the Plus cap: the same hand-off carries plus: true, so the screen is not the subscribe one.
+  log.length = 0;
+  openPaywall({ failure: 'scan_limit', limit: 100, used: 100, resetsAt: '2026-09-28T00:00:00.000Z', plus: true });
+  assert.deepEqual(log, [
+    ['track', 'scan_limit_hit', { limit: 100, used: 100, plus: true }],
+    ['reset'],
+    ['go', 'paywall', { limit: 100, used: 100, resetsAt: '2026-09-28T00:00:00.000Z', plus: true }],
+  ]);
+});
+
+test('a 402 for a Plus subscriber at the cap keeps plus: true through the client, on both scan routes', async () => {
+  reply = { status: 402, body: { error: 'scan_limit', limit: 100, used: 100, resetsAt: '2026-09-28T00:00:00.000Z', plus: true } };
+  const out = await api.identify({ gtin: '0123456789012' });
+  assert.deepEqual(out, { product: null, failure: 'scan_limit', limit: 100, used: 100, resetsAt: '2026-09-28T00:00:00.000Z', plus: true });
+  const pack = await api.identifyPack({ gtin: '0123456789012', frame: 'AAAA' });
+  assert.equal(pack.plus, true, 'the pack route dropped the Plus marker');
+  reply = { status: 402, body: { error: 'scan_limit', limit: 10, used: 10, resetsAt: '2026-09-28T00:00:00.000Z' } };
+  assert.equal('plus' in (await api.identify({ gtin: '0123456789012' })), false, 'a free refusal must not carry a Plus marker');
+});
+
+test('a Plus subscriber at the cap gets the used-this-week screen: the date, no plans, no Subscribe, no Restore', async () => {
+  const root = stubRoot();
+  const went = [];
+  const stop = paywall.render(root, { params: { limit: 100, used: 100, resetsAt: '2026-09-28T12:00:00.000Z', plus: true }, go: (id, p) => went.push([id, p]), win: {} });
+  await settle();
+  const page = root.innerHTML;
+  assert.match(page, /You have used this week&#39;s 100 Pexi Plus scans\.|You have used this week's 100 Pexi Plus scans\./);
+  assert.match(page, /Scans start coming back on \w+day, September 28\./);
+  assert.ok(!/data-act="subscribe"|data-act="restore"|data-plan=|Plans|data-pw-body/.test(page), 'a subscriber was shown the subscribe paywall');
+  assert.ok(!/unlimited/i.test(page));
+  assert.match(page, /data-act="type-name"/);
+  assert.match(page, /data-pw-terms/);
+  root.tap('[data-act="type-name"]');
+  assert.deepEqual(went, [['camera', { open: 'type-name' }]]);
+  stop();
+  // The free refusal still gets the subscribe paywall.
+  const free = stubRoot();
+  const stopFree = paywall.render(free, { params: { limit: 10, used: 10, resetsAt: '2026-09-28T12:00:00.000Z' }, go() {}, win: {} });
+  await settle();
+  assert.match(free.innerHTML, /data-pw-body/);
+  assert.ok(!/data-paywall-plus/.test(free.innerHTML));
+  stopFree();
 });
 
 test('main.js registers the paywall screen', () => {
@@ -138,7 +181,7 @@ test('in a plain browser the screen says "Subscribe in the app" and offers nothi
   assert.match(root.body.innerHTML, /data-pw-state="web"/);
   assert.match(root.body.innerHTML, /Subscribe in the app/);
   assert.ok(!/data-act="subscribe"|data-act="restore"/.test(root.body.innerHTML), 'a browser was offered a store button');
-  assert.match(root.innerHTML, /Pexi Plus: unlimited scans/);
+  assert.match(root.innerHTML, /Pexi Plus: 100 barcode scans a week \(free: 10\)/);
   assert.match(root.innerHTML, /class="shin-say"/, 'the mascot is not on the screen');
   assert.match(root.innerHTML, /data-act="close"/, 'no close button');
   assert.match(root.innerHTML, /data-pw-terms/);

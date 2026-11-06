@@ -428,15 +428,15 @@ test('R-84 (fails loudly): a spent screen with a reset time that is present but 
 
 /* ------------------------------------------------------------------ R-85 */
 
-test('R-85 (KEEP): the heading names what Plus buys, "unlimited scans", when opened from You', async () => {
+test('R-85 (KEEP): the heading names what Plus buys, "100 barcode scans a week (free: 10)", when opened from You', async () => {
   const { page, stop } = await open({});
-  assert.match(page, /<h1>Pexi Plus: unlimited scans<\/h1>/);
+  assert.match(page, /<h1>Pexi Plus: 100 barcode scans a week \(free: 10\)<\/h1>/);
   stop();
 });
 
 test('R-85: the zero-scan screen still names what Plus buys', async () => {
   const { page, stop } = await open(SPENT);
-  assert.match(text(page), /unlimited scans/, 'the zero-scan headline replaced the statement of what Plus is');
+  assert.match(text(page), /100 barcode scans a week/, 'the zero-scan headline replaced the statement of what Plus is');
   assert.equal(text(/<h1>([\s\S]*?)<\/h1>/.exec(page)[1]), "That is all of this week's scans.", 'the zero-scan screen lost its R-84 headline');
   stop();
 });

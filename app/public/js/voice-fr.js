@@ -929,9 +929,9 @@ export const LINES_FR = {
     blunt: () => "Code-barres. Pointe-moi dessus.",
   },
   paywall_say: {
-    deadpan: () => "Voilà les scans gratuits de la semaine. Plus enlève la limite.",
-    warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, il n'y a pas de limite.",
-    blunt: () => "Scans gratuits finis pour la semaine. Plus: pas de limite.",
+    deadpan: () => "Voilà les scans gratuits de la semaine. Plus en donne davantage chaque semaine.",
+    warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, tu en as davantage.",
+    blunt: () => "Scans gratuits finis pour la semaine. Plus: davantage chaque semaine.",
   },
   /* L'écran épuisé (R-84): la déception vise Pexi, pas la personne. */
   paywall_say_spent: {

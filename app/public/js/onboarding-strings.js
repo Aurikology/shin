@@ -159,7 +159,7 @@ export const ONB_EN = {
   /* D32, 2026-10-06: this step promised a free trial of "PEXI Pro". There is no
      trial and no product called Pro: the plan is Pexi Plus, with the two prices
      from plus-config.js (RULINGS.md "Pexi Plus pricing and free scans"). */
-  onb_trial_title: 'Pexi Plus is for unlimited scans',
+  onb_trial_title: 'Pexi Plus gives you 100 barcode scans a week',
   onb_trial_note: (f) => `${f.monthly} a month or ${f.yearly} a year, and you choose on the next screen.`,
   onb_trial_try: 'See the plans',
 
@@ -181,7 +181,7 @@ export const ONB_EN = {
   onb_demo_loading: 'Fetching the demo scan...',
 
   /* 25 */
-  onb_plans_title: 'Choose a plan to unlock unlimited scans',
+  onb_plans_title: 'Choose a plan for 100 barcode scans a week',
   onb_plans_annual: (f) => `${f.yearly} billed annually`,
   onb_plans_annual_sub: (f) => `(${f.perMonth}/mo)`,
   onb_plans_monthly: (f) => `${f.monthly}/mo`,
@@ -338,7 +338,7 @@ export const ONB_FR = {
   onb_signin_google: 'Se connecter avec Google',
   onb_signin_email: 'Continuer avec un courriel',
 
-  onb_trial_title: 'Pexi Plus sert à scanner sans limite',
+  onb_trial_title: 'Pexi Plus donne 100 scans de codes-barres par semaine',
   onb_trial_note: (f) => `${f.monthly} par mois ou ${f.yearly} par année, et tu choisis à l’écran suivant.`,
   onb_trial_try: 'Voir les forfaits',
 
@@ -353,7 +353,7 @@ export const ONB_FR = {
   onb_demo_unavailable: 'L’exemple de scan n’est pas encore disponible.',
   onb_demo_loading: 'Chargement de l’exemple de scan...',
 
-  onb_plans_title: 'Choisis un forfait pour scanner sans limite',
+  onb_plans_title: 'Choisis un forfait pour 100 scans de codes-barres par semaine',
   onb_plans_annual: (f) => `${f.yearly} facturés par année`,
   onb_plans_annual_sub: (f) => `(${f.perMonth}/mois)`,
   onb_plans_monthly: (f) => `${f.monthly}/mois`,
