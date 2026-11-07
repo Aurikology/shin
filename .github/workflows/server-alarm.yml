@@ -1,0 +1,52 @@
+# Outage alarm for the live Pexi server (launch gaps item 27).
+#
+# The server is one Mac behind a Cloudflare tunnel, so the alarm cannot run on
+# that Mac: when it is down, nothing on it can say so. This runs on GitHub's
+# machines every 30 minutes, sends every route the phone app calls exactly as
+# the phone sends it (scripts/phone-contract-probe.mjs, which writes nothing),
+# and fails the run if any route fails. GitHub emails the account on a failed
+# scheduled run, which is the alarm.
+#
+# One failure is retried once after 90 seconds, so a tunnel blip does not
+# email; two failures in a row do.
+#
+# Proving it can fail: run it by hand (Actions > server-alarm > Run workflow)
+# with origin set to https://evil.example. The server refuses that origin, the
+# probe fails, and the email arrives.
+
+name: server-alarm
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      origin:
+        description: 'Origin to probe as (default: the phone app)'
+        required: false
+        default: 'capacitor://localhost'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Probe the live server as the phone app
+        env:
+          PROBE_ORIGIN: ${{ github.event.inputs.origin || 'capacitor://localhost' }}
+        run: |
+          if node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"; then
+            exit 0
+          fi
+          echo "First probe failed; retrying once in 90 seconds."
+          sleep 90
+          node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"
