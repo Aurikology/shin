@@ -58,7 +58,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    reviews) and decide whether it goes; (b) remove the Gemini code, so no setting can turn it back
    on; (c) say what reviews show now that Gemini reviews are gone. **(c) ruled 2026-11-07: 1.0
    launches without reviews; (a) the stored Gemini offers and reviews are backed up then deleted**
-   (RULINGS; Mac job pexi-gemini-cleanup, mail 20261107173216-pc-2bf867).
+   (RULINGS; Mac job pexi-gemini-cleanup, mail 20261107173216-pc-2bf867). **(a) DONE:** backed up,
+   then 0 rows left (Mac 20:43Z). **(b) DONE, live 23:29Z (e217bf7):** Gemini providers, server
+   call paths and settings removed; app/public untouched. PC after deploy: probe 28/28, barcode
+   and search answer from the catalogue.
    For (a), from the code (not the data): `user_offer` (1,967 rows) and `user_review` (653) default
    to `source='gemini_scan'`, `trusted=0`, and the only writer found is the Gemini scan path
    (`app/server.ts` about line 1348), which says they are never read to answer a scan. So item 3's
