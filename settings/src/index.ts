@@ -59,9 +59,9 @@ export interface SettingKey {
 /** Every setting this repo's live code reads. One row per environment variable, not per call site. */
 export const SETTINGS: readonly SettingKey[] = [
   // -- Gemini switch and model choice -----------------------------------
-  { env: 'SHIN_MODEL_PROVIDER', default: "unset -> not 'gemini'", ruling: 'Gemini switch and call architecture' },
-  { env: 'SHIN_GEMINI_MODEL', default: 'unset -> per-tier default', ruling: 'Default Gemini model is gemini-3.8-flash' },
-  { env: 'SHIN_GEMINI_MODEL_3', default: "'gemini-3.8-flash'", ruling: 'Default Gemini model is gemini-3.8-flash' },
+  { env: 'SHIN_MODEL_PROVIDER', default: "unset -> not 'gemini'", ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
+  { env: 'SHIN_GEMINI_MODEL', default: 'unset -> per-tier default', ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
+  { env: 'SHIN_GEMINI_MODEL_3', default: "'gemini-3.8-flash'", ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
   // -- Barcode answers Shin's own prices too ----------------------------
   { env: 'SHIN_BARCODE_OWN_PRICES', default: "'1' (on)", ruling: "A scanned barcode answers with Shin's own prices too" },
   // -- Caching and cancellation ------------------------------------------

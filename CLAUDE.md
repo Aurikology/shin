@@ -9,13 +9,10 @@ rulings outranks every other file"). Read it before acting on any product questi
 of his goes there the same turn (old text to `docs/decisions.md`); every push fails while a live
 file still repeats wording it retired (`scripts/one-source.mjs`, with a baseline that only shrinks).
 
-**Set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything else.** One Gemini
-call per scan (a barcode scan sends only the
-digits as text, a photo scan sends the image; product, prices, reviews and price math out); Shin's own prices only where a later ruling puts them (typed searches 2026-09-23, barcode answers beside Gemini's 2026-09-26); record everything a user does;
-legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is
-Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for
-anything that goes against those rules, then build Gemini to them** (the file lists the rules and the
-contradictions found so far).
+**Pexi uses Gemini for nothing, and photo scanning does not ship (Jamin 2026-11-07, RULINGS).**
+`docs/jamin-gemini-rules.md` and every Gemini plan are history, not instructions; the Gemini code
+in the tree is dead code to remove. The 2026-09-15 read-first instruction this replaces is kept in
+`docs/decisions.md`.
 A decision that would contradict them is raised with Jamin, never made quietly.
 
 **The Google Doc wins over every older note, and the older note is deleted.** Jamin, 2026-09-19:

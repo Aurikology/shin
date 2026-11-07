@@ -49,10 +49,13 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    and a call to RevenueCat with the key returned 201 (authenticated; it created one empty
    subscriber record for a tester device id). Reported by the Mac; PC check after the restart:
    probe 28 of 28, a made-up device answers `plus:false`. Aurik's 7 can run.
-1b. **[Jamin] Photo identification is refused on the live server:** `SHIN_GEMINI_TIER` is unset, so
-   the server will not send shopper photographs (free-tier Gemini trains on them). Reported by the
-   Mac 11-07; QUEUE 7.7 has owed the paid key since 2026-09-21. Either set up the paid key, or
-   1.0 ships without photo scanning and Aurik hides the photo button.
+1b. **SETTLED 2026-11-07: photo scanning does not ship and Pexi uses Gemini for nothing** (Jamin,
+   RULINGS). The app already has the photo button off (`FLAGS.photoId` false, checked), and the
+   privacy policy and listing already say no image is uploaded, so nothing for Aurik to hide.
+   QUEUE 7.7 (the paid Gemini key) is dead. Left, **[Jamin]**: (a) check whether any live data came
+   from Gemini (the 2026-10-02 offline ranges for empty categories, cached Gemini answers, Gemini
+   reviews) and decide whether it goes; (b) remove the Gemini code, so no setting can turn it back
+   on; (c) say what reviews show now that Gemini reviews are gone.
    Why it took so long: the deploy gate refused five pushes in a row (3d83de2 through 9a1a9c1),
    live froze on 741c3c8 from Nov 6 02:40Z to Nov 7 03:58Z while the deploy page said "App: ready
    to test", and the reason it gave was "no test names found". Cause and fix in d556366 (the app

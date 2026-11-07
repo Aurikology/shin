@@ -54,32 +54,22 @@ it not identify it didn't ask claude either."*, then *"build all three, write te
 loudly"* · log: docs/decisions.md#A scan never ends with no result
 Retired wording: `a barcode nothing knows asks the shopper for the name first`
 Governs: app/server.ts (/api/identify), app/src/catalogue-first.ts, app/src/open-food-facts.ts, identify/src/, app/public/js/screens/camera.js
-### Gemini switch and call architecture
-Gemini replaced Claude (measured: 7/7 price requests refused, 9/30 barcodes absent, Claude
-refusing 4/15 photos on Jamin's phone). That swap covered the beta only until the catalogue-first
-setting was switched on for testers (2026-09-28): no shopper answer comes from Gemini, save a range
-Gemini Pro seeded offline for an empty category (2026-10-02), and Claude, with no web search, is the price-range fallback (catalogue-first ruling). This entry and the Gemini
-entries below describe only the old path an explicit SHIN_CATALOGUE_FIRST=0 returns. While Gemini
-is called, it is one call, never split. · 2026-09-14 · *"we will be swithcing to gemini... Shin will adopt this"* · log: docs/decisions.md#Gemini for identification, and grounded prices display-only
-Retired wording: `Claude for product identification`, `two Gemini calls per scan`
-Governs: identify/src/model.ts, identify/src/providers/gemini-scan.ts, SHIN_MODEL_PROVIDER
-### Default Gemini model is gemini-3.8-flash
-Drifted three times: cheap-first tiering (3.5-flash-lite, escalate to 3.8-flash on doubt,
-2026-09-14) → gemini-2.5-flash flat default "for now" (2026-09-18) → both tested side by side, 3.x
-to replace 2.5 only if testing said so (2026-09-19). 2.5 also can't combine a response schema with
-Google Search, forcing a prompt-text JSON parse. On 2026-09-22 Jamin found "gemini 2.5 is not
-accessible" on the beta server, so code now sends every scan to 3.x by default
-(`DEFAULT_GEMINI_3='gemini-3.8-flash'`). The per-device `SHIN_GEMINI_SPLIT=1` hash split this
-ruling introduced as an escape hatch was itself removed 2026-09-27 as dead code: it never ran
-outside tests, because the thing it would have turned back on (Gemini 2.5 access) never came
-back. Flagged in the 2026-09-27 decisions.md entry as one of two places the log had drifted from
-the running system. Any cost or pricing projection (per-user, per-scan, or free-tier math) must
-assume Gemini 2.5 stays unavailable, never re-derive or re-guess it: a session on either machine
-carries forward a fact the other one already established instead of re-deriving it from scratch. ·
-2026-09-22 · *"gemini 2.5 is not accessible"* (same day: *"you should knwo based on the mac that
-gemini 2.5 is not accessible"*) · log: identify/src/providers/gemini-scan.ts:74-87 (quote at line 75; docs/decisions.md#One list of current rulings outranks every other file)
-Retired wording: `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
-Governs: SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3 (the family-comparison eval tools this paragraph also names are eval/, not live code, and outside settings/src/index.ts on purpose)
+### Pexi uses Gemini for nothing, and photo scanning is not a shipped feature
+No part of Pexi calls Gemini: no shopper answer, no identification, no price, no review, no
+offline seeding, no test against the live product. Scanning by photo (photo identification,
+`FLAGS.photoId`, `/api/identify/photo`) is not a shipped feature and stays off in every build that
+goes to a store or a tester; `SHIN_GEMINI_TIER` stays unset. The Gemini code still in the tree is
+dead code to remove, never a path to switch back on. Where an entry below still mentions Gemini
+("Barcode plumbing", "Verifying Gemini never means calling it twice", "Caching and cancellation",
+"Founder's words outrank..."), its Gemini half is retired by this entry and the rest stands. The
+pack read on a total miss stays Claude's, developer-only ("A scan never ends with no result").
+Replaces "Gemini switch and call architecture", "Default Gemini model is gemini-3.8-flash",
+"Gemini's Grounded Results carry real contract limits", "Parked and open Gemini questions" and
+"Reviews: Gemini's reviews ship" (all kept verbatim in docs/decisions.md). · 2026-11-07 ·
+*"the scanning by photo should not be a shipped feature. We are not using gemini for anything"*
+· log: docs/decisions.md#Pexi uses Gemini for nothing, and photo scanning does not ship
+Retired wording: `Claude for product identification`, `two Gemini calls per scan`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
+Governs: identify/src/providers/gemini-*.ts (to remove), SHIN_MODEL_PROVIDER, SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3, SHIN_GEMINI_TIER (stays unset), app/public/js/flags.js (photoId false), app/server.ts (/api/identify/photo)
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken
 only when photo identification and photo consent are both on, which is never under tester-launch
@@ -125,28 +115,6 @@ contradicts Gemini's own published research on what is actually allowed; nobody 
 this against the terms' real wording. · 2026-09-17 · *"nothing should hold higher precedency than the words of the founder"* · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: `Claude fallback behind Gemini`, `Claude is never used inside Shin`
 Governs: to fill (see his-call.md item 1)
-### Gemini's Grounded Results carry real contract limits
-Grounded Results (the `google_search` tool on) cannot be modified, interspersed, cached, framed,
-syndicated, resold, analyzed, or trained on, though up to two years' storage is allowed to
-evaluate/optimize or resubmit; ungrounded Gemini output has none of these restrictions. This is
-separate from Shin's own rule never to ask a search engine for a live price itself (see Catalogue
-and data sources); the `Grounded<T>` opaque box (WeakMap-held payload, throwing toJSON/toString,
-seal() deep-freeze) enforces it in code. · 2026-09-18 · log: identify/src/providers/gemini-grounded.ts (docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough)
-Retired wording: none
-Governs: identify/src/providers/gemini-grounded.ts
-### Parked and open Gemini questions
-Google Lens means Cloud Vision Web Detection, specified but not built (catalogue-miss branch fires
-zero times in a 40-photo dry run). Model choice is measured as cost per correct identification,
-never per call, via a provider seam, never actually measured (no key existed at the time). The
-unfinished `gemini-grounded.ts` price/gauge provider was reverted off main until a founder settles
-in writing whether it meets the Grounded Results contract and whether gauge words violate
-hard rule 2. Image resolution is decided by a test not yet run; a better model identifying photos
-while another searches (two calls), and a better barcode encoding for Gemini, are open questions in
-the Gemini tree, not decided. That resolution test also decides cost tradeoff: a lower resolution
-found cheaper may be gated to a lower Shin subscription tier. Branch testing before a paid key runs
-via Claude in Chrome on gemini.google.com. · 2026-09-13/14 (2026-09-14: *"test different resolutions to determine which one produces the best returns, furthermore, consider the price, also, a lower resolution can be used for a lower tier of shin subscription"*) · log: docs/decisions.md#Google Lens means Google Cloud Vision Web Detection, and it is specified but not built; docs/decisions.md#A model call goes through a provider seam, and the measure is cost per correct identification; docs/decisions.md#The unfinished grounded-price provider comes off main until it is green and the two questions are settled; docs/decisions.md#Twelve rulings on the Gemini branch, answered together (items 1, 12); docs/the-gemini-tree.md
-Retired wording: none
-Governs: to fill
 ### LLM prompting efficiency and research approach
 Reviews and descriptions are fetched in the same call as the product/price lookup, not a separate
 step. A pipeline design must explicitly address how the model is prompted and how to produce
@@ -280,16 +248,6 @@ user based on their preference, this is factrually a bad, resonable or good pric
 calls"* (the neutral-code version was Claude's, never his) · log: docs/decisions.md#The price verdict is an animated normal distribution chart, always shown (2026-09-30)
 Retired wording: `never Shin's opinion`, `returned as neutral codes`
 Governs: identify/src/gauge.ts ban lists, the verdict zones in docs/verdict-distribution-design-2026-09-30.md
-### Reviews: Gemini's reviews ship, shown even without a source link
-Gemini's reviews win over the earlier rule that reviews show only from a licensed source with
-nothing generated; a Gemini review with no source link is still shown, flagged with a heads-up
-that it lacks one, never suppressed and never presented as a number Shin stands behind: full
-transparency is not worth making the product worse. Where no licensed review source exists (food),
-the "how good is it" signal instead comes from Open Food Facts' own fields. Since 2026-09-28 no
-shopper answer comes from Gemini (catalogue-first ruling), so Gemini reviews are shown only on the
-old path SHIN_CATALOGUE_FIRST=0 returns. · 2026-09-14 · *"we don't have to push for super transparency when it makes our product worse, we just have to give a way for the user to know where our info comes from"* · log: docs/decisions.md#Gemini's reviews ship, and beta plan item 30 is amended
-Retired wording: `shown only when a licensed source has a row; nothing generated`
-Governs: to fill
 ### Judge and gauge mechanics
 Where a category's own filters leave the comparison set empty, `judge()` still answers off a
 single seller with doubt expressed as a confidence number, retiring three refusal reasons; a
