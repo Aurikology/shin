@@ -585,7 +585,23 @@ export function replaceHunks(lines, ops) {
 
 // ---------------------------------------------------------------- deploy helpers
 
-/** Failing test names from node --test (spec or TAP) and tsc output. */
+/**
+ * Failing test names from node --test (spec or TAP) and tsc output.
+ *
+ * A SUITE CAN BE RED WITH NOTHING NAMED, AND THAT USED TO BE REPORTED AS
+ * NOTHING. The two guards in app/test/setup/global.mjs fail the process after
+ * the runner has already printed `fail 0`: one refuses to run at all while the
+ * live-server marker exists, the other fails the run when a real data folder
+ * changed. Neither prints a `✖` or a `not ok`, so this function returned an
+ * empty list and `summarizeFailures` said "no test names found in the output".
+ *
+ * That is what every deploy between 02:50 UTC 2026-11-06 and 03:51 UTC
+ * 2026-11-07 reported -- five in a row, live frozen on 741c3c8 for twenty-five
+ * hours -- while the real reason sat in the run's own log file and the status
+ * page said `App: ready to test`. The deployer race that caused it is fixed in
+ * deployer.mjs; these two patterns are here so that the NEXT failure of this
+ * shape names itself instead of looking like a parser that gave up.
+ */
 export function failingTests(output) {
   const names = new Set();
   for (const line of String(output).split('\n')) {
@@ -594,6 +610,11 @@ export function failingTests(output) {
     if (m && !/^failing tests:?$/i.test(m[1].trim())) names.add(m[1].trim());
     const t = line.match(/^(\S+\(\d+,\d+\)): error (TS\d+)/);
     if (t) names.add(`${t[1]} ${t[2]}`);
+    // The suite's own guards, which fail the process without naming a test.
+    const g = line.match(/^REAL DATA CHANGED DURING THE TEST RUN \((.+?)\)/);
+    if (g) names.add(`real data changed during the run (${g[1]})`);
+    const refused = line.match(/^Tests refused to run: (.+?)\s*$/);
+    if (refused) names.add(`tests refused to run: ${refused[1]}`);
   }
   return [...names];
 }

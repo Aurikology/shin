@@ -103,16 +103,49 @@ async function prepare(dir, label, runDir, item) {
   if (existsSync(OVERLAY)) cpSync(OVERLAY, dir, { recursive: true, force: false, mode: constants.COPYFILE_FICLONE });
 }
 
+/*
+ * THE APP SUITE RUNS ALONE, AND THAT IS THE FIX RATHER THAN THE SHORTCUT.
+ *
+ * Every suite used to go through one `Promise.all`, which looked free: they
+ * take about a second each next to the app suite's thirty. It was not free. The
+ * app suite's `globalTeardown` (app/test/setup/global.mjs) snapshots every
+ * package's data folder -- `DEFAULT_DATA_ROOTS` in test/setup/data-paths.mjs
+ * lists app/data, identify/data, price/data, catalogue/data, spine/data and
+ * data -- and fails the run if any of them changed while it ran. The catalogue
+ * suite runs with cwd=catalogue and has no such sandbox, so it writes
+ * catalogue/data/gaps.db and catalogue/data/user-catalogue.db as part of
+ * passing. Concurrently, that write lands inside the app suite's snapshot
+ * window and the app suite is failed for a sibling's file.
+ *
+ * MEASURED, 2026-11-07, in ~/shin rather than argued from the code: the two
+ * suites started together give `tests 2069, pass 2069, fail 0` and then
+ * `REAL DATA CHANGED DURING THE TEST RUN: catalogue/data/gaps.db`, exit 1. The
+ * same two run one after the other give the same 2069 passes and exit 0.
+ *
+ * WHAT IT COST. Five pushes in a row deployed nothing: 3d83de2, f46f22f,
+ * 9083e33, c093b96 and 9a1a9c1, from 02:50 UTC 2026-11-06 to 03:51 UTC
+ * 2026-11-07. Every one was reported as `tests red, live untouched: app tests:
+ * no test names found in the output` -- that last phrase being
+ * `summarizeFailures` finding no ✖ line to name, because there was no failing
+ * test to find. The live server sat on 741c3c8 for twenty-five hours while the
+ * status page said `App: ready to test`, so nothing about this was loud.
+ *
+ * The guard is right and is left alone: a test must not touch real data. What
+ * was wrong is this file handing it a checkout it does not have to itself.
+ * Typecheck stays in the parallel group because it writes nothing.
+ */
 async function tests(runDir) {
-  const jobs = [
-    { name: 'app tests', cwd: 'app', args: ['test'], t: T.test },
+  const runJob = async (j) => ({
+    j,
+    r: await run('npm', j.args, { cwd: join(PATHS.stage, j.cwd), timeoutMs: j.t, logFile: join(runDir, `test-${j.name.replace(' ', '-')}.log`) }),
+  });
+  const appTests = await runJob({ name: 'app tests', cwd: 'app', args: ['test'], t: T.test });
+  const rest = [
     { name: 'app typecheck', cwd: 'app', args: ['run', 'typecheck'], t: T.typecheck },
     // price tests take ~97 s against ~1 s for the others, so they are left out.
     ...['spine', 'identify', 'catalogue'].map((p) => ({ name: `${p} tests`, cwd: p, args: ['test'], t: T.pkgTest })),
   ];
-  const results = await Promise.all(
-    jobs.map(async (j) => ({ j, r: await run('npm', j.args, { cwd: join(PATHS.stage, j.cwd), timeoutMs: j.t, logFile: join(runDir, `test-${j.name.replace(' ', '-')}.log`) }) })),
-  );
+  const results = [appTests, ...(await Promise.all(rest.map(runJob)))];
   const red = results.filter((x) => x.r.code !== 0);
   const passCount = (out) => Number((out.match(/^[ℹ#] pass (\d+)/m) ?? [])[1] ?? 0);
   if (!red.length) {
