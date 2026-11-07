@@ -26,7 +26,7 @@
  * Both stores are pointed at temp files BEFORE the modules load, because each
  * resolves its path once at import.
  */
-import { test, before, beforeEach, after } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -34,7 +34,6 @@ import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-beta-routes-'));
-process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');
@@ -46,30 +45,15 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 // 0 asks the OS for a free port. The main session's server usually holds 4173.
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
-// Scans are one Gemini call now; a recorded Gemini answers, and no key leaves the machine.
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setCatalogueForTests, setStoreFetcherForTests, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
+const { server, setCatalogueForTests, setStoreFetcherForTests } = await import('../server.ts');
 const { openScanStore, getScan, allScans } = await import('../src/scans.ts');
 const { ratingFor, ratingHistory } = await import('../src/ratings.ts');
 const { readEvents } = await import('../src/events.ts');
 const { resetStoreCache } = await import('../src/stores.ts');
 const { setErrorSinkForTests } = await import('../src/errlog.ts');
-const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
 
 let port = 0;
-
-// This file reuses ROW.code (the same barcode) across most of its tests. Item
-// 1's repeat-scan cache is keyed on the barcode alone, so without this every
-// test after the first one scanning ROW.code would be silently answered from
-// the cache instead of making its own real (faked) Gemini call, which is
-// exactly the behaviour item 1 asks for on a REAL repeat scan but not the
-// behaviour any test here is trying to prove. Cleared before every test so
-// each one still starts from "never scanned before".
-beforeEach(() => {
-  clearRepeatCacheForTests();
-});
 
 /** One catalogue row, in the shape `identify()` reads off `byGtin`. */
 const ROW = {
@@ -89,7 +73,6 @@ before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   port = (server.address() as AddressInfo).port;
   setCatalogueForTests({ byGtin: (code: string) => (code === ROW.code ? ROW : null) });
-  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 after(async () => {
@@ -139,18 +122,7 @@ test('the identify response carries the id of the row it just wrote', async () =
   assert.equal(row!.outcome, 'answered');
 });
 
-test('a scan Gemini could not answer gets an id too, because that row is worth pointing at', async () => {
-  setGeminiTransportForTests(fakeTransport(() => ({ status: 503, text: 'unavailable' })).transport);
-  try {
-    const res = await get('/api/identify?gtin=0000000000000&deviceId=d-7a-miss');
-    const seen = (await res.json()) as { scanId?: number; product: unknown };
-    assert.equal(seen.product, null);
-    assert.ok(typeof seen.scanId === 'number');
-    assert.ok(getScan(seen.scanId!)!.failure_class, 'the failed call left no failure class on its row');
-  } finally {
-    setGeminiTransportForTests(fakeTransport().transport);
-  }
-});
+test('a scan nothing could name gets an id too, because that row is worth pointing at', async () => {  const res = await get('/api/identify?gtin=0000000000000&deviceId=d-7a-miss');  const seen = (await res.json()) as { scanId?: number };  assert.ok(typeof seen.scanId === 'number');  assert.ok(getScan(seen.scanId!), 'the scan id names no row');});
 
 /* ------------------------ 9e, the conditions of a scan ------------------- */
 
@@ -401,21 +373,6 @@ test('a payload too big for the log is refused with a sentence, not stored trunc
   const res = await post('/api/event', { deviceId: 'd-event-big', type: 'x', payload: { s: 'x'.repeat(5000) } });
   assert.equal(res.status, 400);
   assert.match(((await res.json()) as { error: string }).error, /bytes of JSON/);
-});
-
-test('the server writes its own events: that a Gemini call was made, and how it ended', async () => {
-  await scanOnce('d-server-events');
-  setGeminiTransportForTests(fakeTransport(() => ({ status: 503, text: 'unavailable' })).transport);
-  try {
-    await get('/api/identify?gtin=0000000000000&deviceId=d-server-events');
-  } finally {
-    setGeminiTransportForTests(fakeTransport().transport);
-  }
-  const calls = readEvents({ deviceId: 'd-server-events' }).filter((r) => r.type === 'model_call');
-  assert.equal(calls.length, 2, 'no event recorded each Gemini call');
-  const failures = calls.map((r) => (JSON.parse(String(r.payload)) as { failure: string | null }).failure);
-  assert.ok(failures.includes(null), 'no event recorded the call that answered');
-  assert.ok(failures.some((x) => x !== null), 'no event recorded the call that failed');
 });
 
 /* ------------------------- 10, track.js's own door ------------------------ */

@@ -31,10 +31,8 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.SHIN_ACCESS_LOG = join(dir, 'access.log');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
+const { server } = await import('../server.ts');
 const { getScan } = await import('../src/scans.ts');
 const { summariseScans } = await import('../src/scan-summary.ts');
 
@@ -42,10 +40,8 @@ let port = 0;
 before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   port = (server.address() as AddressInfo).port;
-  setGeminiTransportForTests(fakeTransport().transport);
 });
 after(async () => {
-  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -70,15 +66,11 @@ test('a scan route with a matching Origin is allowed through', async () => {
   assert.equal(res.status, 200);
 });
 
-test('a scan route with a mismatched Origin is refused with a 403, and reaches no Gemini call', async () => {
-  const { calls, transport } = fakeTransport();
-  setGeminiTransportForTests(transport);
+test('a scan route with a mismatched Origin is refused with a 403', async () => {
   const res = await fetch(`${base()}/api/identify?gtin=0068100084245&deviceId=origin-bad`, {
     headers: { origin: 'https://not-shin.example.com' },
   });
   assert.equal(res.status, 403);
-  assert.equal(calls.length, 0, 'a refused, cross-origin request still spent a Gemini call');
-  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 test('a route outside the scan set is not gated by Origin at all', async () => {
@@ -216,17 +208,13 @@ test('every origin a packaged build can send is accepted, not just the one in th
 
 /* ------------------------------- item 19 ---------------------------------- */
 
-test('the demo route answers a fixed sample, with no provider call', async () => {
-  const { calls, transport } = fakeTransport();
-  setGeminiTransportForTests(transport);
+test('the demo route answers a fixed sample', async () => {
   const res = await fetch(`${base()}/api/identify/demo?deviceId=demo-a`);
   assert.equal(res.status, 200);
   const body = (await res.json()) as any;
   assert.equal(body.demo, true);
   assert.equal(body.product.name, 'Kraft Dinner Original');
   assert.equal(body.product.brand, 'Kraft');
-  assert.equal(calls.length, 0, 'the demo route reached a real provider call');
-  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 test('the demo route\'s row is marked as demo', async () => {

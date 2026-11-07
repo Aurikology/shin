@@ -110,8 +110,7 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
   prices.close();
 }
 
-const { server, setGeminiTransportForTests, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
+const { server, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
 const { getScan } = await import('../src/scans.ts');
 const { ratingFor } = await import('../src/ratings.ts');
 const { correctionsFor } = await import('../../price/src/corrections.ts');
@@ -120,14 +119,12 @@ let base = '';
 before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  setGeminiTransportForTests(fakeTransport().transport);
   setCatalogueForTests(catalogue);
   setCatalogueFirstForTests({ searcher: catalogue, db: catDb, rangeAskProvider: null as never });
   process.env.SHIN_CATALOGUE_FIRST = '1';
 });
 
 after(async () => {
-  setGeminiTransportForTests(null);
   setCatalogueForTests(null);
   setCatalogueFirstForTests(null);
   delete process.env.SHIN_CATALOGUE_FIRST;

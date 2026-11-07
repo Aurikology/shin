@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-typed-own-'));
-process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
+process.env.SHIN_CATALOGUE_FIRST = '0'; // the older typed-answer shape these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');
@@ -35,7 +35,6 @@ delete process.env.SHIN_INVITE_CODE;
 delete process.env.SHIN_FREE_SCANS_PER_WEEK;
 delete process.env.REVENUECAT_SECRET_KEY;
 process.env.SHIN_PLUS_TRUST_CLIENT = '1';
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
 // The fixtures, written before the server is imported so nothing is cached ahead of them.
 const { openPrices, recordObservation } = await import('../../price/src/store.ts');
@@ -91,13 +90,11 @@ recordUserScan(
 recordUserScan({ name: 'Lonely Lentil Soup', brand: 'Nobody', quantity: '540 ml', observedAt: '2026-09-14T10:00:00.000Z' }, { log: uc });
 uc.db?.close();
 
-const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
-const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
+const { server, setCatalogueForTests } = await import('../server.ts');
 const { getScan, recordScan } = await import('../src/scans.ts');
+const { usageFor } = await import('../src/scan-quota.ts');
 
 let port = 0;
-let gemini = fakeTransport();
 
 before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
@@ -106,15 +103,11 @@ before(async () => {
 });
 
 beforeEach(() => {
-  clearRepeatCacheForTests();
-  gemini = fakeTransport();
-  setGeminiTransportForTests(gemini.transport);
   delete process.env.SHIN_FREE_SCANS_PER_WEEK;
 });
 
 after(async () => {
   setCatalogueForTests(null);
-  setGeminiTransportForTests(null);
   delete process.env.SHIN_FREE_SCANS_PER_WEEK;
   await new Promise<void>((r) => server.close(() => r()));
   try {
@@ -144,7 +137,6 @@ test('a typed name Pexi holds with prices returns those prices, each with its st
   ]);
   // The answer sheet's own reader must see content, or the phone shows "no answer".
   assert.ok(block.offers.length > 0 && body.grounded.kind === 'grounded');
-  assert.equal(gemini.calls.length, 0, 'a typed search called Gemini');
 });
 
 test('prices from the user catalogue: latest per store, dated, and a test double row is never one of them', async () => {
@@ -155,7 +147,6 @@ test('prices from the user catalogue: latest per store, dated, and a test double
   assert.deepEqual(offers.map((o) => [o.retailer, o.price, o.currency, o.observedAt]), [
     ['Food Basics', 4.99, 'CAD', '2026-09-15T10:00:00.000Z'],
   ]);
-  assert.equal(gemini.calls.length, 0);
 });
 
 test('a product Pexi holds with no price is the no-price answer, not a product', async () => {
@@ -166,7 +157,6 @@ test('a product Pexi holds with no price is the no-price answer, not a product',
   assert.equal(body.grounded, undefined);
   assert.equal(body.product, null);
   assert.match(String(body.message), /does not have a price/i);
-  assert.equal(gemini.calls.length, 0, 'a typed search called Gemini');
 });
 
 test('an unknown name is the no-price answer', async () => {
@@ -175,15 +165,13 @@ test('an unknown name is the no-price answer', async () => {
   assert.equal(body.ownData, true);
   assert.equal(body.found, false);
   assert.match(String(body.message), /scan the barcode/i);
-  assert.equal(gemini.calls.length, 0, 'a typed search called Gemini');
 });
 
 test('a typed search is never refused by the weekly free-scan limit and is still logged', async () => {
   process.env.SHIN_FREE_SCANS_PER_WEEK = '1';
   // The device's one free barcode scan this week, already used.
   recordScan({ deviceId: 'typed-limit', kind: 'barcode', query: '0062600000017', resolvedLabel: 'Peaches & Cream Corn', outcome: 'answered' });
-  const barcode = await fetch(`http://127.0.0.1:${port}/api/identify?gtin=0068100084245&deviceId=typed-limit`);
-  assert.equal(barcode.status, 402, 'the limit is not on, so this test proves nothing');
+  assert.equal(usageFor('typed-limit', 1).used, 1, 'the device is not at its limit, so this test proves nothing');
   for (let i = 0; i < 3; i++) {
     const { status, body } = await typed(i === 0 ? 'unicorn steak' : 'peaches cream corn', 'typed-limit');
     assert.equal(status, 200, `typed search ${i + 1} was refused`);
@@ -192,7 +180,6 @@ test('a typed search is never refused by the weekly free-scan limit and is still
     assert.equal(scan.kind, 'text');
     assert.equal(scan.outcome, i === 0 ? 'refused' : 'answered');
   }
-  assert.equal(gemini.calls.length, 0, 'a typed search called Gemini');
 });
 
 async function price(body: Record<string, unknown>) {
@@ -211,7 +198,6 @@ test('/api/price with free text and no scan answers from Pexi data and never cal
   assert.equal(body.ownData, true);
   assert.equal(body.found, true);
   assert.equal(body.grounded.block.source, 'shin_own_data');
-  assert.equal(gemini.calls.length, 0, 'free text on /api/price called Gemini');
 });
 
 test('/api/price naming a typed scan answers from Pexi data on that same row, never a paid call', async () => {
@@ -221,16 +207,8 @@ test('/api/price naming a typed scan answers from Pexi data on that same row, ne
   assert.equal(body.ownData, true);
   assert.equal(body.found, false);
   assert.equal(body.scanId, scan.body.scanId, 'a second scan row was written for the same typed search');
-  assert.equal(gemini.calls.length, 0, 'a typed scan priced on /api/price called Gemini');
 });
 
-test('/api/price for a barcode is unchanged: one Gemini call', async () => {
-  const { status, body } = await price({ gtin: '0068100084245', text: 'Kraft Dinner Original', deviceId: 'price-barcode' });
-  assert.equal(status, 200);
-  assert.equal(body.kind, 'gemini');
-  assert.equal(body.ownData, undefined);
-  assert.equal(gemini.calls.length, 1, 'a barcode price no longer makes its one call');
-});
 
 test('a missing prices file and user catalogue fail soft into the no-price answer', async () => {
   const { lookupOwnPrices } = await import('../src/own-prices.ts');

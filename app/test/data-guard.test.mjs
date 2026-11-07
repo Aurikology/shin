@@ -46,7 +46,7 @@ const KNOWN = [
 test('every known path setting is recognised as a path, and no switch or URL is', async () => {
   const names = (await pathSettings()).map((s) => s.env);
   for (const k of KNOWN) assert.ok(names.includes(k), `${k} is not recognised as a path setting`);
-  for (const not of ['SHIN_SHUTTER_LOG', 'SHIN_OVERPASS', 'SHIN_FREE_SCANS_PER_WEEK', 'PORT', 'GEMINI_API_KEY']) {
+  for (const not of ['SHIN_SHUTTER_LOG', 'SHIN_OVERPASS', 'SHIN_FREE_SCANS_PER_WEEK', 'PORT']) {
     assert.ok(!names.includes(not), `${not} was taken for a path`);
   }
 });

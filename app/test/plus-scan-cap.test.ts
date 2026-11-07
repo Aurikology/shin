@@ -15,7 +15,6 @@ import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-plus-cap-'));
-process.env.SHIN_CATALOGUE_FIRST = '0';
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');
@@ -28,18 +27,14 @@ delete process.env.SHIN_FREE_SCANS_PER_WEEK;
 delete process.env.SHIN_PLUS_SCANS_PER_WEEK;
 delete process.env.REVENUECAT_SECRET_KEY;
 process.env.SHIN_PLUS_TRUST_CLIENT = '1';
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
-const { clearRepeatCacheForTests } = await import('../src/repeat-cache.ts');
+const { server, setCatalogueForTests } = await import('../server.ts');
 const { plusScanLimit, freeScanLimit, usageFor, setEntitlementFetchForTests } = await import('../src/scan-quota.ts');
 const { recordScan } = await import('../src/scans.ts');
 
 const GTIN = '0068100084245';
 const PLUS = { 'x-shin-plus': '1' };
 let port = 0;
-let gemini = fakeTransport();
 
 before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
@@ -48,9 +43,6 @@ before(async () => {
 });
 
 beforeEach(() => {
-  clearRepeatCacheForTests();
-  gemini = fakeTransport();
-  setGeminiTransportForTests(gemini.transport);
   delete process.env.SHIN_FREE_SCANS_PER_WEEK;
   delete process.env.SHIN_PLUS_SCANS_PER_WEEK;
   delete process.env.REVENUECAT_SECRET_KEY;
@@ -73,7 +65,6 @@ after(async () => {
 const base = () => `http://127.0.0.1:${port}`;
 
 async function identify(device: string, headers: Record<string, string> = {}) {
-  clearRepeatCacheForTests();
   const res = await fetch(`${base()}/api/identify?gtin=${GTIN}&deviceId=${device}`, { headers });
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
@@ -110,11 +101,9 @@ test('a Plus subscriber at 99 scans passes; at 100 is refused with the Plus mess
   process.env.SHIN_FREE_SCANS_PER_WEEK = '10';
   process.env.SHIN_PLUS_SCANS_PER_WEEK = '100';
   seed('plus-99', 99);
-  const callsBefore = gemini.calls.length;
   const hundredth = await identify('plus-99', PLUS);
   assert.equal(hundredth.status, 200, 'the 100th scan of the week was refused');
-  assert.equal(gemini.calls.length, callsBefore + 1);
-  const callsAt100 = gemini.calls.length;
+  recordScan({ deviceId: 'plus-99', kind: 'barcode', query: GTIN, resolvedCode: GTIN, resolvedLabel: 'Seeded product', outcome: 'answered' }); // the named scan the 100th would leave
   const refused = await identify('plus-99', PLUS);
   assert.equal(refused.status, 402);
   assert.equal(refused.body.error, 'scan_limit');
@@ -122,7 +111,6 @@ test('a Plus subscriber at 99 scans passes; at 100 is refused with the Plus mess
   assert.equal(refused.body.limit, 100);
   assert.equal(refused.body.used, 100);
   assert.equal(typeof refused.body.resetsAt, 'string');
-  assert.equal(gemini.calls.length, callsAt100, 'a refused scan still called Gemini');
 });
 
 test('a free user at 9 passes; at 10 is refused with the subscribe paywall body (no Plus marker)', async () => {
@@ -130,6 +118,7 @@ test('a free user at 9 passes; at 10 is refused with the subscribe paywall body 
   process.env.SHIN_PLUS_SCANS_PER_WEEK = '100';
   seed('free-9', 9);
   assert.equal((await identify('free-9')).status, 200, 'the 10th free scan was refused');
+  recordScan({ deviceId: 'free-9', kind: 'barcode', query: GTIN, resolvedCode: GTIN, resolvedLabel: 'Seeded product', outcome: 'answered' }); // the named scan the 10th would leave
   const refused = await identify('free-9');
   assert.equal(refused.status, 402);
   assert.equal(refused.body.error, 'scan_limit');

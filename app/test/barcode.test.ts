@@ -57,7 +57,6 @@ test('isValidGtin rejects a length GS1 never issues', () => {
 /* ------------------------- the server-level proof ------------------------- */
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-barcode-route-'));
-process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');
@@ -66,10 +65,8 @@ process.env.SHIN_PHOTOS = join(dir, 'photos');
 process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
 
-const { server, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
+const { server } = await import('../server.ts');
 const { getScan } = await import('../src/scans.ts');
 
 let port = 0;
@@ -78,7 +75,6 @@ before(async () => {
   port = (server.address() as AddressInfo).port;
 });
 after(async () => {
-  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -90,39 +86,12 @@ after(async () => {
 const identify = (q: string) =>
   fetch(`http://127.0.0.1:${port}/api/identify?${q}`).then(async (r) => ({ status: r.status, body: (await r.json()) as any }));
 
-test('a barcode that cannot be made to check out is refused before the paid call, and spends nothing', async () => {
-  const { calls, transport } = fakeTransport();
-  setGeminiTransportForTests(transport);
+test('a barcode that cannot be made to check out is refused before any lookup', async () => {
   const { status, body } = await identify('gtin=1234567890123&deviceId=barcode-refuse');
   assert.equal(status, 200, 'a refusal is still a 200, the same as every other marked answer');
   assert.equal(body.failure, 'invalid_barcode');
   assert.equal(body.lowConfidence, true);
-  assert.equal(calls.length, 0, 'an unrepairable reading reached Gemini');
   assert.ok(typeof body.scanId === 'number', 'the refusal left no row to look at later');
   assert.equal(getScan(body.scanId)!.failure_class, 'invalid_barcode');
 });
 
-test('a barcode missing its leading zeros still reaches Gemini, in its one repaired form', async () => {
-  const { calls, transport } = fakeTransport();
-  setGeminiTransportForTests(transport);
-  const { status } = await identify('gtin=68100084245&deviceId=barcode-repair');
-  assert.equal(status, 200);
-  assert.equal(calls.length, 1, 'a repairable reading was refused instead of repaired');
-  assert.match(String(calls[0].body.model ?? ''), /^gemini-/);
-  const sent = JSON.stringify(calls[0].body.input ?? calls[0].body);
-  assert.match(sent, /68100084245/, 'the barcode never reached Gemini at all');
-  assert.doesNotMatch(sent, /"68100084245"/, 'the unpadded, as-read digits reached Gemini rather than the padded canonical form');
-});
-
-test('a printed UPC-E (fails EAN-8) is not refused: it reaches Gemini once, as its 12-digit UPC-A', async () => {
-  // 7B.8, RULINGS.md "Always answer". The Coke Zero can from catalogue/test/upce.test.ts.
-  const { calls, transport } = fakeTransport();
-  setGeminiTransportForTests(transport);
-  const { status, body } = await identify('gtin=06781901&deviceId=barcode-upce');
-  assert.equal(status, 200);
-  assert.notEqual(body.failure, 'invalid_barcode', 'a real printed UPC-E was refused as invalid');
-  assert.equal(calls.length, 1);
-  const sent = JSON.stringify(calls[0].body.input ?? calls[0].body);
-  assert.match(sent, /067000008191/, 'the expanded UPC-A never reached Gemini');
-  assert.doesNotMatch(sent, /06781901/, 'the compressed as-read digits reached Gemini rather than the one canonical form');
-});

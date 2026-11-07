@@ -69,7 +69,7 @@ Replaces "Gemini switch and call architecture", "Default Gemini model is gemini-
 *"the scanning by photo should not be a shipped feature. We are not using gemini for anything"*
 · log: docs/decisions.md#Pexi uses Gemini for nothing, and photo scanning does not ship
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
-Governs: identify/src/providers/gemini-*.ts (to remove), SHIN_MODEL_PROVIDER, SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3, SHIN_GEMINI_TIER (stays unset), app/public/js/flags.js (photoId false), app/server.ts (/api/identify/photo)
+Governs: app/public/js/flags.js (photoId false), app/server.ts (/api/identify/photo)
 ### Pexi 1.0 launches without reviews, and Gemini's stored offers and reviews are deleted
 Reviews (other sites' star ratings and summaries under the price) came only from Gemini, so 1.0
 ships with no reviews section in any answer: the own-data answer already sends an empty list and
@@ -769,7 +769,7 @@ price-range fallback"). The 2026-09-09 floor, *"the user must take a picture and
 to identify. Nothing less."*, is the goal that plan serves, not a requirement of the MVP.
 Image-embedding search stays parked. · 2026-09-09, 2026-09-21, 2026-09-27 · *"Things like the welcome screen, the photo id, the languages etc. should be kept off for now. Plan out in detail what the mvp should include. Also, we still need the subscription screen etc."* · log: docs/decisions.md#Live photo recognition is load-bearing, and the photo door opens
 Retired wording: `live photo recognition cut from v1`, `barcode and screenshot input only`
-Governs: POST /api/identify/photo, SHIN_GEMINI_TIER
+Governs: POST /api/identify/photo
 ### Decision-analysis and calibration discipline
 A competitor already building a feature is not a reason to reject it: copying what works and adding
 Shin's own spin is fine, not a negative, and this applies to every decision, not just features.

@@ -87,14 +87,13 @@ function read(path: string): string {
 
 /* --------------------------------------------------------- 1, 2 and 11: reach */
 
-test('seal() is called in exactly two files of production source: its own declaration and the Gemini grounded adapter', () => {
+test('seal() is called in exactly one file of production source: its own declaration', () => {
   // `seal<T>(` and `seal(` both count, which is why the character class is
   // there: the declaration is generic and a call site need not be.
   const CALLS_SEAL = /\bseal\s*[(<]/;
   const found = ALL_CODE.filter((p) => !isTestPath(p)).filter((p) => CALLS_SEAL.test(read(p)));
   assert.deepEqual(found.sort(), [
     'identify/src/grounded.ts',
-    'identify/src/providers/gemini-grounded.ts',
   ]);
 });
 
@@ -114,44 +113,12 @@ test('the set of files that import grounded.ts equals a written allowlist', () =
      * gets on this list.
      */
     'app/src/grounded-record.ts',
-    /*
-     * Added 2026-09-16, read and decided rather than waved through. The price
-     * harness opens boxes with `toWire` to count offers and compare medians
-     * against the hand-priced pilot, and it is the only way to find out whether
-     * the number a shopper sees is true. It PERSISTS NOTHING: every figure is
-     * computed in memory and printed, so no Grounded Result reaches disk. That
-     * the arithmetic happens on our side at all is the crossing D-111 records.
-     */
-    'identify/eval/price-truth.ts',
     'identify/src/provider.ts',
-    'identify/src/providers/gemini-grounded.ts',
-    // Added 2026-09-15: the adapter's own test opens the boxes it seals with `toWire`, and nothing else.
-    'identify/test/gemini-grounded.test.ts',
     'identify/test/grounded-types.ts',
     'identify/test/grounded.test.ts',
   ]);
 });
 
-test('the ungrounded Gemini adapter asks for no search tool and cannot reach the box', () => {
-  const path = join(REPO, 'identify', 'src', 'providers', 'gemini.ts');
-  if (!existsSync(path)) {
-    // Another lane owns that file and it is not written yet. Asserting on its
-    // absence rather than skipping means this test still says something true
-    // today, and it starts checking the real thing the moment the file lands.
-    assert.equal(existsSync(path), false);
-    return;
-  }
-  // Comments are stripped first, and that is not a nicety. That file's header
-  // explains at length WHY it never sends a `google_search` tool, so a naive
-  // substring search over the whole text finds the word in the prose that
-  // promises not to use it, and the test would fail on the very comment that
-  // makes it true. What matters is the code.
-  const source = readFileSync(path, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
-  assert.equal(source.includes('google_search'), false);
-  assert.equal(/from\s+['"][^'"]*\/grounded\.ts['"]/.test(source), false);
-});
 
 /* ------------------------------------------------------------------ fixtures */
 

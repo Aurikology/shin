@@ -167,21 +167,17 @@ const rangeAskProvider = {
 
 /* -------------------------------------------------------------- server */
 
-const { server, setGeminiTransportForTests, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
-const scanDouble = fakeTransport();
+const { server, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
 
 let base = '';
 before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  setGeminiTransportForTests(scanDouble.transport);
   setCatalogueForTests(catalogue);
   setCatalogueFirstForTests({ searcher: catalogue, db: catDb, rangeAskProvider: rangeAskProvider as never });
 });
 
 after(async () => {
-  setGeminiTransportForTests(null);
   setCatalogueForTests(null);
   setCatalogueFirstForTests(null);
   delete process.env.SHIN_CATALOGUE_FIRST;
@@ -237,38 +233,6 @@ function gapCount(): number {
 }
 
 /* -------------------------------------------------------------- tests */
-
-/**
- * Captured 2026-09-27 from `/api/identify?gtin=0068100084245&deviceId=cap&countryCode=CA`
- * against the server as it stood before this path existed, with the same
- * `fakeTransport()` answer and no own prices for the code. `ms`, `scanId` and
- * `grounded.fetchedAt` are the only values that change per call, and are
- * replaced before comparing.
- */
-const TODAY_BARCODE_ANSWER =
-  '{"product":null,"matchedBy":"none","band":"miss","category":null,"categoryWhy":"","ring":null,"otherCandidates":0,"route":null,"catalogueUp":false,"ms":"<ms>","reason":"unchecked","scanId":"<scanId>","priceQuery":{"text":"Kraft Dinner Original 225 g","gtin":"0068100084245"},"unchecked":{"checked":false,"source":"search","label":"Kraft Dinner Original 225 g","brand":"Kraft","name":"Kraft Dinner Original","size":"225 g","gtin":"0068100084245"},"model":"gemini-3.8-flash","modelFamily":"3.x","lowConfidence":false,"confidenceReasons":[],"parseStatus":"clean","failure":null,"overCap":false,"retryable":false,"grounded":{"kind":"grounded","forDevice":"cap","fetchedAt":"<fetchedAt>","block":{"kind":"prices","checked":false,"description":"Boxed macaroni and cheese.","offers":[{"retailer":"Alpha Market","price":2,"url":"https://example.com/alpha","sizeValue":100,"sizeUnit":"g","packCount":1,"modelNumber":null,"specs":null,"condition":"new","currency":"CAD","marketplace":false,"memberOnly":false,"dealKind":null,"dealUnits":null,"observedAt":null,"organic":false,"storeBrand":null,"soldByWeight":false,"hasLink":true,"unitPrice":2,"inMedian":true,"exclusionReason":null,"pctVsMedian":-33.3333},{"retailer":"Beta Foods","price":3,"url":"https://example.com/beta","sizeValue":100,"sizeUnit":"g","packCount":1,"modelNumber":null,"specs":null,"condition":"new","currency":"CAD","marketplace":false,"memberOnly":false,"dealKind":null,"dealUnits":null,"observedAt":null,"organic":false,"storeBrand":null,"soldByWeight":false,"hasLink":true,"unitPrice":3,"inMedian":true,"exclusionReason":null,"pctVsMedian":0},{"retailer":"Gamma Grocer","price":4,"url":"https://example.com/gamma","sizeValue":100,"sizeUnit":"g","packCount":1,"modelNumber":null,"specs":null,"condition":"new","currency":"CAD","marketplace":false,"memberOnly":false,"dealKind":null,"dealUnits":null,"observedAt":null,"organic":false,"storeBrand":null,"soldByWeight":false,"hasLink":true,"unitPrice":4,"inMedian":true,"exclusionReason":null,"pctVsMedian":33.3333}],"reviews":[{"rating":4.5,"count":120,"summary":"Liked.","url":"https://example.com/r","source":"example.com","hasLink":true}],"verdict":{"median":3,"n":3,"unitLabel":"100 g","span":35,"zoneUnderBoundary":35.714,"zoneOverBoundary":64.286,"ticks":[],"points":[{"retailer":"Alpha Market","position":2.381,"url":"https://example.com/alpha","label":"$2","marks":[]},{"retailer":"Beta Foods","position":50,"url":"https://example.com/beta","label":"$3","marks":[]},{"retailer":"Gamma Grocer","position":97.619,"url":"https://example.com/gamma","label":"$4","marks":[]}],"excluded":[],"shelf":null,"shelfLabel":"","sizeAssumed":false,"confidence":"ok","shortfalls":[]},"noLineReason":null,"searchQueries":["kraft dinner price"],"citations":[],"name":"Kraft Dinner Original","brand":"Kraft","size":"225 g","category":null,"facts":[{"field":"name","value":"Kraft Dinner Original","url":"https://example.com/kd","hasLink":true},{"field":"brand","value":"Kraft","url":null,"hasLink":false},{"field":"size","value":"225 g","url":null,"hasLink":false}],"model":"gemini-3.8-flash","lowConfidence":false,"confidenceReasons":[],"parseStatus":"clean","shelfPriceSent":false,"alternatives":[],"alternativesStatus":"missing"},"suggestionsHtml":"<div class=\\"container\\">kraft dinner price</div>"}}';
-
-test('setting OFF: a barcode scan answers byte-for-byte as it did before this path existed', async () => {
-  off();
-  const r = await fetch(`${base}/api/identify?gtin=${SNAPSHOT_GTIN}&deviceId=cap&countryCode=CA`);
-  assert.equal(r.status, 200);
-  const text = await r.text();
-  const body = JSON.parse(text) as Record<string, unknown>;
-  assert.equal(scanDouble.calls.length, 1, 'with the setting off the barcode still makes its one Gemini scan call');
-  assert.equal(askCalls.length, 0, 'with the setting off the range ask is never made');
-  assert.equal(typeof body.ms, 'number');
-  assert.equal(typeof body.scanId, 'number');
-  const normalised = text
-    .replace(/"ms":\d+/, '"ms":"<ms>"')
-    .replace(/"scanId":\d+/, '"scanId":"<scanId>"')
-    .replace(/"fetchedAt":"[^"]+"/, '"fetchedAt":"<fetchedAt>"');
-  assert.equal(normalised, TODAY_BARCODE_ANSWER);
-  // And the new columns stay null on a row the old path wrote.
-  const row = scanRow(body.scanId);
-  assert.equal(row.answer_path, null);
-  assert.equal(row.range_source, null);
-});
-
 test('setting OFF: /api/match-text is the same 404 an unknown path gets', async () => {
   off();
   const r = await matchText({ lines: ['Kraft', 'Smooth Peanut Butter'] });
@@ -281,7 +245,6 @@ test('setting OFF: /api/match-text is the same 404 an unknown path gets', async 
 
 test('ON, catalogue hit with its own prices: identity from the catalogue, range from shin_prices, no model call', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
   const body = await identify(OWN_HIT);
   assert.equal(body.kind, 'catalogue');
@@ -310,7 +273,6 @@ test('ON, catalogue hit with its own prices: identity from the catalogue, range 
   assert.equal(body.rangeAskedAt, null);
   assert.equal(body.noRangeReason, null);
   assert.equal(body.shelfPrice, null);
-  assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
   assert.equal(askCalls.length, asksBefore, 'the range ask was made although Pexi had prices');
   const row = scanRow(body.scanId);
   assert.equal(row.kind, 'barcode');
@@ -325,7 +287,6 @@ test('ON, catalogue hit with its own prices: identity from the catalogue, range 
 
 test('ON, catalogue hit with only its category priced: a leaf_category range, scaled to its size', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
   const body = await identify(CAT_HIT);
   assert.equal(body.outcome, 'catalogue_hit');
@@ -338,7 +299,6 @@ test('ON, catalogue hit with only its category priced: a leaf_category range, sc
   assert.equal((range.lowCents as number) % 2, 0);
   assert.ok((range.lowCents as number) >= 1198 && (range.highCents as number) <= 1800, JSON.stringify(range));
   assert.equal(body.rangeSource, 'shin_prices');
-  assert.equal(scanDouble.calls.length, scansBefore);
   assert.equal(askCalls.length, asksBefore);
   const row = scanRow(body.scanId);
   assert.equal(row.range_source, 'shin_prices');
@@ -351,12 +311,10 @@ test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Ge
   // for the client side answers". The range's basis `gemini_typical` is the
   // historical wire value; the source says Claude (D-231).
   on();
-  const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
   const body = await identify(NONE_HIT);
   assert.equal(body.outcome, 'catalogue_hit');
   assert.equal(askCalls.length - asksBefore, 1, 'the range ask was not made exactly once');
-  assert.equal(scanDouble.calls.length, scansBefore, 'the Gemini scan call was made on the catalogue path');
   assert.match(askCalls[askCalls.length - 1]!.user, /Product: Cola Classic/);
   assert.match(askCalls[askCalls.length - 1]!.user, /Brand: Fizzco/);
   assert.deepEqual(body.range, {
@@ -383,7 +341,6 @@ test('ON, the monthly ask cap reached: the identity still comes back, a low-conf
   on();
   process.env.SHIN_RANGE_ASK_MONTHLY_CAP = '0';
   try {
-    const scansBefore = scanDouble.calls.length;
     const asksBefore = askCalls.length;
     const body = await identify(CAP_HIT);
     assert.equal(body.outcome, 'catalogue_hit');
@@ -395,7 +352,6 @@ test('ON, the monthly ask cap reached: the identity still comes back, a low-conf
     assert.ok(body.rangeSource === 'shin_estimate' || body.rangeSource === 'fixed_prior', String(body.rangeSource));
     assert.equal(body.noRangeReason, 'monthly_cap_reached');
     assert.equal(askCalls.length, asksBefore, 'the ask went out past the cap');
-    assert.equal(scanDouble.calls.length, scansBefore);
     const row = scanRow(body.scanId);
     assert.equal(row.outcome, 'answered');
     assert.equal(row.answer_path, 'catalogue_hit');
@@ -407,7 +363,6 @@ test('ON, the monthly ask cap reached: the identity still comes back, a low-conf
 
 test('ON, a photo and a price request reach no model and no stored model answer', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const photo = await fetch(`${base}/api/identify/photo`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -417,8 +372,7 @@ test('ON, a photo and a price request reach no model and no stored model answer'
   const photoBody = (await photo.json()) as Record<string, unknown>;
   assert.equal(photoBody.failure, 'no_model_call');
   assert.equal(photoBody.offerManualEntry, true);
-  // SNAPSHOT_GTIN was answered by the Gemini double in the OFF test above, so a
-  // stored answer exists for device "cap"; it must not be served either.
+  // A stored answer no longer exists for any device; the price route must still refuse to serve one.
   const price = await fetch(`${base}/api/price`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
@@ -428,12 +382,10 @@ test('ON, a photo and a price request reach no model and no stored model answer'
   const priceBody = (await price.json()) as Record<string, unknown>;
   assert.equal(priceBody.failure, 'no_model_call');
   assert.equal(priceBody.grounded, undefined);
-  assert.equal(scanDouble.calls.length, scansBefore, 'a Gemini call was made with catalogue first on');
 });
 
 test('ON, a barcode not in the catalogue: not_in_catalogue, manual entry offered, zero Gemini calls of any kind', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
   const body = await identify(MISSING);
   assert.equal(body.kind, 'catalogue');
@@ -442,7 +394,6 @@ test('ON, a barcode not in the catalogue: not_in_catalogue, manual entry offered
   assert.equal(body.catalogueUp, true);
   assert.equal(body.identity, null);
   assert.equal(body.range, null);
-  assert.equal(scanDouble.calls.length, scansBefore, 'Gemini was asked to identify a barcode the catalogue lacks');
   assert.equal(askCalls.length, asksBefore);
   const row = scanRow(body.scanId);
   assert.equal(row.outcome, 'refused');
@@ -453,18 +404,15 @@ test('ON, a barcode not in the catalogue: not_in_catalogue, manual entry offered
 
 test('ON, a weighed-item label carries its embedded price as the shelf price', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const body = await identify(WEIGHED);
   assert.equal(body.kind, 'catalogue');
   assert.equal(body.outcome, 'not_in_catalogue');
   assert.deepEqual(body.shelfPrice, { cents: 599, from: 'weighed_label' });
   assert.equal(body.barcode, withCheck('21234500000'), 'the canonical item-family key was not what was looked up');
-  assert.equal(scanDouble.calls.length, scansBefore);
 });
 
 test('ON, match-text: the top 3 with the shelf price read, and nothing more per candidate', async () => {
   on();
-  const scansBefore = scanDouble.calls.length;
   const asksBefore = askCalls.length;
   const r = await matchText({ lines: ['Kraft', 'SMOOTH PEANUT BUTTER', '1 kg', '$5.99'], deviceId: 'cf-text' });
   assert.equal(r.status, 200);
@@ -477,7 +425,6 @@ test('ON, match-text: the top 3 with the shelf price read, and nothing more per 
     assert.deepEqual(Object.keys(c).sort(), ['barcode', 'brand', 'name', 'productId', 'score', 'size']);
   }
   assert.deepEqual(r.body.shelfPrice, { cents: 599, forCount: 1, text: '$5.99' });
-  assert.equal(scanDouble.calls.length, scansBefore);
   assert.equal(askCalls.length, asksBefore);
   const row = scanRow(r.body.scanId);
   assert.equal(row.kind, 'text');
@@ -555,7 +502,6 @@ test('ON, preview=1 names the item and nothing else: no scan row, no Claude ask,
   on();
   const rows = scanCount();
   const asks = askCalls.length;
-  const scans = scanDouble.calls.length;
   const gaps = gapCount();
   const named = await preview(NONE_HIT);
   assert.equal(named.preview, true);
@@ -566,7 +512,6 @@ test('ON, preview=1 names the item and nothing else: no scan row, no Claude ask,
   assert.equal(missing.identity, null);
   assert.equal(scanCount(), rows, 'a preview wrote a scan row, which would count against the weekly free scans');
   assert.equal(askCalls.length, asks, 'a preview made the paid range ask');
-  assert.equal(scanDouble.calls.length, scans, 'a preview called Gemini');
   assert.equal(gapCount(), gaps, 'a preview logged a catalogue gap');
   // The control: the same code without preview DOES write a row, so the count above could have moved.
   const real = await identify(CAP_HIT);

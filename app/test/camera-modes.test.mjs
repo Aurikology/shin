@@ -42,8 +42,6 @@ globalThis.fetch = async (url, init = {}) => {
 };
 const api = await import('../public/js/api.js');
 const CAMERA = read('../public/js/screens/camera.js');
-const SERVER = read('../server.ts');
-const PROMPT = read('../../Shin_Gemini_Pricing_Engine/scan_prompt.md');
 const STRINGS = read('../public/js/ui-strings.js');
 
 /* ------------------------------------------------------------ mode and hint */
@@ -78,14 +76,6 @@ test('mode and hint ride on the identify, photo and price calls, and clearing th
   const cleared = new URL(calls[0].url, 'http://x');
   assert.equal(cleared.searchParams.has('mode'), false, 'a finished scan still sends its mode');
   assert.equal(cleared.searchParams.has('hint'), false, 'a finished scan still sends its hint');
-});
-
-test('the server reads the hint and turns it into a sentence for the prompt, and the prompt has the line', () => {
-  assert.match(SERVER, /hint: text\(get\('hint'\)\)/, 'the server does not read a hint from the scan context');
-  assert.match(SERVER, /price_tag: 'The image is a photo of a shelf price tag/, 'the price tag hint has no sentence');
-  assert.ok(SERVER.includes("a.kind === 'photo' && a.context.hint ? (PICTURE_HINTS[a.context.hint] ?? null) : null"), 'the hint no longer reaches userInput');
-  assert.match(SERVER, /mode: text\(get\('mode'\)\)/, 'the server no longer reads an explicit mode');
-  assert.ok(PROMPT.includes('shelf price tag, read the product'), 'scan_prompt.md lost its price tag line');
 });
 
 /* ------------------------------------------------- the three scan buttons */

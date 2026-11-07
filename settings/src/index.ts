@@ -34,7 +34,7 @@
  *
  * SECRETS (`secret: true` below: API keys, tokens) are read through the same
  * getters, but no getter here gives one a default value, and nothing in this
- * module ever logs one. `GEMINI_API_KEY`, `ANTHROPIC_API_KEY` and the rest
+ * module ever logs one. `ANTHROPIC_API_KEY` and the rest
  * stay absent-or-present; a caller's own `?? ''` still decides what "absent"
  * means to it, exactly as before.
  *
@@ -58,13 +58,8 @@ export interface SettingKey {
 
 /** Every setting this repo's live code reads. One row per environment variable, not per call site. */
 export const SETTINGS: readonly SettingKey[] = [
-  // -- Gemini switch and model choice -----------------------------------
-  { env: 'SHIN_MODEL_PROVIDER', default: "unset -> not 'gemini'", ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
-  { env: 'SHIN_GEMINI_MODEL', default: 'unset -> per-tier default', ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
-  { env: 'SHIN_GEMINI_MODEL_3', default: "'gemini-3.8-flash'", ruling: 'Pexi uses Gemini for nothing, and photo scanning is not a shipped feature' },
-  // -- Barcode answers Shin's own prices too ----------------------------
+  // -- Settings whose only reader went with the Gemini scan (RULINGS.md, 'Pexi uses Gemini for nothing'); their rulings are the founder's to retire --
   { env: 'SHIN_BARCODE_OWN_PRICES', default: "'1' (on)", ruling: "A scanned barcode answers with Shin's own prices too" },
-  // -- Caching and cancellation ------------------------------------------
   { env: 'SHIN_REPEAT_CACHE', default: "'data/repeat-cache.db'", ruling: 'Caching and cancellation' },
   // -- Model spend cap: the dollar spend cap -----------------------
   { env: 'SHIN_PHOTO_DAILY_CAP_CAD', default: '10 (CAD, soft cap)', ruling: 'Model spend cap' },
@@ -81,8 +76,6 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_CODE_PER_DAY', default: '1500', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_10MIN', default: '90', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
-  // -- v1 floor: what the MVP ships ------------------------------------------
-  { env: 'SHIN_GEMINI_TIER', default: 'unset -> no photo identification', ruling: 'v1 floor: what the MVP ships, and how photo identification returns' },
   // -- Catalogue first; Claude, with no web search, is the capped price-range fallback -----
   { env: 'SHIN_CATALOGUE_FIRST', default: "on since 2026-09-28; only '0', 'off' or 'false' turns it off", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off; the server makes no range ask since 2026-09-28)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
@@ -102,19 +95,6 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_PRICES', default: 'price/data/prices.db', ruling: 'operational' },
   { env: 'SHIN_GAPS', default: 'data/gaps.db', ruling: 'operational' },
   { env: 'SHIN_OVERPASS', default: 'https://overpass-api.de/api/interpreter', ruling: 'operational' },
-  { env: 'SHIN_MODEL_MIN_INTERVAL_MS', default: '0 (pacing off)', ruling: 'operational' },
-  { env: 'SHIN_GEMINI_GROUNDED_BASE_URL', default: 'falls back to SHIN_GEMINI_BASE_URL', ruling: 'operational' },
-  { env: 'SHIN_GEMINI_BASE_URL', default: "Google's real Interactions API endpoint", ruling: 'operational' },
-  { env: 'GEMINI_API_KEY', default: 'unset -> Gemini path unavailable', ruling: 'operational', secret: true },
-  {
-    env: 'SHIN_GEMINI_GROUNDED_MODEL',
-    default: "'gemini-3.5-flash-lite' (the id 'claude-haiku-4-5' already resolved to)",
-    ruling: 'operational',
-  },
-  { env: 'SHIN_GROUNDED_TIMEOUT_MS', default: '9000', ruling: 'operational' },
-  { env: 'SHIN_GEMINI_TIMEOUT_MS', default: '30000', ruling: 'operational' },
-  { env: 'SHIN_GEMINI_MEDIA_RESOLUTION', default: "unset -> provider's own per-tier default", ruling: 'operational' },
-  { env: 'SHIN_GEMINI_THINKING', default: 'unset -> per-tier default thinking level', ruling: 'operational' },
   { env: 'SHIN_CORRECTIONS', default: 'price/data/corrections.db', ruling: 'operational' },
   { env: 'SHIN_PYTHON', default: "'python' on Windows, 'python3' elsewhere (printout intake's PDF reader)", ruling: 'operational' },
   { env: 'REVENUECAT_SECRET_KEY', default: 'unset -> nobody is Plus', ruling: 'operational', secret: true },
@@ -155,21 +135,6 @@ function raw(env: NodeJS.ProcessEnv, name: string): string | undefined {
 
 /* eslint-disable @typescript-eslint/naming-convention -- named after the env var on purpose: grep for the var, find the getter, no second name to keep in sync. */
 
-export function SHIN_MODEL_PROVIDER(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_MODEL_PROVIDER');
-}
-export function SHIN_GEMINI_MODEL(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_MODEL');
-}
-export function SHIN_GEMINI_MODEL_3(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_MODEL_3');
-}
-export function SHIN_BARCODE_OWN_PRICES(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_BARCODE_OWN_PRICES');
-}
-export function SHIN_REPEAT_CACHE(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_REPEAT_CACHE');
-}
 export function SHIN_PHOTO_DAILY_CAP_CAD(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_PHOTO_DAILY_CAP_CAD');
 }
@@ -206,8 +171,11 @@ export function SHIN_RATE_IP_PER_10MIN(env: NodeJS.ProcessEnv = process.env): st
 export function SHIN_RATE_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_RATE_IP_PER_DAY');
 }
-export function SHIN_GEMINI_TIER(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_TIER');
+export function SHIN_BARCODE_OWN_PRICES(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_BARCODE_OWN_PRICES');
+}
+export function SHIN_REPEAT_CACHE(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_REPEAT_CACHE');
 }
 export function SHIN_CATALOGUE_FIRST(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CATALOGUE_FIRST');
@@ -254,33 +222,6 @@ export function SHIN_GAPS(env: NodeJS.ProcessEnv = process.env): string | undefi
 }
 export function SHIN_OVERPASS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_OVERPASS');
-}
-export function SHIN_MODEL_MIN_INTERVAL_MS(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_MODEL_MIN_INTERVAL_MS');
-}
-export function SHIN_GEMINI_GROUNDED_BASE_URL(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_GROUNDED_BASE_URL');
-}
-export function SHIN_GEMINI_BASE_URL(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_BASE_URL');
-}
-export function GEMINI_API_KEY(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'GEMINI_API_KEY');
-}
-export function SHIN_GEMINI_GROUNDED_MODEL(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_GROUNDED_MODEL');
-}
-export function SHIN_GROUNDED_TIMEOUT_MS(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GROUNDED_TIMEOUT_MS');
-}
-export function SHIN_GEMINI_TIMEOUT_MS(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_TIMEOUT_MS');
-}
-export function SHIN_GEMINI_MEDIA_RESOLUTION(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_MEDIA_RESOLUTION');
-}
-export function SHIN_GEMINI_THINKING(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_GEMINI_THINKING');
 }
 export function SHIN_CORRECTIONS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CORRECTIONS');

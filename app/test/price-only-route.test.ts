@@ -29,7 +29,6 @@ import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
 const dir = mkdtempSync(join(tmpdir(), 'shin-price-only-'));
-process.env.SHIN_CATALOGUE_FIRST = '0'; // the Gemini path these tests pin; catalogue first is on by default since 2026-09-28
 process.env.SHIN_SCANS = join(dir, 'scans.db');
 process.env.SHIN_REPEAT_CACHE = join(dir, 'repeat-cache.db');
 process.env.SHIN_GAPS = join(dir, 'gaps.db');
@@ -39,10 +38,7 @@ process.env.SHIN_CATALOGUE = join(dir, 'no-catalogue.db');
 process.env.PORT = '0';
 delete process.env.SHIN_INVITE_CODE;
 
-process.env.GEMINI_API_KEY = 'test-key-never-sent';
-const { server, setCatalogueForTests, setGeminiTransportForTests } = await import('../server.ts');
-const { fakeTransport } = await import('./gemini-double.ts');
-const { geminiCallsForScan } = await import('../src/scans.ts');
+const { server, setCatalogueForTests } = await import('../server.ts');
 const { getScan } = await import('../src/scans.ts');
 
 let port = 0;
@@ -64,12 +60,10 @@ before(async () => {
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
   port = (server.address() as AddressInfo).port;
   setCatalogueForTests({ byGtin: (code: string) => (code === ROW.code ? ROW : null) });
-  setGeminiTransportForTests(fakeTransport().transport);
 });
 
 after(async () => {
   setCatalogueForTests(null);
-  setGeminiTransportForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     rmSync(dir, { recursive: true, force: true });
@@ -232,45 +226,17 @@ test('a correction that DOES name a product is unaffected by any of this', async
  * fails on a Tuesday for a reason that has nothing to do with this code.
  */
 
-test('a price body naming a scan attaches to that scan: its Gemini call is linked to the row, and no Pexi verdict is written onto it', async () => {
-  /* A BARCODE scan since 2026-09-23: a typed name never reaches Gemini on this
-     route any more (Jamin: typing searches Pexi's own data only; that side is
-     in typed-own-prices.test.ts), so the paid price call that gets linked to a
-     row is the one for a product a barcode scan identified. */
-  const res = await fetch(`${base()}/api/identify?gtin=${ROW.code}&deviceId=d-verdict`);
-  const scanId = ((await res.json()) as { scanId?: number }).scanId as number;
-  assert.equal(typeof scanId, 'number', 'identify wrote no scan row');
-  const before = geminiCallsForScan(scanId).length;
-  // A fresh double clears the answer the scan held, so the price call has to make its own.
-  const t = fakeTransport();
-  setGeminiTransportForTests(t.transport);
-  const { body } = await post('/api/price', { scanId, deviceId: 'd-verdict', text: ROW.name, askingCents: 499 });
-  assert.equal(body.kind, 'gemini');
-  assert.equal(t.calls.length, 1, 'a price call is one Gemini call');
-  assert.equal(geminiCallsForScan(scanId).length, before + 1, 'the price call is linked to the scan it names');
-  const row = getScan(scanId)!;
-  assert.equal(row.verdict_tier, null, 'Pexi wrote a verdict of its own onto the row');
-  assert.equal(row.verdict_confidence, null);
-  assert.equal(row.verdict_sellers, null);
-});
-
 test('a price body with no scan prices the thing and writes nothing to any scan row', async () => {
   const bystander = await unidentifiedScan('d-noscan');
-  setGeminiTransportForTests(fakeTransport().transport);
   const { status, body } = await post('/api/price', { text: 'Kraft Dinner Original 225 g', askingCents: 499 });
   assert.equal(status, 200);
   assert.equal(body.kind, 'gemini');
   const row = getScan(bystander)!;
   assert.equal(row.verdict_tier, null);
-  // Zero since 2026-09-23: the bystander is a typed search, which makes no Gemini call of its own.
-  assert.equal(geminiCallsForScan(bystander).length, 0, 'a call for another question was linked to a bystander scan');
 });
 
-test('a price body that names nothing is a marked answer, not a Gemini call', async () => {
-  const t = fakeTransport();
-  setGeminiTransportForTests(t.transport);
+test('a price body that names nothing is a marked answer, not a lookup', async () => {
   const { status, body } = await post('/api/price', { askingCents: 499 });
   assert.equal(status, 200);
   assert.equal(body.reason, 'nothing_to_price');
-  assert.equal(t.calls.length, 0, 'an empty question spent a Gemini call');
 });
