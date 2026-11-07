@@ -22,8 +22,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 
 ## A. Blocks submitting to Apple
 
-0. **[Jamin] DONE IN CODE, NOT LIVE: the packaged phone app had never completed one server
-   call.** Confirmed 11-07 from the server's request log (Mac) and from the PC with the phone's
+0. **[Jamin] DONE AND LIVE 2026-11-07 03:59Z: the packaged phone app had never completed one
+   server call.** Checked from the PC against live d556366: the probe gives 28 of 28 as
+   `capacitor://localhost`, 0 of 28 as a foreign site. Still to see: a real scan on build 4.
+   History: Confirmed 11-07 from the server's request log (Mac) and from the PC with the phone's
    own preflight: since the wrapper first appeared on 2026-10-28 it made 78,169 requests, 78,168
    of them preflights and 1 GET, zero POSTs. Three refusals, each enough on its own: no preflight
    was answered, the scan routes' origin rule refused `capacitor://localhost`, and no response
@@ -40,15 +42,23 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    down for everyone.
 
 ### Server (Mac)
-1. **[Jamin] Live server runs old code (741c3c8, started 11-05 21:40 EST)**, so the six security
-   holes from the 11-05 audit and item 0 are all live. Checked (old security header) and reported.
-   Fix: set `REVENUECAT_SECRET_KEY`, pull to 9a1a9c1 or later, restart, run the probe live.
+1. **[Jamin] Deployed 2026-11-07 03:59Z (d556366): the six security fixes are live.** Checked from
+   the PC: the long security header is on live responses, and `x-shin-plus: 1` is not believed
+   (`/api/quota` says `plus:false` with and without it). **Left: `REVENUECAT_SECRET_KEY`** is not
+   set, so nobody can be Plus, payers included, until it is (needed before Aurik's 7).
+   Why it took so long: the deploy gate refused five pushes in a row (3d83de2 through 9a1a9c1),
+   live froze on 741c3c8 from Nov 6 02:40Z to Nov 7 03:58Z while the deploy page said "App: ready
+   to test", and the reason it gave was "no test names found". Cause and fix in d556366 (the app
+   suite's real-data guard was tripped by a sibling suite running at the same time).
+1a. **[Jamin] Six of nine backup tests fail** (`mac/deploy/test/backup.test.mjs`), on d556366 and
+   its parent alike. Reported by the Mac 11-07, not looked at. Read before item 3.
 2. **[Jamin] Weekly limits not set** (`SHIN_FREE_SCANS_PER_WEEK=10`, `SHIN_PLUS_SCANS_PER_WEEK=100`).
    Reported. Set only after Aurik's sandbox purchase (7) works (RULINGS).
 3. **[Jamin] Backups cover 4 of 8 databases.** Reported 11-07 (corrects the QUEUE 7.12 note that
    nothing was backed up): 14 nightly copies, latest Nov 6, of scans, prices, corrections and gaps
    only. The catalogue (4.1 GB), people, and user-catalogue (1,967 shopper prices, 653 reviews,
-   behind an unmerged 1 MB WAL) are in no backup. No restore has ever been tested.
+   behind an unmerged 1 MB WAL) are in no backup. No restore has ever been tested. The Mac session
+   will do it (about 20 minutes) on Jamin's own go in that session, not a peer's.
 3b. **[Jamin] All 8 databases pass quick_check and foreign_key_check; no database errors in 7 days
    of logs.** Reported 11-07. One configured database (repeat cache) was never created.
 
@@ -58,13 +68,16 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    on Aurik's phone. He reported on build 2; build 3 (18cb7b1) carries the D-249 fix and has not
    been reported on. May be item 0. Check on build 4.
 5. **[Jamin] Build 4 does not exist.** Checked (App Store Connect has builds 2 and 3) and reported
-   (no archive on the Mac). Archive and upload from 9a1a9c1 or later.
+   (no archive on the Mac). Archive and upload from d556366 or later. **Needs Jamin in person:**
+   the upload signs in with his Apple ID, which no Claude session enters (the Mac's rule).
 6. **[Aurik] First install must be checked for a blank app** (the new in-app security policy tag,
    only run in desktop browsers). Aurik's report.
 7. **[Aurik] Paywall never run against real RevenueCat.** Code built, tests pass (checked). One
    sandbox purchase and one restore on build 4.
 8. **[Aurik] Today's 13 fixes never seen on a phone:** the first screen (18+ and Claude consent),
-   "Pexi's estimate", the You screen switch, and a real scan, search and paywall.
+   "Pexi's estimate", the You screen switch, and a real scan, search and paywall. Also the three
+   vibrations (lib/haptics.js: barcode captured, a confident verdict, saved), never felt on a
+   phone; the verdict one cannot have fired, since no verdict ever reached a phone (item 0).
 9. **[Aurik] Torch may never light on phones (D-237, major, open).** From notes. Needs a native
    camera path.
 10. **[Jamin] "Cheaper option" can offer a different kind of product (D-036, open, "gates showing
