@@ -56,7 +56,9 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    QUEUE 7.7 (the paid Gemini key) is dead. Left, **[Jamin]**: (a) check whether any live data came
    from Gemini (the 2026-10-02 offline ranges for empty categories, cached Gemini answers, Gemini
    reviews) and decide whether it goes; (b) remove the Gemini code, so no setting can turn it back
-   on; (c) say what reviews show now that Gemini reviews are gone.
+   on; (c) say what reviews show now that Gemini reviews are gone. **(c) ruled 2026-11-07: 1.0
+   launches without reviews; (a) the stored Gemini offers and reviews are backed up then deleted**
+   (RULINGS; Mac job pexi-gemini-cleanup, mail 20261107173216-pc-2bf867).
    For (a), from the code (not the data): `user_offer` (1,967 rows) and `user_review` (653) default
    to `source='gemini_scan'`, `trusted=0`, and the only writer found is the Gemini scan path
    (`app/server.ts` about line 1348), which says they are never read to answer a scan. So item 3's
@@ -123,7 +125,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 
 ### Store pages and legal
 13. **[Jamin] Hosted privacy and terms are old versions; French pages 404.** Checked. The app
-    links to all four. Publish `docs/store/` to the pages repo.
+    links to all four. Publish `docs/store/` to the pages repo. **Published 2026-11-07 on Jamin's
+    yes** (xu826Jamin/pexi 40ffd78: index, privacy, terms, privacy-fr, terms-fr from docs/store).
+    The lawyer's read (24) still comes before public release. Open: terms say 18+ while the store
+    rating is now all ages (item 18); Jamin to say whether the terms' 18+ stays.
 14. **[Jamin] Three Quebec answers** (`docs/store/quebec-transfer-note.md`): where the Mac is,
     whether the Anthropic, Cloudflare and RevenueCat contracts suffice, how long Mac backups and
     logs keep data. Must go in before 13. **First answered 2026-11-07:** the Mac is in Ontario
@@ -138,7 +143,9 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 16. **[Jamin]** Description and review notes say **"unlimited scans"**; subscriptions say 100 a
     week. Fix both.
 17. **[Jamin]** Availability is **148 countries**; ruling is Canada only.
-18. **[Jamin]** Age rating **12+**; needs 18+.
+18. **[Jamin]** Age rating **12+**. **Ruled 2026-11-07: all ages** ("don't say 18+, it should be
+    good for all ages", RULINGS). Items 16-19 and 23 handed to a browser worker the same day;
+    result to be recorded here.
 19. **[Jamin]** **Content Rights** not answered.
 20. **[Jamin]** **No build attached** to 1.0.
 21. **[Aurik] screenshot, [Jamin] attach.** Both subscriptions have **no review screenshot**;

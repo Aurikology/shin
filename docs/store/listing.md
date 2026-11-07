@@ -44,7 +44,6 @@ There is no account and no sign-in. Pexi does not upload photos or camera images
 GOOD TO KNOW
 - Pexi needs an internet connection to answer.
 - Prices and estimates are information only. Check the price at the till.
-- Pexi is for people aged 18 and over.
 - Pexi is free to use. Pexi Plus, an optional subscription for 100 barcode scans a week instead of the free 10, costs CA$3.99 a month or CA$29.99 a year and renews automatically until you cancel it in your Apple ID settings.
 ```
 
@@ -93,7 +92,7 @@ Apple's questions change; these are the answers and the reasons. The 18+ require
 | Messaging and Chat | No | No such feature in `app/public/js/screens`. |
 | Advertising | No | No ad SDK or ad code. |
 | Profanity or Crude Humor | None | A grep of `voice.js` and `ui-strings.js` for common profane words found none. |
-| Alcohol, Tobacco, or Drug Use or References | Infrequent or Mild | The catalogue holds BC liquor store barcodes, names and prices (7,555 products, `app/src/attribution.ts:109-114`), so an alcoholic product can be named in an answer. Nothing promotes or depicts use. "None" is defensible if you think a price list is not a reference (OPEN QUESTIONS 8). |
+| Alcohol, Tobacco, or Drug Use or References | None (Jamin 2026-11-07: "it should be good for all ages") | The catalogue holds BC liquor store barcodes, names and prices (7,555 products, `app/src/attribution.ts:109-114`), so an alcoholic product can be named in an answer. Nothing promotes or depicts use. "None" is defensible if you think a price list is not a reference (OPEN QUESTIONS 8). |
 | Medical or Treatment Information | None | No health content. |
 | Mature or Suggestive Themes, Horror, Sexual Content or Nudity, Violence, Realistic or Cartoon, Guns or Weapons | None | No such content in the app. Pexi is a mascot-led price checker. |
 | Simulated Gambling, Contests, Loot Boxes | None | Draws, sweepstakes and cash bounties were ruled out (`RULINGS.md`, "Reward mechanics: five in, four killed"). |

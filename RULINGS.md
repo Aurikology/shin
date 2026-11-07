@@ -70,6 +70,25 @@ Replaces "Gemini switch and call architecture", "Default Gemini model is gemini-
 · log: docs/decisions.md#Pexi uses Gemini for nothing, and photo scanning does not ship
 Retired wording: `Claude for product identification`, `two Gemini calls per scan`, `gemini-2.5-flash as the flat default`, `Gemini 2.5 by default`, `SHIN_GEMINI_MODEL=gemini-2.5-flash`, `default decided only by an offline test`
 Governs: identify/src/providers/gemini-*.ts (to remove), SHIN_MODEL_PROVIDER, SHIN_GEMINI_MODEL, SHIN_GEMINI_MODEL_3, SHIN_GEMINI_TIER (stays unset), app/public/js/flags.js (photoId false), app/server.ts (/api/identify/photo)
+### Pexi 1.0 launches without reviews, and Gemini's stored offers and reviews are deleted
+Reviews (other sites' star ratings and summaries under the price) came only from Gemini, so 1.0
+ships with no reviews section in any answer: the own-data answer already sends an empty list and
+the screen shows nothing. Adding reviews later needs a source Pexi is licensed to show. The offers
+and reviews Gemini returned and the server kept (`user_offer`, `user_review`, source
+`gemini_scan`) are backed up and then deleted. · 2026-11-07 · asked "launch without them? I
+recommend yes" and "back them up, then delete them? I recommend yes": *"1. yes 2. yes"*
+· log: docs/launch-gaps-2026-11-06.md item 1b
+Retired wording: none
+Governs: app/public/js/grounded.js (reviews list), catalogue/src/user-catalogue.ts (user_offer, user_review)
+### The App Store age rating is for all ages
+Pexi's content is rated for all ages on the App Store (the lowest tier, 4+): every content
+question is answered None, alcohol included, since a price list naming a drink is not a reference
+to drinking, and no override raises it. The store description does not say "18 and over". The
+Terms of Use's 18+ clause ("Age gate is a Terms-of-Service checkbox") is a separate question,
+not changed by this entry. · 2026-11-07 · asked whether to set the age rating to 18+:
+*"don't say 18+, it should be good for all ages"* · log: docs/launch-gaps-2026-11-06.md item 18
+Retired wording: none
+Governs: App Store Connect age rating, docs/store/listing.md (description, age rating questionnaire)
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken
 only when photo identification and photo consent are both on, which is never under tester-launch
