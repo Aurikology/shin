@@ -126,11 +126,10 @@ No one should quote 32/52 as current.
 
 ## Open blockers
 
-**App Store submission of 1.0 (Jamin 2026-11-05: submit, manual release, EU left out).** His 13
-changes are in code (2026-11-06, desktop browsers only). Left, all his, in order: the RevenueCat
-key on the Mac, pull and restart, `embed-all.ts` to drop Icecat vectors, publish `docs/store/`, the
-Quebec note, then build 4, screenshots, sandbox purchase, limits, submit (comms/messages, 2026-11-06).
-Older blockers: `docs/archive/now-history-2026-11-05.md`.
+**App Store submission of 1.0 (Jamin 2026-11-05: submit, manual release, EU left out).** All that
+is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one list:
+`docs/launch-gaps-2026-11-06.md`. Top item: the packaged app never completed a server call (fixed in
+9a1a9c1, not live yet). Older blockers: `docs/archive/now-history-2026-11-05.md`.
 
 ## Waiting on Jamin or Aurik
 - **Aurik: does build 3 still crash?** (D-250, D-249.) TestFlight build 3 went up 2026-11-04
