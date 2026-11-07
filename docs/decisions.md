@@ -2965,3 +2965,20 @@ Jamin's list of 2026-11-05 (comms/messages, 13 changes before Apple sees 1.0), b
 - **Old abandoned text stays until it ages out, unless Jamin says otherwise.** Deleting it is a change to real data that the list did not ask for.
 
 **Reverses if:** the legal review wants consent recorded server-side, or the header is found being forged at a cost that matters; or testers on one network hit the address limits (they are settings).
+
+## Aurik owns the app the shopper sees, Jamin the backend, and Claude assigns each issue
+**Date:** 2026-11-06 · **Status:** active
+
+Jamin: *"aurik is responsible for the paywall stuff, and things like interface bugs, frontend issues etc. I'm going to be reposnsible for the backend stuff. Split up the fixes i do that way. Basically, all issues that come up, should be split between either me or aurik which you decide."* RULINGS "Who owns what" holds the line. Choices Claude made in drawing it:
+
+- **The line is the phone and the server.** "Backend" is read as everything that is not the app on the phone: server, data, the Mac, accounts, the store listing, the legal pages, the build upload and the submission. Those all sit with the person who holds the Mac and the Apple account.
+- **Native code is Aurik's.** The torch, the camera plugin, the in-app security policy tag and crashes on a phone are frontend: they are fixed in `native/` and `app/public/`, and seen only on a phone.
+- **Building and uploading is Jamin's; checking the build by eye is Aurik's.** The archive runs on Jamin's Mac under his Apple account; whether it looks and behaves right is an interface question.
+- **An issue across the line is split, each half owned.** For example a wrong answer shown on a screen: the answer is the server's, the way it is shown is the app's.
+
+Replaces this RULINGS entry, kept here verbatim:
+
+> ### Task-list split: Aurik owns the heart-marked items, the rest are the founder/assistant's
+> He shared the Shin task list and marked which items are Aurik's: the ones with a heart under them are Aurik's to work, everything else on that list is worked by the founder and the assistant. Narrower than this: the same day, for the catalogue-expansion plan specifically, he moved Aurik's pieces of that one plan to Claude too (see the entry below); that reassignment is scoped to the catalogue-expansion plan, not a standing reversal of who owns the rest of the heart-marked list. · 2026-09-26 · *"these are the things that need to be worked on, of which, aurik will work on the things that have a heart under them"*
+
+**Reverses if:** Jamin or Aurik moves an area across the line.
