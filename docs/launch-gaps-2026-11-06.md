@@ -39,7 +39,8 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    a real scan on build 4 (Aurik's 8).
 0a. **[Jamin] The production server is a laptop on battery with its screen locked.** The Mac's
    heartbeat 11-07 03:30Z: unplugged, battery 75%, screen locked. When the battery dies the app is
-   down for everyone.
+   down for everyone. **Jamin 2026-11-07 ~17:25Z: plugged in ("done").** Not checked yet; the Mac
+   is asked to report the power line (mail 20261107172607-pc-e62f4d).
 
 ### Server (Mac)
 1. **[Jamin] Deployed 2026-11-07 03:59Z (d556366): the six security fixes are live.** Checked from
@@ -56,6 +57,11 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    from Gemini (the 2026-10-02 offline ranges for empty categories, cached Gemini answers, Gemini
    reviews) and decide whether it goes; (b) remove the Gemini code, so no setting can turn it back
    on; (c) say what reviews show now that Gemini reviews are gone.
+   For (a), from the code (not the data): `user_offer` (1,967 rows) and `user_review` (653) default
+   to `source='gemini_scan'`, `trusted=0`, and the only writer found is the Gemini scan path
+   (`app/server.ts` about line 1348), which says they are never read to answer a scan. So item 3's
+   "1,967 shopper prices" is wrong: they are most likely prices Gemini found, not prices shoppers
+   typed. A count by `source` on the Mac would settle it.
    Why it took so long: the deploy gate refused five pushes in a row (3d83de2 through 9a1a9c1),
    live froze on 741c3c8 from Nov 6 02:40Z to Nov 7 03:58Z while the deploy page said "App: ready
    to test", and the reason it gave was "no test names found". Cause and fix in d556366 (the app
@@ -93,6 +99,9 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 5. **[Jamin] Build 4 does not exist.** Checked (App Store Connect has builds 2 and 3) and reported
    (no archive on the Mac). Archive and upload from d556366 or later. **Needs Jamin in person:**
    the upload signs in with his Apple ID, which no Claude session enters (the Mac's rule).
+   **Jamin 2026-11-07 ~17:25Z: signed in ("done").** The Mac is asked to build and upload build 4
+   from main, check no secret key is in the bundle, and not attach or submit it (mail
+   20261107172607-pc-e62f4d, job pexi-build4).
 6. **[Aurik] First install must be checked for a blank app** (the new in-app security policy tag,
    only run in desktop browsers). Aurik's report.
 7. **[Aurik] Paywall never run against real RevenueCat.** Code built, tests pass (checked). One
@@ -117,7 +126,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
     links to all four. Publish `docs/store/` to the pages repo.
 14. **[Jamin] Three Quebec answers** (`docs/store/quebec-transfer-note.md`): where the Mac is,
     whether the Anthropic, Cloudflare and RevenueCat contracts suffice, how long Mac backups and
-    logs keep data. Must go in before 13.
+    logs keep data. Must go in before 13. **First answered 2026-11-07:** the Mac is in Ontario
+    (Vaughan or Hamilton), so "outside Quebec" is true and the data stays in Canada. Third partly
+    answered from the backup job (14 nights, catalogue 3). Left: the contracts (a lawyer's
+    question, item 24) and how long the server's log keeps data.
 15. **[Jamin] Icecat vectors still on disk** in the real catalogue (search already ignores them).
     Run `node src/embed-all.ts` in `catalogue/` on the Mac, which holds the real catalogue
     (reported). Aurik's report.

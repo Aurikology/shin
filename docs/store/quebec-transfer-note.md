@@ -9,7 +9,7 @@ review should confirm it covers what the law requires.**
 
 | Who receives it | What they receive | Is it personal information? | Where (confirm each) | Why it is needed | Safeguard |
 |---|---|---|---|---|---|
-| Pexi's own server (Jamin's Mac) | Device id, what is scanned or typed, usage events, IP address, rough 1 km area if on | Yes | Outside Quebec, Jamin to confirm | Runs the app | HTTPS through Cloudflare; retention in `app/src/retention.ts` |
+| Pexi's own server (Jamin's Mac) | Device id, what is scanned or typed, usage events, IP address, rough 1 km area if on | Yes | Ontario, Canada (Vaughan or Hamilton; Jamin, 2026-11-07) | Runs the app | HTTPS through Cloudflare; retention in `app/src/retention.ts` |
 | Cloudflare | Every request in transit, IP address | Yes | Global network | Carries traffic to the server | Encrypted in transit; Cloudflare's own terms |
 | Anthropic (Claude) | Product name, brand, size, category, country. Typed words when a typed name is not recognised. No device id, image or location | Normally no. Typed words could contain something personal if a person types it | United States | A typical price when Pexi has none | Only with the shopper's yes on the first screen; changeable on the You screen; "no" still answers with a broad guess |
 | RevenueCat | Device id, purchase status | Yes, if subscribed | United States | Subscriptions | Only for Pexi Plus; called by the app |
@@ -25,8 +25,12 @@ could reach Anthropic, and only if a shopper types it and said yes.
 
 **Open for Jamin, because this note cannot answer them:**
 
-1. Where the Mac physically is, and that the policy's "outside Quebec" is true of it.
+1. ANSWERED 2026-11-07, Jamin: *"the mac is in vaughan ontario or hamilton ontario"*. Both are in
+   Ontario, so the policy's "outside Quebec" is true of the server, and the data stays in Canada.
 2. Whether the contracts with Anthropic, Cloudflare and RevenueCat give the protection the law expects
    (the note assumes their standard terms; nobody here has read them for this purpose).
 3. How long the Mac's nightly backups and the server's stdout log keep data. The policy says backups
    "can hold a copy for longer until they are replaced"; a stated period would be better.
+   PARTLY ANSWERED 2026-11-07 (Mac job pexi-backups, reported, not checked from the PC): nightly
+   backups keep 14 nights, and the 4 GB product catalogue (no personal information) keeps 3. The
+   stdout log's period is still unknown.
