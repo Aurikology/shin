@@ -44,8 +44,15 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 ### Server (Mac)
 1. **[Jamin] Deployed 2026-11-07 03:59Z (d556366): the six security fixes are live.** Checked from
    the PC: the long security header is on live responses, and `x-shin-plus: 1` is not believed
-   (`/api/quota` says `plus:false` with and without it). **Left: `REVENUECAT_SECRET_KEY`** is not
-   set, so nobody can be Plus, payers included, until it is (needed before Aurik's 7).
+   (`/api/quota` says `plus:false` with and without it). **`REVENUECAT_SECRET_KEY` set by Jamin
+   2026-11-07, server restarted 04:20Z:** the missing-key warning is gone from the new startup log
+   and a call to RevenueCat with the key returned 201 (authenticated; it created one empty
+   subscriber record for a tester device id). Reported by the Mac; PC check after the restart:
+   probe 28 of 28, a made-up device answers `plus:false`. Aurik's 7 can run.
+1b. **[Jamin] Photo identification is refused on the live server:** `SHIN_GEMINI_TIER` is unset, so
+   the server will not send shopper photographs (free-tier Gemini trains on them). Reported by the
+   Mac 11-07; QUEUE 7.7 has owed the paid key since 2026-09-21. Either set up the paid key, or
+   1.0 ships without photo scanning and Aurik hides the photo button.
    Why it took so long: the deploy gate refused five pushes in a row (3d83de2 through 9a1a9c1),
    live froze on 741c3c8 from Nov 6 02:40Z to Nov 7 03:58Z while the deploy page said "App: ready
    to test", and the reason it gave was "no test names found". Cause and fix in d556366 (the app
