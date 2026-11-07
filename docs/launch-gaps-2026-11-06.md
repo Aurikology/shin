@@ -64,7 +64,20 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    its parent alike. Reported by the Mac 11-07, not looked at. Read before item 3.
 2. **[Jamin] Weekly limits not set** (`SHIN_FREE_SCANS_PER_WEEK=10`, `SHIN_PLUS_SCANS_PER_WEEK=100`).
    Reported. Set only after Aurik's sandbox purchase (7) works (RULINGS).
-3. **[Jamin] Backups cover 4 of 8 databases.** Reported 11-07 (corrects the QUEUE 7.12 note that
+3. **[Jamin] DONE 2026-11-07 04:44Z, reported by the Mac (job pexi-backups): all 7 real databases
+   are in the nightly backup and a restore is proven.** people, user-catalogue and catalogue were
+   added (sqlite3 .backup, so the WAL is included); the small ones keep 14 nights, the 4 GB catalogue
+   keeps 3, with a free-space check and a skip when unchanged (it had not changed since Oct 9). Run
+   by hand and through launchd, exit 0. Restore: every copy quick_check ok, foreign keys 0, row
+   counts equal live (product 5,182,591, user_offer 1,967, user_review 653, device_person 53). Disk
+   38 GiB free, worst case about 29 GiB at 3 catalogue copies. Committed in the Mac's ~/bin
+   (2101487), not in this repo. Not checked from the PC (no access to the Mac).
+   Reclaimable on his word only: a stale 4.14 GB `catalogue.db.before-category-canon` from Oct 9.
+3c. **[Jamin] `mac/07-backup.sh` in this repo cannot run on the Mac** (the 6 failing tests of
+   1a): macOS `/bin/sh` is bash 3.2, which cannot parse its heredoc inside `$( )` at line 126.
+   Nothing scheduled uses it (the nightly job is `~/bin/shin-backup.sh`), so fix it or delete it as
+   a dead duplicate. Not a launch blocker.
+   Old text of item 3: **Backups cover 4 of 8 databases.** Reported 11-07 (corrects the QUEUE 7.12 note that
    nothing was backed up): 14 nightly copies, latest Nov 6, of scans, prices, corrections and gaps
    only. The catalogue (4.1 GB), people, and user-catalogue (1,967 shopper prices, 653 reviews,
    behind an unmerged 1 MB WAL) are in no backup. No restore has ever been tested. The Mac session
