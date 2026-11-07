@@ -3062,6 +3062,95 @@ process.on('unhandledRejection', (reason) => {
 });
 
 /**
+ * The Origin a PACKAGED build of this app sends, which is never this server's
+ * own host and never can be.
+ *
+ * MEASURED, 2026-11-07, from this server's own access log. A Capacitor build
+ * loads the page from the device over a custom scheme, so the browser inside
+ * the wrapper sends `Origin: capacitor://localhost` and treats every call to
+ * the real server as cross-origin. `new URL('capacitor://localhost').host` is
+ * `'localhost'`, so `originRefused` below compared `localhost` against
+ * `relay.anjiawenda.com` and refused it -- correctly, by its own rule, and
+ * fatally for the only client the testers actually have.
+ *
+ * What that cost: between 2026-10-28T04:28Z, when the packaged build first
+ * appears in the log, and 2026-11-07T03:39Z, it made 78168 OPTIONS requests
+ * and exactly one GET. Not one completed call. Every POST route answered the
+ * preflight 405 at its own `req.method !== 'POST'` check, the scan routes
+ * answered 403 here, and `/api/catalogue`, `/api/categories`,
+ * `/api/scenarios` and `/api/health` answered 200 only because they never
+ * look at the method at all -- an accident, not CORS support. Nothing in this
+ * repo sent an `Access-Control-Allow-*` header of any kind.
+ *
+ * THE SET HAS THREE ENTRIES BECAUSE THE BUILD IN THE FIELD AND THE BUILD THE
+ * CONFIG WOULD PRODUCE DISAGREE. `native/capacitor.config.json` today sets
+ * `hostname: localhost` with `androidScheme: https` and `iosScheme: https`,
+ * so a rebuild from this tree serves the bundle from `https://localhost` and
+ * sends that as its Origin. The app actually on the testers' phones predates
+ * that and sends `capacitor://localhost` -- which is why that is the only one
+ * of the three the log has ever seen (78332 times, against 6065 for the web
+ * origin and a single refused `https://evil.example`). Allowing only the
+ * measured value would fix the phones now and break them again on the next
+ * native build, which is the same outage twice. `ionic://localhost` is the
+ * same wrapper's older scheme and costs a line.
+ *
+ * `https://localhost` is a claimable origin in a way the custom schemes are
+ * not, so it is worth saying why it is not a widening. To send it, a page must
+ * already be served from localhost on the tester's own device, which means
+ * code already running there -- and such code can call this server with NO
+ * Origin header at all, which `originRefused` allows by design and documents
+ * below. So the set grants a local attacker nothing it did not already have,
+ * while a remote page still cannot claim any of the three.
+ *
+ * This is NOT a hole in item 18's ruling. That ruling refuses a present and
+ * mismatched Origin so a page on someone else's site cannot spend a tester's
+ * scans. These two values are not someone else's site; they are the fixed,
+ * unregisterable scheme-and-host a local wrapper serves its own bundle from,
+ * and no remote page can claim either as its Origin. A missing Origin was
+ * already allowed for exactly this client (the comment below says so, citing
+ * the wrapper) -- the wrapper simply turned out to send one.
+ */
+const APP_ORIGINS: ReadonlySet<string> = new Set([
+  'capacitor://localhost',
+  'ionic://localhost',
+  'https://localhost',
+]);
+
+/**
+ * Every request header `public/js/api.js` can attach, which is what a
+ * preflight asks permission for. A header missing here fails the preflight
+ * and the real request is never sent, so this list and `headers()` in api.js
+ * have to move together.
+ *
+ * `content-type` is here for the POST bodies; the rest are read from
+ * `headers()` in api.js (invite, shutter, locale, lang, device, device-key,
+ * plus). `x-shin-admin` is deliberately absent: the admin routes are for the
+ * team's own tools, not the app, and a preflight is not how they are reached.
+ */
+const CORS_ALLOW_HEADERS =
+  'content-type, x-shin-invite, x-shin-shutter, x-shin-locale, x-shin-lang, x-shin-device, x-shin-device-key, x-shin-plus';
+
+/**
+ * The value to echo in `Access-Control-Allow-Origin`, or null when this
+ * request gets no CORS headers at all.
+ *
+ * A request with no Origin gets null and that is correct: it is not a
+ * cross-origin request, nothing is checking the header, and answering with
+ * one would be noise. Same-host Origins get echoed so the browser build keeps
+ * working if it is ever served from a different port than it calls.
+ *
+ * NEVER `*`. A wildcard would let any page on the internet read the answers,
+ * and the answers here are a tester's own scans.
+ */
+function corsOriginFor(req: IncomingMessage): string | null {
+  const origin = req.headers.origin;
+  if (typeof origin !== 'string' || !origin) return null;
+  // One source of truth for "is this origin ours": the same predicate the
+  // scan routes gate on, which APP_ORIGINS now passes through.
+  return originRefused(req) ? null : origin;
+}
+
+/**
  * ITEM 18 (docs/scanner-build-order-2026-09-19.md section 18): the routes
  * the same-origin check runs in front of. The paid-call routes plus the demo
  * route (item 19), which is the same shape of request even though it spends
@@ -3087,6 +3176,9 @@ const SCAN_ROUTES: ReadonlySet<string> = new Set([
 function originRefused(req: IncomingMessage): boolean {
   const origin = req.headers.origin;
   if (typeof origin !== 'string' || !origin) return false;
+  // The packaged app's own scheme-and-host, allowed before the host
+  // comparison below, which it can never satisfy. See APP_ORIGINS.
+  if (APP_ORIGINS.has(origin)) return false;
   let originHost: string | null = null;
   try {
     originHost = new URL(origin).host;
@@ -3217,6 +3309,73 @@ export const server = createServer(async (req, res) => {
    */
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY);
+
+  /*
+   * CORS, and why it sits in front of every gate below rather than inside the
+   * routes.
+   *
+   * A preflight carries no invite header, no device header and no body -- the
+   * browser strips all of it. So every gate below is guaranteed to refuse one:
+   * the invite check would 401 it, the scan routes would 403 it, and a
+   * POST-only route answers `405 POST only` to the OPTIONS itself. All three
+   * happened, for ten days, and a refused preflight means the browser never
+   * sends the real request at all. The answer therefore has to be given before
+   * anything that reads a credential, which is here.
+   *
+   * It is set with `setHeader`, like the two frame headers above, so it lands
+   * on EVERY response and not just the preflight. That half matters just as
+   * much: a preflight that passes and a real response with no
+   * `Access-Control-Allow-Origin` still ends as a CORS error in the client,
+   * with the request made and the answer thrown away -- which on the paid scan
+   * routes means money spent for nothing.
+   *
+   * `Vary: Origin` because the value depends on the request's Origin, and
+   * without it any cache in front of this (the tunnel included) could hand one
+   * origin's answer to another.
+   *
+   * No `Access-Control-Allow-Credentials`: nothing in api.js sets
+   * `credentials`, so fetch defaults to same-origin and no cookie is sent
+   * cross-origin. Claiming otherwise would widen what a browser will do with
+   * these answers for no caller that needs it.
+   */
+  const corsOrigin = corsOriginFor(req);
+  if (corsOrigin !== null) {
+    res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    /*
+     * An unknown Origin is told no, in the only way a preflight can be told:
+     * 403 with no allow headers. The browser then cancels the real request.
+     * This is the same answer item 18's ruling gives a mismatched Origin, moved
+     * one step earlier so it is given before a credential is read.
+     */
+    if (corsOrigin === null) {
+      res.writeHead(403, { 'content-length': '0', 'cache-control': 'no-store' });
+      res.end();
+      return;
+    }
+    /*
+     * GET and POST are every method api.js uses. OPTIONS is named because the
+     * spec expects the preflight's own method in the list.
+     *
+     * Max-Age is ten minutes, which is the whole reason the log showed 78168
+     * preflights: with no cache lifetime a browser re-asks before every single
+     * call. Ten rather than the 86400 Chromium caps at, because this list is
+     * the thing most likely to change next (a new header in api.js) and a
+     * stale allow-list is a silent outage of exactly this kind.
+     */
+    res.writeHead(204, {
+      'access-control-allow-methods': 'GET, POST, OPTIONS',
+      'access-control-allow-headers': CORS_ALLOW_HEADERS,
+      'access-control-max-age': '600',
+      'content-length': '0',
+      'cache-control': 'no-store',
+    });
+    res.end();
+    return;
+  }
 
   const json = (status: number, body: unknown) => {
     const payload = JSON.stringify(body);
