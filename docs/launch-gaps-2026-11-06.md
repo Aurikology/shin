@@ -39,8 +39,8 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    a real scan on build 4 (Aurik's 8).
 0a. **[Jamin] The production server is a laptop on battery with its screen locked.** The Mac's
    heartbeat 11-07 03:30Z: unplugged, battery 75%, screen locked. When the battery dies the app is
-   down for everyone. **Jamin 2026-11-07 ~17:25Z: plugged in ("done").** Not checked yet; the Mac
-   is asked to report the power line (mail 20261107172607-pc-e62f4d).
+   down for everyone. **DONE 2026-11-07: plugged in.** Mac 18:37Z: "Now drawing from AC Power",
+   battery 96% charging (reported by the Mac).
 
 ### Server (Mac)
 1. **[Jamin] Deployed 2026-11-07 03:59Z (d556366): the six security fixes are live.** Checked from
@@ -63,7 +63,8 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    to `source='gemini_scan'`, `trusted=0`, and the only writer found is the Gemini scan path
    (`app/server.ts` about line 1348), which says they are never read to answer a scan. So item 3's
    "1,967 shopper prices" is wrong: they are most likely prices Gemini found, not prices shoppers
-   typed. A count by `source` on the Mac would settle it.
+   typed. A count by `source` on the Mac would settle it. **Settled 18:39Z (Mac, live DB):**
+   user_offer 1,967 and user_review 653, every row `gemini_scan`, `trusted=0`; no other source.
    Why it took so long: the deploy gate refused five pushes in a row (3d83de2 through 9a1a9c1),
    live froze on 741c3c8 from Nov 6 02:40Z to Nov 7 03:58Z while the deploy page said "App: ready
    to test", and the reason it gave was "no test names found". Cause and fix in d556366 (the app
