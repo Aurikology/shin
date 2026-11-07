@@ -85,7 +85,9 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 3c. **[Jamin] `mac/07-backup.sh` in this repo cannot run on the Mac** (the 6 failing tests of
    1a): macOS `/bin/sh` is bash 3.2, which cannot parse its heredoc inside `$( )` at line 126.
    Nothing scheduled uses it (the nightly job is `~/bin/shin-backup.sh`), so fix it or delete it as
-   a dead duplicate. Not a launch blocker.
+   a dead duplicate. Not a launch blocker. **Fixed 2026-11-07 (6372edb):** the embedded script is
+   read with a while loop instead. PC suite 9/9 before and after (bash 5 never failed), so the
+   proof is the Mac's run, asked in job pexi-backend-small.
    Old text of item 3: **Backups cover 4 of 8 databases.** Reported 11-07 (corrects the QUEUE 7.12 note that
    nothing was backed up): 14 nightly copies, latest Nov 6, of scans, prices, corrections and gaps
    only. The catalogue (4.1 GB), people, and user-catalogue (1,967 shopper prices, 653 reviews,
@@ -115,10 +117,18 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    phone; the verdict one cannot have fired, since no verdict ever reached a phone (item 0).
 9. **[Aurik] Torch may never light on phones (D-237, major, open).** From notes. Needs a native
    camera path.
-10. **[Jamin] "Cheaper option" can offer a different kind of product (D-036, open, "gates showing
+10. **CLOSED, stale entry (checked 2026-11-07):** DEFECTS shows D-036 "Closed 2026-09-13, with the
+    founder's rule" (leaf category first, parent only if the leaf is empty, never the grandparent);
+    the "open, gates showing" words below are its original state, quoted. Left from it: D-097
+    (English line under a French badge). Old text:
+    **[Jamin] "Cheaper option" can offer a different kind of product (D-036, open, "gates showing
     this feature to anybody").** From notes. The server's pick is the fault. Unknown whether build
     4 shows the feature; if it does and the fix is not in, Aurik hides it.
-11. **[Jamin] Known wrong cached answer for barcode 0068100084245 still in both caches** (QUEUE
+11. **CLOSED (checked 2026-11-07):** live `/api/identify?gtin=0068100084245&preview=1` answers
+    Kraft Smooth Peanut Butter 1kg from the catalogue; the PC's "Kraft Dinner" row was a leaked test
+    fixture deleted in October (now-history 2026-10-13), and the Mac's repeat cache was never
+    created (item 3b). Old text:
+    **[Jamin] Known wrong cached answer for barcode 0068100084245 still in both caches** (QUEUE
     7.19). From notes.
 12. **[Aurik] Screenshots: 0 uploaded on every size.** Checked. iPhone 6.9" and iPad 13" (iPad
     simulator renders the app, reported; iPhone simulator has no Pexi installed), plus one Plus
@@ -136,7 +146,9 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
     (Vaughan or Hamilton), so "outside Quebec" is true and the data stays in Canada. Third partly
     answered from the backup job (14 nights, catalogue 3). Left: the contracts (a lawyer's
     question, item 24) and how long the server's log keeps data.
-15. **[Jamin] Icecat vectors still on disk** in the real catalogue (search already ignores them).
+15. **Asked of the Mac 2026-11-07 (job pexi-backend-small), after build 4:** read embed-all.ts
+    first and run it only if it deletes Icecat vectors and embeds nothing.
+    **[Jamin] Icecat vectors still on disk** in the real catalogue (search already ignores them).
     Run `node src/embed-all.ts` in `catalogue/` on the Mac, which holds the real catalogue
     (reported). Aurik's report.
 
@@ -167,11 +179,20 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 25. **[Jamin]** Lawyer list, not yet reviewed by anyone: Quebec consumer rules for online
     subscriptions, "Pexi" trademark clearance (only domains were checked 10-01), a wrong-price
     disclaimer, Anthropic commercial terms, Jamin's business registration and tax.
-26. **[Jamin]** **Photo scan drops flavour (D-099, open)**, never tested on a real photo. From notes.
-27. **[Jamin]** **Outage plan:** the server is one Mac behind a tunnel. Nothing alerts anyone when
+26. **DROPPED 2026-11-07:** photo scanning does not ship (RULINGS), so D-099 cannot reach a
+    shopper. Old text: **[Jamin]** **Photo scan drops flavour (D-099, open)**, never tested on a
+    real photo. From notes.
+27. **BUILT 2026-11-07 (643803d):** `.github/workflows/server-alarm.yml` on the GitHub copy runs the
+    phone probe against the live server at :07 and :37 every hour, retries once after 90 s, and a
+    failed run emails Jamin (GitHub's failed-run email). Off the Mac on purpose. Seen to pass as
+    the app and to fail as a refused origin (runs 42423608828, 42423616441). Old text:
+    **[Jamin]** **Outage plan:** the server is one Mac behind a tunnel. Nothing alerts anyone when
     it is down, and paying users get nothing while it is. The probe can run on a schedule as one
     alarm.
-28. **[Jamin]** **Support and refunds:** no stated support contact process or refund handling found.
+28. **BUILT 2026-11-07 (e28a947, pages e33102d):** the support page now says how to cancel and
+    restore Pexi Plus and that refunds go through Apple (reportaproblem.apple.com), plus the
+    existing contact email. Old text: **[Jamin]** **Support and refunds:** no stated support
+    contact process or refund handling found.
 
 ---
 
