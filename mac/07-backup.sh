@@ -123,7 +123,15 @@ TAB=$(printf '\t')
 # WAL file after the snapshot is taken). Single-quoted SQL literal,
 # internal single quotes doubled, since VACUUM INTO needs a string
 # literal, not a bareword/identifier.
-BACKUP_ONE_JS=$(cat <<'JS'
+#
+# Read with a while loop, not $(cat <<'JS' ... ): macOS /bin/sh is bash 3.2,
+# which misparses the quotes in this script when the here-document sits inside
+# $( ), and every run died at this line (launch gaps item 3c).
+BACKUP_ONE_JS=''
+while IFS= read -r _js_line; do
+  BACKUP_ONE_JS="$BACKUP_ONE_JS$_js_line
+"
+done <<'JS'
 const { DatabaseSync } = require("node:sqlite");
 const [src, dest] = process.argv.slice(1);
 try {
@@ -147,7 +155,6 @@ try {
   process.exit(1);
 }
 JS
-)
 
 backup_sqlite() {
   # $1 = manifest name  $2 = env var NAME holding the source path  $3 = dest filename
