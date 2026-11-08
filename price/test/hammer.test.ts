@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CsvReader, hammerCode, readProducts, readLatest, observationsFor, ensureRegistered, SELLER } from '../src/hammer.ts';
+import { CsvReader, hammerCode, readProducts, readLatest, observationsFor, ensureRegistered, catalogueRow, SELLER } from '../src/hammer.ts';
 import { openPrices, recordObservation } from '../src/store.ts';
 import { requireSourceUse } from '../src/registry.ts';
 
@@ -105,4 +105,18 @@ test('the hammer source registers once and its rows load into an enforced prices
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('catalogueRow names a barcoded product with its size, claims no category, and skips one with no barcode', () => {
+  const p = readProducts(PRODUCTS);
+  const r = catalogueRow(p.get('Loblaws21363882_EA')!)!;
+  assert.equal(r.code, '0057800107668');
+  assert.equal(r.name, 'Gummy Sour Worms');
+  assert.equal(r.brands, 'Carnaby Sweet');
+  assert.equal(r.size_value, 500);
+  assert.equal(r.size_unit, 'g');
+  assert.deepEqual(r.category_path, []);
+  assert.equal(r.leaf_category, null);
+  assert.equal(r.source, SELLER);
+  assert.equal(catalogueRow(p.get('Voila1')!), null);
 });

@@ -27,11 +27,12 @@
  * Run: SHIN_PRICES=<prices.db> node price/src/hammer.ts <dir holding the two CSVs>
  */
 
-import { createReadStream, readFileSync } from 'node:fs';
+import { createReadStream, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openPrices, recordObservation, type ObservationRow } from './store.ts';
 import { registerSource, requireSourceUse, currentRegistry } from './registry.ts';
 import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
+import { parseQuantity } from '../../catalogue/src/units.ts';
 
 export const SELLER = 'hammer';
 
@@ -211,13 +212,63 @@ export function ensureRegistered(db: ReturnType<typeof openPrices>): void {
   });
 }
 
+/**
+ * One catalogue row (catalogue/src/load.ts PreparedRow) per barcoded Hammer
+ * product, so a priced barcode the catalogue never knew gets a name instead of
+ * manual entry. Measured 2026-11-07 on 200 random Hammer barcodes against the
+ * live server: 99 catalogue hits, 25 named by Open Food Facts, 75 unknown.
+ * load.ts keeps the first writer: a barcode already in the catalogue keeps its
+ * row and these fields only fill its blanks. No category is claimed.
+ */
+export function catalogueRow(p: HammerProduct): Record<string, unknown> | null {
+  if (p.code === null || !p.name.trim()) return null;
+  const q = parseQuantity(p.units);
+  return {
+    code: p.code,
+    name: p.name.trim(),
+    name_en: p.name.trim(),
+    name_fr: null,
+    brands: p.brand.trim() || null,
+    quantity: p.units.trim() || null,
+    size_value: q ? q.value : null,
+    size_unit: q ? q.unit : null,
+    category_path: [],
+    leaf_category: null,
+    allergens: [],
+    image_url: null,
+    sold_in_canada: 1,
+    source: SELLER,
+  };
+}
+
+function writeCatalogueRows(products: Map<string, HammerProduct>, out: string): void {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+  for (const p of products.values()) {
+    const r = catalogueRow(p);
+    if (r === null || seen.has(p.code!)) continue;
+    seen.add(p.code!);
+    lines.push(JSON.stringify(r));
+  }
+  writeFileSync(out, lines.join('\n') + '\n');
+  console.log(`hammer: wrote ${lines.length} catalogue rows to ${out} (load with: SHIN_CATALOGUE=<catalogue.db> node catalogue/src/load.ts --no-placement ${out})`);
+}
+
 async function main(): Promise<void> {
   const dir = process.argv[2];
   if (!dir) {
     console.error('usage: SHIN_PRICES=<prices.db> node price/src/hammer.ts <dir with hammer-4-product.csv and hammer-4-raw.csv>');
+    console.error('       node price/src/hammer.ts <dir> --catalogue-rows <out.jsonl>   (writes catalogue rows, no database touched)');
     process.exit(2);
   }
   const products = readProducts(readFileSync(join(dir, 'hammer-4-product.csv'), 'utf8'));
+  const rowsAt = process.argv.indexOf('--catalogue-rows');
+  if (rowsAt !== -1) {
+    const out = process.argv[rowsAt + 1];
+    if (!out) { console.error('--catalogue-rows needs an output path'); process.exit(2); }
+    writeCatalogueRows(products, out);
+    return;
+  }
   const withCode = new Set([...products.values()].filter((p) => p.code !== null).map((p) => p.id));
   console.log(`hammer: ${products.size} products, ${withCode.size} with a usable barcode`);
   const { latest, rows, minDay, maxDay } = await readLatest(join(dir, 'hammer-4-raw.csv'), withCode);
