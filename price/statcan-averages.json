@@ -1,0 +1,6129 @@
+{
+ "table": "18-10-0245-01",
+ "source": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810024501",
+ "latestMonth": "2026-09",
+ "values": {
+  "Beef stewing cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    2465
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    2764
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    2894
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    2815
+   ],
+   "New Brunswick": [
+    "2026-09",
+    2674
+   ],
+   "Quebec": [
+    "2026-09",
+    2057
+   ],
+   "Ontario": [
+    "2026-09",
+    2736
+   ],
+   "Manitoba": [
+    "2026-09",
+    2583
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    2613
+   ],
+   "Alberta": [
+    "2026-09",
+    2659
+   ],
+   "British Columbia": [
+    "2026-09",
+    2663
+   ]
+  },
+  "Beef striploin cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    3574
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    3550
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    4701
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    3358
+   ],
+   "New Brunswick": [
+    "2026-09",
+    3366
+   ],
+   "Quebec": [
+    "2026-09",
+    2643
+   ],
+   "Ontario": [
+    "2026-09",
+    3956
+   ],
+   "Manitoba": [
+    "2026-09",
+    4066
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    3641
+   ],
+   "Alberta": [
+    "2026-09",
+    4387
+   ],
+   "British Columbia": [
+    "2026-09",
+    4423
+   ]
+  },
+  "Beef top sirloin cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    3210
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    2883
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    2753
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    3031
+   ],
+   "New Brunswick": [
+    "2026-09",
+    3034
+   ],
+   "Quebec": [
+    "2026-09",
+    3160
+   ],
+   "Ontario": [
+    "2026-09",
+    3340
+   ],
+   "Manitoba": [
+    "2026-09",
+    3069
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    3070
+   ],
+   "Alberta": [
+    "2026-09",
+    3159
+   ],
+   "British Columbia": [
+    "2026-09",
+    3340
+   ]
+  },
+  "Beef rib cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    3450
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    5308
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    3460
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    4508
+   ],
+   "New Brunswick": [
+    "2026-09",
+    4652
+   ],
+   "Quebec": [
+    "2026-09",
+    5716
+   ],
+   "Ontario": [
+    "2026-09",
+    3257
+   ],
+   "Manitoba": [
+    "2026-09",
+    3127
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    3148
+   ],
+   "Alberta": [
+    "2026-09",
+    3380
+   ],
+   "British Columbia": [
+    "2026-09",
+    3415
+   ]
+  },
+  "Ground beef, per kilogram": {
+   "Canada": [
+    "2026-09",
+    1692
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1603
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1599
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1623
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1606
+   ],
+   "Quebec": [
+    "2026-09",
+    1643
+   ],
+   "Ontario": [
+    "2026-09",
+    1723
+   ],
+   "Manitoba": [
+    "2026-09",
+    1724
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1710
+   ],
+   "Alberta": [
+    "2026-09",
+    1776
+   ],
+   "British Columbia": [
+    "2026-09",
+    1804
+   ]
+  },
+  "Pork loin cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    871
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    868
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    936
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    923
+   ],
+   "New Brunswick": [
+    "2026-09",
+    899
+   ],
+   "Quebec": [
+    "2026-09",
+    834
+   ],
+   "Ontario": [
+    "2026-09",
+    826
+   ],
+   "Manitoba": [
+    "2026-09",
+    974
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    954
+   ],
+   "Alberta": [
+    "2026-09",
+    1018
+   ],
+   "British Columbia": [
+    "2026-09",
+    995
+   ]
+  },
+  "Pork rib cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    912
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1045
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1074
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1017
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1026
+   ],
+   "Quebec": [
+    "2026-09",
+    786
+   ],
+   "Ontario": [
+    "2026-09",
+    884
+   ],
+   "Manitoba": [
+    "2026-09",
+    987
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    999
+   ],
+   "Alberta": [
+    "2026-09",
+    1030
+   ],
+   "British Columbia": [
+    "2026-09",
+    1006
+   ]
+  },
+  "Pork shoulder cuts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    705
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    827
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    813
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    771
+   ],
+   "New Brunswick": [
+    "2026-09",
+    700
+   ],
+   "Quebec": [
+    "2026-09",
+    596
+   ],
+   "Ontario": [
+    "2026-09",
+    943
+   ],
+   "Manitoba": [
+    "2026-09",
+    657
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    628
+   ],
+   "Alberta": [
+    "2026-09",
+    683
+   ],
+   "British Columbia": [
+    "2026-09",
+    719
+   ]
+  },
+  "Whole chicken, per kilogram": {
+   "Canada": [
+    "2026-09",
+    734
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    742
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    753
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    725
+   ],
+   "New Brunswick": [
+    "2026-09",
+    713
+   ],
+   "Quebec": [
+    "2026-09",
+    639
+   ],
+   "Ontario": [
+    "2026-09",
+    805
+   ],
+   "Manitoba": [
+    "2026-09",
+    868
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    989
+   ],
+   "Alberta": [
+    "2026-09",
+    982
+   ],
+   "British Columbia": [
+    "2026-09",
+    1025
+   ]
+  },
+  "Chicken breasts, per kilogram": {
+   "Canada": [
+    "2026-09",
+    1448
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1631
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1482
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1482
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1467
+   ],
+   "Quebec": [
+    "2026-09",
+    1439
+   ],
+   "Ontario": [
+    "2026-09",
+    1358
+   ],
+   "Manitoba": [
+    "2026-09",
+    1594
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1563
+   ],
+   "Alberta": [
+    "2026-09",
+    1610
+   ],
+   "British Columbia": [
+    "2026-09",
+    1769
+   ]
+  },
+  "Chicken thigh, per kilogram": {
+   "Canada": [
+    "2026-09",
+    1336
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1149
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1200
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1264
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1212
+   ],
+   "Quebec": [
+    "2026-09",
+    1535
+   ],
+   "Ontario": [
+    "2026-09",
+    1315
+   ],
+   "Manitoba": [
+    "2026-09",
+    1269
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1225
+   ],
+   "Alberta": [
+    "2026-09",
+    1317
+   ],
+   "British Columbia": [
+    "2026-09",
+    1375
+   ]
+  },
+  "Chicken drumsticks, per kilogram": {
+   "Canada": [
+    "2026-09",
+    807
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    847
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    774
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    773
+   ],
+   "New Brunswick": [
+    "2026-09",
+    756
+   ],
+   "Quebec": [
+    "2026-09",
+    876
+   ],
+   "Ontario": [
+    "2026-09",
+    792
+   ],
+   "Manitoba": [
+    "2026-09",
+    760
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    776
+   ],
+   "Alberta": [
+    "2026-09",
+    797
+   ],
+   "British Columbia": [
+    "2026-09",
+    818
+   ]
+  },
+  "Bacon, 500 grams": {
+   "Canada": [
+    "2026-09",
+    671
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    679
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    697
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    676
+   ],
+   "New Brunswick": [
+    "2026-09",
+    693
+   ],
+   "Quebec": [
+    "2026-09",
+    744
+   ],
+   "Ontario": [
+    "2026-09",
+    626
+   ],
+   "Manitoba": [
+    "2026-09",
+    667
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    662
+   ],
+   "Alberta": [
+    "2026-09",
+    690
+   ],
+   "British Columbia": [
+    "2026-09",
+    714
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    759
+   ]
+  },
+  "Wieners, 400 grams": {
+   "Canada": [
+    "2026-09",
+    420
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    434
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    439
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    444
+   ],
+   "New Brunswick": [
+    "2026-09",
+    413
+   ],
+   "Quebec": [
+    "2026-09",
+    320
+   ],
+   "Ontario": [
+    "2026-09",
+    474
+   ],
+   "Manitoba": [
+    "2026-09",
+    479
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    458
+   ],
+   "Alberta": [
+    "2026-09",
+    490
+   ],
+   "British Columbia": [
+    "2026-09",
+    515
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    667
+   ]
+  },
+  "Salmon, per kilogram": {
+   "Canada": [
+    "2026-09",
+    2822
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    2497
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    2550
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    2556
+   ],
+   "New Brunswick": [
+    "2026-09",
+    2498
+   ],
+   "Quebec": [
+    "2026-09",
+    2632
+   ],
+   "Ontario": [
+    "2026-09",
+    2784
+   ],
+   "Manitoba": [
+    "2026-09",
+    2891
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    2744
+   ],
+   "Alberta": [
+    "2026-09",
+    3181
+   ],
+   "British Columbia": [
+    "2026-09",
+    3604
+   ]
+  },
+  "Shrimp, 300 grams": {
+   "Canada": [
+    "2026-09",
+    739
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    727
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    745
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    732
+   ],
+   "New Brunswick": [
+    "2026-09",
+    731
+   ],
+   "Quebec": [
+    "2026-09",
+    754
+   ],
+   "Ontario": [
+    "2026-09",
+    734
+   ],
+   "Manitoba": [
+    "2026-09",
+    710
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    723
+   ],
+   "Alberta": [
+    "2026-09",
+    727
+   ],
+   "British Columbia": [
+    "2026-09",
+    743
+   ]
+  },
+  "Canned salmon, 213 grams": {
+   "Canada": [
+    "2026-09",
+    576
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    539
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    575
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    576
+   ],
+   "New Brunswick": [
+    "2026-09",
+    586
+   ],
+   "Quebec": [
+    "2026-09",
+    574
+   ],
+   "Ontario": [
+    "2026-09",
+    568
+   ],
+   "Manitoba": [
+    "2026-09",
+    588
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    572
+   ],
+   "Alberta": [
+    "2026-09",
+    584
+   ],
+   "British Columbia": [
+    "2026-09",
+    606
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    570
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    595
+   ]
+  },
+  "Canned tuna, 170 grams": {
+   "Canada": [
+    "2026-09",
+    169
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    162
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    192
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    184
+   ],
+   "New Brunswick": [
+    "2026-09",
+    189
+   ],
+   "Quebec": [
+    "2026-09",
+    162
+   ],
+   "Ontario": [
+    "2026-09",
+    169
+   ],
+   "Manitoba": [
+    "2026-09",
+    166
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    163
+   ],
+   "Alberta": [
+    "2026-09",
+    170
+   ],
+   "British Columbia": [
+    "2026-09",
+    171
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    204
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    209
+   ]
+  },
+  "Meatless burgers, 226 grams": {
+   "Canada": [
+    "2026-09",
+    705
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    744
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    718
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    703
+   ],
+   "New Brunswick": [
+    "2026-09",
+    705
+   ],
+   "Quebec": [
+    "2026-09",
+    683
+   ],
+   "Ontario": [
+    "2026-09",
+    685
+   ],
+   "Manitoba": [
+    "2026-09",
+    760
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    721
+   ],
+   "Alberta": [
+    "2026-09",
+    770
+   ],
+   "British Columbia": [
+    "2026-09",
+    765
+   ]
+  },
+  "Milk, 1 litre": {
+   "Canada": [
+    "2026-09",
+    322
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    384
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    293
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    324
+   ],
+   "New Brunswick": [
+    "2026-09",
+    285
+   ],
+   "Quebec": [
+    "2026-09",
+    294
+   ],
+   "Ontario": [
+    "2026-09",
+    396
+   ],
+   "Manitoba": [
+    "2026-09",
+    205
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    307
+   ],
+   "Alberta": [
+    "2026-09",
+    336
+   ],
+   "British Columbia": [
+    "2026-09",
+    319
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    310
+   ]
+  },
+  "Milk, 2 litres": {
+   "Canada": [
+    "2026-09",
+    550
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    504
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    470
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    506
+   ],
+   "New Brunswick": [
+    "2026-09",
+    517
+   ],
+   "Quebec": [
+    "2026-09",
+    536
+   ],
+   "Ontario": [
+    "2026-09",
+    593
+   ],
+   "Manitoba": [
+    "2026-09",
+    484
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    528
+   ],
+   "Alberta": [
+    "2026-09",
+    559
+   ],
+   "British Columbia": [
+    "2026-09",
+    563
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    573
+   ]
+  },
+  "Milk, 4 litres": {
+   "Canada": [
+    "2026-09",
+    699
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    932
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    723
+   ],
+   "New Brunswick": [
+    "2026-09",
+    873
+   ],
+   "Quebec": [
+    "2026-09",
+    851
+   ],
+   "Ontario": [
+    "2026-09",
+    693
+   ],
+   "Manitoba": [
+    "2026-09",
+    621
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    650
+   ],
+   "Alberta": [
+    "2026-09",
+    662
+   ],
+   "British Columbia": [
+    "2026-09",
+    623
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    632
+   ]
+  },
+  "Soy milk, 1.89 litres": {
+   "Canada": [
+    "2026-09",
+    457
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    471
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    464
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    470
+   ],
+   "New Brunswick": [
+    "2026-09",
+    473
+   ],
+   "Quebec": [
+    "2026-09",
+    487
+   ],
+   "Ontario": [
+    "2026-09",
+    432
+   ],
+   "Manitoba": [
+    "2026-09",
+    460
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    463
+   ],
+   "Alberta": [
+    "2026-09",
+    464
+   ],
+   "British Columbia": [
+    "2026-09",
+    467
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    467
+   ]
+  },
+  "Nut milk, 1.89 litres": {
+   "Canada": [
+    "2026-09",
+    442
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    468
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    460
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    461
+   ],
+   "New Brunswick": [
+    "2026-09",
+    460
+   ],
+   "Quebec": [
+    "2026-09",
+    447
+   ],
+   "Ontario": [
+    "2026-09",
+    432
+   ],
+   "Manitoba": [
+    "2026-09",
+    446
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    451
+   ],
+   "Alberta": [
+    "2026-09",
+    450
+   ],
+   "British Columbia": [
+    "2026-09",
+    448
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    436
+   ]
+  },
+  "Cream, 1 litre": {
+   "Canada": [
+    "2026-09",
+    480
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    618
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    551
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    551
+   ],
+   "New Brunswick": [
+    "2026-09",
+    487
+   ],
+   "Quebec": [
+    "2026-09",
+    445
+   ],
+   "Ontario": [
+    "2026-09",
+    463
+   ],
+   "Manitoba": [
+    "2026-09",
+    534
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    513
+   ],
+   "Alberta": [
+    "2026-09",
+    514
+   ],
+   "British Columbia": [
+    "2026-09",
+    479
+   ]
+  },
+  "Butter, 454 grams": {
+   "Canada": [
+    "2026-09",
+    558
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    599
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    553
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    562
+   ],
+   "New Brunswick": [
+    "2026-09",
+    561
+   ],
+   "Quebec": [
+    "2026-09",
+    560
+   ],
+   "Ontario": [
+    "2026-09",
+    548
+   ],
+   "Manitoba": [
+    "2026-09",
+    566
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    568
+   ],
+   "Alberta": [
+    "2026-09",
+    577
+   ],
+   "British Columbia": [
+    "2026-09",
+    574
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    640
+   ]
+  },
+  "Margarine, 907 grams": {
+   "Canada": [
+    "2026-09",
+    588
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    666
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    635
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    639
+   ],
+   "New Brunswick": [
+    "2026-09",
+    616
+   ],
+   "Quebec": [
+    "2026-09",
+    603
+   ],
+   "Ontario": [
+    "2026-09",
+    564
+   ],
+   "Manitoba": [
+    "2026-09",
+    577
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    569
+   ],
+   "Alberta": [
+    "2026-09",
+    576
+   ],
+   "British Columbia": [
+    "2026-09",
+    574
+   ]
+  },
+  "Block cheese, 500 grams": {
+   "Canada": [
+    "2026-09",
+    698
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    695
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    714
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    699
+   ],
+   "New Brunswick": [
+    "2026-09",
+    707
+   ],
+   "Quebec": [
+    "2026-09",
+    695
+   ],
+   "Ontario": [
+    "2026-09",
+    687
+   ],
+   "Manitoba": [
+    "2026-09",
+    700
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    700
+   ],
+   "Alberta": [
+    "2026-09",
+    715
+   ],
+   "British Columbia": [
+    "2026-09",
+    729
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    761
+   ]
+  },
+  "Yogurt, 500 grams": {
+   "Canada": [
+    "2026-09",
+    388
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    404
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    402
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    396
+   ],
+   "New Brunswick": [
+    "2026-09",
+    401
+   ],
+   "Quebec": [
+    "2026-09",
+    394
+   ],
+   "Ontario": [
+    "2026-09",
+    384
+   ],
+   "Manitoba": [
+    "2026-09",
+    379
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    375
+   ],
+   "Alberta": [
+    "2026-09",
+    387
+   ],
+   "British Columbia": [
+    "2026-09",
+    391
+   ]
+  },
+  "Eggs, 1 dozen": {
+   "Canada": [
+    "2026-09",
+    483
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    543
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    525
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    534
+   ],
+   "New Brunswick": [
+    "2026-09",
+    514
+   ],
+   "Quebec": [
+    "2026-09",
+    409
+   ],
+   "Ontario": [
+    "2026-09",
+    502
+   ],
+   "Manitoba": [
+    "2026-09",
+    480
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    483
+   ],
+   "Alberta": [
+    "2026-09",
+    521
+   ],
+   "British Columbia": [
+    "2026-09",
+    571
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    543
+   ]
+  },
+  "Apples, per kilogram": {
+   "Canada": [
+    "2026-09",
+    479
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    689
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    613
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    619
+   ],
+   "New Brunswick": [
+    "2026-09",
+    612
+   ],
+   "Quebec": [
+    "2026-09",
+    492
+   ],
+   "Ontario": [
+    "2026-09",
+    454
+   ],
+   "Manitoba": [
+    "2026-09",
+    464
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    471
+   ],
+   "Alberta": [
+    "2026-09",
+    501
+   ],
+   "British Columbia": [
+    "2026-09",
+    501
+   ]
+  },
+  "Oranges, per kilogram": {
+   "Canada": [
+    "2026-09",
+    453
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    581
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    512
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    502
+   ],
+   "New Brunswick": [
+    "2026-09",
+    486
+   ],
+   "Quebec": [
+    "2026-09",
+    505
+   ],
+   "Ontario": [
+    "2026-09",
+    429
+   ],
+   "Manitoba": [
+    "2026-09",
+    478
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    498
+   ],
+   "Alberta": [
+    "2026-09",
+    442
+   ],
+   "British Columbia": [
+    "2026-09",
+    442
+   ]
+  },
+  "Oranges, 1.36 kilograms": {
+   "Canada": [
+    "2026-09",
+    555
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    683
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    593
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    573
+   ],
+   "New Brunswick": [
+    "2026-09",
+    546
+   ],
+   "Quebec": [
+    "2026-09",
+    546
+   ],
+   "Ontario": [
+    "2026-09",
+    527
+   ],
+   "Manitoba": [
+    "2026-09",
+    619
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    628
+   ],
+   "Alberta": [
+    "2026-09",
+    591
+   ],
+   "British Columbia": [
+    "2026-09",
+    594
+   ]
+  },
+  "Bananas, per kilogram": {
+   "Canada": [
+    "2026-09",
+    188
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    277
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    216
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    217
+   ],
+   "New Brunswick": [
+    "2026-09",
+    220
+   ],
+   "Quebec": [
+    "2026-09",
+    198
+   ],
+   "Ontario": [
+    "2026-09",
+    169
+   ],
+   "Manitoba": [
+    "2026-09",
+    205
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    204
+   ],
+   "Alberta": [
+    "2026-09",
+    208
+   ],
+   "British Columbia": [
+    "2026-09",
+    183
+   ]
+  },
+  "Pears, per kilogram": {
+   "Canada": [
+    "2026-09",
+    557
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    739
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    641
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    652
+   ],
+   "New Brunswick": [
+    "2026-09",
+    647
+   ],
+   "Quebec": [
+    "2026-09",
+    559
+   ],
+   "Ontario": [
+    "2026-09",
+    545
+   ],
+   "Manitoba": [
+    "2026-09",
+    557
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    561
+   ],
+   "Alberta": [
+    "2026-09",
+    559
+   ],
+   "British Columbia": [
+    "2026-09",
+    556
+   ]
+  },
+  "Lemons, unit": {
+   "Canada": [
+    "2026-09",
+    104
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    121
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    103
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    111
+   ],
+   "New Brunswick": [
+    "2026-09",
+    110
+   ],
+   "Quebec": [
+    "2026-09",
+    92
+   ],
+   "Ontario": [
+    "2026-09",
+    105
+   ],
+   "Manitoba": [
+    "2026-09",
+    112
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    115
+   ],
+   "Alberta": [
+    "2026-09",
+    114
+   ],
+   "British Columbia": [
+    "2026-09",
+    110
+   ]
+  },
+  "Limes, unit": {
+   "Canada": [
+    "2026-09",
+    77
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    96
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    92
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    93
+   ],
+   "New Brunswick": [
+    "2026-09",
+    93
+   ],
+   "Quebec": [
+    "2026-09",
+    70
+   ],
+   "Ontario": [
+    "2026-09",
+    71
+   ],
+   "Manitoba": [
+    "2026-09",
+    95
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    96
+   ],
+   "Alberta": [
+    "2026-09",
+    95
+   ],
+   "British Columbia": [
+    "2026-09",
+    89
+   ]
+  },
+  "Grapes, per kilogram": {
+   "Canada": [
+    "2026-09",
+    657
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    930
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    807
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    843
+   ],
+   "New Brunswick": [
+    "2026-09",
+    810
+   ],
+   "Quebec": [
+    "2026-09",
+    564
+   ],
+   "Ontario": [
+    "2026-09",
+    631
+   ],
+   "Manitoba": [
+    "2026-09",
+    787
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    796
+   ],
+   "Alberta": [
+    "2026-09",
+    803
+   ],
+   "British Columbia": [
+    "2026-09",
+    804
+   ]
+  },
+  "Cantaloupe, unit": {
+   "Canada": [
+    "2026-09",
+    297
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    455
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    415
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    398
+   ],
+   "New Brunswick": [
+    "2026-09",
+    395
+   ],
+   "Quebec": [
+    "2026-09",
+    290
+   ],
+   "Ontario": [
+    "2026-09",
+    260
+   ],
+   "Manitoba": [
+    "2026-09",
+    387
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    393
+   ],
+   "Alberta": [
+    "2026-09",
+    401
+   ],
+   "British Columbia": [
+    "2026-09",
+    357
+   ]
+  },
+  "Strawberries, 454 grams": {
+   "Canada": [
+    "2026-09",
+    519
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    551
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    509
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    483
+   ],
+   "New Brunswick": [
+    "2026-09",
+    497
+   ],
+   "Quebec": [
+    "2026-09",
+    536
+   ],
+   "Ontario": [
+    "2026-09",
+    489
+   ],
+   "Manitoba": [
+    "2026-09",
+    593
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    580
+   ],
+   "Alberta": [
+    "2026-09",
+    588
+   ],
+   "British Columbia": [
+    "2026-09",
+    573
+   ]
+  },
+  "Avocado, unit": {
+   "Canada": [
+    "2026-09",
+    167
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    217
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    178
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    178
+   ],
+   "New Brunswick": [
+    "2026-09",
+    173
+   ],
+   "Quebec": [
+    "2026-09",
+    115
+   ],
+   "Ontario": [
+    "2026-09",
+    195
+   ],
+   "Manitoba": [
+    "2026-09",
+    219
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    218
+   ],
+   "Alberta": [
+    "2026-09",
+    217
+   ],
+   "British Columbia": [
+    "2026-09",
+    230
+   ]
+  },
+  "Potatoes, 4.54 kilograms": {
+   "Canada": [
+    "2026-09",
+    405
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    537
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    506
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    471
+   ],
+   "New Brunswick": [
+    "2026-09",
+    454
+   ],
+   "Quebec": [
+    "2026-09",
+    345
+   ],
+   "Ontario": [
+    "2026-09",
+    356
+   ],
+   "Manitoba": [
+    "2026-09",
+    686
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    686
+   ],
+   "Alberta": [
+    "2026-09",
+    682
+   ],
+   "British Columbia": [
+    "2026-09",
+    677
+   ]
+  },
+  "Potatoes, per kilogram": {
+   "Canada": [
+    "2026-09",
+    512
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    602
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    479
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    547
+   ],
+   "New Brunswick": [
+    "2026-09",
+    524
+   ],
+   "Quebec": [
+    "2026-09",
+    473
+   ],
+   "Ontario": [
+    "2026-09",
+    538
+   ],
+   "Manitoba": [
+    "2026-09",
+    483
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    485
+   ],
+   "Alberta": [
+    "2026-09",
+    483
+   ],
+   "British Columbia": [
+    "2026-09",
+    479
+   ]
+  },
+  "Sweet potatoes, per kilogram": {
+   "Canada": [
+    "2026-09",
+    424
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    513
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    443
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    445
+   ],
+   "New Brunswick": [
+    "2026-09",
+    472
+   ],
+   "Quebec": [
+    "2026-09",
+    460
+   ],
+   "Ontario": [
+    "2026-09",
+    373
+   ],
+   "Manitoba": [
+    "2026-09",
+    493
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    508
+   ],
+   "Alberta": [
+    "2026-09",
+    504
+   ],
+   "British Columbia": [
+    "2026-09",
+    503
+   ]
+  },
+  "Tomatoes, per kilogram": {
+   "Canada": [
+    "2026-09",
+    471
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    623
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    552
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    548
+   ],
+   "New Brunswick": [
+    "2026-09",
+    551
+   ],
+   "Quebec": [
+    "2026-09",
+    502
+   ],
+   "Ontario": [
+    "2026-09",
+    443
+   ],
+   "Manitoba": [
+    "2026-09",
+    463
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    465
+   ],
+   "Alberta": [
+    "2026-09",
+    479
+   ],
+   "British Columbia": [
+    "2026-09",
+    475
+   ]
+  },
+  "Cabbage, per kilogram": {
+   "Canada": [
+    "2026-09",
+    233
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    278
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    266
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    252
+   ],
+   "New Brunswick": [
+    "2026-09",
+    249
+   ],
+   "Quebec": [
+    "2026-09",
+    223
+   ],
+   "Ontario": [
+    "2026-09",
+    234
+   ],
+   "Manitoba": [
+    "2026-09",
+    221
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    235
+   ],
+   "Alberta": [
+    "2026-09",
+    237
+   ],
+   "British Columbia": [
+    "2026-09",
+    233
+   ]
+  },
+  "Carrots, 1.36 kilograms": {
+   "Canada": [
+    "2026-09",
+    354
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    373
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    334
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    326
+   ],
+   "New Brunswick": [
+    "2026-09",
+    331
+   ],
+   "Quebec": [
+    "2026-09",
+    336
+   ],
+   "Ontario": [
+    "2026-09",
+    334
+   ],
+   "Manitoba": [
+    "2026-09",
+    412
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    392
+   ],
+   "Alberta": [
+    "2026-09",
+    419
+   ],
+   "British Columbia": [
+    "2026-09",
+    418
+   ]
+  },
+  "Onions, per kilogram": {
+   "Canada": [
+    "2026-09",
+    549
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    654
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    601
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    601
+   ],
+   "New Brunswick": [
+    "2026-09",
+    595
+   ],
+   "Quebec": [
+    "2026-09",
+    472
+   ],
+   "Ontario": [
+    "2026-09",
+    559
+   ],
+   "Manitoba": [
+    "2026-09",
+    566
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    568
+   ],
+   "Alberta": [
+    "2026-09",
+    563
+   ],
+   "British Columbia": [
+    "2026-09",
+    561
+   ]
+  },
+  "Onions, 1.36 kilograms": {
+   "Canada": [
+    "2026-09",
+    456
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    449
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    459
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    430
+   ],
+   "New Brunswick": [
+    "2026-09",
+    419
+   ],
+   "Quebec": [
+    "2026-09",
+    390
+   ],
+   "Ontario": [
+    "2026-09",
+    466
+   ],
+   "Manitoba": [
+    "2026-09",
+    470
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    476
+   ],
+   "Alberta": [
+    "2026-09",
+    493
+   ],
+   "British Columbia": [
+    "2026-09",
+    508
+   ]
+  },
+  "Celery, unit": {
+   "Canada": [
+    "2026-09",
+    244
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    357
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    306
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    306
+   ],
+   "New Brunswick": [
+    "2026-09",
+    296
+   ],
+   "Quebec": [
+    "2026-09",
+    193
+   ],
+   "Ontario": [
+    "2026-09",
+    260
+   ],
+   "Manitoba": [
+    "2026-09",
+    269
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    283
+   ],
+   "Alberta": [
+    "2026-09",
+    283
+   ],
+   "British Columbia": [
+    "2026-09",
+    283
+   ]
+  },
+  "Cucumber, unit": {
+   "Canada": [
+    "2026-09",
+    146
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    198
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    171
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    171
+   ],
+   "New Brunswick": [
+    "2026-09",
+    172
+   ],
+   "Quebec": [
+    "2026-09",
+    143
+   ],
+   "Ontario": [
+    "2026-09",
+    136
+   ],
+   "Manitoba": [
+    "2026-09",
+    167
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    169
+   ],
+   "Alberta": [
+    "2026-09",
+    169
+   ],
+   "British Columbia": [
+    "2026-09",
+    163
+   ]
+  },
+  "Mushrooms, 227 grams": {
+   "Canada": [
+    "2026-09",
+    226
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    318
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    272
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    275
+   ],
+   "New Brunswick": [
+    "2026-09",
+    258
+   ],
+   "Quebec": [
+    "2026-09",
+    174
+   ],
+   "Ontario": [
+    "2026-09",
+    254
+   ],
+   "Manitoba": [
+    "2026-09",
+    282
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    274
+   ],
+   "Alberta": [
+    "2026-09",
+    279
+   ],
+   "British Columbia": [
+    "2026-09",
+    273
+   ]
+  },
+  "Iceberg lettuce, unit": {
+   "Canada": [
+    "2026-09",
+    274
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    350
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    331
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    324
+   ],
+   "New Brunswick": [
+    "2026-09",
+    328
+   ],
+   "Quebec": [
+    "2026-09",
+    219
+   ],
+   "Ontario": [
+    "2026-09",
+    273
+   ],
+   "Manitoba": [
+    "2026-09",
+    329
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    339
+   ],
+   "Alberta": [
+    "2026-09",
+    335
+   ],
+   "British Columbia": [
+    "2026-09",
+    331
+   ]
+  },
+  "Romaine lettuce, unit": {
+   "Canada": [
+    "2026-09",
+    313
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    366
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    345
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    338
+   ],
+   "New Brunswick": [
+    "2026-09",
+    341
+   ],
+   "Quebec": [
+    "2026-09",
+    240
+   ],
+   "Ontario": [
+    "2026-09",
+    294
+   ],
+   "Manitoba": [
+    "2026-09",
+    383
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    431
+   ],
+   "Alberta": [
+    "2026-09",
+    382
+   ],
+   "British Columbia": [
+    "2026-09",
+    334
+   ]
+  },
+  "Broccoli, unit": {
+   "Canada": [
+    "2026-09",
+    225
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    328
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    294
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    295
+   ],
+   "New Brunswick": [
+    "2026-09",
+    269
+   ],
+   "Quebec": [
+    "2026-09",
+    192
+   ],
+   "Ontario": [
+    "2026-09",
+    241
+   ],
+   "Manitoba": [
+    "2026-09",
+    358
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    353
+   ],
+   "Alberta": [
+    "2026-09",
+    356
+   ],
+   "British Columbia": [
+    "2026-09",
+    371
+   ]
+  },
+  "Peppers, per kilogram": {
+   "Canada": [
+    "2026-09",
+    593
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    818
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    713
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    750
+   ],
+   "New Brunswick": [
+    "2026-09",
+    746
+   ],
+   "Quebec": [
+    "2026-09",
+    389
+   ],
+   "Ontario": [
+    "2026-09",
+    652
+   ],
+   "Manitoba": [
+    "2026-09",
+    830
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    837
+   ],
+   "Alberta": [
+    "2026-09",
+    713
+   ],
+   "British Columbia": [
+    "2026-09",
+    623
+   ]
+  },
+  "Squash, per kilogram": {
+   "Canada": [
+    "2026-09",
+    315
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    449
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    394
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    383
+   ],
+   "New Brunswick": [
+    "2026-09",
+    373
+   ],
+   "Quebec": [
+    "2026-09",
+    274
+   ],
+   "Ontario": [
+    "2026-09",
+    330
+   ],
+   "Manitoba": [
+    "2026-09",
+    328
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    357
+   ],
+   "Alberta": [
+    "2026-09",
+    346
+   ],
+   "British Columbia": [
+    "2026-09",
+    326
+   ]
+  },
+  "Salad greens, 142 grams": {
+   "Canada": [
+    "2026-09",
+    448
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    494
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    438
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    433
+   ],
+   "New Brunswick": [
+    "2026-09",
+    438
+   ],
+   "Quebec": [
+    "2026-09",
+    447
+   ],
+   "Ontario": [
+    "2026-09",
+    426
+   ],
+   "Manitoba": [
+    "2026-09",
+    471
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    471
+   ],
+   "Alberta": [
+    "2026-09",
+    482
+   ],
+   "British Columbia": [
+    "2026-09",
+    494
+   ]
+  },
+  "Frozen french fried potatoes, 750 grams": {
+   "Canada": [
+    "2026-09",
+    325
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    333
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    335
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    335
+   ],
+   "New Brunswick": [
+    "2026-09",
+    338
+   ],
+   "Quebec": [
+    "2026-09",
+    326
+   ],
+   "Ontario": [
+    "2026-09",
+    322
+   ],
+   "Manitoba": [
+    "2026-09",
+    311
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    310
+   ],
+   "Alberta": [
+    "2026-09",
+    321
+   ],
+   "British Columbia": [
+    "2026-09",
+    330
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    343
+   ]
+  },
+  "Frozen green beans, 750 grams": {
+   "Canada": [
+    "2026-09",
+    446
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    474
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    430
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    444
+   ],
+   "New Brunswick": [
+    "2026-09",
+    461
+   ],
+   "Quebec": [
+    "2026-09",
+    486
+   ],
+   "Ontario": [
+    "2026-09",
+    434
+   ],
+   "Manitoba": [
+    "2026-09",
+    442
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    432
+   ],
+   "Alberta": [
+    "2026-09",
+    441
+   ],
+   "British Columbia": [
+    "2026-09",
+    440
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    471
+   ]
+  },
+  "Frozen broccoli, 500 grams": {
+   "Canada": [
+    "2026-09",
+    393
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    397
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    402
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    401
+   ],
+   "New Brunswick": [
+    "2026-09",
+    399
+   ],
+   "Quebec": [
+    "2026-09",
+    416
+   ],
+   "Ontario": [
+    "2026-09",
+    383
+   ],
+   "Manitoba": [
+    "2026-09",
+    394
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    388
+   ],
+   "Alberta": [
+    "2026-09",
+    397
+   ],
+   "British Columbia": [
+    "2026-09",
+    396
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    387
+   ]
+  },
+  "Frozen corn, 750 grams": {
+   "Canada": [
+    "2026-09",
+    367
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    367
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    361
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    371
+   ],
+   "New Brunswick": [
+    "2026-09",
+    368
+   ],
+   "Quebec": [
+    "2026-09",
+    401
+   ],
+   "Ontario": [
+    "2026-09",
+    359
+   ],
+   "Manitoba": [
+    "2026-09",
+    361
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    358
+   ],
+   "Alberta": [
+    "2026-09",
+    368
+   ],
+   "British Columbia": [
+    "2026-09",
+    374
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    390
+   ]
+  },
+  "Frozen mixed vegetables, 750 grams": {
+   "Canada": [
+    "2026-09",
+    422
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    441
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    407
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    417
+   ],
+   "New Brunswick": [
+    "2026-09",
+    420
+   ],
+   "Quebec": [
+    "2026-09",
+    462
+   ],
+   "Ontario": [
+    "2026-09",
+    403
+   ],
+   "Manitoba": [
+    "2026-09",
+    401
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    396
+   ],
+   "Alberta": [
+    "2026-09",
+    408
+   ],
+   "British Columbia": [
+    "2026-09",
+    408
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    434
+   ]
+  },
+  "Frozen peas, 750 grams": {
+   "Canada": [
+    "2026-09",
+    370
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    371
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    360
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    368
+   ],
+   "New Brunswick": [
+    "2026-09",
+    365
+   ],
+   "Quebec": [
+    "2026-09",
+    404
+   ],
+   "Ontario": [
+    "2026-09",
+    365
+   ],
+   "Manitoba": [
+    "2026-09",
+    361
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    356
+   ],
+   "Alberta": [
+    "2026-09",
+    364
+   ],
+   "British Columbia": [
+    "2026-09",
+    367
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    381
+   ]
+  },
+  "Frozen pizza, 390 grams": {
+   "Canada": [
+    "2026-09",
+    468
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    460
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    499
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    492
+   ],
+   "New Brunswick": [
+    "2026-09",
+    480
+   ],
+   "Quebec": [
+    "2026-09",
+    474
+   ],
+   "Ontario": [
+    "2026-09",
+    464
+   ],
+   "Manitoba": [
+    "2026-09",
+    436
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    439
+   ],
+   "Alberta": [
+    "2026-09",
+    463
+   ],
+   "British Columbia": [
+    "2026-09",
+    472
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    513
+   ]
+  },
+  "Frozen spinach, 300 grams": {
+   "Canada": [
+    "2026-09",
+    214
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    211
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    210
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    211
+   ],
+   "New Brunswick": [
+    "2026-09",
+    218
+   ],
+   "Quebec": [
+    "2026-09",
+    234
+   ],
+   "Ontario": [
+    "2026-09",
+    216
+   ],
+   "Manitoba": [
+    "2026-09",
+    196
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    195
+   ],
+   "Alberta": [
+    "2026-09",
+    197
+   ],
+   "British Columbia": [
+    "2026-09",
+    203
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    225
+   ]
+  },
+  "Frozen strawberries, 600 grams": {
+   "Canada": [
+    "2026-09",
+    528
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    523
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    512
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    516
+   ],
+   "New Brunswick": [
+    "2026-09",
+    519
+   ],
+   "Quebec": [
+    "2026-09",
+    537
+   ],
+   "Ontario": [
+    "2026-09",
+    520
+   ],
+   "Manitoba": [
+    "2026-09",
+    525
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    527
+   ],
+   "Alberta": [
+    "2026-09",
+    538
+   ],
+   "British Columbia": [
+    "2026-09",
+    547
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    527
+   ]
+  },
+  "White bread, 675 grams": {
+   "Canada": [
+    "2026-09",
+    358
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    416
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    381
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    372
+   ],
+   "New Brunswick": [
+    "2026-09",
+    377
+   ],
+   "Quebec": [
+    "2026-09",
+    391
+   ],
+   "Ontario": [
+    "2026-09",
+    326
+   ],
+   "Manitoba": [
+    "2026-09",
+    370
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    374
+   ],
+   "Alberta": [
+    "2026-09",
+    369
+   ],
+   "British Columbia": [
+    "2026-09",
+    392
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    391
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    435
+   ]
+  },
+  "Flatbread and pita, 500 grams": {
+   "Canada": [
+    "2026-09",
+    351
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    406
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    430
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    416
+   ],
+   "New Brunswick": [
+    "2026-09",
+    424
+   ],
+   "Quebec": [
+    "2026-09",
+    414
+   ],
+   "Ontario": [
+    "2026-09",
+    320
+   ],
+   "Manitoba": [
+    "2026-09",
+    345
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    338
+   ],
+   "Alberta": [
+    "2026-09",
+    351
+   ],
+   "British Columbia": [
+    "2026-09",
+    346
+   ],
+   "Whitehorse, Yukon": [
+    "2026-08",
+    334
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-03",
+    312
+   ]
+  },
+  "Crackers and crisp breads, 200 grams": {
+   "Canada": [
+    "2026-09",
+    270
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    278
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    287
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    286
+   ],
+   "New Brunswick": [
+    "2026-09",
+    290
+   ],
+   "Quebec": [
+    "2026-09",
+    281
+   ],
+   "Ontario": [
+    "2026-09",
+    263
+   ],
+   "Manitoba": [
+    "2026-09",
+    262
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    264
+   ],
+   "Alberta": [
+    "2026-09",
+    270
+   ],
+   "British Columbia": [
+    "2026-09",
+    272
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    307
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    326
+   ]
+  },
+  "Cookies and sweet biscuits, 300 grams": {
+   "Canada": [
+    "2026-09",
+    351
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    359
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    375
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    361
+   ],
+   "New Brunswick": [
+    "2026-09",
+    360
+   ],
+   "Quebec": [
+    "2026-09",
+    373
+   ],
+   "Ontario": [
+    "2026-09",
+    340
+   ],
+   "Manitoba": [
+    "2026-09",
+    340
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    337
+   ],
+   "Alberta": [
+    "2026-09",
+    342
+   ],
+   "British Columbia": [
+    "2026-09",
+    350
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    367
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    393
+   ]
+  },
+  "Dry or fresh pasta, 500 grams": {
+   "Canada": [
+    "2026-09",
+    340
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    372
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    374
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    371
+   ],
+   "New Brunswick": [
+    "2026-09",
+    340
+   ],
+   "Quebec": [
+    "2026-09",
+    330
+   ],
+   "Ontario": [
+    "2026-09",
+    334
+   ],
+   "Manitoba": [
+    "2026-09",
+    346
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    349
+   ],
+   "Alberta": [
+    "2026-09",
+    355
+   ],
+   "British Columbia": [
+    "2026-09",
+    363
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    370
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    376
+   ]
+  },
+  "Brown rice, 900 grams": {
+   "Canada": [
+    "2026-09",
+    589
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    546
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    617
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    633
+   ],
+   "New Brunswick": [
+    "2026-09",
+    624
+   ],
+   "Quebec": [
+    "2026-09",
+    578
+   ],
+   "Ontario": [
+    "2026-09",
+    585
+   ],
+   "Manitoba": [
+    "2026-09",
+    582
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    580
+   ],
+   "Alberta": [
+    "2026-09",
+    591
+   ],
+   "British Columbia": [
+    "2026-09",
+    601
+   ]
+  },
+  "White rice, 2 kilograms": {
+   "Canada": [
+    "2026-09",
+    935
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    974
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    985
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    993
+   ],
+   "New Brunswick": [
+    "2026-09",
+    980
+   ],
+   "Quebec": [
+    "2026-09",
+    1082
+   ],
+   "Ontario": [
+    "2026-09",
+    906
+   ],
+   "Manitoba": [
+    "2026-09",
+    808
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    837
+   ],
+   "Alberta": [
+    "2026-09",
+    855
+   ],
+   "British Columbia": [
+    "2026-09",
+    857
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    911
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    927
+   ]
+  },
+  "Cereal, 400 grams": {
+   "Canada": [
+    "2026-09",
+    413
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    420
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    418
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    418
+   ],
+   "New Brunswick": [
+    "2026-09",
+    420
+   ],
+   "Quebec": [
+    "2026-09",
+    420
+   ],
+   "Ontario": [
+    "2026-09",
+    408
+   ],
+   "Manitoba": [
+    "2026-09",
+    406
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    410
+   ],
+   "Alberta": [
+    "2026-09",
+    412
+   ],
+   "British Columbia": [
+    "2026-09",
+    411
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    438
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    444
+   ]
+  },
+  "Wheat flour, 2.5 kilograms": {
+   "Canada": [
+    "2026-09",
+    512
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    525
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    537
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    533
+   ],
+   "New Brunswick": [
+    "2026-09",
+    534
+   ],
+   "Quebec": [
+    "2026-09",
+    494
+   ],
+   "Ontario": [
+    "2026-09",
+    513
+   ],
+   "Manitoba": [
+    "2026-09",
+    496
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    498
+   ],
+   "Alberta": [
+    "2026-09",
+    515
+   ],
+   "British Columbia": [
+    "2026-09",
+    525
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    538
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    536
+   ]
+  },
+  "White sugar, 2 kilograms": {
+   "Canada": [
+    "2026-09",
+    262
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    241
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    253
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    261
+   ],
+   "New Brunswick": [
+    "2026-09",
+    257
+   ],
+   "Quebec": [
+    "2026-09",
+    255
+   ],
+   "Ontario": [
+    "2026-09",
+    263
+   ],
+   "Manitoba": [
+    "2026-09",
+    279
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    278
+   ],
+   "Alberta": [
+    "2026-09",
+    280
+   ],
+   "British Columbia": [
+    "2026-09",
+    281
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    294
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    304
+   ]
+  },
+  "Apple juice, 2 litres": {
+   "Canada": [
+    "2026-09",
+    400
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    397
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    415
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    412
+   ],
+   "New Brunswick": [
+    "2026-09",
+    420
+   ],
+   "Quebec": [
+    "2026-09",
+    442
+   ],
+   "Ontario": [
+    "2026-09",
+    376
+   ],
+   "Manitoba": [
+    "2026-09",
+    403
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    406
+   ],
+   "Alberta": [
+    "2026-09",
+    422
+   ],
+   "British Columbia": [
+    "2026-09",
+    434
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    476
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    464
+   ]
+  },
+  "Orange juice, 2 litres": {
+   "Canada": [
+    "2026-09",
+    608
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    618
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    620
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    626
+   ],
+   "New Brunswick": [
+    "2026-09",
+    616
+   ],
+   "Quebec": [
+    "2026-09",
+    592
+   ],
+   "Ontario": [
+    "2026-09",
+    598
+   ],
+   "Manitoba": [
+    "2026-09",
+    644
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    637
+   ],
+   "Alberta": [
+    "2026-09",
+    650
+   ],
+   "British Columbia": [
+    "2026-09",
+    646
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    638
+   ]
+  },
+  "Roasted or ground coffee, 340 grams": {
+   "Canada": [
+    "2026-09",
+    927
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1003
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1014
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1042
+   ],
+   "New Brunswick": [
+    "2026-09",
+    984
+   ],
+   "Quebec": [
+    "2026-09",
+    908
+   ],
+   "Ontario": [
+    "2026-09",
+    918
+   ],
+   "Manitoba": [
+    "2026-09",
+    900
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    873
+   ],
+   "Alberta": [
+    "2026-09",
+    928
+   ],
+   "British Columbia": [
+    "2026-09",
+    966
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    1015
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    1083
+   ]
+  },
+  "Tea (20 bags)": {
+   "Canada": [
+    "2026-09",
+    446
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    465
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    444
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    487
+   ],
+   "New Brunswick": [
+    "2026-09",
+    481
+   ],
+   "Quebec": [
+    "2026-09",
+    457
+   ],
+   "Ontario": [
+    "2026-09",
+    434
+   ],
+   "Manitoba": [
+    "2026-09",
+    434
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    440
+   ],
+   "Alberta": [
+    "2026-09",
+    445
+   ],
+   "British Columbia": [
+    "2026-09",
+    451
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    472
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    466
+   ]
+  },
+  "Ketchup, 1 litre": {
+   "Canada": [
+    "2026-09",
+    480
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    488
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    512
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    497
+   ],
+   "New Brunswick": [
+    "2026-09",
+    498
+   ],
+   "Quebec": [
+    "2026-09",
+    497
+   ],
+   "Ontario": [
+    "2026-09",
+    468
+   ],
+   "Manitoba": [
+    "2026-09",
+    474
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    476
+   ],
+   "Alberta": [
+    "2026-09",
+    483
+   ],
+   "British Columbia": [
+    "2026-09",
+    475
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    509
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    514
+   ]
+  },
+  "Vegetable oil, 3 litres": {
+   "Canada": [
+    "2026-09",
+    924
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1182
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1181
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1238
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1221
+   ],
+   "Quebec": [
+    "2026-09",
+    1066
+   ],
+   "Ontario": [
+    "2026-09",
+    838
+   ],
+   "Manitoba": [
+    "2026-09",
+    977
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1064
+   ],
+   "Alberta": [
+    "2026-09",
+    994
+   ],
+   "British Columbia": [
+    "2026-09",
+    1061
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    1494
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    1402
+   ]
+  },
+  "Canola oil, 3 litres": {
+   "Canada": [
+    "2026-09",
+    1116
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1271
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1241
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1309
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1262
+   ],
+   "Quebec": [
+    "2026-09",
+    1210
+   ],
+   "Ontario": [
+    "2026-09",
+    1040
+   ],
+   "Manitoba": [
+    "2026-09",
+    1089
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1091
+   ],
+   "Alberta": [
+    "2026-09",
+    1121
+   ],
+   "British Columbia": [
+    "2026-09",
+    1144
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    1189
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    1247
+   ]
+  },
+  "Olive oil, 1 litre": {
+   "Canada": [
+    "2026-09",
+    1104
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1208
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1202
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1224
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1227
+   ],
+   "Quebec": [
+    "2026-09",
+    1232
+   ],
+   "Ontario": [
+    "2026-09",
+    1025
+   ],
+   "Manitoba": [
+    "2026-09",
+    1177
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1185
+   ],
+   "Alberta": [
+    "2026-09",
+    1182
+   ],
+   "British Columbia": [
+    "2026-09",
+    1209
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    1351
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    1226
+   ]
+  },
+  "Baby food, 128 millilitres": {
+   "Canada": [
+    "2026-09",
+    150
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    152
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    149
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    149
+   ],
+   "New Brunswick": [
+    "2026-09",
+    150
+   ],
+   "Quebec": [
+    "2026-09",
+    151
+   ],
+   "Ontario": [
+    "2026-09",
+    153
+   ],
+   "Manitoba": [
+    "2026-09",
+    140
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    147
+   ],
+   "Alberta": [
+    "2026-09",
+    149
+   ],
+   "British Columbia": [
+    "2026-09",
+    147
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    137
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    163
+   ]
+  },
+  "Infant formula, 900 grams": {
+   "Canada": [
+    "2026-09",
+    4989
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    5041
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    4839
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    4947
+   ],
+   "New Brunswick": [
+    "2026-09",
+    4883
+   ],
+   "Quebec": [
+    "2026-09",
+    4762
+   ],
+   "Ontario": [
+    "2026-09",
+    5076
+   ],
+   "Manitoba": [
+    "2026-09",
+    4892
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    4776
+   ],
+   "Alberta": [
+    "2026-09",
+    4986
+   ],
+   "British Columbia": [
+    "2026-09",
+    5038
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    4961
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    4893
+   ]
+  },
+  "Peanut butter, 1 kilogram": {
+   "Canada": [
+    "2026-09",
+    599
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    591
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    596
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    591
+   ],
+   "New Brunswick": [
+    "2026-09",
+    596
+   ],
+   "Quebec": [
+    "2026-09",
+    599
+   ],
+   "Ontario": [
+    "2026-09",
+    601
+   ],
+   "Manitoba": [
+    "2026-09",
+    586
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    585
+   ],
+   "Alberta": [
+    "2026-09",
+    595
+   ],
+   "British Columbia": [
+    "2026-09",
+    612
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    683
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    660
+   ]
+  },
+  "Mayonnaise, 890 millilitres": {
+   "Canada": [
+    "2026-09",
+    668
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    653
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    669
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    669
+   ],
+   "New Brunswick": [
+    "2026-09",
+    669
+   ],
+   "Quebec": [
+    "2026-09",
+    656
+   ],
+   "Ontario": [
+    "2026-09",
+    673
+   ],
+   "Manitoba": [
+    "2026-09",
+    666
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    662
+   ],
+   "Alberta": [
+    "2026-09",
+    681
+   ],
+   "British Columbia": [
+    "2026-09",
+    684
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    680
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    690
+   ]
+  },
+  "Canned baked beans, 398 millilitres": {
+   "Canada": [
+    "2026-09",
+    170
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    178
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    177
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    184
+   ],
+   "New Brunswick": [
+    "2026-09",
+    178
+   ],
+   "Quebec": [
+    "2026-09",
+    150
+   ],
+   "Ontario": [
+    "2026-09",
+    167
+   ],
+   "Manitoba": [
+    "2026-09",
+    178
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    182
+   ],
+   "Alberta": [
+    "2026-09",
+    183
+   ],
+   "British Columbia": [
+    "2026-09",
+    182
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    195
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    217
+   ]
+  },
+  "Canned tomatoes, 796 millilitres": {
+   "Canada": [
+    "2026-09",
+    207
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    229
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    229
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    228
+   ],
+   "New Brunswick": [
+    "2026-09",
+    222
+   ],
+   "Quebec": [
+    "2026-09",
+    192
+   ],
+   "Ontario": [
+    "2026-09",
+    215
+   ],
+   "Manitoba": [
+    "2026-09",
+    205
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    210
+   ],
+   "Alberta": [
+    "2026-09",
+    211
+   ],
+   "British Columbia": [
+    "2026-09",
+    216
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    236
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    249
+   ]
+  },
+  "Canned soup, 284 millilitres": {
+   "Canada": [
+    "2026-09",
+    131
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    123
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    141
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    136
+   ],
+   "New Brunswick": [
+    "2026-09",
+    132
+   ],
+   "Quebec": [
+    "2026-09",
+    124
+   ],
+   "Ontario": [
+    "2026-09",
+    129
+   ],
+   "Manitoba": [
+    "2026-09",
+    140
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    136
+   ],
+   "Alberta": [
+    "2026-09",
+    147
+   ],
+   "British Columbia": [
+    "2026-09",
+    146
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    169
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    161
+   ]
+  },
+  "Canned beans and lentils, 540 millilitres": {
+   "Canada": [
+    "2026-09",
+    175
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    191
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    190
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    192
+   ],
+   "New Brunswick": [
+    "2026-09",
+    190
+   ],
+   "Quebec": [
+    "2026-09",
+    177
+   ],
+   "Ontario": [
+    "2026-09",
+    172
+   ],
+   "Manitoba": [
+    "2026-09",
+    172
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    174
+   ],
+   "Alberta": [
+    "2026-09",
+    175
+   ],
+   "British Columbia": [
+    "2026-09",
+    174
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    179
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    203
+   ]
+  },
+  "Canned corn, 341 millilitres": {
+   "Canada": [
+    "2026-09",
+    152
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    173
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    180
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    174
+   ],
+   "New Brunswick": [
+    "2026-09",
+    154
+   ],
+   "Quebec": [
+    "2026-09",
+    128
+   ],
+   "Ontario": [
+    "2026-09",
+    165
+   ],
+   "Manitoba": [
+    "2026-09",
+    172
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    174
+   ],
+   "Alberta": [
+    "2026-09",
+    173
+   ],
+   "British Columbia": [
+    "2026-09",
+    172
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    175
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    179
+   ]
+  },
+  "Canned peach, 398 millilitres": {
+   "Canada": [
+    "2026-09",
+    246
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    246
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    251
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    246
+   ],
+   "New Brunswick": [
+    "2026-09",
+    240
+   ],
+   "Quebec": [
+    "2026-09",
+    252
+   ],
+   "Ontario": [
+    "2026-09",
+    245
+   ],
+   "Manitoba": [
+    "2026-09",
+    244
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    241
+   ],
+   "Alberta": [
+    "2026-09",
+    245
+   ],
+   "British Columbia": [
+    "2026-09",
+    248
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    256
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    259
+   ]
+  },
+  "Canned pear, 398 millilitres": {
+   "Canada": [
+    "2026-09",
+    276
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    287
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    284
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    278
+   ],
+   "New Brunswick": [
+    "2026-09",
+    280
+   ],
+   "Quebec": [
+    "2026-09",
+    272
+   ],
+   "Ontario": [
+    "2026-09",
+    271
+   ],
+   "Manitoba": [
+    "2026-09",
+    273
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    279
+   ],
+   "Alberta": [
+    "2026-09",
+    280
+   ],
+   "British Columbia": [
+    "2026-09",
+    282
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    275
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    298
+   ]
+  },
+  "Dried lentils, 900 grams": {
+   "Canada": [
+    "2026-09",
+    356
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    378
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    405
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    393
+   ],
+   "New Brunswick": [
+    "2026-09",
+    391
+   ],
+   "Quebec": [
+    "2026-09",
+    346
+   ],
+   "Ontario": [
+    "2026-09",
+    356
+   ],
+   "Manitoba": [
+    "2026-09",
+    361
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    354
+   ],
+   "Alberta": [
+    "2026-09",
+    353
+   ],
+   "British Columbia": [
+    "2026-09",
+    363
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    408
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    379
+   ]
+  },
+  "Dry beans and legumes, 900 grams": {
+   "Canada": [
+    "2026-09",
+    352
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    376
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    385
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    373
+   ],
+   "New Brunswick": [
+    "2026-09",
+    370
+   ],
+   "Quebec": [
+    "2026-09",
+    342
+   ],
+   "Ontario": [
+    "2026-09",
+    357
+   ],
+   "Manitoba": [
+    "2026-09",
+    348
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    345
+   ],
+   "Alberta": [
+    "2026-09",
+    346
+   ],
+   "British Columbia": [
+    "2026-09",
+    345
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    363
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    379
+   ]
+  },
+  "Tofu, 350 grams": {
+   "Canada": [
+    "2026-09",
+    277
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    294
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    285
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    295
+   ],
+   "New Brunswick": [
+    "2026-09",
+    284
+   ],
+   "Quebec": [
+    "2026-09",
+    261
+   ],
+   "Ontario": [
+    "2026-09",
+    279
+   ],
+   "Manitoba": [
+    "2026-09",
+    276
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    275
+   ],
+   "Alberta": [
+    "2026-09",
+    285
+   ],
+   "British Columbia": [
+    "2026-09",
+    297
+   ]
+  },
+  "Hummus, 227 grams": {
+   "Canada": [
+    "2026-09",
+    384
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    392
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    391
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    387
+   ],
+   "New Brunswick": [
+    "2026-09",
+    391
+   ],
+   "Quebec": [
+    "2026-09",
+    410
+   ],
+   "Ontario": [
+    "2026-09",
+    371
+   ],
+   "Manitoba": [
+    "2026-09",
+    372
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    375
+   ],
+   "Alberta": [
+    "2026-09",
+    379
+   ],
+   "British Columbia": [
+    "2026-09",
+    375
+   ]
+  },
+  "Salsa, 418 millilitres": {
+   "Canada": [
+    "2026-09",
+    511
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    554
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    538
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    545
+   ],
+   "New Brunswick": [
+    "2026-09",
+    545
+   ],
+   "Quebec": [
+    "2026-09",
+    479
+   ],
+   "Ontario": [
+    "2026-09",
+    527
+   ],
+   "Manitoba": [
+    "2026-09",
+    508
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    501
+   ],
+   "Alberta": [
+    "2026-09",
+    516
+   ],
+   "British Columbia": [
+    "2026-09",
+    510
+   ]
+  },
+  "Pasta sauce, 650 millilitres": {
+   "Canada": [
+    "2026-09",
+    347
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    301
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    316
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    313
+   ],
+   "New Brunswick": [
+    "2026-09",
+    321
+   ],
+   "Quebec": [
+    "2026-09",
+    414
+   ],
+   "Ontario": [
+    "2026-09",
+    327
+   ],
+   "Manitoba": [
+    "2026-09",
+    290
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    286
+   ],
+   "Alberta": [
+    "2026-09",
+    314
+   ],
+   "British Columbia": [
+    "2026-09",
+    332
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    401
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    422
+   ]
+  },
+  "Salad dressing, 475 millilitres": {
+   "Canada": [
+    "2026-09",
+    359
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    389
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    401
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    394
+   ],
+   "New Brunswick": [
+    "2026-09",
+    393
+   ],
+   "Quebec": [
+    "2026-09",
+    328
+   ],
+   "Ontario": [
+    "2026-09",
+    362
+   ],
+   "Manitoba": [
+    "2026-09",
+    348
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    346
+   ],
+   "Alberta": [
+    "2026-09",
+    361
+   ],
+   "British Columbia": [
+    "2026-09",
+    349
+   ]
+  },
+  "Almonds, 200 grams": {
+   "Canada": [
+    "2026-09",
+    546
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    534
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    547
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    553
+   ],
+   "New Brunswick": [
+    "2026-09",
+    551
+   ],
+   "Quebec": [
+    "2026-09",
+    594
+   ],
+   "Ontario": [
+    "2026-09",
+    527
+   ],
+   "Manitoba": [
+    "2026-09",
+    546
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    540
+   ],
+   "Alberta": [
+    "2026-09",
+    543
+   ],
+   "British Columbia": [
+    "2026-09",
+    538
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    587
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    586
+   ]
+  },
+  "Peanuts, 450 grams": {
+   "Canada": [
+    "2026-09",
+    433
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    433
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    440
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    439
+   ],
+   "New Brunswick": [
+    "2026-09",
+    432
+   ],
+   "Quebec": [
+    "2026-09",
+    448
+   ],
+   "Ontario": [
+    "2026-09",
+    416
+   ],
+   "Manitoba": [
+    "2026-09",
+    451
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    428
+   ],
+   "Alberta": [
+    "2026-09",
+    442
+   ],
+   "British Columbia": [
+    "2026-09",
+    437
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    384
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    395
+   ]
+  },
+  "Sunflower seeds, 400 grams": {
+   "Canada": [
+    "2026-09",
+    505
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    529
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    533
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    531
+   ],
+   "New Brunswick": [
+    "2026-09",
+    542
+   ],
+   "Quebec": [
+    "2026-09",
+    525
+   ],
+   "Ontario": [
+    "2026-09",
+    486
+   ],
+   "Manitoba": [
+    "2026-09",
+    496
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    522
+   ],
+   "Alberta": [
+    "2026-09",
+    514
+   ],
+   "British Columbia": [
+    "2026-09",
+    511
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    578
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    598
+   ]
+  },
+  "Deodorant, 85 grams": {
+   "Canada": [
+    "2026-09",
+    832
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    807
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    830
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    841
+   ],
+   "New Brunswick": [
+    "2026-09",
+    845
+   ],
+   "Quebec": [
+    "2026-09",
+    771
+   ],
+   "Ontario": [
+    "2026-09",
+    831
+   ],
+   "Manitoba": [
+    "2026-09",
+    842
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    841
+   ],
+   "Alberta": [
+    "2026-09",
+    860
+   ],
+   "British Columbia": [
+    "2026-09",
+    870
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    927
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    913
+   ]
+  },
+  "Toothpaste, 100 millilitres": {
+   "Canada": [
+    "2026-09",
+    438
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    424
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    454
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    462
+   ],
+   "New Brunswick": [
+    "2026-09",
+    456
+   ],
+   "Quebec": [
+    "2026-09",
+    385
+   ],
+   "Ontario": [
+    "2026-09",
+    441
+   ],
+   "Manitoba": [
+    "2026-09",
+    440
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    457
+   ],
+   "Alberta": [
+    "2026-09",
+    467
+   ],
+   "British Columbia": [
+    "2026-09",
+    465
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    493
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    498
+   ]
+  },
+  "Shampoo, 400 millilitres": {
+   "Canada": [
+    "2026-09",
+    730
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    706
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    727
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    732
+   ],
+   "New Brunswick": [
+    "2026-09",
+    734
+   ],
+   "Quebec": [
+    "2026-09",
+    694
+   ],
+   "Ontario": [
+    "2026-09",
+    731
+   ],
+   "Manitoba": [
+    "2026-09",
+    725
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    732
+   ],
+   "Alberta": [
+    "2026-09",
+    740
+   ],
+   "British Columbia": [
+    "2026-09",
+    758
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    763
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    755
+   ]
+  },
+  "Laundry detergent, 4.43 litres": {
+   "Canada": [
+    "2026-09",
+    1448
+   ],
+   "Newfoundland and Labrador": [
+    "2026-09",
+    1497
+   ],
+   "Prince Edward Island": [
+    "2026-09",
+    1508
+   ],
+   "Nova Scotia": [
+    "2026-09",
+    1510
+   ],
+   "New Brunswick": [
+    "2026-09",
+    1513
+   ],
+   "Quebec": [
+    "2026-09",
+    1502
+   ],
+   "Ontario": [
+    "2026-09",
+    1400
+   ],
+   "Manitoba": [
+    "2026-09",
+    1474
+   ],
+   "Saskatchewan": [
+    "2026-09",
+    1469
+   ],
+   "Alberta": [
+    "2026-09",
+    1452
+   ],
+   "British Columbia": [
+    "2026-09",
+    1464
+   ],
+   "Whitehorse, Yukon": [
+    "2026-09",
+    1533
+   ],
+   "Yellowknife, Northwest Territories": [
+    "2026-09",
+    1542
+   ]
+  }
+ },
+ "shelfFactor": {
+  "Beef stewing cuts, per kilogram": 1.343,
+  "Beef striploin cuts, per kilogram": 1.43,
+  "Beef top sirloin cuts, per kilogram": 1.443,
+  "Beef rib cuts, per kilogram": 1.453,
+  "Ground beef, per kilogram": 1.284,
+  "Pork loin cuts, per kilogram": 1.614,
+  "Pork rib cuts, per kilogram": 1.488,
+  "Pork shoulder cuts, per kilogram": 1.488,
+  "Whole chicken, per kilogram": 1.43,
+  "Chicken breasts, per kilogram": 1.544,
+  "Chicken thigh, per kilogram": 1.226,
+  "Chicken drumsticks, per kilogram": 1.452,
+  "Salmon, per kilogram": 1.338,
+  "Bacon, 500 grams": 1.543,
+  "Wieners, 400 grams": 1.712,
+  "Shrimp, 300 grams": 1.347,
+  "Canned salmon, 213 grams": 1.467,
+  "Canned tuna, 170 grams": 2.419,
+  "Meatless burgers, 226 grams": 1.028,
+  "Milk, 1 litre": 1.105,
+  "Milk, 2 litres": 1.14,
+  "Milk, 4 litres": 1.201,
+  "Soy milk, 1.89 litres": 1.553,
+  "Nut milk, 1.89 litres": 1.403,
+  "Cream, 1 litre": 1.415,
+  "Butter, 454 grams": 1.622,
+  "Margarine, 907 grams": 1.605,
+  "Block cheese, 500 grams": 1.571,
+  "Yogurt, 500 grams": 1.349,
+  "Eggs, 1 dozen": 1.416,
+  "Apples, per kilogram": 1.083,
+  "Oranges, per kilogram": 1.501,
+  "Oranges, 1.36 kilograms": 1.46,
+  "Bananas, per kilogram": 1.488,
+  "Pears, per kilogram": 1.473,
+  "Lemons, unit": 1.488,
+  "Limes, unit": 1.553,
+  "Grapes, per kilogram": 1.576,
+  "Cantaloupe, unit": 1.488,
+  "Strawberries, 454 grams": 1.458,
+  "Avocado, unit": 1.377,
+  "Potatoes, 4.54 kilograms": 1.569,
+  "Potatoes, per kilogram": 0.779,
+  "Sweet potatoes, per kilogram": 1.505,
+  "Tomatoes, per kilogram": 1.729,
+  "Cabbage, per kilogram": 1.632,
+  "Carrots, 1.36 kilograms": 1.435,
+  "Onions, per kilogram": 0.937,
+  "Onions, 1.36 kilograms": 1.378,
+  "Celery, unit": 1.49,
+  "Cucumber, unit": 1.488,
+  "Mushrooms, 227 grams": 1.373,
+  "Iceberg lettuce, unit": 1.529,
+  "Romaine lettuce, unit": 1.488,
+  "Broccoli, unit": 1.559,
+  "Peppers, per kilogram": 1.524,
+  "Squash, per kilogram": 1.488,
+  "Salad greens, 142 grams": 1.148,
+  "Frozen french fried potatoes, 750 grams": 1.678,
+  "Frozen green beans, 750 grams": 1.374,
+  "Frozen broccoli, 500 grams": 1.888,
+  "Frozen corn, 750 grams": 1.426,
+  "Frozen mixed vegetables, 750 grams": 1.487,
+  "Frozen peas, 750 grams": 1.425,
+  "Frozen pizza, 390 grams": 1.56,
+  "Frozen spinach, 300 grams": 1.554,
+  "Frozen strawberries, 600 grams": 1.544,
+  "White bread, 675 grams": 1.427,
+  "Flatbread and pita, 500 grams": 1.728,
+  "Crackers and crisp breads, 200 grams": 1.704,
+  "Cookies and sweet biscuits, 300 grams": 1.648,
+  "Dry or fresh pasta, 500 grams": 1.187,
+  "Brown rice, 900 grams": 1.228,
+  "White rice, 2 kilograms": 1.153,
+  "Cereal, 400 grams": 1.623,
+  "Wheat flour, 2.5 kilograms": 1.513,
+  "White sugar, 2 kilograms": 1.437,
+  "Apple juice, 2 litres": 1.568,
+  "Orange juice, 2 litres": 1.513,
+  "Roasted or ground coffee, 340 grams": 1.811,
+  "Tea (20 bags)": 1.164,
+  "Ketchup, 1 litre": 1.548,
+  "Vegetable oil, 3 litres": 1.676,
+  "Canola oil, 3 litres": 1.489,
+  "Olive oil, 1 litre": 1.824,
+  "Baby food, 128 millilitres": 1.989,
+  "Infant formula, 900 grams": 1.488,
+  "Peanut butter, 1 kilogram": 1.646,
+  "Mayonnaise, 890 millilitres": 1.367,
+  "Salsa, 418 millilitres": 0.991,
+  "Pasta sauce, 650 millilitres": 1.757,
+  "Salad dressing, 475 millilitres": 1.605,
+  "Canned baked beans, 398 millilitres": 1.495,
+  "Canned tomatoes, 796 millilitres": 1.522,
+  "Canned soup, 284 millilitres": 2.106,
+  "Canned beans and lentils, 540 millilitres": 1.451,
+  "Canned corn, 341 millilitres": 1.327,
+  "Canned peach, 398 millilitres": 1.646,
+  "Canned pear, 398 millilitres": 1.407,
+  "Dried lentils, 900 grams": 1.232,
+  "Dry beans and legumes, 900 grams": 1.172,
+  "Tofu, 350 grams": 1.07,
+  "Hummus, 227 grams": 1.224,
+  "Almonds, 200 grams": 1.609,
+  "Peanuts, 450 grams": 1.507,
+  "Sunflower seeds, 400 grams": 1.394,
+  "Deodorant, 85 grams": 1.571,
+  "Toothpaste, 100 millilitres": 1.627,
+  "Shampoo, 400 millilitres": 1.697,
+  "Laundry detergent, 4.43 litres": 1.488
+ },
+ "calibration": {
+  "on": "2026-11-08",
+  "from": "Project Hammer regular prices, Toronto, newest 2026-11-07",
+  "place": "Ontario",
+  "rows": 13219,
+  "products": 100,
+  "overallFactor": 1.488,
+  "sigma": 0.367,
+  "insideP10P90": 0.76,
+  "perProduct": {
+   "Beef stewing cuts, per kilogram": {
+    "n": 9,
+    "factor": 1.343,
+    "sigma": 0.273
+   },
+   "Beef striploin cuts, per kilogram": {
+    "n": 2,
+    "factor": 1.43,
+    "sigma": 0.393
+   },
+   "Beef top sirloin cuts, per kilogram": {
+    "n": 1,
+    "factor": 1.443,
+    "sigma": 0
+   },
+   "Beef rib cuts, per kilogram": {
+    "n": 2,
+    "factor": 1.453,
+    "sigma": 0.348
+   },
+   "Ground beef, per kilogram": {
+    "n": 27,
+    "factor": 1.284,
+    "sigma": 0.106
+   },
+   "Pork loin cuts, per kilogram": {
+    "n": 2,
+    "factor": 1.614,
+    "sigma": 1.135
+   },
+   "Pork rib cuts, per kilogram": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Pork shoulder cuts, per kilogram": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Whole chicken, per kilogram": {
+    "n": 3,
+    "factor": 1.43,
+    "sigma": 0.096
+   },
+   "Chicken breasts, per kilogram": {
+    "n": 16,
+    "factor": 1.544,
+    "sigma": 0.24
+   },
+   "Chicken thigh, per kilogram": {
+    "n": 9,
+    "factor": 1.226,
+    "sigma": 0.142
+   },
+   "Chicken drumsticks, per kilogram": {
+    "n": 7,
+    "factor": 1.452,
+    "sigma": 0.175
+   },
+   "Salmon, per kilogram": {
+    "n": 22,
+    "factor": 1.338,
+    "sigma": 0.533
+   },
+   "Bacon, 500 grams": {
+    "n": 117,
+    "factor": 1.543,
+    "sigma": 0.312
+   },
+   "Wieners, 400 grams": {
+    "n": 129,
+    "factor": 1.712,
+    "sigma": 0.372
+   },
+   "Shrimp, 300 grams": {
+    "n": 122,
+    "factor": 1.347,
+    "sigma": 0.303
+   },
+   "Canned salmon, 213 grams": {
+    "n": 7,
+    "factor": 1.467,
+    "sigma": 0.212
+   },
+   "Canned tuna, 170 grams": {
+    "n": 251,
+    "factor": 2.419,
+    "sigma": 0.38
+   },
+   "Meatless burgers, 226 grams": {
+    "n": 47,
+    "factor": 1.028,
+    "sigma": 0.256
+   },
+   "Milk, 1 litre": {
+    "n": 57,
+    "factor": 1.105,
+    "sigma": 0.138
+   },
+   "Milk, 2 litres": {
+    "n": 125,
+    "factor": 1.14,
+    "sigma": 0.175
+   },
+   "Milk, 4 litres": {
+    "n": 79,
+    "factor": 1.201,
+    "sigma": 0.299
+   },
+   "Soy milk, 1.89 litres": {
+    "n": 70,
+    "factor": 1.553,
+    "sigma": 0.391
+   },
+   "Nut milk, 1.89 litres": {
+    "n": 106,
+    "factor": 1.403,
+    "sigma": 0.347
+   },
+   "Cream, 1 litre": {
+    "n": 41,
+    "factor": 1.415,
+    "sigma": 0.29
+   },
+   "Butter, 454 grams": {
+    "n": 148,
+    "factor": 1.622,
+    "sigma": 0.345
+   },
+   "Margarine, 907 grams": {
+    "n": 136,
+    "factor": 1.605,
+    "sigma": 0.24
+   },
+   "Block cheese, 500 grams": {
+    "n": 399,
+    "factor": 1.571,
+    "sigma": 0.476
+   },
+   "Yogurt, 500 grams": {
+    "n": 834,
+    "factor": 1.349,
+    "sigma": 0.297
+   },
+   "Eggs, 1 dozen": {
+    "n": 72,
+    "factor": 1.416,
+    "sigma": 0.182
+   },
+   "Apples, per kilogram": {
+    "n": 60,
+    "factor": 1.083,
+    "sigma": 0.223
+   },
+   "Oranges, per kilogram": {
+    "n": 7,
+    "factor": 1.501,
+    "sigma": 0.354
+   },
+   "Oranges, 1.36 kilograms": {
+    "n": 15,
+    "factor": 1.46,
+    "sigma": 0.268
+   },
+   "Bananas, per kilogram": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Pears, per kilogram": {
+    "n": 5,
+    "factor": 1.473,
+    "sigma": 0
+   },
+   "Lemons, unit": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Limes, unit": {
+    "n": 2,
+    "factor": 1.553,
+    "sigma": 0.792
+   },
+   "Grapes, per kilogram": {
+    "n": 13,
+    "factor": 1.576,
+    "sigma": 0.293
+   },
+   "Cantaloupe, unit": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Strawberries, 454 grams": {
+    "n": 21,
+    "factor": 1.458,
+    "sigma": 0.23
+   },
+   "Avocado, unit": {
+    "n": 11,
+    "factor": 1.377,
+    "sigma": 0.988
+   },
+   "Potatoes, 4.54 kilograms": {
+    "n": 15,
+    "factor": 1.569,
+    "sigma": 0.228
+   },
+   "Potatoes, per kilogram": {
+    "n": 28,
+    "factor": 0.779,
+    "sigma": 0.35
+   },
+   "Sweet potatoes, per kilogram": {
+    "n": 5,
+    "factor": 1.505,
+    "sigma": 0.001
+   },
+   "Tomatoes, per kilogram": {
+    "n": 6,
+    "factor": 1.729,
+    "sigma": 0.628
+   },
+   "Cabbage, per kilogram": {
+    "n": 1,
+    "factor": 1.632,
+    "sigma": 0
+   },
+   "Carrots, 1.36 kilograms": {
+    "n": 11,
+    "factor": 1.435,
+    "sigma": 0.758
+   },
+   "Onions, per kilogram": {
+    "n": 15,
+    "factor": 0.937,
+    "sigma": 0.9
+   },
+   "Onions, 1.36 kilograms": {
+    "n": 21,
+    "factor": 1.378,
+    "sigma": 0.418
+   },
+   "Celery, unit": {
+    "n": 1,
+    "factor": 1.49,
+    "sigma": 0
+   },
+   "Cucumber, unit": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Mushrooms, 227 grams": {
+    "n": 38,
+    "factor": 1.373,
+    "sigma": 0.262
+   },
+   "Iceberg lettuce, unit": {
+    "n": 3,
+    "factor": 1.529,
+    "sigma": 0
+   },
+   "Romaine lettuce, unit": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Broccoli, unit": {
+    "n": 2,
+    "factor": 1.559,
+    "sigma": 0.001
+   },
+   "Peppers, per kilogram": {
+    "n": 1,
+    "factor": 1.524,
+    "sigma": 0
+   },
+   "Squash, per kilogram": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Salad greens, 142 grams": {
+    "n": 26,
+    "factor": 1.148,
+    "sigma": 0.225
+   },
+   "Frozen french fried potatoes, 750 grams": {
+    "n": 151,
+    "factor": 1.678,
+    "sigma": 0.341
+   },
+   "Frozen green beans, 750 grams": {
+    "n": 9,
+    "factor": 1.374,
+    "sigma": 0.332
+   },
+   "Frozen broccoli, 500 grams": {
+    "n": 20,
+    "factor": 1.888,
+    "sigma": 0.651
+   },
+   "Frozen corn, 750 grams": {
+    "n": 13,
+    "factor": 1.426,
+    "sigma": 0.271
+   },
+   "Frozen mixed vegetables, 750 grams": {
+    "n": 68,
+    "factor": 1.487,
+    "sigma": 0.333
+   },
+   "Frozen peas, 750 grams": {
+    "n": 14,
+    "factor": 1.425,
+    "sigma": 0.53
+   },
+   "Frozen pizza, 390 grams": {
+    "n": 189,
+    "factor": 1.56,
+    "sigma": 0.362
+   },
+   "Frozen spinach, 300 grams": {
+    "n": 25,
+    "factor": 1.554,
+    "sigma": 0.54
+   },
+   "Frozen strawberries, 600 grams": {
+    "n": 13,
+    "factor": 1.544,
+    "sigma": 0.4
+   },
+   "White bread, 675 grams": {
+    "n": 62,
+    "factor": 1.427,
+    "sigma": 0.323
+   },
+   "Flatbread and pita, 500 grams": {
+    "n": 222,
+    "factor": 1.728,
+    "sigma": 0.4
+   },
+   "Crackers and crisp breads, 200 grams": {
+    "n": 942,
+    "factor": 1.704,
+    "sigma": 0.442
+   },
+   "Cookies and sweet biscuits, 300 grams": {
+    "n": 1358,
+    "factor": 1.648,
+    "sigma": 0.425
+   },
+   "Dry or fresh pasta, 500 grams": {
+    "n": 751,
+    "factor": 1.187,
+    "sigma": 0.38
+   },
+   "Brown rice, 900 grams": {
+    "n": 38,
+    "factor": 1.228,
+    "sigma": 0.223
+   },
+   "White rice, 2 kilograms": {
+    "n": 111,
+    "factor": 1.153,
+    "sigma": 0.475
+   },
+   "Cereal, 400 grams": {
+    "n": 1174,
+    "factor": 1.623,
+    "sigma": 0.298
+   },
+   "Wheat flour, 2.5 kilograms": {
+    "n": 97,
+    "factor": 1.513,
+    "sigma": 0.328
+   },
+   "White sugar, 2 kilograms": {
+    "n": 9,
+    "factor": 1.437,
+    "sigma": 0.231
+   },
+   "Apple juice, 2 litres": {
+    "n": 75,
+    "factor": 1.568,
+    "sigma": 0.306
+   },
+   "Orange juice, 2 litres": {
+    "n": 95,
+    "factor": 1.513,
+    "sigma": 0.287
+   },
+   "Roasted or ground coffee, 340 grams": {
+    "n": 514,
+    "factor": 1.811,
+    "sigma": 0.279
+   },
+   "Tea (20 bags)": {
+    "n": 401,
+    "factor": 1.164,
+    "sigma": 0.5
+   },
+   "Ketchup, 1 litre": {
+    "n": 76,
+    "factor": 1.548,
+    "sigma": 0.248
+   },
+   "Vegetable oil, 3 litres": {
+    "n": 36,
+    "factor": 1.676,
+    "sigma": 0.27
+   },
+   "Canola oil, 3 litres": {
+    "n": 15,
+    "factor": 1.489,
+    "sigma": 0.378
+   },
+   "Olive oil, 1 litre": {
+    "n": 166,
+    "factor": 1.824,
+    "sigma": 0.364
+   },
+   "Baby food, 128 millilitres": {
+    "n": 15,
+    "factor": 1.989,
+    "sigma": 0.277
+   },
+   "Infant formula, 900 grams": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   },
+   "Peanut butter, 1 kilogram": {
+    "n": 228,
+    "factor": 1.646,
+    "sigma": 0.425
+   },
+   "Mayonnaise, 890 millilitres": {
+    "n": 75,
+    "factor": 1.367,
+    "sigma": 0.329
+   },
+   "Salsa, 418 millilitres": {
+    "n": 212,
+    "factor": 0.991,
+    "sigma": 0.29
+   },
+   "Pasta sauce, 650 millilitres": {
+    "n": 422,
+    "factor": 1.757,
+    "sigma": 0.546
+   },
+   "Salad dressing, 475 millilitres": {
+    "n": 680,
+    "factor": 1.605,
+    "sigma": 0.557
+   },
+   "Canned baked beans, 398 millilitres": {
+    "n": 78,
+    "factor": 1.495,
+    "sigma": 0.265
+   },
+   "Canned tomatoes, 796 millilitres": {
+    "n": 154,
+    "factor": 1.522,
+    "sigma": 0.533
+   },
+   "Canned soup, 284 millilitres": {
+    "n": 536,
+    "factor": 2.106,
+    "sigma": 0.352
+   },
+   "Canned beans and lentils, 540 millilitres": {
+    "n": 226,
+    "factor": 1.451,
+    "sigma": 0.367
+   },
+   "Canned corn, 341 millilitres": {
+    "n": 58,
+    "factor": 1.327,
+    "sigma": 0.313
+   },
+   "Canned peach, 398 millilitres": {
+    "n": 78,
+    "factor": 1.646,
+    "sigma": 0.547
+   },
+   "Canned pear, 398 millilitres": {
+    "n": 20,
+    "factor": 1.407,
+    "sigma": 0.543
+   },
+   "Dried lentils, 900 grams": {
+    "n": 37,
+    "factor": 1.232,
+    "sigma": 0.175
+   },
+   "Dry beans and legumes, 900 grams": {
+    "n": 101,
+    "factor": 1.172,
+    "sigma": 0.199
+   },
+   "Tofu, 350 grams": {
+    "n": 99,
+    "factor": 1.07,
+    "sigma": 0.285
+   },
+   "Hummus, 227 grams": {
+    "n": 62,
+    "factor": 1.224,
+    "sigma": 0.096
+   },
+   "Almonds, 200 grams": {
+    "n": 135,
+    "factor": 1.609,
+    "sigma": 0.369
+   },
+   "Peanuts, 450 grams": {
+    "n": 77,
+    "factor": 1.507,
+    "sigma": 0.302
+   },
+   "Sunflower seeds, 400 grams": {
+    "n": 72,
+    "factor": 1.394,
+    "sigma": 0.198
+   },
+   "Deodorant, 85 grams": {
+    "n": 27,
+    "factor": 1.571,
+    "sigma": 0.198
+   },
+   "Toothpaste, 100 millilitres": {
+    "n": 28,
+    "factor": 1.627,
+    "sigma": 0.254
+   },
+   "Shampoo, 400 millilitres": {
+    "n": 8,
+    "factor": 1.697,
+    "sigma": 0.025
+   },
+   "Laundry detergent, 4.43 litres": {
+    "n": 0,
+    "factor": 1.488,
+    "sigma": 0
+   }
+  }
+ }
+}

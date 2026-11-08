@@ -123,6 +123,13 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
     keys: ['bcldb'],
   },
   {
+    name: 'Statistics Canada',
+    what: "Monthly average retail prices for 110 everyday products, by province, from table 18-10-0245-01 (newest month 2026-09, counted 2026-11-08). Used, adjusted to regular shelf prices, for a staple Pexi holds no store price for. Source: Statistics Canada. Table 18-10-0245-01 Monthly average retail prices for selected products. Contains information licensed under the Open Government Licence - Canada.",
+    licence: 'Open Government Licence - Canada',
+    url: 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810024501',
+    keys: ['statcan'],
+  },
+  {
     name: 'Project Hammer',
     what: 'Shelf prices from nine Canadian grocers (Loblaws, No Frills, Metro, Walmart, Save-On-Foods, Sobeys, Voila, T and T, and Galleria), collected by Project Hammer for one Toronto neighbourhood: 98,918 price observations, 47,404 distinct barcodes, most seen in 2026 (counted 2026-11-07). Data from Project Hammer by Jacob Filipp.',
     licence: 'No licence stated by the publisher',

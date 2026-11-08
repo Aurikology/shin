@@ -274,9 +274,10 @@ export interface CatalogueAnswer {
   readonly range: CatalogueRange | null;
   /**
    * `shin_estimate`: a last-rung range from the verdict ladder's bell over Pexi's data;
+   * `national_average`: the verdict's bell when it stood on Statistics Canada's average (`nationalAverage` says which);
    * `fixed_prior`: the fixed wide bell, no data at all (requirement 3.1).
    */
-  readonly rangeSource: 'shin_prices' | 'claude_typical' | 'shin_estimate' | 'fixed_prior' | null;
+  readonly rangeSource: 'shin_prices' | 'claude_typical' | 'shin_estimate' | 'national_average' | 'fixed_prior' | null;
   readonly rangeAskedAt: string | null;
   /**
    * Why neither Pexi's own prices nor Claude gave a range. Kept when a last-rung range stands in,
@@ -306,6 +307,12 @@ export interface CatalogueAnswer {
    * never a centre, a range or a zone. Present only when a pool was set aside.
    */
   readonly widePool?: { readonly category: CategoryRef | null; readonly n: number; readonly cents: readonly number[] };
+  /**
+   * The verdict stood on Statistics Canada's monthly average (basis `national_average`): which of its
+   * products, the place (a province, or Canada) and the month, and the average as StatCan prints it for
+   * its own size. The client words its source line from these. Present only then.
+   */
+  readonly nationalAverage?: { readonly product: string; readonly place: string; readonly month: string; readonly averageCents: number };
 }
 
 /** What the scan row gets beside the answer (migration 18). */
@@ -389,6 +396,12 @@ export interface BarcodeDeps {
   /** How long the verdict waits for Claude before moving down the ladder. */
   readonly claudeWaitMs?: number;
   /**
+   * The Statistics Canada rung (price/src/statcan.ts), or absent for none. The server passes it only when
+   * the client said it can show that source (`knows=national_average`): a build that cannot word it
+   * refuses a basis it does not know, so for that build the ladder stays exactly as it was.
+   */
+  readonly nationalAverage?: EstimateDeps['nationalAverage'];
+  /**
    * The serve-time category safeguard (category-guard.ts). When an answer used a
    * parent rung it checks the parent against the taxonomy, logs and counts any
    * fault, and never changes the answer. Absent: no check, and no claim of one.
@@ -462,7 +475,7 @@ function safeTaxonomy(guard: CategoryGuard | undefined): ReturnType<CategoryGuar
 export function lastRungRange(
   est: Awaited<ReturnType<typeof estimate>> | null,
   currency: string,
-): { range: CatalogueRange; source: 'shin_estimate' | 'fixed_prior' } {
+): { range: CatalogueRange; source: 'shin_estimate' | 'national_average' | 'fixed_prior' } {
   const v = est?.verdict ?? null;
   const cur = v?.currency || (currency ?? '').trim().toUpperCase() || 'CAD';
   // D-233: a pool set aside as too wide never sets a range, so a too-thin bell (drawn from that pool's
@@ -472,7 +485,8 @@ export function lastRungRange(
     const high = Math.max(low, Math.round(v.p90Cents));
     return {
       range: { lowCents: low, highCents: high, medianCents: Math.round(v.centreCents) || null, n: v.n, basis: v.basis, category: null, currency: cur, unit: null, confidence: 'low' },
-      source: 'shin_estimate',
+      // Statistics Canada's average is public data, not Pexi's: the answer says so.
+      source: v.basis === 'national_average' ? 'national_average' : 'shin_estimate',
     };
   }
   const low = Math.max(1, Math.round(EMPTY_PRIOR.centreCents * Math.exp(-Z10 * EMPTY_PRIOR.sigmaLog)));
@@ -481,6 +495,16 @@ export function lastRungRange(
     range: { lowCents: low, highCents: high, medianCents: null, n: 0, basis: 'fixed_prior', category: null, currency: cur, unit: null, confidence: 'low' },
     source: 'fixed_prior',
   };
+}
+
+/** The answer's `nationalAverage` field, when the shown verdict stood on Statistics Canada's average. */
+function nationalAverageOf(
+  verdict: Verdict | null,
+  est: Awaited<ReturnType<typeof estimate>> | null,
+): { nationalAverage?: NonNullable<CatalogueAnswer['nationalAverage']> } {
+  const na = est?.trace.nationalAverage ?? null;
+  if (!verdict || verdict.basis !== 'national_average' || !na) return {};
+  return { nationalAverage: { product: na.product, place: na.place, month: na.month, averageCents: na.averageCents } };
 }
 
 /** A Claude range a shopper may be shown: whole positive cents, low <= high, in the answer's currency. */
@@ -626,7 +650,13 @@ export async function answerBarcodeFromCatalogue(
           asOf: deps.asOf,
         },
         deps.shopper ?? null,
-        { prices: deps.prices, catalogue: deps.catalogue, sortName: deps.sortName, taxonomy: safeTaxonomy(deps.categoryGuard) },
+        {
+          prices: deps.prices,
+          catalogue: deps.catalogue,
+          sortName: deps.sortName,
+          taxonomy: safeTaxonomy(deps.categoryGuard),
+          ...(deps.nationalAverage ? { nationalAverage: deps.nationalAverage } : {}),
+        },
       );
       if (est && est.verdict.dots.length > 0 && est.trace.name) {
         verdict = est.verdict;
@@ -678,6 +708,7 @@ export async function answerBarcodeFromCatalogue(
         storeIdentity,
         ...(storeRange ? { range: storeRange.range, rangeSource: storeRange.source } : {}),
         ...(noName ? { noNameReasons: noName.reasons } : {}),
+        ...nationalAverageOf(verdict, storeEstimate),
       },
       record: {
         ...missRecord(verdict, storeIdentity ? [storeIdentity.name, storeIdentity.size].filter(Boolean).join(' ') : null),
@@ -909,6 +940,7 @@ async function priceIdentity(
       ...(askClaude ? { askClaude } : {}),
       sortName: deps.sortName,
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
+      ...(deps.nationalAverage ? { nationalAverage: deps.nationalAverage } : {}),
     },
   );
   verdict = shownVerdict(est, row.code);
@@ -1037,6 +1069,7 @@ async function priceIdentity(
       storeIdentity: null,
       ...(how.identitySource ? { identitySource: how.identitySource } : {}),
       ...(wide ? { widePool: { category: categoryRef(wide.tag, categoryPath), n: wide.n, cents: wide.cents } } : {}),
+      ...nationalAverageOf(verdict, est),
     },
     record: {
       resolvedCode: row.code,
@@ -1049,7 +1082,7 @@ async function priceIdentity(
         ladderUsable ? ladder : null,
         ladder !== null,
         verdict,
-        rangeSource === 'shin_estimate' || rangeSource === 'fixed_prior' ? range : null,
+        rangeSource === 'shin_estimate' || rangeSource === 'national_average' || rangeSource === 'fixed_prior' ? range : null,
       ),
       rangeMissReason,
       verdict,

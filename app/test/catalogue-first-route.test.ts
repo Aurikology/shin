@@ -18,7 +18,7 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
@@ -67,6 +67,7 @@ const CAP_HIT = withCheck('006700010002'); // another unpriced cola, for the cap
 const MISSING = withCheck('006999999999'); // valid, not in the catalogue
 /** A weighed-item label: item 12345, price field 0599 with digit 7 = 0, so $5.99 embedded. */
 const WEIGHED = withCheck('21234500599');
+const EGG_HIT = withCheck('006277300001'); // a dozen eggs, no egg priced here: Statistics Canada, or the ask
 
 const PB_PATH = '["en:spreads","en:peanut-butters"]';
 const COLA_PATH = '["en:beverages","en:colas"]';
@@ -93,6 +94,7 @@ const catDb = openCatalogue(':memory:');
   insert.run(PB_OTHERS[3], 'Organic Peanut Butter', 'Organic Peanut Butter', 'Compliments', '1 kg', 1000, 'g', PB_PATH, 'en:peanut-butters');
   insert.run(NONE_HIT, 'Cola Classic', 'Cola Classic', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
   insert.run(CAP_HIT, 'Cola Zero', 'Cola Zero', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
+  insert.run(EGG_HIT, 'Large White Eggs', 'Large White Eggs', 'Burnbrae', '12 ea', 12, 'ea', '["en:farming-products","en:eggs"]', 'en:eggs');
   rebuildFts(catDb);
   rebuildCategories(catDb);
 }
@@ -335,6 +337,37 @@ test('ON, catalogue hit Pexi cannot price: exactly one Claude range ask, zero Ge
   assert.equal(row.answer_path, 'catalogue_hit');
   assert.equal(row.range_source, 'claude_typical');
   assert.equal(row.range_basis, 'claude_typical');
+});
+
+test('ON, Statistics Canada: a client that knows the source gets the shelf-adjusted Ontario average and no Claude ask; any other client gets the ask as before', async () => {
+  // Jamin, 2026-11-08: "wire in statistics canada". Build 3 refuses a basis it cannot word, so only `knows=national_average` turns it on.
+  on();
+  const table = JSON.parse(readFileSync(join(import.meta.dirname, '../../price/statcan-averages.json'), 'utf8'));
+  const [month, avg] = table.values['Eggs, 1 dozen'].Ontario as [string, number];
+  const factor = table.shelfFactor['Eggs, 1 dozen'] as number;
+  const asksBefore = askCalls.length;
+  const r = await fetch(`${base}/api/identify?gtin=${EGG_HIT}&deviceId=cf-statcan&countryCode=CA&region=ON&knows=national_average`);
+  assert.equal(r.status, 200);
+  const body = (await r.json()) as Record<string, any>;
+  assert.equal(body.outcome, 'catalogue_hit');
+  assert.equal(askCalls.length - asksBefore, 0, 'Claude was asked although Statistics Canada answered');
+  assert.equal(body.verdict.basis, 'national_average');
+  assert.equal(body.verdict.centreCents, Math.round(avg * factor));
+  assert.equal(body.verdict.sigmaLog, table.calibration.sigma);
+  assert.equal(body.rangeSource, 'national_average');
+  assert.equal(body.range.basis, 'national_average');
+  assert.equal(body.range.medianCents, Math.round(avg * factor));
+  assert.deepEqual(body.nationalAverage, { product: 'Eggs, 1 dozen', place: 'Ontario', month, averageCents: avg });
+  const row = scanRow(body.scanId);
+  assert.equal(row.range_source, 'none');
+  assert.equal(row.range_basis, 'national_average');
+
+  // The same scan from a build that does not send `knows`: the ladder exactly as before, Claude's range.
+  const old = await identify(EGG_HIT, 'cf-statcan-old');
+  assert.equal(askCalls.length - asksBefore, 1, 'the old client did not get the ask');
+  assert.equal(old.rangeSource, 'claude_typical');
+  assert.equal((old.verdict as Record<string, unknown>).basis, 'claude_typical');
+  assert.equal(old.nationalAverage, undefined);
 });
 
 test('ON, the monthly ask cap reached: the identity still comes back, a low-confidence last-rung range, the reason, no model call', async () => {

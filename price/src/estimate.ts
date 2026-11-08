@@ -21,6 +21,11 @@
  *   parent_category  the same one level up.
  *   brand_markup     the brand's median ratio to its categories' medians, times
  *                    the nearest category centre.
+ *   national_average Statistics Canada's monthly average for this staple in the
+ *                    shopper's province (110 products), times its measured
+ *                    shelf factor, scaled to this size, with the measured
+ *                    spread (price/src/statcan.ts). Only when the caller
+ *                    passes `nationalAverage`.
  *   claude_typical   the caller's capped, no-web-search Claude ask (RULINGS.md
  *                    "Catalogue first; Claude, with no web search, is the
  *                    capped price-range fallback"); its low/high read as
@@ -128,10 +133,11 @@ export type Basis =
   | 'leaf_category'
   | 'parent_category'
   | 'brand_markup'
+  | 'national_average'
   | 'claude_typical'
   | 'category_prior'
   | 'department_prior';
-export type SpreadFrom = 'own_prices' | 'leaf_category' | 'parent_category' | 'claude' | 'prior';
+export type SpreadFrom = 'own_prices' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
 /**
@@ -254,12 +260,37 @@ export interface EstimateDeps {
   readonly askClaude?: (identity: ClaudeIdentity, context?: ClaudeAskContext) => Promise<ClaudeAnswer>;
   /** How long the Claude rung is waited for. Default CLAUDE_WAIT_MS. */
   readonly claudeWaitMs?: number;
+  /**
+   * The Statistics Canada rung (price/src/statcan.ts `nationalAverageFor` over the committed table), run
+   * after Pexi's own data and before Claude. Absent: the rung is skipped, exactly as before it existed;
+   * the server passes it only to a client that says it can show its source (`knows=national_average`).
+   */
+  readonly nationalAverage?: (q: {
+    name: string | null;
+    target: ComparisonQuantity | null;
+    sizeText: string | null;
+    path: readonly string[];
+    region: string | null;
+    asOf: string;
+  }) => NationalAverageAnswer | { readonly miss: string };
   /** Places a name in a category (the existing catalogue search), for an item with none (design cases 2 and 5). */
   readonly sortName?: (name: string) => Promise<{ leafCategory: string | null; categoryPath: readonly string[] } | null>;
   /** Places a price row with no barcode in a category (broad to specific), or null. Absent: such rows stay out. */
   readonly categoryOfUnbarcoded?: (row: { name: string; storeCategory: string | null; seller: string }) => readonly string[] | null;
   /** One unit of each key currency in the item's currency (design case 26). No rate: the shopper's price is not placed. */
   readonly fxRates?: Readonly<Record<string, number>>;
+}
+
+/** What the Statistics Canada rung answers (statcan.ts `NationalAverage`, restated so this file imports no data). */
+export interface NationalAverageAnswer {
+  readonly centreCents: number;
+  readonly sigmaLog: number;
+  readonly product: string;
+  readonly place: string;
+  readonly month: string;
+  readonly averageCents: number;
+  readonly shelfFactor: number;
+  readonly ratio: number;
 }
 
 export interface RungTried {
@@ -281,6 +312,8 @@ export interface EstimateTrace {
   readonly conflict: { readonly barcode: string; readonly catalogueSize: string; readonly storeSize: string } | null;
   /** The category the name was sorted into, when the item came with none. */
   readonly sorted: { readonly leafCategory: string | null; readonly categoryPath: readonly string[] } | null;
+  /** The Statistics Canada product, place and month the centre stood on, when the verdict's basis is `national_average`. */
+  readonly nationalAverage?: NationalAverageAnswer | null;
   /** The name the estimate used (the store's own product name when the catalogue had none). */
   readonly name: string | null;
   readonly brand: string | null;
@@ -1163,6 +1196,39 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }
   }
 
+  /*
+   * ---- Statistics Canada's average for this staple in the shopper's province, shelf-adjusted and scaled
+   * to this size (price/src/statcan.ts). Public data, so it comes before the paid Claude ask.
+   */
+  let national: NationalAverageAnswer | null = null;
+  let nationalSigma: number | null = null;
+  if (basis === null) {
+    if (!deps.nationalAverage) {
+      tried.push({ rung: 'national_average', outcome: 'not_applicable', n: 0, detail: 'no_table' });
+    } else {
+      let got: NationalAverageAnswer | { readonly miss: string };
+      try {
+        got = deps.nationalAverage({ name, target, sizeText, path, region: item.region ?? null, asOf: item.asOf });
+      } catch (err) {
+        console.error(`[statcan-fault] threw ${name ?? ''} - ${err instanceof Error ? err.message : String(err)}`);
+        got = { miss: 'threw' };
+      }
+      if ('miss' in got) {
+        tried.push({ rung: 'national_average', outcome: got.miss === 'threw' ? 'failed' : 'not_applicable', n: 0, detail: got.miss });
+      } else if (!(got.centreCents > 0) || !(got.sigmaLog > 0)) {
+        tried.push({ rung: 'national_average', outcome: 'failed', n: 0, detail: 'unusable' });
+      } else {
+        national = got;
+        basis = 'national_average';
+        mu = Math.log(got.centreCents);
+        nationalSigma = got.sigmaLog;
+        n = 0;
+        scaled = target !== null;
+        tried.push({ rung: 'national_average', outcome: 'used', n: 0, detail: `${got.product} | ${got.place} | ${got.month}` });
+      }
+    }
+  }
+
   /* ---- Claude, cheapest, no web search, capped; down, capped, slow or keyless: the next rung */
   if (basis === null) {
     if (!deps.askClaude || !name) {
@@ -1274,6 +1340,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   } else if (parentSpread) {
     sigma = parentSpread.sigma;
     spreadFrom = 'parent_category';
+  } else if (nationalSigma !== null) {
+    sigma = nationalSigma;
+    spreadFrom = 'national_average';
   } else if (claudeSigma !== null) {
     sigma = claudeSigma;
     spreadFrom = 'claude';
@@ -1353,7 +1422,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   };
   return {
     verdict,
-    trace: { tried, claude: claudeTrace, conflict, sorted, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices },
+    trace: { tried, claude: claudeTrace, conflict, sorted, nationalAverage: national, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices },
   };
 }
 

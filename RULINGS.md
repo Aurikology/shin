@@ -334,6 +334,18 @@ overstepping by talking about the legal issues here"* · log: docs/launch-gaps-2
 Retired wording: none
 Governs: price/src/hammer.ts, app/src/attribution.ts (Project Hammer entry)
 
+### Statistics Canada averages price a staple before Claude is asked
+Statistics Canada's monthly average retail prices (table 18-10-0245-01, 110 products, by
+province) are a rung of the verdict ladder after Pexi's own data and before the paid Claude ask.
+The average is multiplied by a shelf factor measured on Project Hammer's regular prices (StatCan
+averages what shoppers paid, sales included, about 1.5 times below regular shelf prices), scaled
+to the item's size, with the measured spread. It runs only for a client that sends
+`knows=national_average`, so a build without its label gets the ladder as before. · 2026-11-08 ·
+told StatCan was downloaded and held until Hammer was measured: *"wire in statistics canada"* ·
+log: docs/launch-gaps-2026-11-06.md item 35
+Retired wording: none
+Governs: price/src/statcan.ts, price/statcan-averages.json, price/src/estimate.ts (national_average), app/server.ts (knows), app/src/attribution.ts (Statistics Canada entry)
+
 ### Who owns what: Aurik the app the shopper sees, Jamin the backend; Claude assigns every issue
 Every issue that comes up is owned by exactly one of the two, and Claude decides which, without
 asking. **Aurik:** the paywall and the purchase flow (RevenueCat in the app, restore, the Plus

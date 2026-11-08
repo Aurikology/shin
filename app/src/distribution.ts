@@ -147,11 +147,13 @@ export function verdictRecord(v: Verdict | null): VerdictRecord {
  * `range_source` and `range_basis` use. Pexi's own prices and its category pools
  * are `shin_prices` (the basis is the rung); Claude's typical range is
  * `claude_typical`; a prior is neither, so its source is `none` and the basis
- * still names the prior. Null with no verdict.
+ * still names the prior. Statistics Canada's average (`national_average`) is
+ * neither Pexi's prices nor Claude, so it is `none` with its basis named too.
+ * Null with no verdict.
  */
 export function shownRange(v: Verdict | null): { rangeSource: 'shin_prices' | 'claude_typical' | 'none'; rangeBasis: string } | null {
   if (!v) return null;
   if (v.basis === 'claude_typical') return { rangeSource: 'claude_typical', rangeBasis: v.basis };
-  if (v.basis === 'category_prior' || v.basis === 'department_prior') return { rangeSource: 'none', rangeBasis: v.basis };
+  if (v.basis === 'category_prior' || v.basis === 'department_prior' || v.basis === 'national_average') return { rangeSource: 'none', rangeBasis: v.basis };
   return { rangeSource: 'shin_prices', rangeBasis: v.basis };
 }

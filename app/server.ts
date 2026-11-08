@@ -67,6 +67,7 @@ import { isNeverSentToAModel } from '../catalogue/src/source-rights.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, shownRange, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
 import type { Verdict } from '../price/src/estimate.ts';
 import { PRICES_DB_PATH } from '../price/src/store.ts';
+import { loadTable as loadStatcanTable, nationalAverageFor } from '../price/src/statcan.ts';
 import type { Provider } from '../identify/src/provider.ts';
 import { lookupOpenFoodFactsWithReason } from './src/open-food-facts.ts';
 import { activeGapLog, recordGap } from '../catalogue/src/gaps.ts';
@@ -994,6 +995,11 @@ interface ScanContext {
   readonly mode?: string | null;
   /** What the picture shows: `price_tag` in the app's Price Tag mode (W30). */
   readonly hint?: string | null;
+  /**
+   * Answer sources the client can word, comma separated, beyond the ones every build knows. Today only
+   * `national_average` (Statistics Canada): a build without its label refuses a basis it does not know.
+   */
+  readonly knows?: string | null;
 }
 
 function contextFrom(get: (key: string) => unknown): ScanContext {
@@ -1010,6 +1016,7 @@ function contextFrom(get: (key: string) => unknown): ScanContext {
     storeHint: text(get('storeHint')),
     mode: text(get('mode')),
     hint: text(get('hint')),
+    knows: text(get('knows')),
   };
 }
 
@@ -1024,12 +1031,25 @@ function marketOfContext(ctx: ScanContext) {
   // The code the client sent wins; the name is the fallback for an older client.
   // The region is read as sent: it only means something with a country, and
   // `marketFromLocation` drops it otherwise. Unknown stays unknown.
-  return marketFromLocation({
-    country: countryCodeOf(ctx.countryCode) ?? countryCodeOf(ctx.market),
-    region: ctx.region ?? null,
-    currency: ctx.currency ?? null,
-  });
+  return {
+    ...marketFromLocation({
+      country: countryCodeOf(ctx.countryCode) ?? countryCodeOf(ctx.market),
+      region: ctx.region ?? null,
+      currency: ctx.currency ?? null,
+    }),
+    // The Statistics Canada rung runs only for a client that can say where its answer came from.
+    knowsNationalAverage: (ctx.knows ?? '').split(',').some((k) => k.trim() === 'national_average'),
+  };
 }
+
+/**
+ * The Statistics Canada rung (price/src/statcan.ts) over the committed table. The table is read once;
+ * a missing file is logged `[statcan-fault]` and the rung answers `no_table`, never a crash.
+ */
+const statcanRung: NonNullable<BarcodeDeps['nationalAverage']> = (q) => nationalAverageFor(q, loadStatcanTable());
+
+/** The market type every catalogue-first answer is priced with. */
+type PricingMarket = { country: string | null; currency: string | null; region?: string | null; knowsNationalAverage?: boolean };
 
 /** The sentence a typed search gets when Shin holds no item with a price for it. */
 const TYPED_NO_OWN_PRICE = 'Pexi does not have a price for that yet. Scan the barcode instead.';
@@ -1054,7 +1074,7 @@ const TYPED_NO_OWN_PRICE = 'Pexi does not have a price for that yet. Scan the ba
  */
 interface TypedVerdictContext {
   readonly shopper: { cents: number; thresholds?: unknown } | null;
-  readonly market: { country: string | null; currency: string | null; region?: string | null };
+  readonly market: PricingMarket;
   readonly askRange?: RangeAsk;
 }
 
@@ -1090,6 +1110,7 @@ async function typedVerdict(
         ...(once ? { askClaude: once.askClaude } : {}),
         sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
         ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
+        ...(ctx.market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
       },
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
@@ -1379,7 +1400,7 @@ async function typedFromOwnData(
 async function catalogueFirstBarcode(
   askRange: RangeAsk | undefined,
   canonical: NonNullable<ReturnType<typeof canonicalBarcode>>,
-  market: { country: string | null; currency: string | null; region?: string | null },
+  market: PricingMarket,
   device: string,
   shopper: { cents: number; thresholds?: unknown } | null = null,
   nameElsewhere?: BarcodeDeps['nameElsewhere'],
@@ -1390,7 +1411,7 @@ async function catalogueFirstBarcode(
 /** The deps every catalogue-first answer is priced with, the price file open for exactly the length of `fn`. */
 async function withCatalogueFirstDeps<T>(
   askRange: RangeAsk | undefined,
-  market: { country: string | null; currency: string | null; region?: string | null },
+  market: PricingMarket,
   device: string,
   shopper: { cents: number; thresholds?: unknown } | null,
   nameElsewhere: BarcodeDeps['nameElsewhere'] | undefined,
@@ -1423,6 +1444,7 @@ async function withCatalogueFirstDeps<T>(
       sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
       ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
       ...(nameElsewhere ? { nameElsewhere } : {}),
+      ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
     });
   } finally {
     try {
@@ -1680,7 +1702,12 @@ async function matchTextVerdict(matched: MatchTextAnswer, posted: Record<string,
         asOf: new Date().toISOString().slice(0, 10),
       },
       shopperFrom(shopperCents, posted.thresholds),
-      { prices, catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb, taxonomy: categoryGuard.taxonomy() },
+      {
+        prices,
+        catalogue: catalogueFirstTest?.db !== undefined ? catalogueFirstTest.db : catalogueDb,
+        taxonomy: categoryGuard.taxonomy(),
+        ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
+      },
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
     return shownVerdict(est, `match_text:${top.barcode ?? top.productId}`);
