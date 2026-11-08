@@ -239,6 +239,11 @@ backend verdict rows are tested once after it is live, not twice.
 34. **[Jamin] Project Hammer prices and names (2026-11-07/08):** importer built (f400ac3, 2ad8994),
     weekly refresh script (89e018d), credits entry live. PC trial: 98,918 prices on 47,404 barcodes;
     48,185 catalogue rows. Live load is Mac job pexi-hammer-prices.
+    **LIVE (checked 2026-11-08 19:25Z from the PC):** the Mac started the load at 18:21Z on 02aed27
+    (cents fix in; the live database had 0 Hammer rows before) and never marked the job done, but
+    live answers now carry Hammer store prices seen 2026-11-07 (tuna 0062639298517 at Save-On-Foods,
+    butter 0055742357615 at Sobeys, a Galleria noodle bowl). Not yet confirmed: the row count, the
+    catalogue names load, and the weekly refresh under the supervisor.
     **Bug found and fixed 2026-11-08:** from July 2026 about 4 in 10 Walmart prices in Project Hammer
     are written in cents with no decimal point ("2196" for $21.96); the importer read them as dollars,
     100 times too high. Now read as cents (price/src/hammer.ts `hammerCents`, test seen to fail
