@@ -86,7 +86,7 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
   },
   {
     name: 'Open Prices',
-    what: 'Shelf prices photographed and submitted by contributors: 874 of the 15,193 price observations in this app, 417 distinct barcodes, seen between 2020-02-01 and 2026-08-26 (counted 2026-10-06). The rest come from the sources below.',
+    what: 'Shelf prices photographed and submitted by contributors: 874 price observations, 417 distinct barcodes, seen between 2020-02-01 and 2026-08-26 (counted 2026-10-06).',
     licence: 'Open Database License (ODbL)',
     url: 'https://prices.openfoodfacts.org',
     keys: ['openprices'],
@@ -131,14 +131,14 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
   },
   {
     name: 'Alcool NB Liquor (ANBL)',
-    what: "Barcodes, product names and shelf prices from ANBL's public price list PDF: 6,741 price observations (counted 2026-10-06). Fetched by an automated script, not by hand. ANBL states no reuse licence. Its Terms and Conditions (anbl.com/terms, read 2026-10-06) say 'Material from this Site may not be copied, reproduced, republished, uploaded, posted, transmitted or distributed in any way' and that viewing or downloading is 'solely for your own personal use for non-commercial purposes'. Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /' and allows only Googlebot, Bingbot, Applebot and DuckDuckBot. Verdict: automated reading and reuse are both unlicensed; written permission from ANBL is needed.",
+    what: "Not used in any answer since 2026-10-10. Barcodes, product names and shelf prices from ANBL's public price list PDF: 6,741 price observations (counted 2026-10-06). Fetched by an automated script, not by hand. ANBL states no reuse licence. Its Terms and Conditions (anbl.com/terms, read 2026-10-06) say 'Material from this Site may not be copied, reproduced, republished, uploaded, posted, transmitted or distributed in any way' and that viewing or downloading is 'solely for your own personal use for non-commercial purposes'. Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /' and allows only Googlebot, Bingbot, Applebot and DuckDuckBot. Verdict: automated reading and reuse are both unlicensed; written permission from ANBL is needed.",
     licence: 'No reuse licence; terms read 2026-10-06 forbid copying and redistribution (personal non-commercial use only) and robots.txt disallows automated readers; permission needed',
     url: 'https://www.anbl.com/terms',
     keys: ['anbl'],
   },
   {
     name: 'Walmart Canada',
-    what: "Shelf prices read from public walmart.ca product pages by an automated reader: 22 price observations (counted 2026-10-06). Walmart states no reuse licence. Its Walmart Canada Terms of Use (walmart.ca/en/help/legal/TermsOfUse, clause text as returned by a search extract on 2026-10-06, because the page itself served a bot challenge to this reader) bar using 'any engine, software, tool, agent or other device or mechanism (including browsers, spiders, robots, avatars or intelligent agents) to scrape, navigate or search the Site', except Walmart's own search and generally available web browsers. Verdict: automated reading is forbidden; only prices a person reads and saves by hand are inside the terms, and reuse still needs Walmart's permission.",
+    what: "Not used in any answer since 2026-10-10. Shelf prices read from public walmart.ca product pages by an automated reader: 22 price observations (counted 2026-10-06). Walmart states no reuse licence. Its Walmart Canada Terms of Use (walmart.ca/en/help/legal/TermsOfUse, clause text as returned by a search extract on 2026-10-06, because the page itself served a bot challenge to this reader) bar using 'any engine, software, tool, agent or other device or mechanism (including browsers, spiders, robots, avatars or intelligent agents) to scrape, navigate or search the Site', except Walmart's own search and generally available web browsers. Verdict: automated reading is forbidden; only prices a person reads and saves by hand are inside the terms, and reuse still needs Walmart's permission.",
     licence: 'No reuse licence; terms read 2026-10-06 forbid scrapers and robots, so only pages saved by hand are allowed and the 22 automated rows are outside the terms',
     url: 'https://www.walmart.ca/en/help/legal/TermsOfUse',
     keys: ['walmart.ca'],
