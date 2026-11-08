@@ -88,6 +88,23 @@ test('observationsFor: a sale writes the promotional row and the regular price b
   assert.deepEqual(observationsFor(p.get('Metro729571884429')!, { day: '20240901', current: 'n/a', old: '', perUnit: '', other: '' }), []);
 });
 
+test('a Walmart integer price from July 2026 is cents; before that, and at other vendors, it is dollars', () => {
+  const walmart = { id: 'Walmart6000205233379', vendor: 'Walmart', name: 'Black Silk Dark Roast Ground Coffee 641g', units: '', brand: '', url: '', sku: '', code: '0060002052333' };
+  const at = (day: string, current: string, old = '') => observationsFor(walmart, { day, current, old, perUnit: '', other: '' }).map((o) => [o.kind, o.priceCents, o.wasCents]);
+  // The real row: "2196" with $3.43/100g on 641 g is $21.96.
+  assert.deepEqual(at('20260807', '2196'), [['regular', 2196, null]]);
+  assert.deepEqual(at('20260701', '197', '249'), [['promotional', 197, 249], ['regular', 249, null]]);
+  // A decimal price in the same months is still dollars.
+  assert.deepEqual(at('20260807', '13.47'), [['regular', 1347, null]]);
+  // Before July 2026 the same vendor wrote dollars ("6" for a $6 cake).
+  assert.deepEqual(at('20250101', '6'), [['regular', 600, null]]);
+  // Under 100 with no decimal point, from July 2026: 45 cents or $45, so not used.
+  assert.deepEqual(at('20260807', '45'), []);
+  // Another vendor's whole-dollar price is dollars at any date.
+  const galleria = { ...walmart, id: 'Galleria1', vendor: 'Galleria' };
+  assert.deepEqual(observationsFor(galleria, { day: '20261001', current: '83', old: '', perUnit: '', other: '' }).map((o) => o.priceCents), [8300]);
+});
+
 test('the hammer source registers once and its rows load into an enforced prices database', () => {
   const dir = mkdtempSync(join(tmpdir(), 'hammer-db-'));
   try {

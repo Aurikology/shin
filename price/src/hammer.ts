@@ -164,11 +164,32 @@ function isoDay(d: string): string {
   return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
 }
 
+/**
+ * From July 2026 Project Hammer writes about 4 in 10 Walmart prices in cents with no decimal point:
+ * "2196" for a $21.96 coffee (its per-unit field, $3.43/100g on 641 g, agrees), "197" for $1.97
+ * English muffins. Counted 2026-11-08 over hammer-4-raw.csv: Walmart integer prices were 0 to 2 percent
+ * of rows each month until 2026-07, then 12, 37 and 15 percent; every other vendor stays under
+ * 1 percent (whole-dollar prices such as Galleria's "83" honey). Read as dollars they were 100 times
+ * too high. So a Walmart integer price on or after 2026-07-01 is cents when it is 100 or more; under
+ * 100 it could be either (45 cents or $45), and the price is not used.
+ */
+export const WALMART_CENTS_FROM = '20260701';
+
+/** A Hammer price field as cents, or null when it is not a usable price. */
+export function hammerCents(vendor: string, day: string, text: string): number | null {
+  const t = text.replace(/[$,\s]/g, '');
+  if (vendor === 'Walmart' && day >= WALMART_CENTS_FROM && /^\d+$/.test(t)) {
+    const n = Number(t);
+    return n >= 100 ? n : null;
+  }
+  return toCents(t);
+}
+
 /** The observations one product's latest row turns into (one, or two on a sale). */
 export function observationsFor(p: HammerProduct, l: LatestPrice): ObservationRow[] {
-  const cents = toCents(l.current.replace(/[$,\s]/g, ''));
+  const cents = hammerCents(p.vendor, l.day, l.current);
   if (p.code === null || cents === null || cents <= 0) return [];
-  const was = l.old.trim() ? toCents(l.old.replace(/[$,\s]/g, '')) : null;
+  const was = l.old.trim() ? hammerCents(p.vendor, l.day, l.old) : null;
   const sale = was !== null && was > cents;
   const base = {
     code: p.code,
