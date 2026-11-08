@@ -291,6 +291,10 @@ export interface NationalAverageAnswer {
   readonly averageCents: number;
   readonly shelfFactor: number;
   readonly ratio: number;
+  /** A premium version (organic, free-run ...): the premium factor was used. */
+  readonly premium?: boolean;
+  /** The item had no size: the product's own was assumed, and `sigmaLog` is already the wider measured spread. */
+  readonly sizeAssumed?: boolean;
 }
 
 export interface RungTried {
@@ -1223,7 +1227,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         mu = Math.log(got.centreCents);
         nationalSigma = got.sigmaLog;
         n = 0;
-        scaled = target !== null;
+        scaled = target !== null && !got.sizeAssumed;
+        // The client says "size assumed"; the spread for it was measured (statcan.ts), so no second widening below.
+        if (got.sizeAssumed) notes.add('size_assumed');
         tried.push({ rung: 'national_average', outcome: 'used', n: 0, detail: `${got.product} | ${got.place} | ${got.month}` });
       }
     }
@@ -1356,7 +1362,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   if (evidenceAge !== null && evidenceAge > OLD_DAYS) notes.add('old_prices');
   if (notes.has('old_prices')) sigma *= WIDEN;
   if (notes.has('other_region')) sigma *= WIDEN;
-  if (notes.has('size_assumed')) sigma *= WIDEN;
+  // Statistics Canada's size-assumed spread is measured, not this rule of thumb, so it is not widened twice.
+  if (notes.has('size_assumed') && spreadFrom !== 'national_average') sigma *= WIDEN;
 
   /* ---- confidence (design call 5) */
   let confidence: Confidence = 'low';

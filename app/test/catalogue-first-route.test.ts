@@ -357,7 +357,7 @@ test('ON, Statistics Canada: a client that knows the source gets the shelf-adjus
   assert.equal(body.rangeSource, 'national_average');
   assert.equal(body.range.basis, 'national_average');
   assert.equal(body.range.medianCents, Math.round(avg * factor));
-  assert.deepEqual(body.nationalAverage, { product: 'Eggs, 1 dozen', place: 'Ontario', month, averageCents: avg });
+  assert.deepEqual(body.nationalAverage, { product: 'Eggs, 1 dozen', place: 'Ontario', month, averageCents: avg, premium: false, sizeAssumed: false });
   const row = scanRow(body.scanId);
   assert.equal(row.range_source, 'none');
   assert.equal(row.range_basis, 'national_average');

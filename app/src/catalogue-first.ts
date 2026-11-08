@@ -312,7 +312,16 @@ export interface CatalogueAnswer {
    * products, the place (a province, or Canada) and the month, and the average as StatCan prints it for
    * its own size. The client words its source line from these. Present only then.
    */
-  readonly nationalAverage?: { readonly product: string; readonly place: string; readonly month: string; readonly averageCents: number };
+  readonly nationalAverage?: {
+    readonly product: string;
+    readonly place: string;
+    readonly month: string;
+    readonly averageCents: number;
+    /** A premium version (organic, free-run ...): its own measured factor was used. */
+    readonly premium: boolean;
+    /** The item had no size, so the product's own size (a dozen, 454 g) was assumed and the range is wider. */
+    readonly sizeAssumed: boolean;
+  };
 }
 
 /** What the scan row gets beside the answer (migration 18). */
@@ -504,7 +513,16 @@ function nationalAverageOf(
 ): { nationalAverage?: NonNullable<CatalogueAnswer['nationalAverage']> } {
   const na = est?.trace.nationalAverage ?? null;
   if (!verdict || verdict.basis !== 'national_average' || !na) return {};
-  return { nationalAverage: { product: na.product, place: na.place, month: na.month, averageCents: na.averageCents } };
+  return {
+    nationalAverage: {
+      product: na.product,
+      place: na.place,
+      month: na.month,
+      averageCents: na.averageCents,
+      premium: na.premium === true,
+      sizeAssumed: na.sizeAssumed === true,
+    },
+  };
 }
 
 /** A Claude range a shopper may be shown: whole positive cents, low <= high, in the answer's currency. */

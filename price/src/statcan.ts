@@ -99,7 +99,7 @@ export const ITEMS: readonly StatcanItem[] = [
   { product: 'Wieners, 400 grams', value: 400, unit: 'g', match: re('\\bwieners?\\b|\\bhot ?dogs?\\b|\\bfranks?\\b|\\bfrankfurters?\\b'), not: re('\\b(buns?|veggie|vegetarian|vegan|plant|meatless|relish|mustard|sauce|chips|kits?)\\b') },
   { product: 'Shrimp, 300 grams', value: 300, unit: 'g', match: re('\\bshrimps?\\b|\\bprawns?\\b'), not: notPrepared('noodles?|ramen|paste|dumplings?|gyoza|har gow|wontons?|sushi|tempura|rings?|cocktail|cakes?|dim sum|fried rice|spring rolls?|shu mai|siu mai|balls?') },
   { product: 'Canned salmon, 213 grams', value: 213, unit: 'g', dense: true, match: re('\\bsalmon\\b.*\\b(can|canned|tin|in water|in brine)\\b|\\b(canned|tinned)\\b.*\\bsalmon\\b|^(wild )?(pink|red|sockeye) salmon$'), not: re('\\b(smoked|cat|pet|pate|spread|fillets?|steaks?|portions?|fresh|frozen)\\b') },
-  { product: 'Canned tuna, 170 grams', value: 170, unit: 'g', dense: true, match: re('\\btuna\\b'), not: re('\\b(fresh|steaks?|sushi|sashimi|kits?|sandwich|cat|pet|dog|frozen|loins?|helper|casserole|salad|lunch|snack|poke|seared|yellowfin steak|ahi)\\b') },
+  { product: 'Canned tuna, 170 grams', value: 170, unit: 'g', dense: true, match: re('\\btuna\\b'), not: re('\\b(fresh|steaks?|sushi|sashimi|kits?|sandwich|cat|pet|dog|frozen|loins?|helper|casserole|salad|lunch|snack|poke|seared|yellowfin steak|ahi|porridge|plant[- ]based|taste|sauce|vegetables?|pepper|hot|chil(i|li)|flavou?r(ed)?|spicy|thai|lemon|herbs?|kimchi|curry|bulgogi|mayo|dressing|garlic|onion|tomato|sesame|jalape(n|ñ)o|smoked|sriracha|teriyaki|dill|bbq)\\b') },
   { product: 'Meatless burgers, 226 grams', value: 226, unit: 'g', match: re('\\b(veggie|vegetarian|vegan|plant[- ]based|meatless|beyond|impossible|garden)\\b.*\\bburgers?\\b|\\bburgers?\\b.*\\b(veggie|plant[- ]based|meatless)\\b'), not: re('\\b(buns?|sauce|seasoning)\\b') },
   // Dairy and eggs.
   { product: 'Milk, 1 litre', value: 1, unit: 'l', match: re('\\bmilk\\b'), not: re('\\b(chocolate|choc|flavou?r(ed)?|strawberry|banana|vanilla|coconut|almond|oat|soy|rice|cashew|nut|hemp|pea|condensed|evaporated|powder(ed)?|buttermilk|goat|tea|coffee|shakes?|chips|cookies?|bars?|candy|bread|biscuits?|crackers?|cereal|caramel|cream|kefir|yogh?urt|kids|baby|formula|chai|matcha|latte|honey|sweetened|dessert|pudding|thistle|wafers?|cakes?|ice|chocolate milk|protein|fairlife|a2|organic)\\b') },
@@ -112,7 +112,7 @@ export const ITEMS: readonly StatcanItem[] = [
   { product: 'Margarine, 907 grams', value: 907, unit: 'g', match: re('\\bmargarine\\b|\\bbecel\\b|\\bfleischmann'), not: re('\\b(cookies?|crackers?)\\b') },
   { product: 'Block cheese, 500 grams', value: 500, unit: 'g', match: re('\\b(cheddar|mozzarella|marble|colby|monterey|gouda|swiss|havarti|brick|edam|farmer|old|medium|mild)\\b.*\\bcheese\\b|\\bcheese\\b.*\\b(cheddar|mozzarella|marble|colby|gouda|havarti|brick|block)\\b|\\b(cheddar|mozzarella|marble)\\b(?!.*\\b(crackers?|chips|sauce)\\b)'), not: re('\\b(shredded|grated|slices?|sliced|singles|string|strings|sticks?|snacks?|spread|cream cheese|cottage|crackers?|sauce|dip|puffs?|curls|bread|macaroni|mac|pizza|burgers?|cheesecake|cakes?|soup|popcorn|ricotta|parmesan|feta|bocconcini|brie|camembert|goat|nachos?|tortilla|pasta|bites|cubes|portions|babybel|individually|wrapped|flavou?r(ed)?|curds?|pretzels?|crisps|goldfish|cheez|smoked|plant|vegan|dairy[- ]free|bagels?|buns?|biscuits?)\\b') },
   { product: 'Yogurt, 500 grams', value: 500, unit: 'g', dense: true, match: re('\\by[oa]gh?o?urt\\b'), not: re('\\b(drinks?|drinkable|tubes?|cups?|frozen|bars?|coated|covered|raisins|bites|pretzels|melts|granola|dressing|dip|smoothies?|kefir|cereal|cookies|chips|snacks?|dog|dessert|tzatziki|starter|culture|multipack|pack)\\b') },
-  { product: 'Eggs, 1 dozen', value: 12, unit: 'ea', match: re('\\beggs?\\b'), not: re('\\b(noodles?|chocolate|easter|nog|eggnog|rolls?|salad|sandwich|mayo|substitute|whites|beaters|liquid|cooked|boiled|bites|pasta|bread|replacer|plant|vegan|cadbury|kinder|surprise|benedict|scotch|ramen|tarts?|custard|drop|fried|dumplings?|yolks?|powder|bagels?|foo young|eggplants?|candy|cream|creme|wash|tofu|patties|mcmuffin|frittata|omelets?|quiche|chips|crackers?|cartons? only|quail|duck)\\b') },
+  { product: 'Eggs, 1 dozen', value: 12, unit: 'ea', match: re('\\beggs?\\b'), not: re('\\b(noodles?|chocolate|easter|nog|eggnog|rolls?|salad|sandwich|mayo|substitute|whites|beaters|liquid|cooked|boiled|bites|pasta|bread|replacer|plant|vegan|cadbury|kinder|surprise|benedict|scotch|ramen|tarts?|custard|drop|fried|dumplings?|yolks?|powder|bagels?|foo young|eggplants?|candy|cream|creme|wash|tofu|patties|mcmuffin|frittata|oatmeal|oats|kits?|curry|matzo|wraps?|bowls?|scrambles?|omelets?|quiche|chips|crackers?|cartons? only|quail|duck)\\b') },
   // Fruit and vegetables.
   { product: 'Apples, per kilogram', value: 1, unit: 'kg', linear: true, match: re('\\bapples?\\b'), not: notPrepared('sauce|cider|crisp|cinnamon|turnovers?|strudel|fritters?|butter|crumble|rings|slices|sliced|pineapple|custard|danish|tarts?|apple ?jacks|caramel|candied|toffee|pie|chunks') },
   { product: 'Oranges, per kilogram', value: 1, unit: 'kg', linear: true, match: re('\\boranges?\\b|\\bnavels?\\b'), not: notPrepared('marmalade|soda|pop|crush|fanta|zest|peel|chicken|liqueur|tea|cranberry|mango|pineapple|carrot|pekoe|segments|fruit|in syrup|mandarins?|clementines?|tangerines?|scented|bitters|extract|sweet potato|lentils|pepper|peppers') },
@@ -373,6 +373,8 @@ export interface StatcanTable {
   readonly values: Readonly<Record<string, Readonly<Record<string, readonly [string, number]>>>>;
   /** Written by `calibrate`: product -> shelf factor. Absent until calibrated; the rung then answers nothing. */
   readonly shelfFactor?: Readonly<Record<string, number>>;
+  /** Written by `calibrate`: product -> shelf factor for a premium version. */
+  readonly premiumFactor?: Readonly<Record<string, number>>;
   readonly calibration?: Calibration['measured'];
 }
 
@@ -478,6 +480,24 @@ export interface Match {
   readonly item: StatcanItem;
   /** The item's size over the product's: the scale applied to the average. */
   readonly ratio: number;
+  /**
+   * The item had no size at all, so the product's own size is assumed (ratio 1) and the answer takes
+   * the wider spread measured for that (`calibration.sigmaSizeAssumed`). Only when exactly one table
+   * product matched: "2% Milk" with no size could be 1, 2 or 4 litres, so it is not assumed.
+   */
+  readonly sizeAssumed?: boolean;
+}
+
+/*
+ * PREMIUM VERSIONS. Measured 2026-11-08: across every egg Project Hammer sells, the shelf price was
+ * 1.46 times the StatCan average, because organic, free-run and omega-3 cartons sit in the same pool as
+ * plain ones; a plain $7.49 carton of 18 then read as a great price. So the shelf factor is measured on
+ * standard products only, and a premium version (these words in its name) gets the premium factor,
+ * measured separately on the premium rows.
+ */
+export const PREMIUM = /\b(organic|organique|biologique|bio|free[- ]?run|free[- ]?range|omega[- ]?(3|plus)?|nest[- ]?laid\w*|solar|grass[- ]?fed|pasture[- ]?raised|pastured|artisan(al)?|gourmet|premium|non[- ]?gmo|gluten[- ]?free|keto|lactose[- ]?free|a2|imported|wild[- ]caught|albacore|solid white)\b/i;
+export function isPremium(name: string | null): boolean {
+  return PREMIUM.test(name ?? '');
 }
 
 /**
@@ -485,6 +505,13 @@ export interface Match {
  * item's size as the ladder read it; `sizeText` is its size as text (a tea bag
  * count is read from it, or from the name, when the size is not a count).
  */
+/** The table products a lower-cased name is, by name and category alone (no size). */
+export function namedProducts(n: string, path: readonly string[] = []): StatcanItem[] {
+  return ITEMS.filter(
+    (i) => i.match.test(n) && !(i.not?.test(n) ?? false) && plainlyNamed(i.product, n) && categoryAgrees(i.product, path),
+  );
+}
+
 export function matchItem(
   name: string | null,
   target: ComparisonQuantity | null,
@@ -493,9 +520,7 @@ export function matchItem(
 ): Match | { miss: MatchMiss } {
   const n = (name ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (!n) return { miss: 'no_name' };
-  const named = ITEMS.filter(
-    (i) => i.match.test(n) && !(i.not?.test(n) ?? false) && plainlyNamed(i.product, n) && categoryAgrees(i.product, path),
-  );
+  const named = namedProducts(n, path);
   if (named.length === 0) return { miss: 'no_match' };
   let best: Match | null = null;
   let anySize = false;
@@ -511,7 +536,18 @@ export function matchItem(
     if (!best || Math.abs(Math.log(ratio)) < Math.abs(Math.log(best.ratio))) best = { item, ratio };
   }
   if (best) return best;
-  return { miss: anySize ? 'size_out_of_band' : 'no_size' };
+  if (anySize || target !== null) return { miss: 'size_out_of_band' };
+  /*
+   * No size at all: the product's own size, only when one product matched (never a guess between
+   * sizes), and only when something besides the name pattern vouches for it: a fresh item named
+   * plainly, or a packaged item whose category agrees. The size was the guard that kept "Scrambled
+   * Egg Kit, 85 g" out of the eggs; without a size, the category has to.
+   */
+  const only = named.length === 1 ? named[0]! : null;
+  if (only && (strictSets.has(only.product) || (path.length > 0 && categoryAgrees(only.product, path)))) {
+    return { item: only, ratio: 1, sizeAssumed: true };
+  }
+  return { miss: 'no_size' };
 }
 
 export interface NationalAverage {
@@ -526,18 +562,26 @@ export interface NationalAverage {
   readonly averageCents: number;
   readonly shelfFactor: number;
   readonly ratio: number;
+  /** The name carries a premium word, so the premium factor was used. */
+  readonly premium: boolean;
+  /** The item had no size; the product's own was assumed and the wider measured spread used. */
+  readonly sizeAssumed: boolean;
 }
 
 /**
  * StatCan's averages are what shoppers paid, sales included and weighted by what sold (store brands,
  * big packs). The ladder's other rungs centre on REGULAR shelf prices ("a sale row never enters a
  * centre", estimate.ts). Measured 2026-11-08, Hammer's regular Toronto prices for the same products
- * sit well above the Ontario averages (see STATCAN_SIGMA's measurement): used raw, the average would
+ * sit well above the Ontario averages (the data file's `calibration`): used raw, the average would
  * call most ordinary regular prices "bad". So the average is multiplied by a shelf factor measured per
  * product, shrunk toward the all-products factor by `SHRINK_N` (a product with few Hammer prices
  * leans on the overall factor). The factors live in the data file, written by `calibrate`.
+ *
+ * SHRINK_N was picked on held-out data, 2026-11-08: factors fitted on half the Hammer product names,
+ * judged on the other half (13,190 rows), median |log error| 0.235 at 2, 0.237 at 5, 0.245 at 20,
+ * 0.252 at 40, and 0.284 with one factor for every product. The products differ for real.
  */
-export const SHRINK_N = 20;
+export const SHRINK_N = 2;
 
 function monthsBetween(a: string, b: string): number {
   const [ay, am] = a.split('-').map(Number) as [number, number];
@@ -572,10 +616,11 @@ export function nationalAverageFor(
   const [month, cents] = pick;
   if (monthsBetween(month, q.asOf.slice(0, 7)) > MAX_AGE_MONTHS) return { miss: 'too_old' };
   // No measured factor, no answer: the raw average is a different quantity from a shelf price.
-  const factor = table.shelfFactor?.[m.item.product];
-  const sigma = table.calibration?.sigma;
-  if (typeof factor !== 'number' || !Number.isFinite(factor) || factor <= 0) return { miss: 'no_shelf_factor' };
-  if (typeof sigma !== 'number' || !Number.isFinite(sigma) || sigma <= 0) return { miss: 'no_shelf_factor' };
+  const premium = isPremium(q.name);
+  const factor = (premium ? table.premiumFactor : table.shelfFactor)?.[m.item.product];
+  const sigma = m.sizeAssumed ? table.calibration?.sigmaSizeAssumed : table.calibration?.sigma;
+  const usable = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x) && x > 0;
+  if (!usable(factor) || !usable(sigma)) return { miss: 'no_shelf_factor' };
   return {
     centreCents: Math.max(1, Math.round(cents * factor * m.ratio)),
     sigmaLog: sigma,
@@ -585,26 +630,36 @@ export function nationalAverageFor(
     averageCents: cents,
     shelfFactor: factor,
     ratio: m.ratio,
+    premium,
+    sizeAssumed: m.sizeAssumed === true,
   };
 }
 
 /* ------------------------------------------------------------ calibration */
 
 export interface Calibration {
-  /** product -> shelf factor (regular shelf price over the StatCan average, shrunk). */
+  /** product -> shelf factor for a standard version (regular shelf price over the StatCan average, shrunk). */
   readonly shelfFactor: Record<string, number>;
+  /** product -> shelf factor for a premium version (`PREMIUM` words in the name). */
+  readonly premiumFactor: Record<string, number>;
   readonly measured: {
     readonly on: string;
     readonly from: string;
     readonly place: string;
     readonly rows: number;
+    readonly premiumRows: number;
     readonly products: number;
+    /** Median over products of the standard factor before shrinking. */
     readonly overallFactor: number;
-    /** Robust spread of log(shelf / (average x factor)) over every matched row. */
+    /** Median over products of premium over standard. */
+    readonly overallPremiumUplift: number;
+    /** Robust spread of log(shelf / (average x factor x size)) over every matched row. */
     readonly sigma: number;
-    /** Share of matched rows inside p10..p90 of a bell at that sigma. */
+    /** The same with the size left out (the product's own size assumed): the spread an unsized item gets. */
+    readonly sigmaSizeAssumed: number;
+    /** Share of matched rows inside p10..p90 of a bell at `sigma`. */
     readonly insideP10P90: number;
-    readonly perProduct: Record<string, { n: number; factor: number; sigma: number }>;
+    readonly perProduct: Record<string, { n: number; nPremium: number; factor: number; premiumFactor: number; sigma: number }>;
   };
 }
 
@@ -614,62 +669,106 @@ function median(xs: readonly number[]): number {
   return n === 0 ? NaN : n % 2 ? s[(n - 1) / 2]! : (s[n / 2 - 1]! + s[n / 2]!) / 2;
 }
 const robustSigma = (xs: readonly number[], centre: number) => 1.4826 * median(xs.map((x) => Math.abs(x - centre)));
+const r3 = (x: number) => Math.round(x * 1000) / 1000;
 
 /**
- * Shelf factors and the spread, from regular shelf prices of named, sized products in one place.
+ * Shelf factors and the spreads, from regular shelf prices of named, sized products in one place.
  * `rows` are (name, size text, cents); `place` is the table's place they were seen in.
+ *
+ * Standard and premium rows are measured apart. The standard factor is each product's median log
+ * ratio, shrunk toward the median over products by `SHRINK_N`. The premium factor is the standard
+ * factor times the product's own premium uplift (premium median over standard median), shrunk toward
+ * the median uplift the same way: a product with three organic rows leans on the overall uplift.
  */
 export function calibrate(
   rows: Iterable<{ name: string; sizeText: string; cents: number }>,
   table: StatcanTable,
   place: string,
   meta: { on: string; from: string },
+  shrinkN: number = SHRINK_N,
 ): Calibration {
-  const per = new Map<string, number[]>();
+  type Obs = { x: number; logRatio: number };
+  const std = new Map<string, Obs[]>();
+  const prem = new Map<string, Obs[]>();
   let n = 0;
+  let nPrem = 0;
+  const anySizeRows: { product: string; premium: boolean; y: number }[] = [];
+  // Hammer writes some multipacks size first ("90G*4"); the size parser reads pack first ("4x90g").
+  const flip = (s: string) => s.replace(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\s*[x*]\s*(\d+)\b/i, '$3x$1$2');
   for (const r of rows) {
     if (!Number.isInteger(r.cents) || r.cents <= 0) continue;
-    // Hammer writes some multipacks size first ("90G*4"); the size parser reads pack first ("4x90g").
-    const flip = (s: string) => s.replace(/(\d+(?:\.\d+)?)\s*(kg|g|ml|l)\s*[x*]\s*(\d+)\b/i, '$3x$1$2');
     const pq = parseQuantity(flip(r.sizeText)) ?? parseQuantity(flip(r.name));
     const target = pq ? toComparison(pq.value, pq.unit) : null;
+    // Only sized rows calibrate: an assumed size would measure the assumption, not the shelf.
+    if (!target) continue;
+    /*
+     * The size-assumed spread: every row whose name names exactly one product, at ANY size in that
+     * product's family, priced as if it were the product's own size. That is what an unsized item could
+     * be (a 2.84 L ketchup read as 1 L), so its spread is measured over all of them, not the in-band few.
+     */
+    const byName = namedProducts(r.name.toLowerCase().replace(/\s+/g, ' ').trim());
+    if (byName.length === 1 && comparable(byName[0]!, target) !== null) {
+      const a = table.values[byName[0]!.product]?.[place] ?? table.values[byName[0]!.product]?.Canada;
+      if (a) anySizeRows.push({ product: byName[0]!.product, premium: isPremium(r.name), y: Math.log(r.cents / a[1]) });
+    }
     const m = matchItem(r.name, target, r.sizeText);
-    if ('miss' in m) continue;
+    if ('miss' in m || m.sizeAssumed) continue;
     const avg = table.values[m.item.product]?.[place] ?? table.values[m.item.product]?.Canada;
     if (!avg) continue;
-    const list = per.get(m.item.product) ?? [];
-    list.push(Math.log(r.cents / (avg[1] * m.ratio)));
-    per.set(m.item.product, list);
+    const into = isPremium(r.name) ? prem : std;
+    const list = into.get(m.item.product) ?? [];
+    list.push({ x: Math.log(r.cents / (avg[1] * m.ratio)), logRatio: Math.log(m.ratio) });
+    into.set(m.item.product, list);
     n++;
+    if (into === prem) nPrem++;
   }
   if (n === 0) throw new Error('statcan calibrate: no row matched any product');
-  // Overall factor: the median of the per-product medians, so a product with many rows does not dominate.
-  const meds = [...per.values()].map((l) => median(l));
-  const overall = median(meds);
+  const xs = (l: readonly Obs[] | undefined) => (l ?? []).map((o) => o.x);
+  // Overall standard factor: the median of the per-product medians, so a product with many rows does not dominate.
+  const overall = median([...std.values()].map((l) => median(xs(l))));
+  const upliftsSeen = ITEMS.filter((i) => std.has(i.product) && prem.has(i.product)).map(
+    (i) => median(xs(prem.get(i.product))) - median(xs(std.get(i.product))),
+  );
+  const overallUplift = upliftsSeen.length ? median(upliftsSeen) : 0;
+
   const shelfFactor: Record<string, number> = {};
-  const perProduct: Record<string, { n: number; factor: number; sigma: number }> = {};
+  const premiumFactor: Record<string, number> = {};
+  const perProduct: Calibration['measured']['perProduct'] = {};
   const residuals: number[] = [];
+  const unsized: number[] = [];
   for (const item of ITEMS) {
-    const list = per.get(item.product) ?? [];
-    const own = list.length ? median(list) : overall;
-    const mu = (list.length * own + SHRINK_N * overall) / (list.length + SHRINK_N);
-    const factor = Math.round(Math.exp(mu) * 1000) / 1000;
+    const s = xs(std.get(item.product));
+    const p = xs(prem.get(item.product));
+    const own = s.length ? median(s) : overall;
+    const mu = (s.length * own + shrinkN * overall) / (s.length + shrinkN);
+    const up = p.length ? median(p) - own : overallUplift;
+    const upMu = (p.length * up + shrinkN * overallUplift) / (p.length + shrinkN);
+    const factor = r3(Math.exp(mu));
+    const pFactor = r3(Math.exp(mu + upMu));
     shelfFactor[item.product] = factor;
-    perProduct[item.product] = { n: list.length, factor, sigma: list.length ? Math.round(robustSigma(list, own) * 1000) / 1000 : 0 };
-    for (const x of list) residuals.push(x - Math.log(factor));
+    premiumFactor[item.product] = pFactor;
+    perProduct[item.product] = { n: s.length, nPremium: p.length, factor, premiumFactor: pFactor, sigma: s.length ? r3(robustSigma(s, own)) : 0 };
+    for (const o of std.get(item.product) ?? []) residuals.push(o.x - Math.log(factor));
+    for (const o of prem.get(item.product) ?? []) residuals.push(o.x - Math.log(pFactor));
   }
+  for (const r of anySizeRows) unsized.push(r.y - Math.log((r.premium ? premiumFactor : shelfFactor)[r.product]!));
   const sigma = robustSigma(residuals, median(residuals));
+  const sigmaSizeAssumed = Math.max(sigma, robustSigma(unsized, median(unsized)));
   const inside = residuals.filter((x) => Math.abs(x) <= 1.2816 * sigma).length / residuals.length;
   return {
     shelfFactor,
+    premiumFactor,
     measured: {
       ...meta,
       place,
       rows: n,
-      products: per.size,
-      overallFactor: Math.round(Math.exp(overall) * 1000) / 1000,
-      sigma: Math.round(sigma * 1000) / 1000,
-      insideP10P90: Math.round(inside * 1000) / 1000,
+      premiumRows: nPrem,
+      products: new Set([...std.keys(), ...prem.keys()]).size,
+      overallFactor: r3(Math.exp(overall)),
+      overallPremiumUplift: r3(Math.exp(overallUplift)),
+      sigma: r3(sigma),
+      sigmaSizeAssumed: r3(sigmaSizeAssumed),
+      insideP10P90: r3(inside),
       perProduct,
     },
   };
@@ -684,7 +783,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
   if (cmd === 'build' && a) {
     // A monthly rebuild keeps the measured factors: they are ratios, and a new month does not move them.
     const old = fs.existsSync(out) ? (JSON.parse(fs.readFileSync(out, 'utf8')) as StatcanTable) : null;
-    const t: StatcanTable = { ...buildTable(fs.readFileSync(a, 'utf8')), ...(old?.shelfFactor ? { shelfFactor: old.shelfFactor, calibration: old.calibration } : {}) };
+    const t: StatcanTable = { ...buildTable(fs.readFileSync(a, 'utf8')), ...(old?.shelfFactor ? { shelfFactor: old.shelfFactor, premiumFactor: old.premiumFactor, calibration: old.calibration } : {}) };
     write(t);
     console.log(`statcan: ${Object.keys(t.values).length} products, newest month ${t.latestMonth}, ${t.shelfFactor ? 'factors kept' : 'NOT CALIBRATED (run calibrate)'}, written to ${out}`);
   } else if (cmd === 'calibrate' && a && b) {
@@ -703,9 +802,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
       if (r.seen_on > newest) newest = r.seen_on;
     }
     const c = calibrate(rows, t, 'Ontario', { on: new Date().toISOString().slice(0, 10), from: `Project Hammer regular prices, Toronto, newest ${newest}` });
-    write({ ...t, shelfFactor: c.shelfFactor, calibration: c.measured });
+    write({ ...t, shelfFactor: c.shelfFactor, premiumFactor: c.premiumFactor, calibration: c.measured });
     const m = c.measured;
-    console.log(`statcan calibrate: ${m.rows} rows, ${m.products} of ${ITEMS.length} products, overall factor ${m.overallFactor}, sigma ${m.sigma}, inside p10..p90 ${(m.insideP10P90 * 100).toFixed(1)}%`);
+    console.log(`statcan calibrate: ${m.rows} rows (${m.premiumRows} premium), ${m.products} of ${ITEMS.length} products, standard factor ${m.overallFactor}, premium uplift ${m.overallPremiumUplift}, sigma ${m.sigma}, sigma size assumed ${m.sigmaSizeAssumed}, inside p10..p90 ${(m.insideP10P90 * 100).toFixed(1)}%`);
   } else {
     console.error('usage: node price/src/statcan.ts build <18100245.csv> | calibrate <prices.db> <hammer-product.csv>   (writes price/statcan-averages.json)');
     process.exit(2);

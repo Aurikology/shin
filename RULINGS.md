@@ -338,11 +338,14 @@ Governs: price/src/hammer.ts, app/src/attribution.ts (Project Hammer entry)
 Statistics Canada's monthly average retail prices (table 18-10-0245-01, 110 products, by
 province) are a rung of the verdict ladder after Pexi's own data and before the paid Claude ask.
 The average is multiplied by a shelf factor measured on Project Hammer's regular prices (StatCan
-averages what shoppers paid, sales included, about 1.5 times below regular shelf prices), scaled
-to the item's size, with the measured spread. It runs only for a client that sends
-`knows=national_average`, so a build without its label gets the ladder as before. · 2026-11-08 ·
-told StatCan was downloaded and held until Hammer was measured: *"wire in statistics canada"* ·
-log: docs/launch-gaps-2026-11-06.md item 35
+averages what shoppers paid, sales included), one for standard versions and one for premium
+versions (organic, free-run, omega and the like), scaled to the item's size, with the measured
+spread. An item with no size assumes the product's own size, with the wider spread measured for
+that, only when it is a plainly named fresh item or its category agrees and only one product
+matches. It runs only for a client that sends `knows=national_average`, so a build without its
+label gets the ladder as before. · 2026-11-08 · told StatCan was downloaded and held until
+Hammer was measured: *"wire in statistics canada"*; offered standard-only factors and assumed
+sizes after the live check put 18 eggs at $10.66: *"both"* · log: docs/launch-gaps-2026-11-06.md item 35
 Retired wording: none
 Governs: price/src/statcan.ts, price/statcan-averages.json, price/src/estimate.ts (national_average), app/server.ts (knows), app/src/attribution.ts (Statistics Canada entry)
 

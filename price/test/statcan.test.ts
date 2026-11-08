@@ -12,6 +12,7 @@ import {
   categoryAgrees,
   DEFAULT_PATH,
   ITEMS,
+  isPremium,
   loadTable,
   matchItem,
   nationalAverageFor,
@@ -50,8 +51,19 @@ const TABLE: StatcanTable = {
     'Tea (20 bags)': 1.2,
     'Bacon, 500 grams': 1.5,
   },
+  premiumFactor: {
+    'Peanut butter, 1 kilogram': 2.25,
+    'Milk, 1 litre': 1.6,
+    'Milk, 2 litres': 1.6,
+    'Milk, 4 litres': 1.6,
+    'Eggs, 1 dozen': 2,
+    'Bananas, per kilogram': 1.9,
+    'Tea (20 bags)': 1.8,
+    'Bacon, 500 grams': 2,
+  },
   calibration: {
-    on: '2026-11-08', from: 'test', place: 'Ontario', rows: 1, products: 1, overallFactor: 1.5, sigma: 0.37, insideP10P90: 0.76, perProduct: {},
+    on: '2026-11-08', from: 'test', place: 'Ontario', rows: 1, premiumRows: 0, products: 1, overallFactor: 1.5, overallPremiumUplift: 1.5,
+    sigma: 0.37, sigmaSizeAssumed: 0.45, insideP10P90: 0.76, perProduct: {},
   },
 };
 
@@ -83,9 +95,11 @@ test('the committed table holds all 110 products, a newest month, measured facto
   for (const i of ITEMS) {
     assert.ok(t.values[i.product]?.Canada, `no Canada value for ${i.product}`);
     assert.ok((t.shelfFactor?.[i.product] ?? 0) > 0, `no shelf factor for ${i.product}`);
+    assert.ok((t.premiumFactor?.[i.product] ?? 0) > 0, `no premium factor for ${i.product}`);
   }
   assert.match(t.latestMonth, /^\d{4}-\d{2}$/);
   assert.ok(t.calibration && t.calibration.sigma > 0.1 && t.calibration.sigma < 1, 'the spread is measured');
+  assert.ok(t.calibration.sigmaSizeAssumed >= t.calibration.sigma, 'the size-assumed spread is measured and never narrower');
   assert.ok(t.calibration.rows >= 1000, 'the calibration rests on real rows');
   assert.ok(loadTable() !== null);
 });
@@ -142,6 +156,7 @@ test('sizes: same family and in band; the nearest of several sizes wins; grams r
   assert.equal((milk(2, 'l') as { item: { product: string } }).item.product, 'Milk, 2 litres');
   assert.equal((milk(1, 'l') as { item: { product: string } }).item.product, 'Milk, 1 litre');
   assert.deepEqual(milk(200, 'ml'), { miss: 'size_out_of_band' }, 'a 200 ml carton is outside every milk band');
+  // No size: three milk sizes match, so none is assumed.
   assert.deepEqual(matchItem('2% Milk', null), { miss: 'no_size' });
   // A packaged product: half to double. Peanut butter labelled in grams or millilitres (dense).
   assert.equal((matchItem('Peanut Butter', q(500, 'g')) as { ratio: number }).ratio, 0.5);
@@ -182,21 +197,75 @@ test('the answer: province average x shelf factor x size, Canada when the provin
   assert.deepEqual(nationalAverageFor({ name: 'Peanut Butter', target: q(1, 'kg'), asOf: '2026-11-08' }, null), { miss: 'no_table' });
 });
 
-test('calibrate: the factor is shelf over average, shrunk toward the overall factor, with the spread of what is left', () => {
+test('calibrate: standard and premium factors apart, shrunk by SHRINK_N, and a size-assumed spread over every pack size', () => {
   const rows: { name: string; sizeText: string; cents: number }[] = [];
-  // 40 peanut butters at exactly 2x the Ontario average, 40 dozens of eggs at 1x.
+  const r3 = (x: number) => Math.round(x * 1000) / 1000;
+  // 40 standard peanut butters at exactly 2x the Ontario average, 40 standard dozens of eggs at 1x,
+  // and 10 organic peanut butters at 3x (premium over standard: 1.5).
   for (let i = 0; i < 40; i++) rows.push({ name: 'Smooth Peanut Butter', sizeText: '1kg', cents: 1202 });
   for (let i = 0; i < 40; i++) rows.push({ name: 'Large White Eggs', sizeText: '12 ea', cents: 502 });
+  for (let i = 0; i < 10; i++) rows.push({ name: 'Organic Smooth Peanut Butter', sizeText: '1kg', cents: 1803 });
+  // A 3 kg tub at 2x per kilogram: outside the pack band (half to double), so it sets no factor, but an unsized item could be it.
+  rows.push({ name: 'Smooth Peanut Butter', sizeText: '3kg', cents: 3606 });
   const c = calibrate(rows, TABLE, 'Ontario', { on: '2026-11-08', from: 'test' });
-  // Overall: median of per-product medians, log 2 and log 1, so sqrt 2.
-  assert.equal(c.measured.overallFactor, Math.round(Math.SQRT2 * 1000) / 1000);
-  // Shrunk with 20: exp((40 log 2 + 20 log sqrt2) / 60) = 2^(5/6).
-  assert.equal(c.shelfFactor['Peanut butter, 1 kilogram'], Math.round(Math.pow(2, 5 / 6) * 1000) / 1000);
-  assert.equal(c.shelfFactor['Eggs, 1 dozen'], Math.round(Math.pow(2, 1 / 6) * 1000) / 1000);
-  // A product with no rows takes the overall factor.
+  // Standard overall: median of per-product medians, log 2 and log 1, so sqrt 2.
+  assert.equal(c.measured.overallFactor, r3(Math.SQRT2));
+  // Shrunk with SHRINK_N = 2: exp((40 log 2 + 2 log sqrt2) / 42) = 2^(41/42).
+  assert.equal(c.shelfFactor['Peanut butter, 1 kilogram'], r3(Math.pow(2, 41 / 42)));
+  assert.equal(c.shelfFactor['Eggs, 1 dozen'], r3(Math.pow(2, 1 / 42)));
+  // Premium: the product's own uplift 1.5 (it is also the overall uplift), on its standard factor.
+  assert.equal(c.measured.overallPremiumUplift, 1.5);
+  assert.equal(c.premiumFactor['Peanut butter, 1 kilogram'], r3(Math.pow(2, 41 / 42) * 1.5));
+  // Eggs had no premium rows: the overall uplift.
+  assert.equal(c.premiumFactor['Eggs, 1 dozen'], r3(Math.pow(2, 1 / 42) * 1.5));
+  // A product with no rows takes the overall factors.
   assert.equal(c.shelfFactor['Tofu, 350 grams'], c.measured.overallFactor);
-  assert.equal(c.measured.rows, 80);
+  assert.equal(c.measured.rows, 90);
+  assert.equal(c.measured.premiumRows, 10);
+  // The size-assumed spread counts every pack size: here 41 standard peanut butters and 40 eggs, of
+  // which only the 3 kg tub is off. Its median deviation is 0, and it is never below the sized spread.
+  assert.ok(c.measured.sigmaSizeAssumed >= c.measured.sigma);
+  // With most peanut butters in jars and tubs of other sizes (250 g to 5 kg, all at 2x per kilogram),
+  // assuming 1 kg is off for most of them, and the spread opens up.
+  const tubs = [...rows];
+  for (const kg of [0.25, 3, 4, 5]) {
+    for (let i = 0; i < 30; i++) tubs.push({ name: 'Smooth Peanut Butter', sizeText: `${kg}kg`, cents: Math.round(1202 * kg) });
+  }
+  const ct = calibrate(tubs, TABLE, 'Ontario', { on: '2026-11-08', from: 'test' });
+  assert.ok(ct.measured.sigmaSizeAssumed > 0.3, `size-assumed spread ${ct.measured.sigmaSizeAssumed}`);
+  assert.equal(ct.measured.sigma, 0, 'the sized rows still fit exactly');
   assert.throws(() => calibrate([], TABLE, 'Ontario', { on: 'x', from: 'x' }), /no row matched/);
+});
+
+test('premium versions take the premium factor; an unsized item assumes the product size only when something vouches for it', () => {
+  const at = (name: string, target: ReturnType<typeof q>, path: string[] = []) =>
+    nationalAverageFor({ name, target, path, region: 'ON', asOf: '2026-11-08' }, TABLE);
+  const plain = at('Large White Eggs', q(12, 'ea'));
+  const organic = at('Organic Free Range Brown Eggs', q(12, 'ea'));
+  assert.ok(!('miss' in plain) && !('miss' in organic));
+  assert.equal(plain.centreCents, Math.round(502 * 1.4));
+  assert.equal(plain.premium, false);
+  assert.equal(organic.centreCents, Math.round(502 * 2));
+  assert.equal(organic.premium, true);
+  // "Nestlaid", "Omega Plus", "Solar": Naturegg's premium lines, seen in Hammer names.
+  assert.ok(isPremium('Naturegg NestlaidOmega 3 Large Size 12 Eggs'));
+  assert.ok(isPremium('Naturegg Omega Plus White Eggs, Large'));
+  assert.ok(!isPremium('Grade A Large Eggs'));
+  // No size: a fresh item named plainly assumes its product's size, with the wider measured spread.
+  const bananas = at('Bananas', null);
+  assert.ok(!('miss' in bananas));
+  assert.equal(bananas.sizeAssumed, true);
+  assert.equal(bananas.sigmaLog, 0.45);
+  assert.equal(bananas.centreCents, Math.round(170 * 1.3));
+  // A packaged item with no size and no category is not assumed; with its category it is.
+  assert.deepEqual(at('Smooth Peanut Butter', null), { miss: 'no_size' });
+  const pb = at('Smooth Peanut Butter', null, ['en:spreads', 'en:peanut-butters']);
+  assert.ok(!('miss' in pb));
+  assert.equal(pb.sizeAssumed, true);
+  assert.equal(pb.centreCents, Math.round(601 * 1.5));
+  // An item that HAS a size in another family is never assumed: "Scrambled Egg Kit, 85 g" is no dozen eggs.
+  assert.deepEqual(matchItem('Scrambled Egg Kit', q(85, 'g')), { miss: 'no_match' });
+  assert.deepEqual(matchItem('Large White Eggs', q(690, 'g')), { miss: 'size_out_of_band' });
 });
 
 /* ------------------------------------------------------------ the rung */
@@ -256,6 +325,20 @@ test('a product the table does not hold, or a rung that throws, moves on to Clau
   assert.equal(threw.verdict.basis, 'claude_typical');
   assert.equal(threw.trace.tried.find((t) => t.rung === 'national_average')?.outcome, 'failed');
   assert.equal(asked, 2);
+});
+
+test('an unsized staple: the product size is assumed, the verdict says so, and the measured spread is not widened twice', async () => {
+  const { verdict, trace } = await estimate(
+    { barcode: null, name: 'Smooth Peanut Butter', categoryPath: ['en:spreads', 'en:peanut-butters'], region: 'ON', asOf: '2026-11-08', currency: 'CAD', country: 'CA' },
+    null,
+    { prices: null, askClaude: noClaude, nationalAverage: rung },
+  );
+  assert.equal(verdict.basis, 'national_average');
+  assert.equal(verdict.centreCents, Math.round(601 * 1.5));
+  assert.equal(verdict.sigmaLog, 0.45, 'the size-assumed spread, as measured');
+  assert.ok(verdict.notes.includes('size_assumed'));
+  assert.equal(verdict.scaledTo, null);
+  assert.equal(trace.nationalAverage?.sizeAssumed, true);
 });
 
 test("Pexi's own prices outrank the average: the rung is never reached when a store price exists", async () => {

@@ -5453,677 +5453,1012 @@
   }
  },
  "shelfFactor": {
-  "Beef stewing cuts, per kilogram": 1.343,
-  "Beef striploin cuts, per kilogram": 1.43,
-  "Beef top sirloin cuts, per kilogram": 1.443,
-  "Beef rib cuts, per kilogram": 1.453,
-  "Ground beef, per kilogram": 1.284,
-  "Pork loin cuts, per kilogram": 1.614,
-  "Pork rib cuts, per kilogram": 1.488,
-  "Pork shoulder cuts, per kilogram": 1.488,
-  "Whole chicken, per kilogram": 1.43,
-  "Chicken breasts, per kilogram": 1.544,
-  "Chicken thigh, per kilogram": 1.226,
-  "Chicken drumsticks, per kilogram": 1.452,
-  "Salmon, per kilogram": 1.338,
-  "Bacon, 500 grams": 1.543,
-  "Wieners, 400 grams": 1.712,
-  "Shrimp, 300 grams": 1.347,
-  "Canned salmon, 213 grams": 1.467,
-  "Canned tuna, 170 grams": 2.419,
-  "Meatless burgers, 226 grams": 1.028,
-  "Milk, 1 litre": 1.105,
-  "Milk, 2 litres": 1.14,
-  "Milk, 4 litres": 1.201,
-  "Soy milk, 1.89 litres": 1.553,
-  "Nut milk, 1.89 litres": 1.403,
-  "Cream, 1 litre": 1.415,
-  "Butter, 454 grams": 1.622,
-  "Margarine, 907 grams": 1.605,
-  "Block cheese, 500 grams": 1.571,
-  "Yogurt, 500 grams": 1.349,
-  "Eggs, 1 dozen": 1.416,
-  "Apples, per kilogram": 1.083,
-  "Oranges, per kilogram": 1.501,
-  "Oranges, 1.36 kilograms": 1.46,
-  "Bananas, per kilogram": 1.488,
-  "Pears, per kilogram": 1.473,
-  "Lemons, unit": 1.488,
-  "Limes, unit": 1.553,
-  "Grapes, per kilogram": 1.576,
-  "Cantaloupe, unit": 1.488,
-  "Strawberries, 454 grams": 1.458,
-  "Avocado, unit": 1.377,
-  "Potatoes, 4.54 kilograms": 1.569,
-  "Potatoes, per kilogram": 0.779,
-  "Sweet potatoes, per kilogram": 1.505,
-  "Tomatoes, per kilogram": 1.729,
-  "Cabbage, per kilogram": 1.632,
-  "Carrots, 1.36 kilograms": 1.435,
-  "Onions, per kilogram": 0.937,
-  "Onions, 1.36 kilograms": 1.378,
-  "Celery, unit": 1.49,
-  "Cucumber, unit": 1.488,
-  "Mushrooms, 227 grams": 1.373,
-  "Iceberg lettuce, unit": 1.529,
-  "Romaine lettuce, unit": 1.488,
-  "Broccoli, unit": 1.559,
-  "Peppers, per kilogram": 1.524,
-  "Squash, per kilogram": 1.488,
-  "Salad greens, 142 grams": 1.148,
-  "Frozen french fried potatoes, 750 grams": 1.678,
-  "Frozen green beans, 750 grams": 1.374,
-  "Frozen broccoli, 500 grams": 1.888,
-  "Frozen corn, 750 grams": 1.426,
-  "Frozen mixed vegetables, 750 grams": 1.487,
-  "Frozen peas, 750 grams": 1.425,
-  "Frozen pizza, 390 grams": 1.56,
-  "Frozen spinach, 300 grams": 1.554,
-  "Frozen strawberries, 600 grams": 1.544,
-  "White bread, 675 grams": 1.427,
-  "Flatbread and pita, 500 grams": 1.728,
-  "Crackers and crisp breads, 200 grams": 1.704,
-  "Cookies and sweet biscuits, 300 grams": 1.648,
-  "Dry or fresh pasta, 500 grams": 1.187,
-  "Brown rice, 900 grams": 1.228,
-  "White rice, 2 kilograms": 1.153,
-  "Cereal, 400 grams": 1.623,
-  "Wheat flour, 2.5 kilograms": 1.513,
-  "White sugar, 2 kilograms": 1.437,
-  "Apple juice, 2 litres": 1.568,
-  "Orange juice, 2 litres": 1.513,
-  "Roasted or ground coffee, 340 grams": 1.811,
-  "Tea (20 bags)": 1.164,
-  "Ketchup, 1 litre": 1.548,
-  "Vegetable oil, 3 litres": 1.676,
-  "Canola oil, 3 litres": 1.489,
-  "Olive oil, 1 litre": 1.824,
-  "Baby food, 128 millilitres": 1.989,
-  "Infant formula, 900 grams": 1.488,
-  "Peanut butter, 1 kilogram": 1.646,
-  "Mayonnaise, 890 millilitres": 1.367,
-  "Salsa, 418 millilitres": 0.991,
-  "Pasta sauce, 650 millilitres": 1.757,
-  "Salad dressing, 475 millilitres": 1.605,
-  "Canned baked beans, 398 millilitres": 1.495,
-  "Canned tomatoes, 796 millilitres": 1.522,
-  "Canned soup, 284 millilitres": 2.106,
-  "Canned beans and lentils, 540 millilitres": 1.451,
-  "Canned corn, 341 millilitres": 1.327,
-  "Canned peach, 398 millilitres": 1.646,
-  "Canned pear, 398 millilitres": 1.407,
-  "Dried lentils, 900 grams": 1.232,
-  "Dry beans and legumes, 900 grams": 1.172,
-  "Tofu, 350 grams": 1.07,
-  "Hummus, 227 grams": 1.224,
-  "Almonds, 200 grams": 1.609,
-  "Peanuts, 450 grams": 1.507,
-  "Sunflower seeds, 400 grams": 1.394,
-  "Deodorant, 85 grams": 1.571,
-  "Toothpaste, 100 millilitres": 1.627,
-  "Shampoo, 400 millilitres": 1.697,
-  "Laundry detergent, 4.43 litres": 1.488
+  "Beef stewing cuts, per kilogram": 1.127,
+  "Beef striploin cuts, per kilogram": 1.168,
+  "Beef top sirloin cuts, per kilogram": 1.162,
+  "Beef rib cuts, per kilogram": 1.274,
+  "Ground beef, per kilogram": 1.167,
+  "Pork loin cuts, per kilogram": 1.506,
+  "Pork rib cuts, per kilogram": 1.421,
+  "Pork shoulder cuts, per kilogram": 1.421,
+  "Whole chicken, per kilogram": 1.216,
+  "Chicken breasts, per kilogram": 1.594,
+  "Chicken thigh, per kilogram": 0.885,
+  "Chicken drumsticks, per kilogram": 1.31,
+  "Salmon, per kilogram": 1.231,
+  "Bacon, 500 grams": 1.55,
+  "Wieners, 400 grams": 1.743,
+  "Shrimp, 300 grams": 1.327,
+  "Canned salmon, 213 grams": 1.41,
+  "Canned tuna, 170 grams": 2.32,
+  "Meatless burgers, 226 grams": 0.92,
+  "Milk, 1 litre": 1.008,
+  "Milk, 2 litres": 1.019,
+  "Milk, 4 litres": 1.063,
+  "Soy milk, 1.89 litres": 1.674,
+  "Nut milk, 1.89 litres": 1.388,
+  "Cream, 1 litre": 1.302,
+  "Butter, 454 grams": 1.606,
+  "Margarine, 907 grams": 1.62,
+  "Block cheese, 500 grams": 1.575,
+  "Yogurt, 500 grams": 1.36,
+  "Eggs, 1 dozen": 1.016,
+  "Apples, per kilogram": 0.986,
+  "Oranges, per kilogram": 1.503,
+  "Oranges, 1.36 kilograms": 1.34,
+  "Bananas, per kilogram": 1.421,
+  "Pears, per kilogram": 1.421,
+  "Lemons, unit": 1.421,
+  "Limes, unit": 1.838,
+  "Grapes, per kilogram": 1.612,
+  "Cantaloupe, unit": 1.421,
+  "Strawberries, 454 grams": 1.428,
+  "Avocado, unit": 1.231,
+  "Potatoes, 4.54 kilograms": 1.651,
+  "Potatoes, per kilogram": 0.502,
+  "Sweet potatoes, per kilogram": 1.75,
+  "Tomatoes, per kilogram": 1.68,
+  "Cabbage, per kilogram": 2.753,
+  "Carrots, 1.36 kilograms": 1.004,
+  "Onions, per kilogram": 0.477,
+  "Onions, 1.36 kilograms": 1.192,
+  "Celery, unit": 1.458,
+  "Cucumber, unit": 1.421,
+  "Mushrooms, 227 grams": 1.193,
+  "Iceberg lettuce, unit": 1.545,
+  "Romaine lettuce, unit": 1.421,
+  "Broccoli, unit": 1.88,
+  "Peppers, per kilogram": 1.701,
+  "Squash, per kilogram": 1.421,
+  "Salad greens, 142 grams": 0.98,
+  "Frozen french fried potatoes, 750 grams": 1.701,
+  "Frozen green beans, 750 grams": 1.11,
+  "Frozen broccoli, 500 grams": 2.35,
+  "Frozen corn, 750 grams": 1.157,
+  "Frozen mixed vegetables, 750 grams": 1.483,
+  "Frozen peas, 750 grams": 1.227,
+  "Frozen pizza, 390 grams": 1.487,
+  "Frozen spinach, 300 grams": 1.622,
+  "Frozen strawberries, 600 grams": 1.607,
+  "White bread, 675 grams": 1.375,
+  "Flatbread and pita, 500 grams": 1.707,
+  "Crackers and crisp breads, 200 grams": 1.706,
+  "Cookies and sweet biscuits, 300 grams": 1.614,
+  "Dry or fresh pasta, 500 grams": 1.162,
+  "Brown rice, 900 grams": 1.126,
+  "White rice, 2 kilograms": 1.103,
+  "Cereal, 400 grams": 1.577,
+  "Wheat flour, 2.5 kilograms": 1.365,
+  "White sugar, 2 kilograms": 1.345,
+  "Apple juice, 2 litres": 1.542,
+  "Orange juice, 2 litres": 1.472,
+  "Roasted or ground coffee, 340 grams": 1.632,
+  "Tea (20 bags)": 1.151,
+  "Ketchup, 1 litre": 1.56,
+  "Vegetable oil, 3 litres": 1.768,
+  "Canola oil, 3 litres": 1.481,
+  "Olive oil, 1 litre": 1.75,
+  "Baby food, 128 millilitres": 1.421,
+  "Infant formula, 900 grams": 1.421,
+  "Peanut butter, 1 kilogram": 1.413,
+  "Mayonnaise, 890 millilitres": 1.338,
+  "Salsa, 418 millilitres": 0.926,
+  "Pasta sauce, 650 millilitres": 1.749,
+  "Salad dressing, 475 millilitres": 1.552,
+  "Canned baked beans, 398 millilitres": 1.489,
+  "Canned tomatoes, 796 millilitres": 1.483,
+  "Canned soup, 284 millilitres": 2.045,
+  "Canned beans and lentils, 540 millilitres": 1.159,
+  "Canned corn, 341 millilitres": 1.264,
+  "Canned peach, 398 millilitres": 1.623,
+  "Canned pear, 398 millilitres": 1.338,
+  "Dried lentils, 900 grams": 1.105,
+  "Dry beans and legumes, 900 grams": 1.123,
+  "Tofu, 350 grams": 0.947,
+  "Hummus, 227 grams": 1.15,
+  "Almonds, 200 grams": 1.514,
+  "Peanuts, 450 grams": 1.494,
+  "Sunflower seeds, 400 grams": 1.369,
+  "Deodorant, 85 grams": 1.619,
+  "Toothpaste, 100 millilitres": 1.711,
+  "Shampoo, 400 millilitres": 1.742,
+  "Laundry detergent, 4.43 litres": 1.421
  },
  "calibration": {
   "on": "2026-11-08",
   "from": "Project Hammer regular prices, Toronto, newest 2026-11-07",
   "place": "Ontario",
-  "rows": 13219,
+  "rows": 13102,
+  "premiumRows": 1459,
   "products": 100,
-  "overallFactor": 1.488,
-  "sigma": 0.367,
-  "insideP10P90": 0.76,
+  "overallFactor": 1.421,
+  "overallPremiumUplift": 1.346,
+  "sigma": 0.334,
+  "sigmaSizeAssumed": 0.42,
+  "insideP10P90": 0.75,
   "perProduct": {
    "Beef stewing cuts, per kilogram": {
     "n": 9,
-    "factor": 1.343,
+    "nPremium": 0,
+    "factor": 1.127,
+    "premiumFactor": 1.517,
     "sigma": 0.273
    },
    "Beef striploin cuts, per kilogram": {
     "n": 2,
-    "factor": 1.43,
+    "nPremium": 0,
+    "factor": 1.168,
+    "premiumFactor": 1.572,
     "sigma": 0.393
    },
    "Beef top sirloin cuts, per kilogram": {
     "n": 1,
-    "factor": 1.443,
+    "nPremium": 0,
+    "factor": 1.162,
+    "premiumFactor": 1.565,
     "sigma": 0
    },
    "Beef rib cuts, per kilogram": {
     "n": 2,
-    "factor": 1.453,
+    "nPremium": 0,
+    "factor": 1.274,
+    "premiumFactor": 1.715,
     "sigma": 0.348
    },
    "Ground beef, per kilogram": {
-    "n": 27,
-    "factor": 1.284,
-    "sigma": 0.106
+    "n": 26,
+    "nPremium": 1,
+    "factor": 1.167,
+    "premiumFactor": 1.648,
+    "sigma": 0.096
    },
    "Pork loin cuts, per kilogram": {
-    "n": 2,
-    "factor": 1.614,
-    "sigma": 1.135
+    "n": 1,
+    "nPremium": 1,
+    "factor": 1.506,
+    "premiumFactor": 3.059,
+    "sigma": 0
    },
    "Pork rib cuts, per kilogram": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Pork shoulder cuts, per kilogram": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Whole chicken, per kilogram": {
     "n": 3,
-    "factor": 1.43,
+    "nPremium": 0,
+    "factor": 1.216,
+    "premiumFactor": 1.637,
     "sigma": 0.096
    },
    "Chicken breasts, per kilogram": {
     "n": 16,
-    "factor": 1.544,
+    "nPremium": 0,
+    "factor": 1.594,
+    "premiumFactor": 2.146,
     "sigma": 0.24
    },
    "Chicken thigh, per kilogram": {
     "n": 9,
-    "factor": 1.226,
+    "nPremium": 0,
+    "factor": 0.885,
+    "premiumFactor": 1.192,
     "sigma": 0.142
    },
    "Chicken drumsticks, per kilogram": {
-    "n": 7,
-    "factor": 1.452,
-    "sigma": 0.175
+    "n": 6,
+    "nPremium": 1,
+    "factor": 1.31,
+    "premiumFactor": 1.9,
+    "sigma": 0.138
    },
    "Salmon, per kilogram": {
     "n": 22,
-    "factor": 1.338,
+    "nPremium": 0,
+    "factor": 1.231,
+    "premiumFactor": 1.657,
     "sigma": 0.533
    },
    "Bacon, 500 grams": {
-    "n": 117,
-    "factor": 1.543,
+    "n": 113,
+    "nPremium": 4,
+    "factor": 1.55,
+    "premiumFactor": 1.969,
     "sigma": 0.312
    },
    "Wieners, 400 grams": {
-    "n": 129,
-    "factor": 1.712,
+    "n": 126,
+    "nPremium": 3,
+    "factor": 1.743,
+    "premiumFactor": 2.691,
     "sigma": 0.372
    },
    "Shrimp, 300 grams": {
-    "n": 122,
-    "factor": 1.347,
-    "sigma": 0.303
+    "n": 118,
+    "nPremium": 4,
+    "factor": 1.327,
+    "premiumFactor": 1.478,
+    "sigma": 0.304
    },
    "Canned salmon, 213 grams": {
     "n": 7,
-    "factor": 1.467,
+    "nPremium": 0,
+    "factor": 1.41,
+    "premiumFactor": 1.898,
     "sigma": 0.212
    },
    "Canned tuna, 170 grams": {
-    "n": 251,
-    "factor": 2.419,
-    "sigma": 0.38
+    "n": 122,
+    "nPremium": 41,
+    "factor": 2.32,
+    "premiumFactor": 2.374,
+    "sigma": 0.498
    },
    "Meatless burgers, 226 grams": {
-    "n": 47,
-    "factor": 1.028,
-    "sigma": 0.256
+    "n": 46,
+    "nPremium": 1,
+    "factor": 0.92,
+    "premiumFactor": 1.051,
+    "sigma": 0.288
    },
    "Milk, 1 litre": {
-    "n": 57,
-    "factor": 1.105,
-    "sigma": 0.138
+    "n": 53,
+    "nPremium": 4,
+    "factor": 1.008,
+    "premiumFactor": 1.25,
+    "sigma": 0.126
    },
    "Milk, 2 litres": {
-    "n": 125,
-    "factor": 1.14,
-    "sigma": 0.175
+    "n": 80,
+    "nPremium": 45,
+    "factor": 1.019,
+    "premiumFactor": 1.242,
+    "sigma": 0.129
    },
    "Milk, 4 litres": {
-    "n": 79,
-    "factor": 1.201,
-    "sigma": 0.299
+    "n": 57,
+    "nPremium": 22,
+    "factor": 1.063,
+    "premiumFactor": 1.653,
+    "sigma": 0.136
    },
    "Soy milk, 1.89 litres": {
-    "n": 70,
-    "factor": 1.553,
-    "sigma": 0.391
+    "n": 48,
+    "nPremium": 22,
+    "factor": 1.674,
+    "premiumFactor": 1.323,
+    "sigma": 0.556
    },
    "Nut milk, 1.89 litres": {
-    "n": 106,
-    "factor": 1.403,
+    "n": 96,
+    "nPremium": 10,
+    "factor": 1.388,
+    "premiumFactor": 1.581,
     "sigma": 0.347
    },
    "Cream, 1 litre": {
-    "n": 41,
-    "factor": 1.415,
-    "sigma": 0.29
+    "n": 29,
+    "nPremium": 12,
+    "factor": 1.302,
+    "premiumFactor": 1.445,
+    "sigma": 0.39
    },
    "Butter, 454 grams": {
-    "n": 148,
-    "factor": 1.622,
-    "sigma": 0.345
+    "n": 116,
+    "nPremium": 32,
+    "factor": 1.606,
+    "premiumFactor": 2.55,
+    "sigma": 0.168
    },
    "Margarine, 907 grams": {
     "n": 136,
-    "factor": 1.605,
+    "nPremium": 0,
+    "factor": 1.62,
+    "premiumFactor": 2.18,
     "sigma": 0.24
    },
    "Block cheese, 500 grams": {
-    "n": 399,
-    "factor": 1.571,
+    "n": 365,
+    "nPremium": 34,
+    "factor": 1.575,
+    "premiumFactor": 2.08,
     "sigma": 0.476
    },
    "Yogurt, 500 grams": {
-    "n": 834,
-    "factor": 1.349,
-    "sigma": 0.297
+    "n": 731,
+    "nPremium": 103,
+    "factor": 1.36,
+    "premiumFactor": 1.22,
+    "sigma": 0.306
    },
    "Eggs, 1 dozen": {
-    "n": 72,
-    "factor": 1.416,
-    "sigma": 0.182
+    "n": 25,
+    "nPremium": 46,
+    "factor": 1.016,
+    "premiumFactor": 1.542,
+    "sigma": 0.278
    },
    "Apples, per kilogram": {
-    "n": 60,
-    "factor": 1.083,
-    "sigma": 0.223
+    "n": 49,
+    "nPremium": 11,
+    "factor": 0.986,
+    "premiumFactor": 1.544,
+    "sigma": 0.003
    },
    "Oranges, per kilogram": {
-    "n": 7,
-    "factor": 1.501,
-    "sigma": 0.354
+    "n": 5,
+    "nPremium": 2,
+    "factor": 1.503,
+    "premiumFactor": 1.876,
+    "sigma": 0.351
    },
    "Oranges, 1.36 kilograms": {
-    "n": 15,
-    "factor": 1.46,
-    "sigma": 0.268
+    "n": 11,
+    "nPremium": 4,
+    "factor": 1.34,
+    "premiumFactor": 1.617,
+    "sigma": 0.229
    },
    "Bananas, per kilogram": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Pears, per kilogram": {
-    "n": 5,
-    "factor": 1.473,
+    "n": 0,
+    "nPremium": 5,
+    "factor": 1.421,
+    "premiumFactor": 1.541,
     "sigma": 0
    },
    "Lemons, unit": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Limes, unit": {
     "n": 2,
-    "factor": 1.553,
+    "nPremium": 0,
+    "factor": 1.838,
+    "premiumFactor": 2.475,
     "sigma": 0.792
    },
    "Grapes, per kilogram": {
-    "n": 13,
-    "factor": 1.576,
-    "sigma": 0.293
+    "n": 9,
+    "nPremium": 4,
+    "factor": 1.612,
+    "premiumFactor": 2.277,
+    "sigma": 0.08
    },
    "Cantaloupe, unit": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Strawberries, 454 grams": {
-    "n": 21,
-    "factor": 1.458,
-    "sigma": 0.23
+    "n": 16,
+    "nPremium": 5,
+    "factor": 1.428,
+    "premiumFactor": 1.665,
+    "sigma": 0.275
    },
    "Avocado, unit": {
-    "n": 11,
-    "factor": 1.377,
-    "sigma": 0.988
+    "n": 10,
+    "nPremium": 1,
+    "factor": 1.231,
+    "premiumFactor": 2.262,
+    "sigma": 0.873
    },
    "Potatoes, 4.54 kilograms": {
     "n": 15,
-    "factor": 1.569,
+    "nPremium": 0,
+    "factor": 1.651,
+    "premiumFactor": 2.222,
     "sigma": 0.228
    },
    "Potatoes, per kilogram": {
-    "n": 28,
-    "factor": 0.779,
-    "sigma": 0.35
+    "n": 19,
+    "nPremium": 9,
+    "factor": 0.502,
+    "premiumFactor": 0.981,
+    "sigma": 0.142
    },
    "Sweet potatoes, per kilogram": {
-    "n": 5,
-    "factor": 1.505,
-    "sigma": 0.001
+    "n": 2,
+    "nPremium": 3,
+    "factor": 1.75,
+    "premiumFactor": 1.633,
+    "sigma": 0.464
    },
    "Tomatoes, per kilogram": {
-    "n": 6,
-    "factor": 1.729,
-    "sigma": 0.628
+    "n": 2,
+    "nPremium": 4,
+    "factor": 1.68,
+    "premiumFactor": 2.735,
+    "sigma": 0.6
    },
    "Cabbage, per kilogram": {
     "n": 1,
-    "factor": 1.632,
+    "nPremium": 0,
+    "factor": 2.753,
+    "premiumFactor": 3.706,
     "sigma": 0
    },
    "Carrots, 1.36 kilograms": {
-    "n": 11,
-    "factor": 1.435,
-    "sigma": 0.758
+    "n": 6,
+    "nPremium": 5,
+    "factor": 1.004,
+    "premiumFactor": 2.106,
+    "sigma": 0.28
    },
    "Onions, per kilogram": {
-    "n": 15,
-    "factor": 0.937,
-    "sigma": 0.9
+    "n": 11,
+    "nPremium": 4,
+    "factor": 0.477,
+    "premiumFactor": 1.1,
+    "sigma": 0.538
    },
    "Onions, 1.36 kilograms": {
-    "n": 21,
-    "factor": 1.378,
-    "sigma": 0.418
+    "n": 20,
+    "nPremium": 1,
+    "factor": 1.192,
+    "premiumFactor": 1.65,
+    "sigma": 0.212
    },
    "Celery, unit": {
     "n": 1,
-    "factor": 1.49,
+    "nPremium": 0,
+    "factor": 1.458,
+    "premiumFactor": 1.962,
     "sigma": 0
    },
    "Cucumber, unit": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Mushrooms, 227 grams": {
-    "n": 38,
-    "factor": 1.373,
-    "sigma": 0.262
+    "n": 30,
+    "nPremium": 8,
+    "factor": 1.193,
+    "premiumFactor": 1.593,
+    "sigma": 0.251
    },
    "Iceberg lettuce, unit": {
-    "n": 3,
-    "factor": 1.529,
+    "n": 1,
+    "nPremium": 2,
+    "factor": 1.545,
+    "premiumFactor": 1.877,
     "sigma": 0
    },
    "Romaine lettuce, unit": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Broccoli, unit": {
     "n": 2,
-    "factor": 1.559,
+    "nPremium": 0,
+    "factor": 1.88,
+    "premiumFactor": 2.531,
     "sigma": 0.001
    },
    "Peppers, per kilogram": {
     "n": 1,
-    "factor": 1.524,
+    "nPremium": 0,
+    "factor": 1.701,
+    "premiumFactor": 2.29,
     "sigma": 0
    },
    "Squash, per kilogram": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Salad greens, 142 grams": {
-    "n": 26,
-    "factor": 1.148,
-    "sigma": 0.225
+    "n": 16,
+    "nPremium": 10,
+    "factor": 0.98,
+    "premiumFactor": 1.165,
+    "sigma": 0.218
    },
    "Frozen french fried potatoes, 750 grams": {
-    "n": 151,
-    "factor": 1.678,
+    "n": 138,
+    "nPremium": 13,
+    "factor": 1.701,
+    "premiumFactor": 1.429,
     "sigma": 0.341
    },
    "Frozen green beans, 750 grams": {
-    "n": 9,
-    "factor": 1.374,
-    "sigma": 0.332
+    "n": 7,
+    "nPremium": 2,
+    "factor": 1.11,
+    "premiumFactor": 1.665,
+    "sigma": 0.175
    },
    "Frozen broccoli, 500 grams": {
-    "n": 20,
-    "factor": 1.888,
-    "sigma": 0.651
+    "n": 17,
+    "nPremium": 3,
+    "factor": 2.35,
+    "premiumFactor": 1.795,
+    "sigma": 0.435
    },
    "Frozen corn, 750 grams": {
-    "n": 13,
-    "factor": 1.426,
-    "sigma": 0.271
+    "n": 11,
+    "nPremium": 2,
+    "factor": 1.157,
+    "premiumFactor": 1.956,
+    "sigma": 0.267
    },
    "Frozen mixed vegetables, 750 grams": {
-    "n": 68,
-    "factor": 1.487,
-    "sigma": 0.333
+    "n": 67,
+    "nPremium": 1,
+    "factor": 1.483,
+    "premiumFactor": 1.873,
+    "sigma": 0.335
    },
    "Frozen peas, 750 grams": {
-    "n": 14,
-    "factor": 1.425,
-    "sigma": 0.53
+    "n": 12,
+    "nPremium": 2,
+    "factor": 1.227,
+    "premiumFactor": 1.985,
+    "sigma": 0.364
    },
    "Frozen pizza, 390 grams": {
-    "n": 189,
-    "factor": 1.56,
-    "sigma": 0.362
+    "n": 165,
+    "nPremium": 24,
+    "factor": 1.487,
+    "premiumFactor": 2.349,
+    "sigma": 0.287
    },
    "Frozen spinach, 300 grams": {
-    "n": 25,
-    "factor": 1.554,
-    "sigma": 0.54
+    "n": 23,
+    "nPremium": 2,
+    "factor": 1.622,
+    "premiumFactor": 1.843,
+    "sigma": 0.582
    },
    "Frozen strawberries, 600 grams": {
-    "n": 13,
-    "factor": 1.544,
-    "sigma": 0.4
+    "n": 10,
+    "nPremium": 3,
+    "factor": 1.607,
+    "premiumFactor": 1.802,
+    "sigma": 0.534
    },
    "White bread, 675 grams": {
-    "n": 62,
-    "factor": 1.427,
-    "sigma": 0.323
+    "n": 59,
+    "nPremium": 3,
+    "factor": 1.375,
+    "premiumFactor": 1.807,
+    "sigma": 0.295
    },
    "Flatbread and pita, 500 grams": {
-    "n": 222,
-    "factor": 1.728,
-    "sigma": 0.4
+    "n": 210,
+    "nPremium": 12,
+    "factor": 1.707,
+    "premiumFactor": 3.135,
+    "sigma": 0.383
    },
    "Crackers and crisp breads, 200 grams": {
-    "n": 942,
-    "factor": 1.704,
-    "sigma": 0.442
-   },
-   "Cookies and sweet biscuits, 300 grams": {
-    "n": 1358,
-    "factor": 1.648,
+    "n": 863,
+    "nPremium": 79,
+    "factor": 1.706,
+    "premiumFactor": 3.233,
     "sigma": 0.425
    },
+   "Cookies and sweet biscuits, 300 grams": {
+    "n": 1295,
+    "nPremium": 63,
+    "factor": 1.614,
+    "premiumFactor": 2.698,
+    "sigma": 0.402
+   },
    "Dry or fresh pasta, 500 grams": {
-    "n": 751,
-    "factor": 1.187,
-    "sigma": 0.38
+    "n": 710,
+    "nPremium": 41,
+    "factor": 1.162,
+    "premiumFactor": 1.412,
+    "sigma": 0.393
    },
    "Brown rice, 900 grams": {
-    "n": 38,
-    "factor": 1.228,
-    "sigma": 0.223
+    "n": 32,
+    "nPremium": 6,
+    "factor": 1.126,
+    "premiumFactor": 1.181,
+    "sigma": 0.191
    },
    "White rice, 2 kilograms": {
-    "n": 111,
-    "factor": 1.153,
-    "sigma": 0.475
+    "n": 100,
+    "nPremium": 11,
+    "factor": 1.103,
+    "premiumFactor": 1.159,
+    "sigma": 0.5
    },
    "Cereal, 400 grams": {
-    "n": 1174,
-    "factor": 1.623,
-    "sigma": 0.298
+    "n": 1014,
+    "nPremium": 160,
+    "factor": 1.577,
+    "premiumFactor": 1.914,
+    "sigma": 0.321
    },
    "Wheat flour, 2.5 kilograms": {
-    "n": 97,
-    "factor": 1.513,
-    "sigma": 0.328
+    "n": 85,
+    "nPremium": 12,
+    "factor": 1.365,
+    "premiumFactor": 2.321,
+    "sigma": 0.23
    },
    "White sugar, 2 kilograms": {
     "n": 9,
-    "factor": 1.437,
+    "nPremium": 0,
+    "factor": 1.345,
+    "premiumFactor": 1.811,
     "sigma": 0.231
    },
    "Apple juice, 2 litres": {
-    "n": 75,
-    "factor": 1.568,
-    "sigma": 0.306
+    "n": 72,
+    "nPremium": 3,
+    "factor": 1.542,
+    "premiumFactor": 2.402,
+    "sigma": 0.28
    },
    "Orange juice, 2 litres": {
-    "n": 95,
-    "factor": 1.513,
-    "sigma": 0.287
+    "n": 81,
+    "nPremium": 14,
+    "factor": 1.472,
+    "premiumFactor": 1.574,
+    "sigma": 0.282
    },
    "Roasted or ground coffee, 340 grams": {
-    "n": 514,
-    "factor": 1.811,
-    "sigma": 0.279
+    "n": 363,
+    "nPremium": 151,
+    "factor": 1.632,
+    "premiumFactor": 2.2,
+    "sigma": 0.281
    },
    "Tea (20 bags)": {
-    "n": 401,
-    "factor": 1.164,
+    "n": 300,
+    "nPremium": 73,
+    "factor": 1.151,
+    "premiumFactor": 1.585,
     "sigma": 0.5
    },
    "Ketchup, 1 litre": {
-    "n": 76,
-    "factor": 1.548,
+    "n": 71,
+    "nPremium": 5,
+    "factor": 1.56,
+    "premiumFactor": 2.12,
     "sigma": 0.248
    },
    "Vegetable oil, 3 litres": {
     "n": 36,
-    "factor": 1.676,
+    "nPremium": 0,
+    "factor": 1.768,
+    "premiumFactor": 2.381,
     "sigma": 0.27
    },
    "Canola oil, 3 litres": {
     "n": 15,
-    "factor": 1.489,
+    "nPremium": 0,
+    "factor": 1.481,
+    "premiumFactor": 1.994,
     "sigma": 0.378
    },
    "Olive oil, 1 litre": {
-    "n": 166,
-    "factor": 1.824,
-    "sigma": 0.364
+    "n": 139,
+    "nPremium": 27,
+    "factor": 1.75,
+    "premiumFactor": 2.335,
+    "sigma": 0.32
    },
    "Baby food, 128 millilitres": {
-    "n": 15,
-    "factor": 1.989,
-    "sigma": 0.277
+    "n": 0,
+    "nPremium": 15,
+    "factor": 1.421,
+    "premiumFactor": 2.785,
+    "sigma": 0
    },
    "Infant formula, 900 grams": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    },
    "Peanut butter, 1 kilogram": {
-    "n": 228,
-    "factor": 1.646,
-    "sigma": 0.425
+    "n": 203,
+    "nPremium": 25,
+    "factor": 1.413,
+    "premiumFactor": 2.594,
+    "sigma": 0.445
    },
    "Mayonnaise, 890 millilitres": {
-    "n": 75,
-    "factor": 1.367,
-    "sigma": 0.329
+    "n": 74,
+    "nPremium": 1,
+    "factor": 1.338,
+    "premiumFactor": 2.265,
+    "sigma": 0.327
    },
    "Salsa, 418 millilitres": {
-    "n": 212,
-    "factor": 0.991,
-    "sigma": 0.29
+    "n": 192,
+    "nPremium": 20,
+    "factor": 0.926,
+    "premiumFactor": 1.238,
+    "sigma": 0.329
    },
    "Pasta sauce, 650 millilitres": {
-    "n": 422,
-    "factor": 1.757,
-    "sigma": 0.546
+    "n": 389,
+    "nPremium": 33,
+    "factor": 1.749,
+    "premiumFactor": 2.271,
+    "sigma": 0.538
    },
    "Salad dressing, 475 millilitres": {
-    "n": 680,
-    "factor": 1.605,
-    "sigma": 0.557
+    "n": 647,
+    "nPremium": 33,
+    "factor": 1.552,
+    "premiumFactor": 3.662,
+    "sigma": 0.53
    },
    "Canned baked beans, 398 millilitres": {
-    "n": 78,
-    "factor": 1.495,
-    "sigma": 0.265
+    "n": 73,
+    "nPremium": 5,
+    "factor": 1.489,
+    "premiumFactor": 1.758,
+    "sigma": 0.271
    },
    "Canned tomatoes, 796 millilitres": {
-    "n": 154,
-    "factor": 1.522,
-    "sigma": 0.533
+    "n": 139,
+    "nPremium": 15,
+    "factor": 1.483,
+    "premiumFactor": 2.795,
+    "sigma": 0.479
    },
    "Canned soup, 284 millilitres": {
-    "n": 536,
-    "factor": 2.106,
-    "sigma": 0.352
+    "n": 487,
+    "nPremium": 49,
+    "factor": 2.045,
+    "premiumFactor": 3.021,
+    "sigma": 0.413
    },
    "Canned beans and lentils, 540 millilitres": {
-    "n": 226,
-    "factor": 1.451,
-    "sigma": 0.367
+    "n": 198,
+    "nPremium": 28,
+    "factor": 1.159,
+    "premiumFactor": 1.938,
+    "sigma": 0.332
    },
    "Canned corn, 341 millilitres": {
-    "n": 58,
-    "factor": 1.327,
-    "sigma": 0.313
+    "n": 55,
+    "nPremium": 3,
+    "factor": 1.264,
+    "premiumFactor": 2.409,
+    "sigma": 0.293
    },
    "Canned peach, 398 millilitres": {
-    "n": 78,
-    "factor": 1.646,
-    "sigma": 0.547
+    "n": 75,
+    "nPremium": 3,
+    "factor": 1.623,
+    "premiumFactor": 2.504,
+    "sigma": 0.522
    },
    "Canned pear, 398 millilitres": {
     "n": 20,
-    "factor": 1.407,
+    "nPremium": 0,
+    "factor": 1.338,
+    "premiumFactor": 1.801,
     "sigma": 0.543
    },
    "Dried lentils, 900 grams": {
-    "n": 37,
-    "factor": 1.232,
-    "sigma": 0.175
+    "n": 32,
+    "nPremium": 5,
+    "factor": 1.105,
+    "premiumFactor": 2.02,
+    "sigma": 0.134
    },
    "Dry beans and legumes, 900 grams": {
-    "n": 101,
-    "factor": 1.172,
+    "n": 99,
+    "nPremium": 2,
+    "factor": 1.123,
+    "premiumFactor": 1.721,
     "sigma": 0.199
    },
    "Tofu, 350 grams": {
-    "n": 99,
-    "factor": 1.07,
-    "sigma": 0.285
+    "n": 79,
+    "nPremium": 20,
+    "factor": 0.947,
+    "premiumFactor": 1.128,
+    "sigma": 0.272
    },
    "Hummus, 227 grams": {
-    "n": 62,
-    "factor": 1.224,
-    "sigma": 0.096
+    "n": 61,
+    "nPremium": 1,
+    "factor": 1.15,
+    "premiumFactor": 1.547,
+    "sigma": 0.087
    },
    "Almonds, 200 grams": {
-    "n": 135,
-    "factor": 1.609,
-    "sigma": 0.369
+    "n": 120,
+    "nPremium": 15,
+    "factor": 1.514,
+    "premiumFactor": 2.133,
+    "sigma": 0.425
    },
    "Peanuts, 450 grams": {
-    "n": 77,
-    "factor": 1.507,
-    "sigma": 0.302
+    "n": 76,
+    "nPremium": 1,
+    "factor": 1.494,
+    "premiumFactor": 1.929,
+    "sigma": 0.324
    },
    "Sunflower seeds, 400 grams": {
-    "n": 72,
-    "factor": 1.394,
-    "sigma": 0.198
+    "n": 69,
+    "nPremium": 3,
+    "factor": 1.369,
+    "premiumFactor": 1.761,
+    "sigma": 0.199
    },
    "Deodorant, 85 grams": {
     "n": 27,
-    "factor": 1.571,
+    "nPremium": 0,
+    "factor": 1.619,
+    "premiumFactor": 2.18,
     "sigma": 0.198
    },
    "Toothpaste, 100 millilitres": {
     "n": 28,
-    "factor": 1.627,
+    "nPremium": 0,
+    "factor": 1.711,
+    "premiumFactor": 2.304,
     "sigma": 0.254
    },
    "Shampoo, 400 millilitres": {
-    "n": 8,
-    "factor": 1.697,
-    "sigma": 0.025
+    "n": 2,
+    "nPremium": 6,
+    "factor": 1.742,
+    "premiumFactor": 2.02,
+    "sigma": 0.095
    },
    "Laundry detergent, 4.43 litres": {
     "n": 0,
-    "factor": 1.488,
+    "nPremium": 0,
+    "factor": 1.421,
+    "premiumFactor": 1.913,
     "sigma": 0
    }
   }
+ },
+ "premiumFactor": {
+  "Beef stewing cuts, per kilogram": 1.517,
+  "Beef striploin cuts, per kilogram": 1.572,
+  "Beef top sirloin cuts, per kilogram": 1.565,
+  "Beef rib cuts, per kilogram": 1.715,
+  "Ground beef, per kilogram": 1.648,
+  "Pork loin cuts, per kilogram": 3.059,
+  "Pork rib cuts, per kilogram": 1.913,
+  "Pork shoulder cuts, per kilogram": 1.913,
+  "Whole chicken, per kilogram": 1.637,
+  "Chicken breasts, per kilogram": 2.146,
+  "Chicken thigh, per kilogram": 1.192,
+  "Chicken drumsticks, per kilogram": 1.9,
+  "Salmon, per kilogram": 1.657,
+  "Bacon, 500 grams": 1.969,
+  "Wieners, 400 grams": 2.691,
+  "Shrimp, 300 grams": 1.478,
+  "Canned salmon, 213 grams": 1.898,
+  "Canned tuna, 170 grams": 2.374,
+  "Meatless burgers, 226 grams": 1.051,
+  "Milk, 1 litre": 1.25,
+  "Milk, 2 litres": 1.242,
+  "Milk, 4 litres": 1.653,
+  "Soy milk, 1.89 litres": 1.323,
+  "Nut milk, 1.89 litres": 1.581,
+  "Cream, 1 litre": 1.445,
+  "Butter, 454 grams": 2.55,
+  "Margarine, 907 grams": 2.18,
+  "Block cheese, 500 grams": 2.08,
+  "Yogurt, 500 grams": 1.22,
+  "Eggs, 1 dozen": 1.542,
+  "Apples, per kilogram": 1.544,
+  "Oranges, per kilogram": 1.876,
+  "Oranges, 1.36 kilograms": 1.617,
+  "Bananas, per kilogram": 1.913,
+  "Pears, per kilogram": 1.541,
+  "Lemons, unit": 1.913,
+  "Limes, unit": 2.475,
+  "Grapes, per kilogram": 2.277,
+  "Cantaloupe, unit": 1.913,
+  "Strawberries, 454 grams": 1.665,
+  "Avocado, unit": 2.262,
+  "Potatoes, 4.54 kilograms": 2.222,
+  "Potatoes, per kilogram": 0.981,
+  "Sweet potatoes, per kilogram": 1.633,
+  "Tomatoes, per kilogram": 2.735,
+  "Cabbage, per kilogram": 3.706,
+  "Carrots, 1.36 kilograms": 2.106,
+  "Onions, per kilogram": 1.1,
+  "Onions, 1.36 kilograms": 1.65,
+  "Celery, unit": 1.962,
+  "Cucumber, unit": 1.913,
+  "Mushrooms, 227 grams": 1.593,
+  "Iceberg lettuce, unit": 1.877,
+  "Romaine lettuce, unit": 1.913,
+  "Broccoli, unit": 2.531,
+  "Peppers, per kilogram": 2.29,
+  "Squash, per kilogram": 1.913,
+  "Salad greens, 142 grams": 1.165,
+  "Frozen french fried potatoes, 750 grams": 1.429,
+  "Frozen green beans, 750 grams": 1.665,
+  "Frozen broccoli, 500 grams": 1.795,
+  "Frozen corn, 750 grams": 1.956,
+  "Frozen mixed vegetables, 750 grams": 1.873,
+  "Frozen peas, 750 grams": 1.985,
+  "Frozen pizza, 390 grams": 2.349,
+  "Frozen spinach, 300 grams": 1.843,
+  "Frozen strawberries, 600 grams": 1.802,
+  "White bread, 675 grams": 1.807,
+  "Flatbread and pita, 500 grams": 3.135,
+  "Crackers and crisp breads, 200 grams": 3.233,
+  "Cookies and sweet biscuits, 300 grams": 2.698,
+  "Dry or fresh pasta, 500 grams": 1.412,
+  "Brown rice, 900 grams": 1.181,
+  "White rice, 2 kilograms": 1.159,
+  "Cereal, 400 grams": 1.914,
+  "Wheat flour, 2.5 kilograms": 2.321,
+  "White sugar, 2 kilograms": 1.811,
+  "Apple juice, 2 litres": 2.402,
+  "Orange juice, 2 litres": 1.574,
+  "Roasted or ground coffee, 340 grams": 2.2,
+  "Tea (20 bags)": 1.585,
+  "Ketchup, 1 litre": 2.12,
+  "Vegetable oil, 3 litres": 2.381,
+  "Canola oil, 3 litres": 1.994,
+  "Olive oil, 1 litre": 2.335,
+  "Baby food, 128 millilitres": 2.785,
+  "Infant formula, 900 grams": 1.913,
+  "Peanut butter, 1 kilogram": 2.594,
+  "Mayonnaise, 890 millilitres": 2.265,
+  "Salsa, 418 millilitres": 1.238,
+  "Pasta sauce, 650 millilitres": 2.271,
+  "Salad dressing, 475 millilitres": 3.662,
+  "Canned baked beans, 398 millilitres": 1.758,
+  "Canned tomatoes, 796 millilitres": 2.795,
+  "Canned soup, 284 millilitres": 3.021,
+  "Canned beans and lentils, 540 millilitres": 1.938,
+  "Canned corn, 341 millilitres": 2.409,
+  "Canned peach, 398 millilitres": 2.504,
+  "Canned pear, 398 millilitres": 1.801,
+  "Dried lentils, 900 grams": 2.02,
+  "Dry beans and legumes, 900 grams": 1.721,
+  "Tofu, 350 grams": 1.128,
+  "Hummus, 227 grams": 1.547,
+  "Almonds, 200 grams": 2.133,
+  "Peanuts, 450 grams": 1.929,
+  "Sunflower seeds, 400 grams": 1.761,
+  "Deodorant, 85 grams": 2.18,
+  "Toothpaste, 100 millilitres": 2.304,
+  "Shampoo, 400 millilitres": 2.02,
+  "Laundry detergent, 4.43 litres": 1.913
  }
 }
