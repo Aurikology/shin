@@ -123,6 +123,13 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
     keys: ['bcldb'],
   },
   {
+    name: 'Project Hammer',
+    what: 'Shelf prices from nine Canadian grocers (Loblaws, No Frills, Metro, Walmart, Save-On-Foods, Sobeys, Voila, T and T, and Galleria), collected by Project Hammer for one Toronto neighbourhood: 98,918 price observations, 47,404 distinct barcodes, most seen in 2026 (counted 2026-11-07). Data from Project Hammer by Jacob Filipp.',
+    licence: 'No licence stated by the publisher',
+    url: 'https://jacobfilipp.com/hammer/',
+    keys: ['hammer'],
+  },
+  {
     name: 'Alcool NB Liquor (ANBL)',
     what: "Barcodes, product names and shelf prices from ANBL's public price list PDF: 6,741 price observations (counted 2026-10-06). Fetched by an automated script, not by hand. ANBL states no reuse licence. Its Terms and Conditions (anbl.com/terms, read 2026-10-06) say 'Material from this Site may not be copied, reproduced, republished, uploaded, posted, transmitted or distributed in any way' and that viewing or downloading is 'solely for your own personal use for non-commercial purposes'. Its robots.txt (read 2026-10-06) says 'User-agent: * Disallow: /' and allows only Googlebot, Bingbot, Applebot and DuckDuckBot. Verdict: automated reading and reuse are both unlicensed; written permission from ANBL is needed.",
     licence: 'No reuse licence; terms read 2026-10-06 forbid copying and redistribution (personal non-commercial use only) and robots.txt disallows automated readers; permission needed',

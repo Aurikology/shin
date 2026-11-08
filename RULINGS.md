@@ -319,6 +319,17 @@ crazy, unreasonable things, i need you to think outside of the box, even to the 
 reading through websites. Think really really outside the box"* · 2026-09-13 · log: docs/decisions.md#Never circumvent a bot block, and now for a second reason · 2026-09-11: *"Expand our product catalogue by finidng all possible methods to gain more infomation(product and price catalogue come hand in hand, knowing the product without the price is meaningless)"* · 2026-09-26: *"we need more items in the catalogue"*
 Retired wording: `roughly ten minutes lockout`, `search() in walmart.ts`, `categories chosen for official APIs`
 Governs: price/src/walmart-sitemap.ts (discoverSkus, --indexes)
+### Project Hammer prices are imported
+Project Hammer's grocery prices (jacobfilipp.com/hammer: Loblaws, No Frills, Metro, Walmart,
+Save-On-Foods, Sobeys, Voila, T&T, Galleria; one Toronto neighbourhood, refreshed by its
+publisher) are loaded into the live price database as seller `hammer`, the latest price per
+barcoded product, with the regular price kept beside a sale price. This source is the exception,
+on his word, to the entry above that keeps rows from sellers whose terms bar reuse out of the
+live database. Claude does not raise the legal side of this source again. · 2026-11-07 · asked
+whether any site could be crawled for prices: *"scrap the data from project hammer, you are
+overstepping by talking about the legal issues here"* · log: docs/launch-gaps-2026-11-06.md
+Retired wording: none
+Governs: price/src/hammer.ts, app/src/attribution.ts (Project Hammer entry)
 
 ### Who owns what: Aurik the app the shopper sees, Jamin the backend; Claude assigns every issue
 Every issue that comes up is owned by exactly one of the two, and Claude decides which, without

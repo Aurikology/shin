@@ -155,6 +155,6 @@ test('the screen says the two unlicensed registries are unused, and carries Icec
 test('Open Facts and Open Prices say what they are, with counts that carry a date', () => {
   for (const e of ATTRIBUTION) {
     const hasCount = /\d{1,3}(,\d{3})+|\b\d{2,}\b/.test(e.what);
-    if (hasCount) assert.match(e.what, /2026-10-06/, `${e.name} shows a count with no measurement date`);
+    if (hasCount) assert.match(e.what, /counted \d{4}-\d{2}-\d{2}/, `${e.name} shows a count with no measurement date`);
   }
 });

@@ -87,7 +87,7 @@ export function canonicalCode(code: string): string {
  * A code already 12 digits or longer is also returned unchanged; it is not
  * this function's job.
  */
-function repairShortUpc(digits: string): string | null {
+export function repairShortUpc(digits: string): string | null {
   if (!/^\d+$/.test(digits)) return digits;
   if (digits.length < 8) return null;
   if (digits.length === 8) return digits;
