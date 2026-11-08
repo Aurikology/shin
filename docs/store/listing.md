@@ -45,7 +45,12 @@ GOOD TO KNOW
 - Pexi needs an internet connection to answer.
 - Prices and estimates are information only. Check the price at the till.
 - Pexi is free to use. Pexi Plus, an optional subscription for 100 barcode scans a week instead of the free 10, costs CA$3.99 a month or CA$29.99 a year and renews automatically until you cancel it in your Apple ID settings.
+
+Terms of Use: https://xu826jamin.github.io/pexi/terms.html
+Privacy Policy: https://xu826jamin.github.io/pexi/privacy.html
 ```
+
+The two links above are there because Apple asks an app with auto-renewing subscriptions to link its Terms of Use (EULA) in the App Store metadata, either in the description or in the custom EULA field (App Review Guideline 3.1.2). The Privacy Policy URL field takes the second link as well.
 
 **Keywords** (91 of 100; no spaces after commas; none of the words in the name or subtitle: pexi, is, this, price, a, good, deal):
 
