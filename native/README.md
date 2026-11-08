@@ -124,8 +124,14 @@ next to the app, not yet in its call path.
    separate faults and is one.
 3. ~~**Get a signing identity.**~~ Done 2026-10-18: he signed in to Xcode > Settings >
    Apple Accounts himself (xujamin90@icloud.com, team 2Z2PZM5635, paid individual membership).
-   This machine never holds that credential and never typed it; everything below runs off the
-   session Xcode already has.
+   This machine never holds that credential and never typed it.
+   **Do not rely on that sign-in, and do not read "everything below runs off the session Xcode
+   already has" into it (2026-11-08).** That Xcode account session was alive on 2026-11-04 and
+   gone by 2026-11-07, and when it goes every signing step fails with *"No Accounts: Add a new
+   account in Accounts settings"* plus *"No signing certificate iOS Distribution found"*, which
+   reads as a missing certificate and is really a missing account. The App Store Connect key in
+   item 4 does not expire that way; it is what signs and uploads, per his 2026-10-21 ruling
+   (`RULINGS.md`, "An App Store Connect key signs and uploads builds").
 4. **Build and upload, from `native/`, with no GUI and no password anywhere:**
    ```
    npm run sync && npx cap sync ios
@@ -134,10 +140,24 @@ next to the app, not yet in its call path.
      -destination 'generic/platform=iOS' -archivePath <path>/Pexi.xcarchive \
      CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" archive
    xcodebuild -exportArchive -archivePath <path>/Pexi.xcarchive -exportPath <path>/upload \
-     -exportOptionsPlist <path>/exportOptionsUpload.plist -allowProvisioningUpdates
+     -exportOptionsPlist <path>/exportOptionsUpload.plist -allowProvisioningUpdates \
+     -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_98VUK7UL9Y.p8 \
+     -authenticationKeyID 98VUK7UL9Y -authenticationKeyIssuerID <issuer>
    ```
    The export options are `method: app-store-connect`, `teamID: 2Z2PZM5635`,
    `signingStyle: automatic`, `destination: upload`, `manageAppVersionAndBuildNumber: false`.
+
+   **All three key arguments are required together, and leaving them off is the trap that cost
+   build 4 a day (2026-11-07).** `-authenticationKeyPath` without `-authenticationKeyIssuerID`
+   fails outright saying so; dropping the key arguments instead makes `xcodebuild` look for a
+   signed-in Xcode account, which is the failure above. The issuer id is in the vault and in
+   mailbox message `20261022012040-mac-6bcd75`; read it at run time and write it nowhere
+   (HARD RULE 5). With the three arguments present, export creates the distribution certificate
+   and profile through the API and needs nothing from him.
+
+   **Build 4 of 1.0.0 went up this way on 2026-11-08 at 12:54 EST**, signed `Apple Distribution:
+   Jamin Xu (2Z2PZM5635)`, and reads back from the App Store Connect API as VALID. The bundle was
+   scanned for secrets first: no private keys, only the RevenueCat public client key.
 
 **Why the archive is built unsigned and signed at export (2026-10-18, learned the hard way).**
 A straight `xcodebuild archive` with automatic signing asks Apple for a *development* profile,
