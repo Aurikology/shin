@@ -239,11 +239,21 @@ backend verdict rows are tested once after it is live, not twice.
 34. **[Jamin] Project Hammer prices and names (2026-11-07/08):** importer built (f400ac3, 2ad8994),
     weekly refresh script (89e018d), credits entry live. PC trial: 98,918 prices on 47,404 barcodes;
     48,185 catalogue rows. Live load is Mac job pexi-hammer-prices.
-35. **[Jamin] Statistics Canada average prices: downloaded, not wired in.** Table 18-10-0245-01
-    (110 items, by province, to 2026-09) sits in price/data/statcan. Wiring it in means a new rung
-    in the price engine before the Claude ask, plus a screen label for it (Aurik's). Held until
-    Hammer is live and the share of scans still reaching Claude is measured: Hammer's category pools
-    may already cover the same staples.
+    **Bug found and fixed 2026-11-08:** from July 2026 about 4 in 10 Walmart prices in Project Hammer
+    are written in cents with no decimal point ("2196" for $21.96); the importer read them as dollars,
+    100 times too high. Now read as cents (price/src/hammer.ts `hammerCents`, test seen to fail
+    without it). The live load must run on this commit or later.
+35. **[Jamin] Statistics Canada average prices: WIRED IN 2026-11-08** ("wire in statistics canada").
+    A rung after Pexi's own data and before the Claude ask: the province's average for the staple,
+    times a shelf factor, scaled to the item's size. Measured on Project Hammer's regular Toronto
+    prices: shelf prices sit 1.49 times the average overall (StatCan averages what people paid, sales
+    included); 1.45 without the two Asian grocers, 1.20 at No Frills and Walmart, 1.56 at the
+    full-price chains; spread 0.37 (76% of real prices inside the drawn range). 100 of 110 products
+    were seen in Hammer; the other 10 use the overall factor. Fresh food matches only when named
+    plainly; packaged food must agree with its category. Committed table price/statcan-averages.json;
+    monthly refresh `node price/src/statcan.ts build <csv>` keeps the factors.
+    **Off for every build until Aurik's build sends `knows=national_average`** (build 3 refuses a
+    basis it cannot word). Aurik asked via comms/messages 2026-11-08.
 
 ---
 
