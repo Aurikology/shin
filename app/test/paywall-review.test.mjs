@@ -313,11 +313,11 @@ test('the hosted privacy page and terms add subscriptions: RevenueCat and Apple,
 
 /* ------------------------------------------------------------ build number */
 
-test('the iOS project is version 1.0.0 build 4 in every configuration', () => {
+test('the iOS project is version 1.0.0 build 5 in every configuration', () => {
   const pbx = read('../../native/ios/App/App.xcodeproj/project.pbxproj');
   const builds = [...pbx.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((m) => m[1]);
   const marketing = [...pbx.matchAll(/MARKETING_VERSION = ([\d.]+);/g)].map((m) => m[1]);
   assert.ok(builds.length >= 2);
-  assert.deepEqual([...new Set(builds)], ['4']);
+  assert.deepEqual([...new Set(builds)], ['5']);
   assert.deepEqual([...new Set(marketing)], ['1.0.0']);
 });
