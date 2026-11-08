@@ -214,6 +214,39 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 
 ---
 
+## D. DEFECTS triage, 2026-11-08 (state column read, not re-tested)
+
+DEFECTS.md has 250 rows; 32 have a state column starting Open, Half or Partly. Owners by the
+"Who owns what" line. Not re-tested one by one: Hammer (item 34) changes most price answers, so the
+backend verdict rows are tested once after it is live, not twice.
+
+- **[Jamin] Backend, test after Hammer is live (one pass, live server):** D-022 and D-059 (one typed
+  price moves a verdict, no outlier hold), D-176 (word and picture disagree on own prices), D-177
+  ("Great price" on a category prior about 15 times wide), D-241 (a typed name matching no single
+  product dead-ends), D-121 (alternatives can never return a row), D-081 (seller named from
+  store_name, not store_osm).
+- **[Jamin] Closable now, with evidence:** D-141 (Plus from the browser console): the server no
+  longer believes the phone's Plus header, live `/api/quota` answers `plus:false` with it set
+  (checked 2026-11-07). D-222 (test rows in the PC's user catalogue): PC only, and the live
+  user_offer/user_review rows were deleted 2026-11-07. D-099: photo scanning does not ship.
+- **[Jamin] Process and documents, not launch blockers:** D-001, D-030, D-054, D-085, D-089, D-098,
+  D-106, D-111, D-031 (old privacy wording on the profile screen; check against the published policy
+  during Aurik's pass).
+- **[Aurik] Screens, on build 4:** D-011, D-013, D-015, D-016, D-024, D-050, D-092, D-116, D-133,
+  D-151, D-154, D-172, D-206, D-207, D-217, D-218, D-219, D-225, D-226, D-227, D-237 (torch, item 9),
+  D-250 (crashes, item 4).
+
+34. **[Jamin] Project Hammer prices and names (2026-11-07/08):** importer built (f400ac3, 2ad8994),
+    weekly refresh script (89e018d), credits entry live. PC trial: 98,918 prices on 47,404 barcodes;
+    48,185 catalogue rows. Live load is Mac job pexi-hammer-prices.
+35. **[Jamin] Statistics Canada average prices: downloaded, not wired in.** Table 18-10-0245-01
+    (110 items, by province, to 2026-09) sits in price/data/statcan. Wiring it in means a new rung
+    in the price engine before the Claude ask, plus a screen label for it (Aurik's). Held until
+    Hammer is live and the share of scans still reaching Claude is measured: Hammer's category pools
+    may already cover the same staples.
+
+---
+
 ## Not covered yet (this list grows when these run)
 
 - **[Jamin and Aurik]** Apple's review guidelines, section by section, against the real app: the
