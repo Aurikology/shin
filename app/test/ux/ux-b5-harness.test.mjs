@@ -1051,7 +1051,7 @@ let restoreListeners = null;
  */
 export async function launchApp({ seed: asked = {}, search = '', server: serverRoutes = {}, firstRunAnswered = true } = {}) {
   // The first-run screen (screens/agree.js) stands in front of everything, so a test of anything else starts past it.
-  const answered = { at: '2026-11-06T00:00:00.000Z', version: 1, over18: true, claude: true };
+  const answered = { at: '2026-11-06T00:00:00.000Z', version: 1, claude: true };
   const seed = !firstRunAnswered ? asked : {
     ...asked,
     'shin.v1': { agreement: answered, ...(typeof asked['shin.v1'] === 'string' ? JSON.parse(asked['shin.v1']) : asked['shin.v1']) },

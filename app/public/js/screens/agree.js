@@ -2,8 +2,9 @@
  * The first screen of a new install, and the one screen that cannot be skipped (Jamin's App Store
  * list, 2026-11-05, item 9). Two answers, neither made for the person:
  *
- *   - "I am 18 or older and agree to the Terms and Privacy Policy". The 18+ ruling of 2026-09-14
- *     (RULINGS.md) was never built. Nothing else in the app opens until it is ticked.
+ *   - "I agree to the Terms of Use and the Privacy Policy". Pexi is for all ages (RULINGS "Pexi is
+ *     for all ages", 2026-11-07, which replaced the 18+ checkbox), so there is no age question and
+ *     the record carries no age claim. Nothing else in the app opens until it is ticked.
  *   - Whether product names may go to Anthropic's Claude for a price estimate. Apple 5.1.2 needs
  *     permission before sharing with an outside AI, so nothing is preselected. "No" is a whole
  *     answer: Pexi still answers every scan, with a broad-guess range when it has no price.
@@ -36,7 +37,7 @@ export function needsAgreement(s) {
 
 /** The record to store and send. Pure, so a test can hold it. */
 export function agreementRecord(claude, now = new Date()) {
-  return { at: now.toISOString(), version: AGREEMENT_VERSION, over18: true, claude: claude === true };
+  return { at: now.toISOString(), version: AGREEMENT_VERSION, claude: claude === true };
 }
 
 export default {

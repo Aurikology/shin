@@ -238,7 +238,7 @@ const EN = {
      formatted by lib/money.js. */
   vd_estimate: 'Pexi’s estimate',
   agree_title: 'Before you start',
-  agree_terms_line: 'I am 18 or older and I agree to the Terms of Use and the Privacy Policy.',
+  agree_terms_line: 'I agree to the Terms of Use and the Privacy Policy.',
   agree_terms_link: 'Terms of Use',
   agree_privacy_link: 'Privacy Policy',
   agree_claude_q: 'May Pexi send product names to Claude?',
@@ -938,7 +938,7 @@ const FR = {
      habituel est toujours dit estimation de Pexi. Jamais « économisé ». */
   vd_estimate: 'Estimation de Pexi',
   agree_title: 'Avant de commencer',
-  agree_terms_line: 'J’ai 18 ans ou plus et j’accepte les conditions d’utilisation et la politique de confidentialité.',
+  agree_terms_line: 'J’accepte les conditions d’utilisation et la politique de confidentialité.',
   agree_terms_link: 'Conditions d’utilisation',
   agree_privacy_link: 'Politique de confidentialité',
   agree_claude_q: 'Pexi peut-il envoyer le nom des produits à Claude?',
