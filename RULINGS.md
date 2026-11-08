@@ -80,15 +80,18 @@ recommend yes" and "back them up, then delete them? I recommend yes": *"1. yes 2
 · log: docs/launch-gaps-2026-11-06.md item 1b
 Retired wording: none
 Governs: app/public/js/grounded.js (reviews list), catalogue/src/user-catalogue.ts (user_offer, user_review)
-### The App Store age rating is for all ages
+### Pexi is for all ages: the App Store rating and the app itself
 Pexi's content is rated for all ages on the App Store (the lowest tier, 4+): every content
 question is answered None, alcohol included, since a price list naming a drink is not a reference
-to drinking, and no override raises it. The store description does not say "18 and over". The
-Terms of Use's 18+ clause ("Age gate is a Terms-of-Service checkbox") is a separate question,
-not changed by this entry. · 2026-11-07 · asked whether to set the age rating to 18+:
-*"don't say 18+, it should be good for all ages"* · log: docs/launch-gaps-2026-11-06.md item 18
-Retired wording: none
-Governs: App Store Connect age rating, docs/store/listing.md (description, age rating questionnaire)
+to drinking, and no override raises it. The app is for all ages too: no 18+ requirement in the
+Terms of Use, the Privacy Policy, the store description or the first screen, whose agreement line
+asks only for the Terms and Privacy Policy. A minor uses Pexi with a parent's or guardian's
+permission (Terms section 2). Replaces "Age gate is a Terms-of-Service checkbox" (kept verbatim in
+docs/decisions.md). · 2026-11-07 · asked whether to set the age rating to 18+: *"don't say 18+, it
+should be good for all ages"* · 2026-11-08, asked whether the terms keep 18+: *"the app should be
+all ages"* · log: docs/decisions.md#Pexi is for all ages
+Retired wording: `I am 18 or older and I agree`, `You must be 18 or older`
+Governs: App Store Connect age rating, docs/store/listing.md, docs/store/terms*.html, docs/store/privacy*.html, app/public/js/ui-strings.js (agree_terms_line), app/public/js/screens/agree.js
 ### Barcode plumbing: digits only, through Shin's server
 A barcode scan sends Gemini only the digits, never the image or a full photo (the frame is taken
 only when photo identification and photo consent are both on, which is never under tester-launch
@@ -549,12 +552,6 @@ Based on Trader Corporation v CarGurus (2017 ONSC 1841, $305,064 in statutory da
 152,532 photos), infringement there applied exclusively to photographs, not factual listing data
 like price. Framing/hotlinking a retailer's image is infringement exactly as copying it. This
 governs Cloud Vision Web Detection design and Open Food Facts photo use. · 2026-09-13 · log: docs/decisions.md#Take the string, never the image
-Retired wording: none
-Governs: to fill
-### Age gate is a Terms-of-Service checkbox
-An 18+ checkbox in the Terms of Service, not an age gate, removes Shin's own liability regardless
-of what Google's clause turns out to mean; built now rather than held pending Google's written
-answer. · 2026-09-14 · *"just put in our terms and services that you need to be 18+, if the user checks that, then we don't have any liability"* · log: docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 8)
 Retired wording: none
 Governs: to fill
 ### Legal review before launch, not before build

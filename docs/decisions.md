@@ -3025,3 +3025,23 @@ Replaced CLAUDE.md instruction, verbatim:
 > **Set by Jamin 2026-09-15: read `docs/jamin-gemini-rules.md` before anything else.** One Gemini call per scan (a barcode scan sends only the digits as text, a photo scan sends the image; product, prices, reviews and price math out); Shin's own prices only where a later ruling puts them (typed searches 2026-09-23, barcode answers beside Gemini's 2026-09-26); record everything a user does; legal issues are marked, never blocking; always an answer; no Claude fallback. **If your human is Aurik, tell him first thing, in plain words: Jamin asks him to perform a cleanup of this repo for anything that goes against those rules, then build Gemini to them** (the file lists the rules and the contradictions found so far).
 
 **Reverses if:** Jamin brings a Gemini use or photo scanning back by name.
+
+## Pexi is for all ages
+**Date:** 2026-11-08 · **Status:** active
+
+Jamin, 2026-11-07, asked whether to set the App Store age rating to 18+: *"don't say 18+, it should be good for all ages"*. 2026-11-08, asked whether the Terms of Use keep their 18+ clause: *"the app should be all ages"*.
+
+- **Store rating:** 4+, every content question None, alcohol included, no override.
+- **Legal pages (published from docs/store/):** Terms section 2 is now "Who can use Pexi": all ages, a minor with a parent's or guardian's permission, purchases under Apple's family rules. The Privacy Policy's Children section says Pexi is for all ages and collects the same information from everyone, and a parent can ask for a child's records to be deleted. Both French pages match.
+- **App (Aurik's):** the first screen's agreement line drops "I am 18 or older"; asked in comms/messages on 2026-11-08. Until it lands, `scripts/one-source-baseline.json` carries that one line.
+
+Replaces this RULINGS entry, kept here verbatim:
+
+> ### Age gate is a Terms-of-Service checkbox
+> An 18+ checkbox in the Terms of Service, not an age gate, removes Shin's own liability regardless
+> of what Google's clause turns out to mean; built now rather than held pending Google's written
+> answer. · 2026-09-14 · *"just put in our terms and services that you need to be 18+, if the user checks that, then we don't have any liability"* · log: docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 8)
+> Retired wording: none
+> Governs: to fill
+
+**Reverses if:** Jamin sets an age limit again.
