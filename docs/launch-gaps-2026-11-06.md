@@ -233,6 +233,11 @@ backend verdict rows are tested once after it is live, not twice.
     binding a witness to an identity the phone does not choose (a server-issued token or similar).
     That is an architecture call for Jamin, not a test. Testing it live would mean writing fake
     typed prices into the live data, so it was not done.
+  - **Share still reaching Claude (Mac replay 2026-11-08 19:58Z, price/src/claude-share.ts, real
+    devices only):** 41 distinct barcodes, 113 scans. 7 barcodes (17.1%), 19 scans (16.8%) would ask
+    Claude, the same with and without the Statistics Canada rung: none of the 41 is a staple it
+    covers. Bases: own prices 23, no verdict 15 (14 not in the catalogue), department prior 2,
+    category prior 1. The live share is at most this, since the ask also needs the shopper's yes.
 - **[Jamin] Closable now, with evidence:** D-141 (Plus from the browser console): the server no
   longer believes the phone's Plus header, live `/api/quota` answers `plus:false` with it set
   (checked 2026-11-07). D-222 (test rows in the PC's user catalogue): PC only, and the live
@@ -250,8 +255,12 @@ backend verdict rows are tested once after it is live, not twice.
     **LIVE (checked 2026-11-08 19:25Z from the PC):** the Mac started the load at 18:21Z on 02aed27
     (cents fix in; the live database had 0 Hammer rows before) and never marked the job done, but
     live answers now carry Hammer store prices seen 2026-11-07 (tuna 0062639298517 at Save-On-Foods,
-    butter 0055742357615 at Sobeys, a Galleria noodle bowl). Not yet confirmed: the row count, the
-    catalogue names load, and the weekly refresh under the supervisor.
+    butter 0055742357615 at Sobeys, a Galleria noodle bowl).
+    **Confirmed by the Mac 2026-11-08 19:58Z (read-only, job pexi-claude-share):** 98,948 Hammer
+    prices on 47,404 barcodes in the live prices database; names loaded (e.g. 0628451714552 "GoodLeaf
+    Hero Greens Magic Micro Broccoli 50 g", $3.99). **Open: the weekly refresh is NOT scheduled.**
+    mac/hammer-refresh.sh exists, but no launchd entry or crontab runs it (installed: backup,
+    checker, server, tunnel only). Without it the Hammer prices age from 2026-11-07.
     **Bug found and fixed 2026-11-08:** from July 2026 about 4 in 10 Walmart prices in Project Hammer
     are written in cents with no decimal point ("2196" for $21.96); the importer read them as dollars,
     100 times too high. Now read as cents (price/src/hammer.ts `hammerCents`, test seen to fail
