@@ -275,7 +275,28 @@ function writeCatalogueRows(products: Map<string, HammerProduct>, out: string): 
   console.log(`hammer: wrote ${lines.length} catalogue rows to ${out} (load with: SHIN_CATALOGUE=<catalogue.db> node catalogue/src/load.ts --no-placement ${out})`);
 }
 
+/**
+ * WEEKLY REFRESH MARK. Jamin, 2026-11-08: "go" (schedule the weekly Hammer refresh, and a failure
+ * must reach him). mac/hammer-refresh.sh writes this as its LAST step, after prices and names both
+ * loaded, so the mark moves only when a whole refresh succeeded. /api/health reports it and the
+ * GitHub outage alarm goes red when it is missing or older than HAMMER_STALE_DAYS: a refresh that
+ * failed, hung, or was never scheduled all look the same from there, and all are loud.
+ */
+export const HAMMER_REFRESHED_KEY = 'hammer_refreshed_at';
+
+export function markRefreshed(db: ReturnType<typeof openPrices>, at: Date = new Date()): string {
+  const iso = at.toISOString();
+  db.prepare('INSERT OR REPLACE INTO store_meta (key, value) VALUES (?, ?)').run(HAMMER_REFRESHED_KEY, iso);
+  return iso;
+}
+
 async function main(): Promise<void> {
+  if (process.argv[2] === '--mark-refreshed') {
+    const db = openPrices(undefined);
+    console.log(`hammer: refresh marked at ${markRefreshed(db)}`);
+    db.close();
+    return;
+  }
   const dir = process.argv[2];
   if (!dir) {
     console.error('usage: SHIN_PRICES=<prices.db> node price/src/hammer.ts <dir with hammer-4-product.csv and hammer-4-raw.csv>');

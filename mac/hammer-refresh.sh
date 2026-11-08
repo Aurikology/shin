@@ -10,7 +10,7 @@
 #
 # Usage: mac/hammer-refresh.sh [path-to-config.env]
 # Needs SHIN_PRICES and SHIN_CATALOGUE from config.env, about 5 GB free, and
-# node on PATH. Meant to be run weekly by the Mac's job supervisor.
+# node on PATH. Run weekly by launchd: mac/launchd/com.shin.hammer.plist.
 #
 # Fails loudly: any step that fails stops the run with a non-zero exit and a
 # line on stderr naming the step. The temp folder is removed either way.
@@ -31,6 +31,10 @@ fail() {
   exit 1
 }
 
+# launchd does not read the shell's PATH or nvm setup: NODE_BIN in config.env
+# names the exact binary, as mac/run-server.sh uses it.
+NODE="${NODE_BIN:-node}"
+command -v "$NODE" >/dev/null 2>&1 || fail "node: $NODE not found (set NODE_BIN in config.env)"
 [ -n "${SHIN_PRICES:-}" ] || fail "config: SHIN_PRICES is not set"
 [ -n "${SHIN_CATALOGUE:-}" ] || fail "config: SHIN_CATALOGUE is not set"
 [ -f "$SHIN_PRICES" ] || fail "config: SHIN_PRICES does not exist ($SHIN_PRICES)"
@@ -52,10 +56,14 @@ unzip -q "$TMP/hammer.zip" -d "$TMP" || fail "unzip"
 
 cd "$REPO_DIR"
 echo "hammer-refresh: loading prices into $SHIN_PRICES"
-node price/src/hammer.ts "$TMP" || fail "price load"
+"$NODE" price/src/hammer.ts "$TMP" || fail "price load"
 
 echo "hammer-refresh: loading product names into $SHIN_CATALOGUE"
-node price/src/hammer.ts "$TMP" --catalogue-rows "$TMP/hammer-catalogue-rows.jsonl" || fail "catalogue rows"
-(cd catalogue && node src/load.ts --no-placement "$TMP/hammer-catalogue-rows.jsonl") || fail "catalogue load"
+"$NODE" price/src/hammer.ts "$TMP" --catalogue-rows "$TMP/hammer-catalogue-rows.jsonl" || fail "catalogue rows"
+(cd catalogue && "$NODE" src/load.ts --no-placement "$TMP/hammer-catalogue-rows.jsonl") || fail "catalogue load"
+
+# Last: the mark /api/health reports and the GitHub outage alarm checks. Only a
+# whole successful refresh reaches this line, so a stale mark means a failure.
+"$NODE" price/src/hammer.ts --mark-refreshed || fail "mark refreshed"
 
 echo "hammer-refresh: done"

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd/com.shin.hammer.plist
+
+  Runs mac/hammer-refresh.sh once a week, Sunday 05:30 local time: after the
+  04:00 backup, so the two never write the databases at once. Jamin,
+  2026-11-08: "go" (schedule the weekly Project Hammer refresh).
+
+  Template, same __SHIN_REPO_DIR__ placeholder as com.shin.backup.plist.
+  Install (fill the path, then load):
+    sed "s|__SHIN_REPO_DIR__|$SHIN_REPO_DIR|g" \
+      "$SHIN_REPO_DIR/mac/launchd/com.shin.hammer.plist" \
+      > ~/Library/LaunchAgents/com.shin.hammer.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shin.hammer.plist
+  Run it once now:  launchctl kickstart gui/$(id -u)/com.shin.hammer
+  Stop it:          launchctl bootout gui/$(id -u)/com.shin.hammer
+
+  FAILING LOUDLY. The script's last step writes hammer_refreshed_at into the
+  prices database. /api/health reports it, and the GitHub outage alarm
+  (.github/workflows/server-alarm.yml) goes red when it is missing or more
+  than 8 days old. So a failed run, a hung run, and a schedule that never
+  fires all reach Jamin the same way; the log files below say which step.
+
+  RunAtLoad false and no KeepAlive, as for the backup: a one-shot weekly job,
+  never restarted for exiting. launchd runs a missed StartCalendarInterval
+  once the Mac wakes.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.hammer</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/hammer-refresh.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/mac</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>5</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/hammer.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/hammer.err.log</string>
+</dict>
+</plist>

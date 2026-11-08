@@ -18,6 +18,7 @@
  */
 import { existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
+import { HAMMER_REFRESHED_KEY } from '../../price/src/hammer.ts';
 
 /** The table every price read starts from (price/src/store.ts). */
 const OBSERVATION_TABLE = 'observation';
@@ -87,7 +88,38 @@ export function notePricesOpened(db: DatabaseSync | null, file: string): void {
   if (state !== 'ok') faults[state] = (faults[state] ?? 0) + 1;
 }
 
-/** The fields `/api/health` adds: the prices file's state now, and the scans each fault touched. */
-export function pricesHealth(): { pricesDb: PricesDbState | 'not_checked'; pricesDbFaults: Partial<Record<PricesDbState, number>> } {
-  return { pricesDb: path === null ? 'not_checked' : inspectPricesDb(path).state, pricesDbFaults: { ...faults } };
+/**
+ * When the weekly Project Hammer refresh last finished whole (price/src/hammer.ts `markRefreshed`,
+ * written as mac/hammer-refresh.sh's last step), or null when it never has or the file cannot say.
+ * The GitHub outage alarm reads it from `/api/health` (scripts/data-freshness.mjs). Never throws.
+ */
+export function hammerRefreshedAt(file: string): string | null {
+  if (!existsSync(file)) return null;
+  let db: DatabaseSync | null = null;
+  try {
+    db = new DatabaseSync(file, { readOnly: true });
+    const row = db.prepare('SELECT value FROM store_meta WHERE key = ?').get(HAMMER_REFRESHED_KEY) as { value: string } | undefined;
+    return row?.value ?? null;
+  } catch {
+    return null;
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* already closed */
+    }
+  }
+}
+
+/** The fields `/api/health` adds: the prices file's state now, the scans each fault touched, and the last Hammer refresh. */
+export function pricesHealth(): {
+  pricesDb: PricesDbState | 'not_checked';
+  pricesDbFaults: Partial<Record<PricesDbState, number>>;
+  hammerRefreshedAt: string | null;
+} {
+  return {
+    pricesDb: path === null ? 'not_checked' : inspectPricesDb(path).state,
+    pricesDbFaults: { ...faults },
+    hammerRefreshedAt: path === null ? null : hammerRefreshedAt(path),
+  };
 }
