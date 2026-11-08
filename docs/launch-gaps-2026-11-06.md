@@ -214,17 +214,25 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 
 ---
 
-## D. DEFECTS triage, 2026-11-08 (state column read, not re-tested)
+## D. DEFECTS triage, 2026-11-08 (state column read; backend rows re-checked once after Hammer)
 
 DEFECTS.md has 250 rows; 32 have a state column starting Open, Half or Partly. Owners by the
 "Who owns what" line. Not re-tested one by one: Hammer (item 34) changes most price answers, so the
 backend verdict rows are tested once after it is live, not twice.
 
-- **[Jamin] Backend, test after Hammer is live (one pass, live server):** D-022 and D-059 (one typed
-  price moves a verdict, no outlier hold), D-176 (word and picture disagree on own prices), D-177
-  ("Great price" on a category prior about 15 times wide), D-241 (a typed name matching no single
-  product dead-ends), D-121 (alternatives can never return a row), D-081 (seller named from
-  store_name, not store_osm).
+- **[Jamin] Backend, the one pass after Hammer went live (2026-11-08):**
+  - D-241 (a typed name dead-ends): holds on the live server. "kraft dinner original 225g" answers
+    the broad guess $2.78 to $36.02 with the catalogue reported up (checked 19:58Z). Not tried on a
+    phone.
+  - D-176 closed 2026-10-10, D-177 fixed 2026-10-07 as decided, D-081 fixed 2026-09-10 with a second
+    field: the rows say so; nothing to re-test on the server.
+  - D-121 (alternatives never return a row): the alternatives route is no longer on the server
+    (parked by product decision), so there is nothing live to test. Hammer prices now carry
+    barcodes, so a revived route would have rows to read; unmeasured.
+  - D-022 and D-059 (one typed price moves a verdict): the outlier hold is fixed; the open half is
+    binding a witness to an identity the phone does not choose (a server-issued token or similar).
+    That is an architecture call for Jamin, not a test. Testing it live would mean writing fake
+    typed prices into the live data, so it was not done.
 - **[Jamin] Closable now, with evidence:** D-141 (Plus from the browser console): the server no
   longer believes the phone's Plus header, live `/api/quota` answers `plus:false` with it set
   (checked 2026-11-07). D-222 (test rows in the PC's user catalogue): PC only, and the live
