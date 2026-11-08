@@ -60,6 +60,7 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
+import { statSync } from 'node:fs';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide } from './width-flag.ts';
@@ -931,6 +932,54 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | 'timeout'>
  * The verdict for one item. Never throws: a broken price file is an empty
  * one, a failed Claude ask is the next rung, and the last rung always draws.
  */
+/*
+ * READ CACHE. Every estimate reads every observation row and the catalogue rows behind them, to build
+ * its category pools. With Project Hammer loaded (2026-11-08, about 99,000 rows) that took about 2.5 s
+ * per scan, measured on the PC copy, and 1.5 to 3.5 s on the live server: 2.4 s reading prices and
+ * 3.0 s reading the catalogue in a profile of three calls. Both reads depend only on the two files,
+ * the currency and the day, so they are kept for the next request and read again only when either
+ * file (or its write-ahead log) changes size or time, or the day changes. A handle with no file
+ * behind it (`:memory:`, every test fixture) is never cached.
+ */
+let snapshot: { key: string; rows: Row[]; cat: Map<string, CatRow> } | null = null;
+
+function stamp(db: DatabaseSync | null | undefined): string | null {
+  if (!db) return 'none';
+  let file: string | null;
+  try {
+    file = db.location();
+  } catch {
+    return null;
+  }
+  if (!file) return null;
+  try {
+    const main = statSync(file);
+    let wal = '';
+    try {
+      const w = statSync(`${file}-wal`);
+      wal = `${w.size}:${w.mtimeMs}`;
+    } catch {
+      wal = '-';
+    }
+    return `${file}|${main.size}:${main.mtimeMs}|${wal}`;
+  } catch {
+    return null;
+  }
+}
+
+/** The cache key for these files, currency and day, or null when they cannot be cached. */
+function snapshotKey(deps: EstimateDeps, currency: string, asOf: string): string | null {
+  const p = stamp(deps.prices);
+  const c = stamp(deps.catalogue);
+  if (p === null || c === null || (p === 'none' && c === 'none')) return null;
+  return `${p}#${c}#${currency}#${asOf}`;
+}
+
+/** Drops the read cache (tests, and a caller that knows the files changed in place). */
+export function clearEstimateCache(): void {
+  snapshot = null;
+}
+
 export async function estimate(item: EstimateItem, shopper: ShopperInput | null, deps: EstimateDeps): Promise<EstimateResult> {
   const currency = (item.currency ?? 'CAD').trim().toUpperCase() || 'CAD';
   const tried: RungTried[] = [];
@@ -938,24 +987,39 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let claudeTrace: EstimateTrace['claude'] = null;
   await loadSizeFill();
 
-  /* ---- data */
-  let rows: Row[] = [];
-  if (deps.prices) {
-    try {
-      rows = readRows(deps.prices, currency, item.asOf);
-    } catch {
-      rows = [];
-    }
-  }
+  /* ---- data (read once per file version: see READ CACHE above `snapshotKey`) */
   const barcode = item.barcode?.trim() ? item.barcode.trim() : null;
   const selfKey = barcode ? codeKey(barcode) : null;
+  const key = snapshotKey(deps, currency, item.asOf);
+  let rows: Row[] = [];
   let cat = new Map<string, CatRow>();
-  if (deps.catalogue) {
+  if (key !== null && snapshot?.key === key) {
+    rows = snapshot.rows;
+    cat = snapshot.cat;
+  } else {
+    if (deps.prices) {
+      try {
+        rows = readRows(deps.prices, currency, item.asOf);
+      } catch {
+        rows = [];
+      }
+    }
+    if (deps.catalogue) {
+      try {
+        cat = readCatalogue(deps.catalogue, [...new Set(rows.map((r) => r.key).filter((k): k is string => k !== null))]);
+      } catch {
+        cat = new Map();
+      }
+    }
+    if (key !== null) snapshot = { key, rows, cat };
+  }
+  // The scanned item's own catalogue row, when no price row brought it in. Added to the snapshot's map:
+  // it is the same catalogue version, so it is as true for the next request as for this one.
+  if (deps.catalogue && selfKey && !cat.has(selfKey)) {
     try {
-      const keys = [...new Set(rows.map((r) => r.key).filter((k): k is string => k !== null))];
-      cat = readCatalogue(deps.catalogue, selfKey ? [...keys, barcode!] : keys);
+      for (const [k, v] of readCatalogue(deps.catalogue, [barcode!])) cat.set(k, v);
     } catch {
-      cat = new Map();
+      /* no row for it: the ladder goes on without its catalogue identity, as before */
     }
   }
   const selfCat = selfKey ? cat.get(selfKey) ?? null : null;
