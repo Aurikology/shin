@@ -254,6 +254,16 @@ backend verdict rows are tested once after it is live, not twice.
     monthly refresh `node price/src/statcan.ts build <csv>` keeps the factors.
     **Off for every build until Aurik's build sends `knows=national_average`** (build 3 refuses a
     basis it cannot word). Aurik asked via comms/messages 2026-11-08.
+    **Live check 2026-11-08 18:30Z (with knows):** 18 staples scanned, 3 answered from StatCan, 0
+    Claude calls; but 18 large eggs centred at $10.66 against about $7 on the shelf (premium eggs in
+    the pool), and 15 had no size so never reached the rung. Jamin: "both" to the two fixes:
+    - **Standard and premium factors apart** (organic, free-run, omega, nest-laid, albacore and the
+      like): eggs standard 1.02 (a dozen centres at $5.10, 18 at about $7.65), premium 1.54. Pull
+      toward the overall factor picked on held-out data: 2 (median error 0.236; 0.245 at the old 20,
+      0.280 with one factor for all). Spread 0.33. Flavoured and Korean ready-to-eat tuna excluded.
+    - **No size: the product's size is assumed**, only for a plainly named fresh item or a packaged
+      item whose category agrees, and only when one product matches (no guess between milk sizes);
+      spread 0.42, measured over every pack size of the same product. Marked "size assumed".
 
 ---
 
