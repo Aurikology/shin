@@ -80,6 +80,15 @@ recommend yes" and "back them up, then delete them? I recommend yes": *"1. yes 2
 · log: docs/launch-gaps-2026-11-06.md item 1b
 Retired wording: none
 Governs: app/public/js/grounded.js (reviews list), catalogue/src/user-catalogue.ts (user_offer, user_review)
+### Pexi 1.0 is an iPhone app, not an iPad app
+The iOS build targets iPhone only (device family 1), so the App Store asks for no iPad screenshots
+and iPads run the iPhone app in Apple's iPhone mode. Why: the app draws a framed phone on black on
+any screen 520 or more wide (app/public/css/shell.css), which every iPad saw on build 5. An iPad
+layout would be Aurik's work and is not planned. · 2026-11-09 · offered iPhone-only build 6 or an
+iPad layout by Aurik: *"go ahead with the two decisions"* · log: docs/launch-gaps-2026-11-06.md item 12
+Retired wording: none
+Governs: native/ios/App/App.xcodeproj/project.pbxproj (TARGETED_DEVICE_FAMILY), app/test/paywall-review.test.mjs, App Store Connect iPad screenshots
+
 ### Pexi is for all ages: the App Store rating and the app itself
 Pexi's content is rated for all ages on the App Store (the lowest tier, 4+): every content
 question is answered None, alcohol included, since a price list naming a drink is not a reference

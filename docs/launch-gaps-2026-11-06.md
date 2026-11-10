@@ -149,7 +149,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
     that on build 5, and the screenshots show it (`docs/store/screenshots/ipad-13-held/`). Apple
     asks for iPad screenshots while the build supports iPad (`TARGETED_DEVICE_FAMILY = "1,2"`).
     Options: an iPhone-only build 6 (family 1; iPads then run the iPhone app and no iPad shots are
-    asked), or Aurik lays the app out for iPad.
+    asked), or Aurik lays the app out for iPad. **Ruled 2026-11-09: iPhone only** (RULINGS). Build
+    6 set in 1842c55 (family 1, build number 6, checks seen red first); the Mac is asked to build
+    and upload it, not attach or submit (mail 20261110040526-pc-a20c36, job pexi-build6). Attach
+    build 6, not 5, to 1.0 (item 20).
 
 ### Store pages and legal
 13. **[Jamin] Hosted privacy and terms are old versions; French pages 404.** Checked. The app
