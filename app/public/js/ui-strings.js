@@ -40,6 +40,12 @@ import { PW_EN, PW_FR } from './paywall-strings.js';
 
 export { locale, setLocale, LOCALES, localeTag, applyLang } from './lib/locale.js';
 
+/** A StatCan reference month ("2026-09") as the shopper reads it: "September 2026", "septembre 2026". */
+const statcanMonth = (m, lang) => {
+  const [y, mo] = String(m).split('-').map(Number);
+  return y && mo >= 1 && mo <= 12 ? new Date(Date.UTC(y, mo - 1, 15)).toLocaleDateString(lang, { month: 'long', year: 'numeric', timeZone: 'UTC' }) : String(m);
+};
+
 const EN = {
   /* The onboarding flow's text, in its own file (onboarding-strings.js). */
   ...ONB_EN,
@@ -205,6 +211,10 @@ const EN = {
   cat_basis_shin_one: "From Pexi's own prices at 1 store",
   cat_basis_shin_bare: "From Pexi's own prices",
   cat_basis_category: (f) => `From similar products in ${f.category}`,
+  /* Statistics Canada's monthly average priced a staple (RULINGS "Statistics Canada averages price a staple before Claude is asked"). */
+  cat_basis_statcan: (f) => `Based on Statistics Canada's average for ${f.place}, ${statcanMonth(f.month, 'en-CA')}, adjusted to regular shelf prices`,
+  cat_basis_statcan_sized: (f) => `Based on Statistics Canada's average for ${f.place}, ${statcanMonth(f.month, 'en-CA')}, for ${f.product}, adjusted to regular shelf prices`,
+  cat_basis_statcan_bare: "Based on Statistics Canada's average, adjusted to regular shelf prices",
   cat_basis_category_bare: 'From similar products',
   cat_basis_ai: 'Estimated by AI',
   cat_basis_broad: 'A broad guess: Pexi has no prices for items like this yet',
@@ -278,6 +288,7 @@ const EN = {
   vd_prov_claude_typical: 'An AI estimate; no shop prices found',
   vd_prov_category_prior: 'A rough estimate for its category',
   vd_prov_department_prior: 'A rough estimate from its department',
+  vd_prov_national_average: "Statistics Canada's average, adjusted to regular shelf prices",
   vd_prov_global_prior: 'A rough estimate from every price Pexi holds',
   vd_today: 'today',
   vd_days_ago: (f) => `${f.n} ${Number(f.n) === 1 ? 'day' : 'days'} ago`,
@@ -299,6 +310,7 @@ const EN = {
   vd_why_claude_typical: 'an AI estimate, no prices for this item',
   vd_why_category_prior: 'a rough estimate for its category',
   vd_why_department_prior: 'a rough estimate from its department',
+  vd_why_national_average: "Statistics Canada's average, not this item's prices",
   // Kept for scans saved before 2026-10-13, when the last rung still pooled every price (requirement 3.3 retired it).
   vd_why_global_prior: 'a rough estimate with little to go on',
   vd_why_default: 'few prices for this item',
@@ -328,6 +340,7 @@ const EN = {
   vd_basis_ai_line: 'Estimated by AI',
   vd_basis_category_prior: 'its category',
   vd_basis_department_prior: 'items in the same department',
+  vd_basis_national_average: "Statistics Canada's average",
   vd_basis_global_prior: 'every price Pexi holds',
   vd_bigger_pack: (f) => `A bigger pack${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` at ${f.store}` : ''}, works out to ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'per 100 g',
@@ -910,6 +923,9 @@ const FR = {
   cat_basis_shin_one: 'D’après les prix de Pexi dans 1 magasin',
   cat_basis_shin_bare: 'D’après les prix de Pexi',
   cat_basis_category: (f) => `D’après des produits semblables de la catégorie ${f.category}`,
+  cat_basis_statcan: (f) => `D’après la moyenne de Statistique Canada pour ${f.place}, ${statcanMonth(f.month, 'fr-CA')}, ajustée aux prix courants en magasin`,
+  cat_basis_statcan_sized: (f) => `D’après la moyenne de Statistique Canada pour ${f.place}, ${statcanMonth(f.month, 'fr-CA')}, pour ${f.product}, ajustée aux prix courants en magasin`,
+  cat_basis_statcan_bare: 'D’après la moyenne de Statistique Canada, ajustée aux prix courants en magasin',
   cat_basis_category_bare: 'D’après des produits semblables',
   cat_basis_ai: 'Estimé par l’IA',
   cat_basis_broad: 'Une estimation large : Pexi n’a pas encore de prix pour ce genre d’article',
@@ -972,6 +988,7 @@ const FR = {
   vd_prov_claude_typical: 'Une estimation par l’IA ; aucun prix en magasin trouvé',
   vd_prov_category_prior: 'Une estimation approximative pour sa catégorie',
   vd_prov_department_prior: 'Une estimation approximative selon son rayon',
+  vd_prov_national_average: 'La moyenne de Statistique Canada, ajustée aux prix courants en magasin',
   vd_prov_global_prior: 'Une estimation approximative selon tous les prix de Pexi',
   vd_today: 'aujourd’hui',
   vd_days_ago: (f) => `il y a ${f.n} ${Number(f.n) === 1 ? 'jour' : 'jours'}`,
@@ -989,6 +1006,7 @@ const FR = {
   vd_why_claude_typical: 'une estimation par l’IA, aucun prix pour ce produit',
   vd_why_category_prior: 'une estimation approximative pour sa catégorie',
   vd_why_department_prior: 'une estimation approximative selon son rayon',
+  vd_why_national_average: 'la moyenne de Statistique Canada, pas les prix de ce produit',
   vd_why_global_prior: 'une estimation approximative, peu de données',
   vd_why_default: 'peu de prix pour ce produit',
   vd_report_word: 'Votre signalement',
@@ -1013,6 +1031,7 @@ const FR = {
   vd_basis_ai_line: 'Estimé par l’IA',
   vd_basis_category_prior: 'sa catégorie',
   vd_basis_department_prior: 'les produits du même rayon',
+  vd_basis_national_average: 'la moyenne de Statistique Canada',
   vd_basis_global_prior: 'tous les prix de Pexi',
   vd_bigger_pack: (f) => `Un plus grand format${f.quantity ? `, ${f.quantity}` : ''}${f.store ? ` chez ${f.store}` : ''}, revient à ${f.price} ${f.unit}.`,
   vd_unit_per_100_g: 'les 100 g',

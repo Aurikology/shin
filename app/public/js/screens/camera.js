@@ -1656,6 +1656,12 @@ function daysSince(iso) {
  * (checkVerdict throws first).
  */
 function provenanceLine(v) {
+  if (v.basis === 'national_average') {
+    const na = v.nationalAverage;
+    if (!na) return t('vd_prov_national_average');
+    if (na.sizeAssumed && na.product) return t('cat_basis_statcan_sized', { place: na.place, month: na.month, product: na.product });
+    return t('cat_basis_statcan', { place: na.place, month: na.month });
+  }
   if (v.basis !== 'own_prices') return t(`vd_prov_${v.basis}`);
   const regular = v.dots.filter((d) => d.kind === 'regular');
   const prices = regular.length || v.n || 0;

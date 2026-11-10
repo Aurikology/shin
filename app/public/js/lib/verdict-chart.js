@@ -42,7 +42,7 @@ export const SUSPECT_SIGMAS = 4;
 /** His 2026-09-17 setup numbers, the defaults until a shopper sets their own. */
 export const DEFAULT_THRESHOLDS = Object.freeze({ greatPct: DEFAULT_PERCENTS.great, goodPct: DEFAULT_PERCENTS.good, badPct: DEFAULT_PERCENTS.bad, fromShopper: false });
 export const ZONES = Object.freeze(['great', 'good', 'reasonable', 'bad']);
-export const BASES = Object.freeze(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior', 'global_prior']);
+export const BASES = Object.freeze(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior', 'national_average', 'global_prior']);
 export const NOTES = Object.freeze(['size_assumed', 'other_region', 'old_prices', 'identity_conflict', 'claude_estimate', 'few_prices']);
 /** The contract caps dots at 12. */
 export const MAX_DOTS = 12;
@@ -125,7 +125,18 @@ export function usableVerdict(v) {
     shopper: cleanShopper(v.shopper),
     thresholds: cleanThresholds(v.thresholds),
     notes: (Array.isArray(v.notes) ? v.notes : []).filter((n) => NOTES.includes(n)),
+    nationalAverage: cleanNationalAverage(v.nationalAverage),
   };
+}
+
+/** Statistics Canada's average behind a `national_average` verdict (lifted onto it by api.js), or null. */
+function cleanNationalAverage(na) {
+  if (!na || typeof na !== 'object') return null;
+  const s = (x) => (typeof x === 'string' && x.trim() ? x.trim() : null);
+  const place = s(na.place);
+  const month = typeof na.month === 'string' && /^\d{4}-\d{2}$/.test(na.month) ? na.month : null;
+  if (!place || !month) return null;
+  return { product: s(na.product), place, month, averageCents: pos(na.averageCents) ? na.averageCents : null, premium: na.premium === true, sizeAssumed: na.sizeAssumed === true };
 }
 
 /* ---------------------------------------------------------- what is shown */

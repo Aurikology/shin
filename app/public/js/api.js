@@ -47,7 +47,23 @@ function scanContext() {
   }
   // `storeMarket()`, not the raw stored field: with FLAGS.market off it is
   // Canada, and the request has to say what the screen says.
-  return scanContextFrom({ market: storeMarket(), language: localeTag(), shop, intent: scanIntent });
+  // `knows`: answer sources this build can word beyond the ones every build knows (server.ts). With
+  // `national_average` the server may price a staple from Statistics Canada's average before asking Claude.
+  return { ...scanContextFrom({ market: storeMarket(), language: localeTag(), shop, intent: scanIntent }), knows: 'national_average' };
+}
+
+/**
+ * The server puts `nationalAverage` beside the verdict, not inside it. It is copied onto the verdict
+ * (and onto the range) so every screen that draws one (and the Saved list) can word its Statistics Canada source line.
+ */
+export function liftNationalAverage(answer) {
+  if (answer && typeof answer === 'object' && answer.nationalAverage && answer.verdict && typeof answer.verdict === 'object') {
+    answer.verdict.nationalAverage = answer.nationalAverage;
+  }
+  if (answer && typeof answer === 'object' && answer.nationalAverage && answer.range && typeof answer.range === 'object') {
+    answer.range.nationalAverage = answer.nationalAverage;
+  }
+  return answer;
 }
 
 /**
@@ -399,7 +415,7 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
   }
   if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
   if (!res.ok) throw new Error(`/api/identify returned ${res.status}`);
-  return res.json();
+  return liftNationalAverage(await res.json());
 }
 
 /**
@@ -442,7 +458,7 @@ export async function identifyPack({ gtin, frame, shelfPriceCents } = {}) {
     return { product: null, failure: respBody?.failure ?? 'pack_read_developer_only' };
   }
   if (!res.ok) throw new Error(`/api/identify/pack returned ${res.status}`);
-  return res.json();
+  return liftNationalAverage(await res.json());
 }
 
 /**
@@ -468,7 +484,7 @@ export async function matchText(lines) {
   if (res.status === 404) return { disabled: true };
   if (res.status === 429) return { rateLimited: true };
   if (!res.ok) throw new Error(`/api/match-text returned ${res.status}`);
-  return res.json();
+  return liftNationalAverage(await res.json());
 }
 
 /**
