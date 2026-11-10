@@ -1,0 +1,27 @@
+[
+  {
+    "slot": "monthly",
+    "product": {
+      "identifier": "pexi_plus_monthly",
+      "title": "Pexi Plus Monthly",
+      "description": "100 barcode scans a week",
+      "priceString": "$3.99",
+      "price": 3.99,
+      "currencyCode": "CAD",
+      "subscriptionPeriod": "P1M"
+    }
+  },
+  {
+    "slot": "annual",
+    "product": {
+      "identifier": "pexi_plus_yearly",
+      "title": "Pexi Plus Yearly",
+      "description": "100 barcode scans a week",
+      "priceString": "$29.99",
+      "price": 29.99,
+      "currencyCode": "CAD",
+      "subscriptionPeriod": "P1Y",
+      "pricePerMonthString": "$2.50"
+    }
+  }
+]
