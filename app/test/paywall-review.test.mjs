@@ -313,11 +313,24 @@ test('the hosted privacy page and terms add subscriptions: RevenueCat and Apple,
 
 /* ------------------------------------------------------------ build number */
 
-test('the iOS project is version 1.0.0 build 5 in every configuration', () => {
+test('the iOS project is version 1.0.0 build 6 in every configuration', () => {
   const pbx = read('../../native/ios/App/App.xcodeproj/project.pbxproj');
   const builds = [...pbx.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((m) => m[1]);
   const marketing = [...pbx.matchAll(/MARKETING_VERSION = ([\d.]+);/g)].map((m) => m[1]);
   assert.ok(builds.length >= 2);
-  assert.deepEqual([...new Set(builds)], ['5']);
+  assert.deepEqual([...new Set(builds)], ['6']);
   assert.deepEqual([...new Set(marketing)], ['1.0.0']);
+});
+
+/*
+ * iPhone only (Jamin, 2026-11-09, "go ahead"). On any screen 520 or more wide the app draws a
+ * framed phone on black (css/shell.css), which is what every iPad showed on build 5, and a build
+ * that supports iPad must also ship iPad screenshots. Device family 1 is iPhone; 2 is iPad.
+ * iPads still run an iPhone-only app in Apple's iPhone mode.
+ */
+test('the iOS project targets iPhone only in every configuration', () => {
+  const pbx = read('../../native/ios/App/App.xcodeproj/project.pbxproj');
+  const families = [...pbx.matchAll(/TARGETED_DEVICE_FAMILY = "?([\d,]+)"?;/g)].map((m) => m[1]);
+  assert.ok(families.length >= 2, 'no TARGETED_DEVICE_FAMILY found');
+  assert.deepEqual([...new Set(families)], ['1']);
 });
