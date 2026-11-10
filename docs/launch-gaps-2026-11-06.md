@@ -136,6 +136,20 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 12. **[Aurik] Screenshots: 0 uploaded on every size.** Checked. iPhone 6.9" and iPad 13" (iPad
     simulator renders the app, reported; iPhone simulator has no Pexi installed), plus one Plus
     screen shot for each subscription's review (21).
+    **iPhone DONE 2026-11-09 (Jamin's PC, taken over on his "do this"):** 5 shots captured from
+    the live app (scan screen, Cheerios answer, butter answer with its shop list, search, You) by
+    `scripts/appstore-screenshots.cjs`, files in `docs/store/screenshots/` (62f786a). Uploaded by a
+    browser worker to the required iPhone 6.1"/6.3" slot (1206x2622, 5 of 10) and the optional
+    6.9" slot (1260x2736, 5 of 10); both still there after a reload, no error text (reported by the
+    worker). The 01 tile showed a cloud placeholder, not a thumbnail: look once it has processed.
+    Answers were taken with Skip, never a typed price, so no made-up price entered the live data;
+    the scans themselves (about 10, no price) are on devices named `probe-appstore-shots-*`.
+    **iPad 13" HELD, Jamin's call:** the app draws a 420x880 framed phone on black on any screen
+    520 or more wide (app/public/css/shell.css, the `min-width: 520px` block), so every iPad sees
+    that on build 5, and the screenshots show it (`docs/store/screenshots/ipad-13-held/`). Apple
+    asks for iPad screenshots while the build supports iPad (`TARGETED_DEVICE_FAMILY = "1,2"`).
+    Options: an iPhone-only build 6 (family 1; iPads then run the iPhone app and no iPad shots are
+    asked), or Aurik lays the app out for iPad.
 
 ### Store pages and legal
 13. **[Jamin] Hosted privacy and terms are old versions; French pages 404.** Checked. The app
@@ -166,6 +180,11 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 20. **[Jamin]** **No build attached** to 1.0.
 21. **[Aurik] screenshot, [Jamin] attach.** Both subscriptions have **no review screenshot**;
     attachment to 1.0 not seen.
+    **DONE 2026-11-09:** `docs/store/screenshots/iphone-6.3/06-paywall.png` uploaded as the review
+    screenshot of both subscriptions, present after a reload (reported by the browser worker). It is
+    the app's own paywall code fed the plans exactly as App Store Connect lists them (Pexi Plus
+    Yearly CA$29.99, Pexi Plus Monthly CA$3.99), since a browser has no store; a real build 5 paywall
+    is still Aurik's item 7. Adding the subscriptions to the 1.0 version happens at submission.
 22. **[Jamin]** **"Part XX Canada compliance: Missing Info"** on the business page. Whether it
     blocks anything is unknown; likely Apple's seller details under Canada's platform reporting
     rules. Paid Apps agreement, both tax forms and the bank are Active (checked).
