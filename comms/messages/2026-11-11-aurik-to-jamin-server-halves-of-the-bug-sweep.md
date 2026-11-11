@@ -23,6 +23,9 @@ Jamin: Aurik's PC session took the screen half of the 2026-11-11 bug sweep (docs
 12. `/api/correction` with no product code drops the typed name (C4, server.ts 3430-3443).
 13. "Find a better buy" has no route (D-256).
 
-Screen fixes from this session, pushed to main: the camera's privacy line, the Fix Results pad, the count line, the chart labels, the scan button in the bar, the % off / N-for limits, the theme row, and the "Answered" headline. DEFECTS says which commit fixed which.
+**A flaky server test**
+14. `app/test/scan-record-complete.test.ts`, "5.1 control: the shopper's own call is kept as first given", failed in 2 of 5 full `npm test` runs on the PC (passes 9 of 9 alone). It is server code (`/api/scan-call`); the PC session touched no server file. Probably a timing or shared-state race inside the parallel suite; not looked into.
+
+Screen fixes from this session, pushed to main: the camera's privacy line, the Fix Results pad, the count line, the chart labels, the scan button in the bar, the % off / N-for limits, the theme row, the "Answered" headline, the Continue hint, the estimate label, You's text, number separators and "aisle", shouted names in title case (the screen half of D-261; the data is still yours), page titles, and the torch slider. DEFECTS says which commit fixed which.
 
 Delete this file once read.
