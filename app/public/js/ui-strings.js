@@ -273,6 +273,9 @@ const EN = {
   vd_zone_bad: 'Bad price',
   vd_where_under: (f) => `${f.pct}% under the typical price`,
   vd_where_over: (f) => `${f.pct}% over the typical price`,
+  // D-268 B11: the same line in Dollar mode.
+  vd_where_under_amt: (f) => `${f.amount} under the typical price`,
+  vd_where_over_amt: (f) => `${f.amount} over the typical price`,
   vd_where_about: 'about the typical price',
   vd_off: (f) => `${f.where}, Pexi's estimate ${f.centre}`,
   vd_typical: (f) => `Typical price, Pexi's estimate: ${f.centre}`,
@@ -989,6 +992,8 @@ const FR = {
   vd_zone_bad: 'Mauvais prix',
   vd_where_under: (f) => `${f.pct} % sous le prix habituel`,
   vd_where_over: (f) => `${f.pct} % au-dessus du prix habituel`,
+  vd_where_under_amt: (f) => `${f.amount} sous le prix habituel`,
+  vd_where_over_amt: (f) => `${f.amount} au-dessus du prix habituel`,
   vd_where_about: 'à peu près le prix habituel',
   vd_off: (f) => `${f.where}, estimation de Pexi ${f.centre}`,
   vd_typical: (f) => `Prix habituel, estimation de Pexi : ${f.centre}`,

@@ -21,6 +21,13 @@
 import { t } from '../ui-strings.js';
 import { usableVerdict, shopperFor, shopperOf, ZONE_TIER, asShown } from './verdict-chart.js';
 import { money } from './money.js';
+import { get as storeState } from '../store.js';
+import { unitOf } from './ranges.js';
+
+/** The unit the shopper set the price ranges in on You: 'percent' or 'amount'. */
+function shopperUnit() {
+  try { return unitOf(storeState()); } catch { return 'percent'; }
+}
 
 /** His zone, in the face the tier wears. Great is the intense face only when Pexi is not unsure (AVATAR.md's gate). */
 export function distFace(zone, confidence) {
@@ -41,10 +48,15 @@ export function distFace(zone, confidence) {
 export const DIST_CONF = { high: 'certain', medium: 'sure', low: 'thin' };
 
 /** "25% under the typical price", from the shopper block. The sign comes from the prices, the size from `offByPct` when sent. */
-export function distWhere(shopper, verdict) {
+export function distWhere(shopper, verdict, unit = shopperUnit()) {
   const signed = (shopper.cents - verdict.centreCents) / verdict.centreCents * 100;
   const size = Math.round(Math.abs(isFinite(shopper.offByPct) && shopper.offByPct !== null ? shopper.offByPct : signed));
   if (size < 1) return t('vd_where_about');
+  // D-268 B11 (2026-11-11 walk): in Dollar mode the line said "40% over"; it says the dollars.
+  if (unit === 'amount') {
+    const diff = Math.round(shopper.cents - verdict.centreCents);
+    return t(diff < 0 ? 'vd_where_under_amt' : 'vd_where_over_amt', { amount: money(Math.abs(diff), verdict.currency) });
+  }
   return t(signed < 0 ? 'vd_where_under' : 'vd_where_over', { pct: String(size) });
 }
 
