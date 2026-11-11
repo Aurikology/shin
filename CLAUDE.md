@@ -90,6 +90,10 @@ Added only by him.
 - **The channel is short-form video.** That is the objective function, not defensibility.
 - **The primary user is a window shopper**, not a buyer. Browse frequency, never purchase
   frequency.
+- **Every bug report runs the `fix-loop` skill** (`.claude/skills/fix-loop/`), end to end: triage
+  against RULINGS, cause to the line, red test, smallest fix, gate, browser checks, one commit per
+  fix, push both remotes, DEFECTS row, next build asked of the Mac. Aurik, 2026-11-11: "keep this
+  future workflow to solve future problems with pexi".
 
 ## COMMUNICATION RULES
 
