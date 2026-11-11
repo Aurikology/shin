@@ -122,6 +122,7 @@ import {
   type Basis,
   type ClaudeAskContext,
   type EstimateDeps,
+  type EstimateItem,
   type EstimateTrace,
   type Verdict,
 } from '../../price/src/estimate.ts';
@@ -421,6 +422,11 @@ export interface BarcodeDeps {
    * lookup, a saved Claude reading, the frame read by Claude. The server wires them; absent, a miss is a miss.
    */
   readonly nameElsewhere?: (gtin: string) => Promise<NameElsewhereResult>;
+  /**
+   * How sure Pexi is that this barcode is the shopper's product (see `Identity`). Absent: a scanned or
+   * picked barcode, which is `sure`. A barcode that came from a loose text match must say `guess`.
+   */
+  readonly identity?: Identity;
 }
 
 /**
@@ -443,10 +449,58 @@ export function shownVerdict(est: Awaited<ReturnType<typeof estimate>> | null, w
   return null;
 }
 
+/**
+ * HOW SURE PEXI IS THAT THIS IS THE PRODUCT (bug sweep 2026-11-11, D-270; Jamin: one fix for the
+ * whole class, not one per route). `sure`: the product was identified by a barcode, a shopper's
+ * pick, or a typed name the catalogue resolved to one product of one size. `guess`: anything
+ * else, e.g. a loose text match ("milk" matched to a coconut milk) or a pack-text best guess.
+ */
+export type IdentityGrade = 'sure' | 'guess';
+export interface Identity {
+  readonly grade: IdentityGrade;
+  /** The shopper's own words, which a guess is priced from instead of the guessed product. */
+  readonly words?: string | null;
+}
+
+/**
+ * THE ONE PLACE A GUESSED PRODUCT IS KEPT FROM BEING PRICED AS THAT PRODUCT. Every route into
+ * `estimate` comes through here. A guess is priced as the kind of thing the shopper's words name
+ * (no barcode, brand or size from the guessed product, so none of its own prices), and its answer
+ * is never more than "Not fully confident"; it still answers (RULINGS "Always answer"). A caller
+ * that states no identity gets `guess`: a new route cannot overclaim by forgetting to say.
+ */
+function itemFor(item: EstimateItem, identity: Identity | undefined): EstimateItem {
+  if (identity?.grade === 'sure') return item;
+  const words = identity?.words?.trim() || item.name || null;
+  return {
+    barcode: null,
+    name: words,
+    brand: null,
+    size: null,
+    leafCategory: null,
+    categoryPath: null,
+    region: item.region ?? null,
+    country: item.country ?? null,
+    currency: item.currency ?? null,
+    asOf: item.asOf,
+    ...(item.weighed !== undefined ? { weighed: item.weighed } : {}),
+  };
+}
+
+/** A barcode the shopper scanned or picked: the strongest identity there is. */
+const BARCODE_IN_HAND: Identity = { grade: 'sure' };
+
 /** The verdict, never a throw: an estimate that fails for any reason is null and the answer still goes out. */
-export async function safeEstimate(...args: Parameters<typeof estimate>): Promise<Awaited<ReturnType<typeof estimate>> | null> {
+export async function safeEstimate(
+  item: EstimateItem,
+  shopper: Parameters<typeof estimate>[1],
+  deps: Parameters<typeof estimate>[2],
+  identity?: Identity,
+): Promise<Awaited<ReturnType<typeof estimate>> | null> {
   try {
-    return await estimate(...args);
+    const est = await estimate(itemFor(item, identity), shopper, deps);
+    if (identity?.grade === 'sure' || est.verdict.confidence === 'low') return est;
+    return { ...est, verdict: { ...est.verdict, confidence: 'low' } };
   } catch (err) {
     // Never blocks the shopper, never silent: the fault is logged with the fixed tag.
     console.error(`[category-fault] estimate_failed - ${err instanceof Error ? err.message : String(err)}`);
@@ -675,6 +729,7 @@ export async function answerBarcodeFromCatalogue(
           taxonomy: safeTaxonomy(deps.categoryGuard),
           ...(deps.nationalAverage ? { nationalAverage: deps.nationalAverage } : {}),
         },
+        deps.identity ?? BARCODE_IN_HAND,
       );
       if (est && est.verdict.dots.length > 0 && est.trace.name) {
         verdict = est.verdict;
@@ -960,6 +1015,7 @@ async function priceIdentity(
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
       ...(deps.nationalAverage ? { nationalAverage: deps.nationalAverage } : {}),
     },
+    deps.identity ?? BARCODE_IN_HAND,
   );
   verdict = shownVerdict(est, row.code);
   conflict = est?.trace.conflict ?? null;
@@ -1275,6 +1331,38 @@ export function resolveTypedName(text: string, rows: readonly TypedRow[], band: 
   if (!coversTyped(typed, top)) return { row: null, rule: 'ambiguous' };
   const rival = rows.slice(1).some((r) => coversTyped(typed, r) && !sameIdentity(top, r));
   return rival ? { row: null, rule: 'ambiguous' } : { row: top, rule: 'covers_all_words_no_rival' };
+}
+
+/**
+ * How sure a typed name's product is (D-270). Sure only when the catalogue resolved the words to
+ * one product AND, when the shopper typed no size, no other row the words cover is another size
+ * ("kraft dinner" covers the 225 g box and the 12-pack: which one is a guess). A code that came
+ * from anywhere else, such as the loose own-price text match, is a guess.
+ */
+export function typedIdentity(
+  text: string,
+  rows: readonly TypedRow[],
+  resolution: TypedResolution | null,
+  /** The own-price text match (own-prices.ts), when the catalogue resolved nothing. */
+  match: { readonly score: number; readonly size: string | null } | null = null,
+): Identity {
+  const guess: Identity = { grade: 'guess', words: text };
+  const typed = wordsOf(text);
+  const norm = (q: string | null | undefined) => String(q ?? '').toLowerCase().replace(/\s+/g, '');
+  // The size is unsettled when the shopper typed none and another product the words name comes in
+  // another size (the 225 g box and the 12-pack). A row with no size settles nothing either way.
+  const otherSizeThan = (size: string | null | undefined, except: TypedRow | null) =>
+    !/\d/.test(text) &&
+    norm(size) !== '' &&
+    rows.some((r) => r !== except && coversTyped(typed, r) && norm(r.quantity) !== '' && norm(r.quantity) !== norm(size));
+  const top = resolution?.row;
+  if (!top) {
+    // The text match is sure only when the typed words ARE the product's name (score 1: none of its
+    // name words left uncovered) and its size is settled.
+    const whole = match !== null && match.score >= 0.999;
+    return whole && !otherSizeThan(match.size, null) ? { grade: 'sure' } : guess;
+  }
+  return otherSizeThan(top.quantity, top) ? guess : { grade: 'sure' };
 }
 
 /** What the client's pick list needs of one row. */

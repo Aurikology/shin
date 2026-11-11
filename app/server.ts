@@ -55,6 +55,8 @@ import {
   rangeAskSettings,
   readMatchTextBody,
   resolveTypedName,
+  typedIdentity,
+  type Identity,
   safeEstimate,
   shownVerdict,
   type BarcodeDeps,
@@ -1094,6 +1096,8 @@ async function typedVerdict(
   device: string,
   /** The typed words resolved to a product whose identity rests only on Open Icecat: no model sees it (decision 2026-11-05). */
   modelBarred = false,
+  /** D-270: how sure the product behind `match` is; absent is a guess, priced from `text`. */
+  identity: Identity = { grade: 'guess', words: text },
 ): Promise<{ verdict: Verdict | null; last: ReturnType<typeof lastRungRange>; noRangeReason: NoRangeReason }> {
   const prices = openPricesReadOnly(defaultPricesPath(), device);
   try {
@@ -1112,6 +1116,7 @@ async function typedVerdict(
         ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
         ...(ctx.market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
       },
+      match ? identity : { grade: 'sure' },
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
     const verdict = shownVerdict(est, `typed:${match?.code ?? text.slice(0, 40)}`);
@@ -1230,19 +1235,21 @@ async function typedFromOwnData(
   let barcodeAnswer: Awaited<ReturnType<typeof catalogueFirstBarcode>> | null = null;
   /** The typed estimate's range when no barcode answer brought one (D-241, requirement 3.1). */
   let typedRange: Awaited<ReturnType<typeof typedVerdict>> | null = null;
+  /* D-270: sure only for a product the catalogue resolved to one item of one size, or an own-price text match that covers the product's whole name with the size settled; anything else is a guess. */
+  const typedId = typedIdentity(text, searched?.rows ?? [], resolution, resolution?.row ? null : match);
   if (first && verdictCtx) {
     const code = resolution?.row?.code ?? match?.code ?? null;
     const canonical = code ? canonicalBarcode(code) : null;
     if (canonical) {
       try {
-        barcodeAnswer = await catalogueFirstBarcode(verdictCtx.askRange, canonical, verdictCtx.market, device, verdictCtx.shopper);
+        barcodeAnswer = await catalogueFirstBarcode(verdictCtx.askRange, canonical, verdictCtx.market, device, verdictCtx.shopper, undefined, typedId);
       } catch (err) {
         logError({ where: 'identify.typed_barcode_answer', deviceId: device, scanId: null, err });
       }
     }
     if (barcodeAnswer?.answer.verdict) verdict = barcodeAnswer.answer.verdict;
     else {
-      const own = await typedVerdict(text, match, verdictCtx, device, isNeverSentToAModel(resolution?.row?.source) || isNeverSentToAModel(catalogueSourceOf(match?.code)));
+      const own = await typedVerdict(text, match, verdictCtx, device, isNeverSentToAModel(resolution?.row?.source) || isNeverSentToAModel(catalogueSourceOf(match?.code)), typedId);
       verdict = own.verdict;
       // 3.1: a barcode answer brings its own range; anything else takes the typed estimate's last rung.
       if (!(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit' && barcodeAnswer.answer.range)) typedRange = own;
@@ -1404,8 +1411,12 @@ async function catalogueFirstBarcode(
   device: string,
   shopper: { cents: number; thresholds?: unknown } | null = null,
   nameElsewhere?: BarcodeDeps['nameElsewhere'],
+  /** D-270: absent for a scanned or picked barcode; a barcode a loose text match supplied passes `guess`. */
+  identity?: Identity,
 ): Promise<Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>> {
-  return withCatalogueFirstDeps(askRange, market, device, shopper, nameElsewhere, (deps) => answerBarcodeFromCatalogue(canonical, deps));
+  return withCatalogueFirstDeps(askRange, market, device, shopper, nameElsewhere, (deps) =>
+    answerBarcodeFromCatalogue(canonical, identity ? { ...deps, identity } : deps),
+  );
 }
 
 /** The deps every catalogue-first answer is priced with, the price file open for exactly the length of `fn`. */
@@ -1708,6 +1719,11 @@ async function matchTextVerdict(matched: MatchTextAnswer, posted: Record<string,
         taxonomy: categoryGuard.taxonomy(),
         ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
       },
+      // D-270: the pack's text is sure of a product only when that product reads strictly better than
+      // every other candidate; a tie is a guess, priced as the kind of thing it names.
+      matched.candidates.length === 1 || top.score > (matched.candidates[1]?.score ?? -Infinity)
+        ? { grade: 'sure' }
+        : { grade: 'guess', words: top.name },
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
     return shownVerdict(est, `match_text:${top.barcode ?? top.productId}`);
