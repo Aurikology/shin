@@ -28,6 +28,11 @@ const SAVED_ICON = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" 
 const YOU_ICON = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
      stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>`;
 
+/** D-268 D22 (2026-11-11): the scan button was an empty disc here; it carries
+    the camera's own barcode glyph (camera.js `scan-code-btn`), in the brand colour. */
+const SCAN_ICON = `<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor"
+     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M8 8v8M12 8v8M16 8v8"/></svg>`;
+
 /** The chevron on the back control and on a row that navigates. */
 const CHEVRON_LEFT = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>`;
@@ -97,7 +102,7 @@ function item(act, label, icon, active) {
 export function pageBar(activeId) {
   return `<nav class="page-bar" aria-label="Pexi">
       ${item('watchlist', t('nav_saved'), SAVED_ICON, activeId === 'watchlist')}
-      <button type="button" class="mini-shutter" data-act="camera" aria-label="${t('nav_scan_word')}" data-fk="nav:camera"></button>
+      <button type="button" class="mini-shutter" data-act="camera" aria-label="${t('nav_scan_word')}" data-fk="nav:camera">${SCAN_ICON}</button>
       ${item('you', t('nav_you'), YOU_ICON, activeId === 'you')}
     </nav>`;
 }

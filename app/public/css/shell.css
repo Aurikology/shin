@@ -522,6 +522,11 @@ button.ilist-row { cursor: pointer; }
   box-shadow: 0 0 0 3px var(--brand);
   cursor: pointer;
   transition: box-shadow var(--t-press) linear;
+  /* D-268 D22: the barcode glyph, centred, in the ring's colour. */
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  padding: 0;
 }
 .mini-shutter:active { box-shadow: 0 0 0 3px var(--brand), 0 0 0 7px rgba(229, 22, 94, .22); }
 
