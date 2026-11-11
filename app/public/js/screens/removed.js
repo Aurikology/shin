@@ -86,9 +86,10 @@ export function row(r, confirmKey) {
       <div class="rrow">
         <span class="row-n">
           <b class="row-title">${label}</b>
-          <span class="row-sub">${t('removed_label')} ${agoDays(r.removedAt)} · ${t('removed_days_left', { n: String(left) })}</span>
+          <span class="row-sub">${t(r.kind === 'watch' ? 'saved_title' : 'past_scans')} · ${t('removed_label')} ${agoDays(r.removedAt)} · ${t('removed_days_left', { n: String(left) })}</span>
         </span>
-        <span class="rrow-p money">${typeof cents === 'number' ? money(cents) : '--'}</span>
+        ${/* D-268 D21: no price shows nothing, not "--"; the list name above says which list a restore returns it to. */ ''}
+        <span class="rrow-p money">${typeof cents === 'number' ? money(cents) : ''}</span>
       </div>
       <button type="button" class="rowdel rrow-restore" data-restore="${key}" data-fk="restore:${key}">
         ${raw(restoreGlyph())}
