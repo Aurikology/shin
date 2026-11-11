@@ -1,0 +1,14 @@
+{
+  "id": "M05",
+  "family": "2 data at import",
+  "defects": "D-267",
+  "title": "Absurd prices attached to a consumer barcode: a $4,898.99 pallet row on a carton, and a 19 cent row",
+  "fixCommit": "open",
+  "comment": "DEFECTS row D-267, sweep Family 2 A6: Walmart '946ml | 12/case | pallet of 60 cases' at $4,898.99 (6 rows over $200, 12 under 30 cents). Planted as rows: one over $2,000 and one at 19 cents, both on baseline products.",
+  "kind": "data",
+  "rows": [
+    { "code": "0000000000031", "seller": "walmart", "sellerSku": "PLANT-M05-PALLET", "sellerName": "Acme Thing 1 kg", "priceCents": 489899, "joinMethod": "gtin", "storeName": "Walmart", "storeCity": "Hamilton" },
+    { "code": "0000000000032", "seller": "galleria", "sellerSku": "PLANT-M05-CHEAP", "sellerName": "Acme Thing 1 kg", "priceCents": 19, "joinMethod": "gtin", "storeName": "Galleria", "storeCity": "Hamilton" }
+  ],
+  "ifMissed": "A plausibility band per catalogue category (and per unit price) on every priced row."
+}

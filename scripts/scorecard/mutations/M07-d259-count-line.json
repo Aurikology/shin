@@ -1,0 +1,25 @@
+{
+  "id": "M07",
+  "family": "3 screen walk",
+  "defects": "D-259",
+  "title": "The count line disagrees with the list under it (\"7 prices from 7 shops\" above 12 rows)",
+  "fixCommit": "e53e8fa",
+  "comment": "DEFECTS row D-259. Reverts the e53e8fa hunk in provenanceLine(): regular dots only, shop count taken from the server's n.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/public/js/screens/camera.js",
+      "find": "const listed = v.dots;",
+      "replace": "const regular = v.dots.filter((d) => d.kind === 'regular'); const listed = regular;",
+      "count": 1
+    },
+    {
+      "file": "app/public/js/screens/camera.js",
+      "find": "const shops = listed.length\n    ? new Set(listed.map((d) => String(d.store ?? '').trim().toLowerCase())).size\n    : (v.n || prices);",
+      "replace": "const shops = v.n || new Set(regular.map((d) => d.store)).size || prices;",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["app/test/ux/ux-provenance-count.test.mjs"],
+  "ifMissed": "A screen-consistency rule in the crawler: any number printed in a count line must equal the rows listed under it (count the DOM rows after every answer)."
+}

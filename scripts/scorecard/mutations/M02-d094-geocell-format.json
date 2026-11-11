@@ -1,0 +1,19 @@
+{
+  "id": "M02",
+  "family": "1 half-wired",
+  "defects": "D-094",
+  "title": "The phone writes a location cell the server cannot parse (colon, 4 decimals), so every cell is silently discarded",
+  "fixCommit": "see D-094 (2026-09-13)",
+  "comment": "DEFECTS row D-094. Re-breaks cellFor() in app/public/js/geocell.js back to the pre-fix format \"43.2537:-79.9208\" that app/src/stores.ts parseCell reads as null.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/public/js/geocell.js",
+      "find": "return `${cellLat.toFixed(2)},${cellLon.toFixed(2)}`;",
+      "replace": "return `${cellLat.toFixed(4)}:${cellLon.toFixed(4)}`;",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["app/test/shops.test.mjs"],
+  "ifMissed": "A contract test that feeds every client-built field (cell, gtin, thresholds) through the server's own parser and asserts none comes back null."
+}

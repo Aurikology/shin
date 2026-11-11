@@ -1,0 +1,20 @@
+{
+  "id": "M09",
+  "family": "4 search",
+  "defects": "D-074",
+  "title": "Search bands `confident` on a row that matched only one word of the query (225 g Kraft ANYTHING for \"kraft dinner original macaroni\")",
+  "fixCommit": "D-074 (2026-09-09)",
+  "comment": "DEFECTS row D-074. Removes the one line the fix added to #band in catalogue/src/search.ts: wordsMatched === 'some' no longer demotes to ambiguous.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "catalogue/src/search.ts",
+      "find": "if (wordsMatched === 'some') return 'ambiguous';",
+      "replace": "/* planted D-074: a subset match no longer demotes confident */",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["catalogue/test/search.test.ts"],
+  "proofCommands": [{ "cwd": "catalogue", "args": ["--test", "test/search.test.ts"], "label": "catalogue search test" }],
+  "ifMissed": "A typed-name probe set that pins a brand and size and adds one wrong word, then asserts the band is not confident (the answer key types full, short, no size, typo and lowercase forms, not wrong-word forms)."
+}

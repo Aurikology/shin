@@ -1,0 +1,19 @@
+{
+  "id": "M12",
+  "family": "5 verdict vs evidence",
+  "defects": "D-270",
+  "title": "A guessed product takes the barcode route, so the range card on screen is the guessed product's (typed \"milk\" showed a coconut milk's $2.29 to $3.49)",
+  "fixCommit": "675b917",
+  "comment": "DEFECTS row D-270 (675b917 follow-up). Reverts the one condition in typedFromOwnData() in app/server.ts: `canonical && typedId.grade === 'sure'` back to `canonical`.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/server.ts",
+      "find": "if (canonical && typedId.grade === 'sure') {",
+      "replace": "if (canonical) {",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["app/test/wrong-product-answers.test.ts"],
+  "ifMissed": "An answer key rule that compares the range card's product (range.basis, medianCents) with the answer's own identity, not only the verdict."
+}

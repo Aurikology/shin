@@ -1,0 +1,20 @@
+{
+  "id": "M10",
+  "family": "4 search",
+  "defects": "D-245",
+  "title": "Typed search lists rows nobody can tell apart (\"Oreo / OREO\" and \"Oreo\", two barcodes, no size)",
+  "fixCommit": "cc06209",
+  "comment": "DEFECTS row D-245. Reverts the cc06209 hunk in dedupeListings(): the `shown` key (words a shopper reads) no longer merges rows.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "catalogue/src/search.ts",
+      "find": "if (seen.has(barcode) || seen.has(listing) || seen.has(shown)) continue;",
+      "replace": "if (seen.has(barcode) || seen.has(listing)) continue;",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["catalogue/test/search.test.ts"],
+  "proofCommands": [{ "cwd": "catalogue", "args": ["--test", "test/search.test.ts"], "label": "catalogue search test" }],
+  "ifMissed": "A list-quality rule on typed search results: no two rows in one result list may read the same to a shopper (same words and size), run over the answer key's typed forms."
+}
