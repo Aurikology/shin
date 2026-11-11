@@ -1854,8 +1854,10 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   // measured at 390 x 844: 680 px of content against a 507 px cap).
   const faceRow = (left) => `<div class="sheet-head">${left}${shinFace(face, { size: 'face-verdict', tier })}${thumbImg(thumb)}</div>`;
   const peek = s
-    ? `<h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
-        ${zone ? `<div class="vd-estimate" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
+    ? `${/* D-268 B8 (2026-11-11 walk): the label sat between the word and "$6.99 On the tag" and read
+           as a label on the shopper's own price; it labels the verdict word, so it goes above it. */ ''}
+        ${zone ? `<div class="vd-estimate vd-estimate-kicker" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
+        <h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
         ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>`)}
         <div class="vd-lines">
           <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>

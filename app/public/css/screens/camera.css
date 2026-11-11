@@ -1114,6 +1114,8 @@
 .vword.small { font-size: 24px; }
 /* Item 10: beside every verdict word, here and on the Past scans and Saved rows. */
 .vd-estimate { margin: 2px 0 0; font-size: 12px; color: var(--ink-3, currentColor); opacity: .75; }
+/* D-268 B8: above the verdict word, a kicker; the word below keeps its own spacing. */
+.vd-estimate-kicker { margin: 0 0 -8px; text-transform: none; }
 
 .said, .detail, .line, .because, .standin, .disagree {
   margin: 0;
