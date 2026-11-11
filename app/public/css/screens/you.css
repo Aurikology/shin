@@ -315,6 +315,9 @@
    with a limit. `.ilist-row`'s own `display: flex` outranks the browser's
    `[hidden]` rule, so it is said here. */
 .ilist-row[hidden] { display: none; }
+/* D-268 F29 (2026-11-11 walk): the same trap for `.setting { display: flex }`:
+   the torch slider drew with Torch Off, beside the off hint. */
+.setting[hidden] { display: none; }
 
 /* The first-run screen (screens/agree.js) shares the consent list's rows. */
 .agree-tick { display: flex; gap: 12px; align-items: flex-start; width: 100%; min-height: 44px; cursor: pointer; }
