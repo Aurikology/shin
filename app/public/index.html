@@ -62,9 +62,13 @@
 <link rel="apple-touch-icon" href="/icon-180.png">
 
 <!--
-  Three faces, three jobs. Bricolage Grotesque carries the numerals and the
-  verdict word, Instrument Sans carries every piece of interface text, IBM Plex
-  Mono carries provenance and nothing else. Newsreader is gone: a serif reads as
+  2026-11-11 (Aurik: the Cal AI look): every word and numeral is Apple's system
+  face, SF Pro, on an iPhone (-apple-system in tokens.css), with Inter, its open
+  look-alike, self-hosted for Android and the web. IBM Plex Mono carries
+  provenance and nothing else. No preload: the iPhone app, the 1.0 platform,
+  never fetches Inter, and a preload would download it for nothing. Before:
+  Bricolage Grotesque carried the numerals and the verdict word, Instrument
+  Sans every piece of interface text. Newsreader is gone: a serif reads as
   an article, and three paragraphs of serif above the fold is what the old
   verdict screen did wrong.
 
@@ -75,16 +79,7 @@
   user's IP to Google on every cold start. `npm run fonts` writes
   /css/fonts.css and /fonts/*.woff2; scripts/fonts.mjs has the rest of it.
 
-  The two preloads are the families that carry every visible glyph on the first
-  screen: Instrument Sans is all interface text, Bricolage is the numerals and
-  the verdict word. Both are single variable files serving all three weights, so
-  two requests cover six faces. IBM Plex Mono is provenance only, appears below
-  the fold, and is left to normal discovery rather than competing with these.
-  `crossorigin` is required even same-origin: fonts are always fetched in CORS
-  mode, and a preload without it is a second, wasted download.
 -->
-<link rel="preload" href="/fonts/instrument-sans-var-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/fonts/bricolage-grotesque-var-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/css/fonts.css">
 <link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/shell.css">

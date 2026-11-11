@@ -3056,3 +3056,12 @@ Aurik, 2026-11-11, asked which way to go on three open screen questions: *"as a 
 - **The bell's "Shaded: ..." caption goes above the chart.** Measured on the PC in WebKit and Chromium: at 390x844 (the App Store build's size) the caption was half behind the pinned "Save it", at 375x667 and 390x664 it was wholly below the sheet's edge. Above the chart it showed at all three sizes. At 375x667 the bell itself is still mostly below the pinned button in the first position, by the 60% cap (R-40); not changed.
 
 **Reverses if:** Aurik or Jamin rules otherwise on any one of the three, or a phone shows the caption above the bell crowding the verdict lines.
+
+## The app speaks in SF Pro, as Cal AI does
+**Date:** 2026-11-11 · **Status:** active
+
+Aurik, 2026-11-11, after the Cal AI-style paywall: *"change our app font to the one that cal ai is using, show me some exemplars before you commit"*, then, shown three screens side by side (paywall, verdict, You) and asked whether the wordmark changes too: *"yes i love the new look, option 2"* (everything, the wordmark included).
+
+Which font Cal AI uses is not published; read from its screenshots, it is Apple's system face, SF Pro. SF Pro may not be shipped (Apple licenses it for Apple platforms only), so `--f-display` and `--f-ui` ask for `-apple-system` first, which is SF Pro on an iPhone, the 1.0 platform, and fall back to Inter, the open look-alike (SIL OFL, licence beside the file), self-hosted for Android and the web. Bricolage Grotesque and Instrument Sans are retired; IBM Plex Mono keeps provenance. No font is preloaded, because the iPhone app never fetches Inter. The ads design system (built 2026-10-17 from the old tokens) still uses Bricolage; not changed here.
+
+**Reverses if:** Aurik or Jamin asks for the old faces back, or a phone shows SF Pro failing to load inside the app's web view.

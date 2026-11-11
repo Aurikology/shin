@@ -40,11 +40,18 @@ import { join } from 'node:path';
 const FONT_DIR = fileURLToPath(new URL('../public/fonts/', import.meta.url));
 const CSS_FILE = fileURLToPath(new URL('../public/css/fonts.css', import.meta.url));
 
-/** The exact query the removed <link rel="stylesheet"> in index.html carried. */
+/*
+ * 2026-11-11, Aurik ("change our app font to the one that cal ai is using ... option 2"): the app
+ * speaks in Apple's system face, SF Pro, as Cal AI does. SF Pro cannot be shipped (Apple licenses
+ * it for Apple platforms only), so tokens.css asks for the system face first (-apple-system, which
+ * IS SF Pro on an iPhone) and Inter, its open look-alike, is the self-hosted fallback for Android
+ * and the web. Bricolage Grotesque and Instrument Sans were retired; IBM Plex Mono stays.
+ * (The query that served the old faces: Bricolage+Grotesque:opsz,wght@12..96,600;700;800 and
+ * Instrument+Sans:wght@400;500;600.)
+ */
 const CSS2_URL =
   'https://fonts.googleapis.com/css2' +
-  '?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800' +
-  '&family=Instrument+Sans:wght@400;500;600' +
+  '?family=Inter:wght@400;500;600;700;800' +
   '&family=IBM+Plex+Mono:wght@400;500;600' +
   '&display=swap';
 

@@ -101,8 +101,8 @@ const TOKENS = {
  * fixed 1080px artboard and must not change with the phone it was made on.
  */
 const TYPE = {
-  '--f-display': '"Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif',
-  '--f-ui': '"Instrument Sans", "Helvetica Neue", Arial, sans-serif',
+  '--f-display': '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif',
+  '--f-ui': '-apple-system, "SF Pro Text", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif',
   '--f-mono': '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace',
   '--t-price-weight': '800',
   '--t-price-track': '-.03em',

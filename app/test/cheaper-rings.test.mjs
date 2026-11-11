@@ -256,7 +256,8 @@ test('the badge is set in the UI face, not the measurement face', () => {
     fileURLToPath(new URL('../public/css/tokens.css', import.meta.url)),
     'utf8',
   );
-  assert.match(tokens, /--f-ui:\s*"/, 'tokens.css no longer names a UI face as --f-ui');
+  // Amended 2026-11-11 (the Cal AI font): --f-ui now opens with -apple-system, unquoted.
+  assert.match(tokens, /--f-ui:\s*[-"\w]/, 'tokens.css no longer names a UI face as --f-ui');
   assert.match(body, /font-family:\s*var\(--f-ui\)/,
     'the badge is not in the UI face, so a label is wearing the measurement typeface');
   assert.match(body, /text-transform:\s*none/,

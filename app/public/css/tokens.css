@@ -94,8 +94,10 @@
   --unknown-on: #F7F5F2;
 
   /* --- type --- */
-  --f-display: "Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif;
-  --f-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
+  /* 2026-11-11 (Aurik, "the one that cal ai is using", option 2: everything, the wordmark too): Apple's
+     system face, SF Pro, on an iPhone; Inter, its open look-alike, self-hosted for Android and the web. */
+  --f-display: -apple-system, "SF Pro Display", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
+  --f-ui: -apple-system, "SF Pro Text", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
   --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
   /* --- geometry --- */

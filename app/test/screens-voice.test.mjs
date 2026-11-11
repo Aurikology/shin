@@ -628,8 +628,8 @@ const NOT_SHOWN = [
   { file: 'you.js', text: 'You', why: 'The registered title, translated through you_title. Same split.' },
 
   /* --- font stacks --- */
-  { file: 'share.js', text: '"Bricolage Grotesque", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas. Family names, and they are the same names in every language.' },
-  { file: 'share.js', text: '"Instrument Sans", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas; family names do not translate.' },
+  { file: 'share.js', text: '-apple-system, "SF Pro Display", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas. Family names, and they are the same names in every language.' },
+  { file: 'share.js', text: '-apple-system, "SF Pro Text", BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif', why: 'A CSS font stack for the share card canvas; family names do not translate.' },
   { file: 'share.js', text: '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace', why: 'A CSS font stack for the share card canvas; family names do not translate.' },
 ];
 

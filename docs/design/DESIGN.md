@@ -148,11 +148,10 @@ biggest reason the current app reads as a document rather than an app.
 
 | Face | Job |
 | --- | --- |
-| **Bricolage Grotesque** | The price numeral and the verdict word. Nothing else. Kept from the current app and finally given the hero job it deserves. |
-| **Instrument Sans** | Every piece of UI. Labels, buttons, body, rows, sheets. |
+| **SF Pro** (Apple's system face; Inter, its open look-alike, off Apple) | Everything that was Bricolage and Instrument Sans: the price numeral and the verdict word at 800, every piece of UI, the wordmark. Since 2026-11-11 (docs/decisions.md, "The app speaks in SF Pro, as Cal AI does"). |
 | **IBM Plex Mono** | Provenance only. Seller names, dates, source counts, timestamps. Mono signals "this is a recorded measurement" and it earns its place because honesty about sources is the product. |
 
-Removed: Newsreader, and any serif, from the product surface.
+Removed: Newsreader, and any serif, from the product surface. Retired 2026-11-11: Bricolage Grotesque and Instrument Sans.
 
 ### Scale
 
