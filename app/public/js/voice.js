@@ -1481,6 +1481,15 @@ const LINES_EN = {
     warm: () => 'Every scan sends a picture now, the frame the camera was looking at right then, always. A photo scan keeps that picture afterward only if you have Photos turned on; a barcode read logs its frame regardless.',
     blunt: () => 'Every scan sends a picture, always. Photo: kept if Photos is on. Barcode: frame logged either way.',
   },
+  /* D-265, 2026-11-11: with photo scanning off (FLAGS.photoId false, RULINGS
+   * 2026-11-07) a barcode read sends no frame (camera.js, D-147), so the line
+   * above was false and contradicted the privacy policy. This one is shown
+   * instead, the way the You screen picks you_data_intro_nophoto. */
+  cam_privacy_line_nophoto: {
+    deadpan: () => 'A scan sends the barcode and your price. Never a picture.',
+    warm: () => 'I only get the barcode and your price, never a picture.',
+    blunt: () => 'Barcode and price only. No picture.',
+  },
   /*
    * Item 6: the consent screen's own copy, and the You screen's withdrawal
    * section reads the same two description keys so the sentence explaining a

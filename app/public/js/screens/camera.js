@@ -4086,7 +4086,9 @@ export default {
     // asked (this promise is exactly that moment) and swapped out for the
     // real idle content the instant it resolves either way.
     if (camShin) {
-      camShin.innerHTML = shinSay('idle', 'cam_privacy_line', {}, { size: 64 });
+      // D-265 (2026-11-11): with photo scanning off no frame leaves the phone,
+      // so the "every scan sends a picture" line would be false here.
+      camShin.innerHTML = shinSay('idle', FLAGS.photoId ? 'cam_privacy_line' : 'cam_privacy_line_nophoto', {}, { size: 64 });
       camShinEl = camShin.querySelector('.shin-say');
     }
 

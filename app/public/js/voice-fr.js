@@ -853,6 +853,12 @@ export const LINES_FR = {
     warm: () => "Chaque scan envoie maintenant une image, le cadre que la caméra regardait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si tu as ouvert Photos; un code-barres consigne son image dans tous les cas.",
     blunt: () => "Chaque scan envoie une image, toujours. Photo: gardée si Photos est ouvert. Code-barres: image consignée dans tous les cas.",
   },
+  /* D-265: identification par photo fermée, un code-barres n'envoie aucune image. */
+  cam_privacy_line_nophoto: {
+    deadpan: () => "Un scan envoie le code-barres et ton prix. Jamais une image.",
+    warm: () => "Je reçois seulement le code-barres et ton prix, jamais une image.",
+    blunt: () => "Code-barres et prix seulement. Aucune image.",
+  },
   /* RÉÉCRIT 2026-09-19 (écart bêta 13; le fondateur a délégué ce texte, "you
    * decide"): les photos sont gardées par défaut, la position est fermée par
    * défaut, comme consent.ts et store.js. Le texte dit le défaut en premier,
