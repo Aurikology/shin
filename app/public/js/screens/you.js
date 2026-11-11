@@ -651,7 +651,10 @@ export default {
         if (next === 'system') delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = next;
         try { localStorage.setItem('shin.theme', next); } catch { /* private window; see lib/persistence.js */ }
-        for (const el of root.querySelectorAll('.seg-o')) {
+        // D-268 F28 (2026-11-11 walk): only the theme's own options. Walking every
+        // .seg-o on the screen cleared Percentage/Dollar, the range chips and the torch row.
+        const group = themeOpt.closest('[role="radiogroup"]') ?? root;
+        for (const el of group.querySelectorAll('[data-theme]')) {
           const picked = el === themeOpt;
           el.classList.toggle('on', picked);
           el.setAttribute('aria-checked', String(picked));
