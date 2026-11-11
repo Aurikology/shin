@@ -406,6 +406,12 @@ interface Row {
   readonly storeCategory: string | null;
   /** Derived from a printout: never an own price. */
   readonly printout: boolean;
+  /**
+   * The barcode was attached by matching the shop's product NAME, not read off the shop's page
+   * (`join_method = 'name'`). Such a row may be another product with a similar name, so it is the
+   * product's own price only when no barcode-joined row exists (bug sweep 2026-11-11, D-267).
+   */
+  readonly nameJoined: boolean;
 }
 
 function str(v: unknown): string | null {
@@ -441,7 +447,8 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
     .prepare(
       `SELECT code, ${col('page_gtin')}, seller, seller_sku, seller_name, seller_brand, price_cents, ${col('base_price_cents')},
               kind, ${col('is_sale')}, region, ${col('store_name')}, ${col('store_city')}, ${col('store_osm')}, seen_on, url,
-              ${col('parsed_size')}, ${col('parsed_brand')}, ${col('store_category')}, ${col('capture_tile_id')}, ${col('price_verified')}
+              ${col('parsed_size')}, ${col('parsed_brand')}, ${col('store_category')}, ${col('capture_tile_id')}, ${col('price_verified')},
+              ${col('join_method')}
          FROM observation WHERE currency = ?`,
     )
     .all(currency) as Record<string, unknown>[];
@@ -486,6 +493,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
       size: parsed?.q ?? null,
       storeCategory: str(r.store_category),
       printout,
+      nameJoined: r.join_method === 'name',
     });
   }
   return out;
@@ -1023,7 +1031,12 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }
   }
   const selfCat = selfKey ? cat.get(selfKey) ?? null : null;
-  const ownAll = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
+  // D-267: rows joined to this barcode by name only are the product's own prices (and its dots) only
+  // when no row joined by the barcode itself exists; alone they can never make the answer "Certain".
+  const ownAny = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
+  const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
+  const ownAll = ownByBarcode.length > 0 ? ownByBarcode : ownAny;
+  const ownByNameOnly = ownAll.length > 0 && ownByBarcode.length === 0;
   const ownNewest = [...ownAll].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0))[0] ?? null;
 
   /* ---- identity: the catalogue first, else the store's own product name (design case 2) */
@@ -1432,7 +1445,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   /* ---- confidence (design call 5) */
   let confidence: Confidence = 'low';
   if (basis === 'own_prices') {
-    confidence = ownShops.length >= HIGH_OWN_SHOPS && !ownAged && !notes.has('old_prices') ? 'high' : 'medium';
+    confidence = ownShops.length >= HIGH_OWN_SHOPS && !ownAged && !notes.has('old_prices') && !ownByNameOnly ? 'high' : 'medium';
   } else if (basis === 'other_size') {
     confidence = 'medium';
   } else if (basis === 'leaf_category' && n >= MEDIUM_LEAF_PRODUCTS && !notes.has('size_assumed')) {
