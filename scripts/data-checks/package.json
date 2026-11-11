@@ -1,0 +1,6 @@
+{
+  "name": "shin-data-checks",
+  "private": true,
+  "type": "module",
+  "description": "The data checks (run.mts): rules run straight on the price data, no screens and no server, that find row classes which would make a Pexi price verdict wrong. A package.json so the .mts files here read as ES modules, as in scripts/answer-key."
+}
