@@ -213,7 +213,7 @@ export async function runAnswerKey(opts: AnswerKeyOptions): Promise<AnswerKeyRes
     meter = running.meter;
     summary = await runKey(products, httpAsker(running.base, opts.region), {
       region: opts.region,
-      concurrency: opts.concurrency ?? 4,
+      concurrency: opts.concurrency ?? 1,
       onProgress: (done, total) => {
         if (done % 100 === 0 || done === total) log(`checked ${done}/${total} products`);
       },
@@ -303,7 +303,7 @@ async function main(): Promise<void> {
       seed: { type: 'string', default: '1' },
       out: { type: 'string' },
       region: { type: 'string', default: 'British Columbia' },
-      concurrency: { type: 'string', default: '4' },
+      concurrency: { type: 'string', default: '1' },
     },
   });
   const usage = 'usage: node scripts/answer-key/run.mts --catalogue <path> --prices <path> [--sample 2000] [--seed 1] [--out <dir>]';
