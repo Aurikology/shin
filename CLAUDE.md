@@ -95,7 +95,7 @@ Added only by him.
   fix, push both remotes, DEFECTS row, next build asked of the Mac. Aurik, 2026-11-11: "keep this
   future workflow to solve future problems with pexi".
 - **A session with no named task starts with the `whats-next` skill** (`.claude/skills/whats-next/`):
-  gather every to-do source, keep Aurik's half, rank, tell him the plan, then build through fix-loop
+  gather every to-do source, keep Aurik's items (RULINGS "Who owns what"), rank, tell him the plan, then build through fix-loop
   and push each piece. Aurik, 2026-11-11: "create a workflow that understands what needs to be done.
   Then tell me what you will do. then continue to build. continuously push to jamin."
 
