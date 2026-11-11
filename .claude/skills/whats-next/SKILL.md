@@ -33,7 +33,7 @@ flow, anything checked by eye on a phone. Jamin = `app/server.ts`, `app/src/`, `
 An item spanning both is split at the phone/server line. Build the phone half; write the server
 half into one `comms/messages/<date>-aurik-to-jamin-<topic>.md` note per batch (what, where in
 the code, the evidence, what the phone already does with it). Never edit Jamin's files to fix
-Jamin's half, even when the fix is one line: his sessions own them.
+Jamin's items, even when the fix is one line: his sessions own them.
 
 Phone-only items (crashes, sandbox purchase, torch on a real phone, haptics) cannot be built from
 the PC: list them under "needs you on a phone", do not loop on them.
