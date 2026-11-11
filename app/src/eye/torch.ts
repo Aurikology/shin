@@ -81,10 +81,11 @@ export function decideTorch(i: TorchInput): TorchDecision {
     return { darkSince, action: null, tooDark: heldDark };
   }
 
-  let action: 'on' | 'off' | null = null;
-  if (heldDark && !i.torchOn && !i.blocked) action = 'on';
-  // A margin above the threshold before it goes out, or a torch that lifts the
-  // frame just over the line would switch itself off and back on forever.
-  else if (!dark && i.torchOn && i.mean > i.setting.threshold * 1.6) action = 'off';
+  /* Auto lights the torch once and never puts it out itself (Aurik, 2026-11-10, build 6 on a phone:
+     "the flash keeps rapidly flashing, make it so the user can toggle it"). The lit frame reads
+     bright, so any "bright again, go out" rule switches the torch off, the frame goes dark, and it
+     comes back 700 ms later: a 1.6x margin did not stop that on an iPhone. Out is the shopper's
+     tap, the glare rule, or the setting going to off. */
+  const action: 'on' | null = heldDark && !i.torchOn && !i.blocked ? 'on' : null;
   return { darkSince, action, tooDark: false };
 }

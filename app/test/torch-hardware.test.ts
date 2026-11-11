@@ -255,15 +255,17 @@ test('auto mode in a dark aisle switches the torch on exactly once', async () =>
   }
 });
 
-test('auto mode puts the torch out when the aisle is clearly bright again (still works)', async () => {
+test('auto mode never puts out the torch it lit, so a bright lit frame cannot start a loop', async () => {
+  // Amended 2026-11-10 (build 6 flashed on an iPhone): a frame the torch itself lit reads exactly
+  // like a bright aisle, so "out when bright again" was the loop. Out is the shopper's tap.
   const r = await rig({ mode: 'auto', luma: 15 });
   try {
     await r.frames(seconds(2));
     assert.equal(r.track.lit, true);
     r.setBrightness(150);
     await r.frames(seconds(2));
-    assert.equal(r.track.lit, false, 'the torch stayed lit in a bright aisle');
-    assert.equal(r.torchEvents.at(-1), false, 'the screen was never told the torch went out');
+    assert.equal(r.track.lit, true, 'the app put out the torch it lit');
+    assert.deepEqual(r.track.torchCalls, [true], `the hardware was switched ${r.track.torchCalls.length} times`);
   } finally {
     r.done();
   }

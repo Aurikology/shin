@@ -79,11 +79,26 @@ test("the threshold is the user's: the same frame is dark under one setting and 
   assert.equal(at(40).action, null);
 });
 
-test('auto: it goes back out only once the aisle is clearly bright, with a margin', () => {
+test('auto: a lit torch is never put out by the app, however bright the lit frame reads', () => {
+  // Amended 2026-11-10: build 6 flashed on an iPhone. The torch lifts its own frame past any
+  // "bright again" line, so the old 1.6x rule put it out, the frame went dark, and it came back.
   const on = (mean: number) =>
     decideTorch({ setting: AUTO, now: 3000, darkSince: null, mean, torchOn: true, blocked: false }).action;
-  assert.equal(on(65), null, 'the torch switched itself off just over the line and will flicker');
-  assert.equal(on(60 * 1.7), 'off');
+  for (const mean of [65, 60 * 1.7, 200, 255]) assert.equal(on(mean), null, `auto put out its own torch at mean ${mean}`);
+});
+
+test('auto: a dark aisle the torch then brightens lights it once, not in a loop', () => {
+  // The phone's loop: dark frames, the torch comes on, lit frames read bright, then repeat.
+  let torchOn = false;
+  let darkSince: number | null = null;
+  let switches = 0;
+  for (let now = 0; now < 10_000; now += 50) {
+    const d = decideTorch({ setting: AUTO, now, darkSince, mean: torchOn ? 140 : 20, torchOn, blocked: false });
+    darkSince = d.darkSince;
+    if (d.action) { switches += 1; torchOn = d.action === 'on'; }
+  }
+  assert.equal(switches, 1, `the torch switched ${switches} times in ten seconds`);
+  assert.equal(torchOn, true);
 });
 
 test('a torch the glare check blocked stays off in auto mode', () => {
@@ -121,7 +136,8 @@ test("the slider starts where Pexi's default is, and the two copies of the range
   assert.equal(Number(range[1]), num(torch, 'TORCH_THRESHOLD_MIN'));
   assert.equal(Number(range[2]), num(torch, 'TORCH_THRESHOLD_MAX'));
   assert.equal(Number(range[3]), num(torch, 'DEFAULT_TORCH_THRESHOLD'), "the slider does not start at Pexi's default");
-  assert.match(store, /torchMode: 'auto',\n\s*torchThreshold: 52,/, "the stored default is not auto at Pexi's level");
+  // Amended 2026-11-10: the default is off; the torch button is the control (Aurik, build 6).
+  assert.match(store, /torchMode: 'off',\n\s*torchThreshold: 52,/, "the stored default is not off at Pexi's level");
 });
 
 test('the You screen has both modes and a slider, and stores what they change', () => {

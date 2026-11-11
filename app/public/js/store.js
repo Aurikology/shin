@@ -79,9 +79,10 @@ const EMPTY = {
    * says on screen when it is too dark. The threshold is a mean luminance on a
    * 0 to 255 scale and starts at Pexi's own default (src/eye/torch.ts,
    * DEFAULT_TORCH_THRESHOLD), so a user who never opens the setting gets the
-   * behaviour the app already had.
+   * behaviour the app already had. Default 'off' since 2026-11-10 (build 6 flashed on a phone): the
+   * torch button is the control, and auto is something the shopper turns on in You.
    */
-  torchMode: 'auto',
+  torchMode: 'off',
   torchThreshold: 52,
   /** Stage 07: save and watch is the primary action, so this is the real state. */
   watchlist: [],
