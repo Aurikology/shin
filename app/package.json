@@ -21,6 +21,7 @@
     "test": "node --test --test-global-setup=test/setup/global.mjs \"test/*.test.{ts,mjs}\"",
     "test:ux": "node --test --test-global-setup=test/setup/global.mjs \"test/ux/*.test.mjs\"",
     "what-to-price": "node src/what-to-price.ts",
+    "answer-key": "node ../scripts/answer-key/run.mts",
     "check": "npm run build-eye && npm run typecheck && npm test"
   },
   "devDependencies": {

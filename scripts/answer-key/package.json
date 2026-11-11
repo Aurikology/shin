@@ -1,0 +1,6 @@
+{
+  "name": "shin-answer-key",
+  "private": true,
+  "type": "module",
+  "description": "The answer key (run.mts): types products from the catalogue into the real server and checks for confidently wrong answers. A package.json so the .ts files here are read as ES modules by the typecheck, as Node already reads them."
+}
