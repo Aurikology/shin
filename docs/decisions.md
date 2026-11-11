@@ -3045,3 +3045,14 @@ Replaces this RULINGS entry, kept here verbatim:
 > Governs: to fill
 
 **Reverses if:** Jamin sets an age limit again.
+
+## Three screen calls from the 2026-11-11 bug sweep, made by the session on Aurik's word
+**Date:** 2026-11-11 · **Status:** active
+
+Aurik, 2026-11-11, asked which way to go on three open screen questions: *"as a professional software engineer with your workflow, you know everything aout me, i give it your call"*.
+
+- **"Bad price" on a weak estimate keeps its word, its plain walk-away face and the hollow fill; no screen change.** The design already carries doubt that way (docs/design/AVATAR.md: a low-confidence answer keeps its word, is drawn hollow and wears the plain face, `walk` for bad, never `angry`), and the phone already does it when the server says `low`. The full-strength red the walk saw comes from the server calling a weak estimate high or medium (D-270 A3, estimate.ts 1434-1440), which is Jamin's and is in his 2026-11-11 note. The word stays because "Pexi's estimate" beside it is the Competition Act wording Jamin set.
+- **Removing a past scan gets the same four-second undo bar as removing a saved item** (R-93/R-94), from one shared template in lib/undo-toast.js. A removal that can be undone asks no confirmation.
+- **The bell's "Shaded: ..." caption goes above the chart.** Measured on the PC in WebKit and Chromium: at 390x844 (the App Store build's size) the caption was half behind the pinned "Save it", at 375x667 and 390x664 it was wholly below the sheet's edge. Above the chart it showed at all three sizes. At 375x667 the bell itself is still mostly below the pinned button in the first position, by the 60% cap (R-40); not changed.
+
+**Reverses if:** Aurik or Jamin rules otherwise on any one of the three, or a phone shows the caption above the bell crowding the verdict lines.
