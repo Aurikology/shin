@@ -1,0 +1,13 @@
+{
+  "id": "M04",
+  "family": "2 data at import",
+  "defects": "D-267",
+  "title": "An out-of-stock row keeps its price and is read as a shop price the shop does not currently sell",
+  "fixCommit": "open",
+  "comment": "DEFECTS row D-267, sweep Family 2 A4: hammer.ts writes in_stock = 0 but still writes the price, and no reader looks at in_stock (6,976 priced rows). Planted as rows: a gtin-joined row for product 0000000000024 with in_stock = 0 and a price.",
+  "kind": "data",
+  "rows": [
+    { "code": "0000000000024", "seller": "metro", "sellerSku": "PLANT-M04-OOS", "sellerName": "Acme Thing 1 kg", "priceCents": 950, "joinMethod": "gtin", "inStock": 0, "storeName": "Metro", "storeCity": "Hamilton" }
+  ],
+  "ifMissed": "A rule on out-of-stock rows that still carry a price and are read by the estimate."
+}

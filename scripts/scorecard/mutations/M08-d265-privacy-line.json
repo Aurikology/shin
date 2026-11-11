@@ -1,0 +1,19 @@
+{
+  "id": "M08",
+  "family": "3 screen walk",
+  "defects": "D-265",
+  "title": "The first camera screen says every scan sends a picture while photo scanning is off and the policy says no image is uploaded",
+  "fixCommit": "ef44c26",
+  "comment": "DEFECTS row D-265. Reverts the ef44c26 hunk: the camera shows cam_privacy_line whatever FLAGS.photoId says.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/public/js/screens/camera.js",
+      "find": "shinSay('idle', FLAGS.photoId ? 'cam_privacy_line' : 'cam_privacy_line_nophoto', {}, { size: 64 })",
+      "replace": "shinSay('idle', 'cam_privacy_line', {}, { size: 64 })",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["app/test/camera-privacy-line.test.mjs"],
+  "ifMissed": "A claims check: every sentence on a screen about what is sent or stored is matched against the privacy policy's list and the network log of the same walk (a picture claim with no upload request is a contradiction)."
+}

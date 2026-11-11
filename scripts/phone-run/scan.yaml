@@ -1,0 +1,39 @@
+appId: ${APP_ID}    # the installed package id; see README (run maestro with -e APP_ID=...)
+name: Pexi first scan (fake barcode in the emulator's virtual scene)
+---
+# Before running: the emulator is up with the poster, the camera is pointing at it
+# (node camera-pose.mjs rot ...), and the debug APK is installed. See README.md.
+- launchApp:
+    clearState: true
+    permissions:
+      camera: allow
+      location: deny
+
+# Terms + Claude consent screen.
+- tapOn: "I agree to the Terms of Use and the Privacy Policy."
+- tapOn: "No, use broad guesses"
+- tapOn: "Continue"
+
+# Camera and location screen: switch the camera on, move on.
+- tapOn: "Camera access"
+- tapOn: "Continue"
+
+# Data screen.
+- assertVisible: "What Pexi does with your data"
+- tapOn: "Continue"
+
+# The camera screen. The zxing reader draws its box and the coach says so once it has read the code.
+- extendedWaitUntil:
+    visible: "Barcode. Hold it there."
+    timeout: 30000
+
+# The big round scan button (no text label), bottom centre.
+- tapOn:
+    point: "50%,90%"
+
+# The server knew the code: the product name and the shelf-price sheet.
+- extendedWaitUntil:
+    visible: "What's the shelf price\\?"
+    timeout: 60000
+- assertVisible: "Cheerios.*"
+- takeScreenshot: scan-result

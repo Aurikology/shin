@@ -1,0 +1,25 @@
+{
+  "id": "M11",
+  "family": "5 verdict vs evidence",
+  "defects": "D-270",
+  "title": "A guessed product is priced as that product and answers with its own confidence (\"milk\" becomes Coconut Milk, Certain)",
+  "fixCommit": "df38ae3",
+  "comment": "DEFECTS row D-270 (and D-267). Reverts the identity gate df38ae3 added in app/src/catalogue-first.ts: itemFor() keeps the guessed product's barcode, brand and size, and safeEstimate() no longer clamps a guess to low confidence.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/src/catalogue-first.ts",
+      "find": "if (identity?.grade === 'sure') return item;",
+      "replace": "return item;",
+      "count": 1
+    },
+    {
+      "file": "app/src/catalogue-first.ts",
+      "find": "if (identity?.grade === 'sure' || est.verdict.confidence === 'low') return est;",
+      "replace": "return est;",
+      "count": 1
+    }
+  ],
+  "regressionTests": ["app/test/wrong-product-answers.test.ts", "price/test/name-joined-rows.test.ts"],
+  "ifMissed": "An answer key run over a catalogue that holds near-duplicate names with prices on the wrong one."
+}

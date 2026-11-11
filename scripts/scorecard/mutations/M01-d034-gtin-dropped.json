@@ -1,0 +1,19 @@
+{
+  "id": "M01",
+  "family": "1 half-wired",
+  "defects": "D-034",
+  "title": "The pad prices a catalogue-resolved product by its words: proceed() sends only scannedGtin, so the code a typed search or a barcode lookup wrote to gtin is dropped",
+  "fixCommit": "4f7b76c",
+  "comment": "DEFECTS row D-034 (2026-09-07), same shape as D-266 C1 (a gtin that is set on one side and not read on the other). Re-breaks the line the fix changed: `item.scannedGtin ?? item.gtin` goes back to `item.scannedGtin`.",
+  "kind": "code",
+  "edits": [
+    {
+      "file": "app/public/js/screens/camera.js",
+      "find": "gtin: item.scannedGtin ?? item.gtin,",
+      "replace": "gtin: item.scannedGtin,",
+      "count": 1
+    }
+  ],
+  "regressionTests": [],
+  "ifMissed": "A seam test that drives a typed pick through the real client into the real /api/price and asserts the request body carries the picked product's barcode (the crawler's bad-route rule sees only a missing route, not a missing field)."
+}

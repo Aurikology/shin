@@ -1,0 +1,13 @@
+{
+  "id": "M03",
+  "family": "2 data at import",
+  "defects": "D-267",
+  "title": "Prices joined to a barcode by shop-product NAME sit beside the barcode-joined ones as equal evidence, and one is 3x the rest (another product with a similar name)",
+  "fixCommit": "df38ae3 + 675b917 (verdict side); the rows themselves stay in the data",
+  "comment": "DEFECTS row D-267, sweep Family 2 A1: 38,611 of 83,491 latest Hammer rows are name-joined, 61 of the 90 barcodes with a 3x spread include one. Planted as rows in a temp prices file, no code change: product 0000000000017 keeps its three barcode-joined rows (about $4) and gains a Walmart row joined by name at $12.00.",
+  "kind": "data",
+  "rows": [
+    { "code": "0000000000017", "seller": "walmart", "sellerSku": "PLANT-M03-WAL", "sellerName": "Acme Thing 500 g", "priceCents": 1200, "joinMethod": "name", "storeName": "Walmart", "storeCity": "Hamilton" }
+  ],
+  "ifMissed": "A rule on name-joined rows that sit more than 2x from the barcode-joined rows of the same code."
+}

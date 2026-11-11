@@ -1,0 +1,16 @@
+{
+  "id": "M06",
+  "family": "2 data at import",
+  "defects": "D-257",
+  "title": "Every imported price is labelled Toronto: hammer.ts sets storeCity 'Toronto' for every vendor, so a Vancouver-area chain reads \"Save-On-Foods, Toronto\"",
+  "fixCommit": "open",
+  "comment": "DEFECTS row D-257 (also sweep Family 2 A8). Planted as rows, no code change: four vendors that do not all trade in Toronto, every row stamped store_city 'Toronto'. Their rows join the baseline, which carries a varied city per shop.",
+  "kind": "data",
+  "rows": [
+    { "code": "0000000000040", "seller": "saveonfoods", "sellerSku": "PLANT-M06-SOF", "sellerName": "Acme Thing 1 kg", "priceCents": 1000, "joinMethod": "gtin", "storeName": "Save-On-Foods", "storeCity": "Toronto", "region": "BC" },
+    { "code": "0000000000040", "seller": "galleria", "sellerSku": "PLANT-M06-GAL", "sellerName": "Acme Thing 1 kg", "priceCents": 1010, "joinMethod": "gtin", "storeName": "Galleria", "storeCity": "Toronto" },
+    { "code": "0000000000040", "seller": "metro", "sellerSku": "PLANT-M06-MET", "sellerName": "Acme Thing 1 kg", "priceCents": 990, "joinMethod": "gtin", "storeName": "Metro", "storeCity": "Toronto" },
+    { "code": "0000000000040", "seller": "tnt", "sellerSku": "PLANT-M06-TNT", "sellerName": "Acme Thing 1 kg", "priceCents": 1020, "joinMethod": "gtin", "storeName": "T&T", "storeCity": "Toronto" }
+  ],
+  "ifMissed": "A place-label rule: no chain may carry one single city on every one of its rows when the chain trades in several provinces (count distinct city per seller)."
+}
