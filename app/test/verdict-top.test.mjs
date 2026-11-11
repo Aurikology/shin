@@ -101,7 +101,8 @@ test('every keyed reason reaches the half detent, in both languages', () => {
   assert.equal(en('claude_typical'), 'An AI estimate; no shop prices found');
   assert.equal(en('other_size'), 'Same product, other size, scaled');
   assert.equal(en('category_prior'), 'A rough estimate for its category');
-  assert.equal(en('department_prior'), 'A rough estimate from its department');
+  // Amended 2026-11-11 (D-268 B14): "department" was back-office jargon.
+  assert.equal(en('department_prior'), 'A rough estimate from its aisle');
   assert.throws(() => sheet({ ...F.LOW_CONFIDENCE, basis: 'something_unkeyed' }), /basis/);
   const fr = unesc(halfOf(sheet({ ...F.LOW_CONFIDENCE, basis: 'own_prices', n: 2 }, {}, 'fr')).match(/data-vd-reason>([^<]*)</)?.[1]);
   assert.equal(fr, '2 prix trouvés, combinés avec sa catégorie');

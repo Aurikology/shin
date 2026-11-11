@@ -296,7 +296,7 @@ const EN = {
   /* The spec's wording was "Pexi's own estimate"; a Claude answer is said to be AI's (RULINGS "Reviews": the shopper can always tell where the info comes from). */
   vd_prov_claude_typical: 'An AI estimate; no shop prices found',
   vd_prov_category_prior: 'A rough estimate for its category',
-  vd_prov_department_prior: 'A rough estimate from its department',
+  vd_prov_department_prior: 'A rough estimate from its aisle', // D-268 B14: "department" was back-office jargon; French already says "rayon"
   vd_prov_national_average: "Statistics Canada's average, adjusted to regular shelf prices",
   vd_prov_global_prior: 'A rough estimate from every price Pexi holds',
   vd_today: 'today',
@@ -307,8 +307,9 @@ const EN = {
   vd_sale_note: 'Sale prices are not in the estimate.',
   /* R-70: the going-rate card. */
   vd_range: (f) => `${f.low} to ${f.high}`,
-  vd_based_on_sellers: (f) => `Based on ${f.n} ${Number(f.n) === 1 ? 'seller' : 'sellers'}`,
-  vd_based_on_items: (f) => `Based on ${f.n} similar ${Number(f.n) === 1 ? 'item' : 'items'}`,
+  // D-268 B14 (2026-11-11 walk): "23216 similar items" had no separator.
+  vd_based_on_sellers: (f) => `Based on ${Number(f.n).toLocaleString('en-CA')} ${Number(f.n) === 1 ? 'seller' : 'sellers'}`,
+  vd_based_on_items: (f) => `Based on ${Number(f.n).toLocaleString('en-CA')} similar ${Number(f.n) === 1 ? 'item' : 'items'}`,
   vd_tell_price: 'Tell me the price',
   /* D13: a low-confidence answer still answers, and says in a few words why it is thin, as its half detent's one basis line (RULINGS.md "Always answer"; "V1 verdict screen mechanics"). */
   vd_why_own_prices: 'few prices for this item',
@@ -318,7 +319,7 @@ const EN = {
   vd_why_brand_markup: "based on the brand's usual markup",
   vd_why_claude_typical: 'an AI estimate, no prices for this item',
   vd_why_category_prior: 'a rough estimate for its category',
-  vd_why_department_prior: 'a rough estimate from its department',
+  vd_why_department_prior: 'a rough estimate from its aisle',
   vd_why_national_average: "Statistics Canada's average, not this item's prices",
   // Kept for scans saved before 2026-10-13, when the last rung still pooled every price (requirement 3.3 retired it).
   vd_why_global_prior: 'a rough estimate with little to go on',
@@ -423,7 +424,7 @@ const EN = {
   cam_delete_last_digit: 'Delete last digit',
   cam_price_modifiers: 'Price modifiers',
   cam_cancel_scan: 'Cancel and go back to the viewfinder',
-  cam_brand_model_placeholder: 'Brand and model…',
+  cam_brand_model_placeholder: 'Product name…', // D-268 B17: was "Brand and model…" on a grocery scanner
   cam_search: 'Search',
   cam_torch: 'Torch',
   cam_this: 'this',
@@ -1013,8 +1014,8 @@ const FR = {
   vd_size_unknown: 'Format non indiqué',
   vd_sale_note: 'Les prix en solde ne sont pas dans l’estimation.',
   vd_range: (f) => `${f.low} à ${f.high}`,
-  vd_based_on_sellers: (f) => `Selon ${f.n} ${Number(f.n) === 1 ? 'vendeur' : 'vendeurs'}`,
-  vd_based_on_items: (f) => `Selon ${f.n} ${Number(f.n) === 1 ? 'produit semblable' : 'produits semblables'}`,
+  vd_based_on_sellers: (f) => `Selon ${Number(f.n).toLocaleString('fr-CA')} ${Number(f.n) === 1 ? 'vendeur' : 'vendeurs'}`,
+  vd_based_on_items: (f) => `Selon ${Number(f.n).toLocaleString('fr-CA')} ${Number(f.n) === 1 ? 'produit semblable' : 'produits semblables'}`,
   vd_tell_price: 'Dis-moi le prix',
   vd_why_own_prices: 'peu de prix pour ce produit',
   vd_why_other_size: 'calculé d’après un autre format de ce produit',
@@ -1098,7 +1099,7 @@ const FR = {
   cam_delete_last_digit: 'Effacer le dernier chiffre',
   cam_price_modifiers: 'Modificateurs de prix',
   cam_cancel_scan: 'Annuler et revenir au viseur',
-  cam_brand_model_placeholder: 'Marque et modèle…',
+  cam_brand_model_placeholder: 'Nom du produit…',
   cam_search: 'Chercher',
   cam_torch: 'Lampe',
   cam_this: 'ça',
