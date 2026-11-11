@@ -31,11 +31,20 @@ import { escapeHtml, on } from '../lib/dom.js';
 import { shinSay, headingWithFace } from '../shin.js';
 import { t } from '../ui-strings.js';
 import { localeTag } from '../lib/locale.js';
-import { goBack, rowCheck } from '../lib/pagebar.js';
+import { goBack } from '../lib/pagebar.js';
 import { LEGAL_URLS } from '../plus-config.js';
 import * as purchases from '../purchases.js';
 import { track } from '../track.js';
 
+const svg = (d, w = 18) => `<svg viewBox="0 0 24 24" width="${w}" height="${w}" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const TICK_ICON = svg('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 16);
+const STEP_ICONS = Object.freeze({
+  scan: svg('<path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M8 8v8M12 8v8M16 8v8"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  unlock: svg('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>'),
+  calendar: svg('<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/>'),
+  card: svg('<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>'),
+});
 const CLOSE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 /** "Monday, September 28", in the language in force, or null for a time nobody can read. */
@@ -115,10 +124,14 @@ function reportFault(where, err, detail = {}) {
 }
 
 /**
- * One plan row. The billed price is the largest text in it (R-80); the
- * per-month figure sits under the yearly one only, smaller, taken from the
- * store (`perMonthString`), and is left out when the store sent none rather
- * than worked out here.
+ * One plan card (2026-11-11, the Cal AI-style layout Aurik asked for: two cards
+ * side by side, yearly preselected with a filled tick). The billed price is the
+ * largest text in it (R-80, Apple 3.1.2: the amount billed is the most
+ * prominent); the per-month figure sits under the yearly one only, smaller,
+ * taken from the store (`perMonthString`), and is left out when the store sent
+ * none rather than worked out here. A plan with a free trial the store reports
+ * for this account wears a "3 days free" tab; no other badge, and never a
+ * savings figure (hard rule 2).
  */
 function planRow(plan, chosen) {
   if (!PLAN_IDS.includes(plan?.id)) throw new Error(`paywall: plan id "${plan?.id}" is not one of ${PLAN_IDS.join(', ')}`);
@@ -131,13 +144,52 @@ function planRow(plan, chosen) {
   const equiv = plan.id === 'yearly' && usable(plan.perMonthString)
     ? `<span class="pw-equiv" data-pw-equiv>${escapeHtml(t('paywall_equiv', { price: plan.perMonthString }))}</span>`
     : '';
+  const tab = plan.trialDays > 0 ? `<span class="pw-tab" data-pw-tab>${escapeHtml(t('paywall_trial_tab', { days: String(plan.trialDays) }))}</span>` : '';
   const on = plan.id === chosen;
   return `<button type="button" class="ilist-row pw-plan${on ? ' on' : ''}" role="radio" aria-checked="${on}" data-plan="${escapeHtml(plan.id)}">
+            ${tab}
             <span class="ilist-l">${escapeHtml(label)}</span>
             <span class="ilist-v pw-price" data-pw-price>${escapeHtml(price)}</span>
-            ${rowCheck()}
             ${equiv}
+            <span class="pw-tick" aria-hidden="true">${TICK_ICON}</span>
           </button>`;
+}
+
+/** The day a trial of `days` started now is charged, in the reader's language. */
+export function chargeDay(days, now = new Date(), tag = localeTag()) {
+  const at = new Date(now.getTime() + days * 86400000);
+  return at.toLocaleDateString(tag, { month: 'long', day: 'numeric' });
+}
+
+/**
+ * The steps down the left (the Cal AI timeline). With a free trial on the
+ * chosen plan: today Plus starts, until the charge day nothing is charged and it
+ * can be cancelled, then the charge day with the store's own price. Without
+ * one, the same column says what each tier gives and how to cancel. Every
+ * number is the store's or the ruling's (10 free, 100 with Plus); nothing here
+ * promises a reminder, because Pexi sends none.
+ */
+export function stepsHtml(plan, { platform = 'ios', now = new Date() } = {}) {
+  const where = t(platform === 'android' ? 'paywall_where_android' : 'paywall_where_ios');
+  const days = plan?.trialDays > 0 ? plan.trialDays : 0;
+  const yearly = (plan?.period ?? (plan?.id === 'yearly' ? 'year' : 'month')) === 'year';
+  const steps = days
+    ? [
+      ['unlock', t('paywall_step_today'), t('paywall_step_today_trial')],
+      ['calendar', t('paywall_step_before', { date: chargeDay(days, now) }), t('paywall_step_before_d', { where })],
+      ['card', t('paywall_step_charge', { date: chargeDay(days, now) }), t('paywall_step_charge_d', { price: t(yearly ? 'paywall_per_year' : 'paywall_per_month', { price: plan.priceString }) })],
+    ]
+    : [
+      ['scan', t('paywall_step_free'), t('paywall_step_free_d')],
+      ['plus', t('paywall_step_plus'), t('paywall_step_plus_d')],
+      ['calendar', t('paywall_step_cancel'), t('paywall_step_cancel_d', { where })],
+    ];
+  return `<ol class="pw-steps" data-pw-steps${days ? ' data-pw-trial' : ''}>
+          ${steps.map(([icon, head, sub], i) => `<li class="pw-step${i === steps.length - 1 ? ' last' : ''}">
+            <span class="pw-step-ic" aria-hidden="true">${STEP_ICONS[icon]}</span>
+            <span class="pw-step-t"><b>${escapeHtml(head)}</b><span>${escapeHtml(sub)}</span></span>
+          </li>`).join('')}
+        </ol>`;
 }
 
 /** The plan that starts selected: yearly when it is on sale (R-81), else the first. */
@@ -154,8 +206,8 @@ export function defaultPlan(plans) {
  * not load: somebody who already paid must never be stuck behind a list that
  * failed to arrive.
  */
-export function paywallBody(state, { plans = [], chosen = null, message = '', platform = 'ios' } = {}) {
-  const restore = `<button type="button" class="btn--ghost pw-restore" data-act="restore">${escapeHtml(t('paywall_restore'))}</button>`;
+export function paywallBody(state, { plans = [], chosen = null, message = '', platform = 'ios', now = new Date() } = {}) {
+  const restore = `<button type="button" class="pw-restore" data-act="restore">${escapeHtml(t('paywall_restore'))}</button>`;
   const note = message ? `<p class="fineprint pw-msg" role="status" data-pw-msg>${escapeHtml(message)}</p>` : '';
   switch (state) {
     case 'loading':
@@ -184,15 +236,19 @@ export function paywallBody(state, { plans = [], chosen = null, message = '', pl
       const pick = chosen ?? defaultPlan(plans);
       if (!plans.some((p) => p?.id === pick)) throw new Error(`paywall: the chosen plan ${JSON.stringify(pick)} is not on the screen`);
       if (new Set(plans.map((p) => p.id)).size !== plans.length) throw new Error('paywall: the same plan is listed twice');
-      // Yearly first: the preselected plan, with monthly right under it on the same screen.
-      const shown = [...plans].sort((a, b) => (b?.id === 'yearly') - (a?.id === 'yearly'));
+      // Monthly on the left, yearly (preselected) on the right, as in the Cal AI layout.
+      const shown = [...plans].sort((a, b) => (a?.id === 'yearly') - (b?.id === 'yearly'));
+      const chosenPlan = plans.find((p) => p.id === pick);
+      const trial = chosenPlan.trialDays > 0 ? chosenPlan.trialDays : 0;
       return `<div data-pw-state="plans">
-          <h2 class="sect-h" id="pw-plans-l">${escapeHtml(t('paywall_plans'))}</h2>
-          <div class="ilist" role="radiogroup" aria-labelledby="pw-plans-l">
+          ${stepsHtml(chosenPlan, { platform, now })}
+          <h2 class="sr-only" id="pw-plans-l">${escapeHtml(t('paywall_plans'))}</h2>
+          <div class="pw-plans" role="radiogroup" aria-labelledby="pw-plans-l">
             ${shown.map((p) => planRow(p, pick)).join('')}
           </div>
           <p class="fineprint pw-renews">${escapeHtml(t(platform === 'android' ? 'paywall_renews_android' : 'paywall_renews'))}</p>
-          <button type="button" class="cta" data-act="subscribe">${escapeHtml(t('paywall_subscribe'))}</button>
+          ${trial ? `<p class="pw-nopay" data-pw-nopay>${TICK_ICON}<span>${escapeHtml(t('paywall_no_payment_now'))}</span></p>` : ''}
+          <button type="button" class="cta pw-cta" data-act="subscribe">${escapeHtml(trial ? t('paywall_start_trial', { days: String(trial) }) : t('paywall_subscribe'))}</button>
           ${restore}
           ${note}
         </div>`;
@@ -281,10 +337,11 @@ export default {
       <div class="page paywall-page" data-paywall>
         <header class="page-head">
           <button type="button" class="pbk pw-close" data-act="close" aria-label="${escapeHtml(t('paywall_close'))}">${CLOSE_ICON}</button>
-          ${/* Opened with scans left the mascot sits small beside the heading, saying nothing (audit row 38); spent, it speaks below. */
+          ${/* Opened with scans left the mascot sits beside the heading, saying nothing (audit row 38: never a
+               face on a row of its own), larger for the Cal AI layout (2026-11-11). Spent, it speaks below. */
             spent
               ? `<h1>${escapeHtml(t('paywall_spent_heading'))}</h1>`
-              : headingWithFace('idle', `<h1>${escapeHtml(t('paywall_heading'))}</h1>`)}
+              : headingWithFace('pleased', `<h1>${escapeHtml(t('paywall_heading'))}</h1>`, { size: 'face-verdict' })}
         </header>
         ${/* Opened with scans left, the heading is the whole offer: the kicker and the
              bubble both said it again (2026-10-10 audit row 38), so neither is drawn;
@@ -307,6 +364,11 @@ export default {
       if (gone()) return;
       try {
         body.innerHTML = paywallBody(state, { plans, chosen, platform: purchases.platformOf(win), ...extra });
+        // With a free trial the store reports on the chosen plan, the heading says so (the Cal AI
+        // headline) and what Plus gives moves into the first step. Spent keeps its own heading (R-84).
+        const h1 = root.querySelector('[data-paywall] .head-row h1'); // only the not-spent heading sits beside the face
+        const days = state === 'plans' ? plans.find((p) => p.id === chosen)?.trialDays ?? 0 : 0;
+        if (h1) h1.textContent = days > 0 ? t('paywall_trial_heading', { days: String(days) }) : t('paywall_heading');
       } catch (err) {
         // A state that cannot be drawn truthfully (bad price, bad plan id) is
         // reported and replaced by the failed state, never left blank.

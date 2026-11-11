@@ -1,52 +1,198 @@
 /*
  * Pexi Plus, the subscription screen (screens/paywall.js).
  *
- * Built from the shared parts: the page head, the inset list (`.ilist`) for the
- * two plans with the same tick the You screen's radio groups use, `.cta` for
- * the one committing action and `.btn--ghost` for Restore. What is local is
- * the close control's place, the spacing, and the two legal links.
+ * 2026-11-11, Aurik's ask: the Cal AI layout. The mascot beside a big bold
+ * heading, a column of steps down the left joined by a line, two plan
+ * cards side by side (yearly preselected with a filled tick), "No payment due
+ * now" only under a real store trial, one black full-width button, Restore and
+ * the legal links under it. What stays from before: the close X in the top
+ * corner (R-83), the billed price as the largest text on a card (R-80), the
+ * renewal terms above the button (R-85), the R-84 spent screen.
  *
  * No verdict colour and no motion: a subscription is not a price judgment, and
- * nothing here needs to move to be understood.
+ * nothing here needs to move to be understood. (The R-84 test reads this file
+ * for colour and motion words outside comments, so none are written there.)
  */
 
-.paywall-page .page-head { position: relative; }
+.paywall-page .page-head { position: relative; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.paywall-page .page-head .pw-close { align-self: flex-start; }
+
+/* The mascot beside the heading (audit row 38: never on a row of its own), larger here. */
+.paywall-page .head-row { align-items: center; gap: 12px; text-align: left; }
+
+.paywall-page .head-row h1 {
+  margin: 0;
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: 30px;
+  line-height: 1.12;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
 
 .pw-limit {
   margin: var(--s-3) 0 var(--s-4);
+  text-align: center;
 }
 
-.pw-body {
+.pw-body,
+.pw-body > [data-pw-state] {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
 }
 
-.pw-body .ilist { margin-bottom: var(--s-2); }
+/* The steps: an icon disc on the left, joined to the next by a line. */
+.pw-steps {
+  list-style: none;
+  margin: var(--s-2) 0 var(--s-2);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pw-step {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding-bottom: 18px;
+}
+.pw-step.last { padding-bottom: 0; }
+.pw-step:not(.last)::before {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 36px;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--brand-soft);
+}
+.pw-step-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+.pw-step.last .pw-step-ic { background: var(--ink); color: var(--ground); }
+.pw-step-t { display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
+.pw-step-t b { font-family: var(--f-display); font-weight: 700; font-size: 17px; color: var(--ink); }
+.pw-step-t span { font-size: 14px; line-height: 1.35; color: var(--ink-muted); }
 
-/* The tick keeps its space on both rows so choosing one does not shift the
-   prices sideways; only the chosen plan shows it. */
-.pw-plan .ilist-v { margin-left: auto; }
+/* The two plan cards, side by side. */
+.pw-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: var(--s-2);
+}
+.pw-plan {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  min-height: 108px;
+  padding: 18px 14px 14px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md);
+}
+.pw-plan + .pw-plan::before { content: none; }
+.pw-plan.on { border: 2.5px solid var(--ink); padding: 17px 13px 13px; }
+.pw-plan .ilist-l {
+  flex: none;
+  padding-right: 30px; /* clear of the tick */
+  font-size: 14px;
+  line-height: 1.25;
+  color: var(--ink-muted);
+}
 
-/* R-80: the billed price is the largest text in its row (Apple and Google both
-   want the billed amount most prominent), the row label sits under it at its
-   own 15px, and the per-month line under the yearly price is 13px, 65% of the
-   price. The equivalent sits on its own line below the label and the price. */
-.pw-plan { flex-wrap: wrap; }
-.pw-plan .ilist-l { font-size: 15px; }
+/* R-80: the billed price is the largest text on its card (Apple and Google both
+   want the billed amount most prominent), the label 14px, and the per-month
+   line under the yearly price 12px, 67% of the price. */
 .pw-plan [data-pw-price] {
-  font-family: var(--f-mono);
-  font-size: 20px;
-  font-weight: 600;
+  margin-left: 0;
+  font-family: var(--f-display);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -.01em;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
+/* A half-width card cannot hold the amount and its period on one line; balanced wrapping breaks it
+   as amount, then period, never leaving one word alone on the second line. */
+.pw-plan [data-pw-price] { text-wrap: balance; }
 .pw-plan [data-pw-equiv] {
-  order: 3;
-  flex: 0 0 100%;
-  margin-top: calc(var(--s-1) * -1);
+  margin-top: 2px;
   font-size: 13px;
   font-weight: 400;
+  line-height: 1.3;
   color: var(--ink-muted);
+}
+
+/* The tick: an empty ring on the card not chosen, filled with a check on the chosen one. */
+.pw-tick {
+  position: absolute;
+  right: 12px;
+  top: 14px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hairline);
+  color: transparent;
+}
+.pw-plan.on .pw-tick { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.pw-plan .pw-tick svg { width: 14px; height: 14px; }
+
+/* The trial tab on the card that has one, sitting on its top edge. */
+.pw-tab {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--ground);
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pw-nopay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.pw-renews { margin: 4px 0 0; font-size: 11.5px; line-height: 1.4; text-align: center; color: var(--ink-muted); }
+
+.pw-cta { min-height: 56px; font-size: 18px; }
+
+.pw-restore {
+  align-self: center;
+  min-height: 44px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  color: var(--ink-muted);
+  font: 600 15px var(--f-ui);
+  cursor: pointer;
 }
 
 /* R-84: the spent screen. Calm and plain: the count in the mono face, what
@@ -81,8 +227,6 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.pw-plan .ilist-k { visibility: hidden; }
-.pw-plan.on .ilist-k { visibility: visible; }
 
 .pw-inapp {
   margin: 0;
@@ -90,14 +234,16 @@
   font-weight: 700;
   font-size: 19px;
   color: var(--ink);
+  text-align: center;
 }
 
 .pw-legal {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: var(--s-4);
-  margin: var(--s-4) 0 0;
-  font-size: 14px;
+  margin: 0;
+  font-size: 13px;
 }
 
 .pw-legal a {

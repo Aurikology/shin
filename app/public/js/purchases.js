@@ -151,7 +151,48 @@ export async function loadPlans(win = globalThis.window) {
       skipped.push({ id, reason: pkg ? 'package has no usable priceString' : 'no package for this plan in the offering' });
     }
   }
+  await markTrials(plugin, plans);
   return { store: true, plans, skipped };
+}
+
+/*
+ * The free trial (2026-11-11, the Cal AI-style paywall). A trial is an
+ * introductory offer set on the product in App Store Connect / Play Console,
+ * never in this app, so the screen only ever shows one the store reports:
+ * `product.introPrice` with a price of 0, and this account still eligible for
+ * it (RevenueCat `checkTrialOrIntroductoryPriceEligibility`, status 2). Anything
+ * else (no offer, a paid intro price, already used, eligibility unknown or the
+ * check failing) shows no trial: a paywall that promises a free trial the store
+ * then charges for is the one thing review rejects and shoppers remember.
+ */
+const ELIGIBLE = 2;
+const UNIT_DAYS = Object.freeze({ DAY: 1, WEEK: 7 });
+
+/** Days of free trial a RevenueCat product offers, or 0. Only a free intro price in days or weeks counts. */
+export function trialDaysOf(product) {
+  const intro = product?.introPrice;
+  if (!intro || Number(intro.price) !== 0) return 0;
+  const per = UNIT_DAYS[String(intro.periodUnit ?? '').toUpperCase()];
+  const n = Number(intro.periodNumberOfUnits);
+  return per && Number.isInteger(n) && n > 0 ? per * n : 0;
+}
+
+async function markTrials(plugin, plans) {
+  const offered = plans.filter((p) => trialDaysOf(p.pkg?.product) > 0);
+  if (!offered.length) return;
+  let status = {};
+  try {
+    if (typeof plugin.checkTrialOrIntroductoryPriceEligibility !== 'function') return;
+    status = (await plugin.checkTrialOrIntroductoryPriceEligibility({
+      productIdentifiers: offered.map((p) => p.pkg.product.identifier),
+    })) ?? {};
+  } catch (err) {
+    console.error('paywall: trial eligibility could not be checked, so no trial is shown', err);
+    return;
+  }
+  for (const p of offered) {
+    if (status[p.pkg.product.identifier]?.status === ELIGIBLE) p.trialDays = trialDaysOf(p.pkg.product);
+  }
 }
 
 function cancelled(err) {
