@@ -221,7 +221,8 @@ test("the shopper's pending report is its own labelled dot, outside the bell and
   assert.match(html, /class="vb-report" data-vb-report="549"/);
   assert.match(html, /class="vb-reportdot"/);
   assert.match(html, />Your report</);
-  assert.match(html, /<title>Your report: \$5\.49 at Save-On-Foods, counts once a second source agrees<\/title>/);
+  // Amended 2026-11-11 (D-268 B4): plain words instead of "counts once a second source agrees".
+  assert.match(html, /<title>Your report: \$5\.49 at Save-On-Foods\. Pexi uses it once someone else sees the same price\.<\/title>/);
   // A diamond path, not the store dots' circle.
   assert.doesNotMatch(html.match(/class="vb-reportdot"[^>]*/)[0], /<circle/);
   // The bell is the same with or without it: the report moves nothing (same curve, same centre).

@@ -260,9 +260,10 @@ test('D05: postScanPrice sends the scan id, the price and the shop to /api/scan-
 
 test('D06: the line under the chart says the shopper\'s own report exists and what it waits for', () => {
   const waiting = shopperReportLine({ cents: 549, store: 'Save-On-Foods', seenOn: '2026-10-06', status: 'waiting_for_second_source' }, 'CAD');
-  assert.match(waiting, /Your report: \$5\.49 at Save-On-Foods, counts once a second source agrees/);
+  // Amended 2026-11-11 (D-268 B4): plain words.
+  assert.match(waiting, /Your report: \$5\.49 at Save-On-Foods\. Pexi uses it once someone else sees the same price\./);
   const agreed = shopperReportLine({ cents: 549, store: 'Save-On-Foods', seenOn: '2026-10-06', status: 'second_source_agrees' }, 'CAD');
-  assert.match(agreed, /a second source agrees/);
+  assert.match(agreed, /Someone else saw the same price/);
   assert.doesNotMatch(agreed, /counts once/);
   assert.equal(shopperReportLine(null, 'CAD'), '');
   assert.equal(shopperReportLine({ cents: 549, store: '' }, 'CAD'), '');

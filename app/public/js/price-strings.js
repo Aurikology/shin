@@ -33,8 +33,9 @@ const EN = {
   rating_reason_wrong_price: 'Wrong price',
   rating_reason_no_price: 'No price',
   rating_reason_too_slow: 'Too slow',
-  your_report_waiting: ({ price, store }) => `Your report: ${price} at ${store}, counts once a second source agrees`,
-  your_report_agreed: ({ price, store }) => `Your report: ${price} at ${store}, a second source agrees`,
+  // D-268 B4 (2026-11-11 walk): "counts once a second source agrees" was process jargon, read as "ignored".
+  your_report_waiting: ({ price, store }) => `Your report: ${price} at ${store}. Pexi uses it once someone else sees the same price.`,
+  your_report_agreed: ({ price, store }) => `Your report: ${price} at ${store}. Someone else saw the same price.`,
 };
 
 const FR = {
@@ -55,8 +56,8 @@ const FR = {
   rating_reason_wrong_price: 'Mauvais prix',
   rating_reason_no_price: 'Pas de prix',
   rating_reason_too_slow: 'Trop lent',
-  your_report_waiting: ({ price, store }) => `Votre signalement : ${price} chez ${store}, compte dès qu’une seconde source concorde`,
-  your_report_agreed: ({ price, store }) => `Votre signalement : ${price} chez ${store}, une seconde source concorde`,
+  your_report_waiting: ({ price, store }) => `Votre signalement : ${price} chez ${store}. Pexi s’en sert dès que quelqu’un d’autre voit le même prix.`,
+  your_report_agreed: ({ price, store }) => `Votre signalement : ${price} chez ${store}. Quelqu’un d’autre a vu le même prix.`,
 };
 
 const TABLES = { en: EN, fr: FR };
