@@ -141,7 +141,7 @@ function gateReason(typed, seller) {
 
 export default {
   id: 'correct',
-  title: 'Tell Pexi the price',
+  title: 'Report a wrong price',
   titleKey: 'correct_title',
 
   render(root, ctx) {

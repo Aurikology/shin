@@ -469,7 +469,8 @@ const LINES_EN = {
   correct_fineprint: {
     deadpan: (f) => `Once you send it: a report against ${f.label}${f.seller ? `, at ${f.seller}` : ''}.`,
     warm: (f) => `When you send it: your report against ${f.label}${f.seller ? `, at ${f.seller}` : ''}.`,
-    blunt: (f) => `Sent, it goes against ${f.label}${f.seller ? `, at ${f.seller}` : ''} as a report.`,
+    // D-268 H35 (2026-11-11 walk): "Sent" showed before anything was sent.
+    blunt: (f) => `Once sent: a report on ${f.label}${f.seller ? `, at ${f.seller}` : ''}.`,
   },
 
   /**

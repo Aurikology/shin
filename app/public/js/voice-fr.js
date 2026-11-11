@@ -277,7 +277,7 @@ export const LINES_FR = {
   correct_fineprint: {
     deadpan: (f) => `Une fois envoyé, c'est noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte à partir de là, plus solide quand une deuxième étiquette confirme.`,
     warm: (f) => `Quand tu l'envoies, c'est noté pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte dès ton prochain scan, et ça se solidifie quand quelqu'un d'autre voit le même prix.`,
-    blunt: (f) => `Envoyé, ça va pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte alors, plus solide quand un deuxième confirme.`,
+    blunt: (f) => `Une fois envoyé, ça va pour ${f.label}${f.seller ? `, chez ${f.seller}` : ''}. Ça compte alors, plus solide quand un deuxième confirme.`,
   },
 
   price_pad_prompt: {

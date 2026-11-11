@@ -98,7 +98,7 @@ export function savingsHtml(view) {
 
 export default {
   id: 'savings',
-  title: 'Savings Overview',
+  title: 'Savings overview',
   titleKey: 'savings_title',
 
   render(root, ctx) {

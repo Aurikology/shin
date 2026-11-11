@@ -125,7 +125,8 @@ test('N02: a saved low answer reopens with no confidence claim', () => {
 
 test('N03: the Fix form fine print speaks of sending in the future tense', () => {
   for (const who of ['deadpan', 'warm', 'blunt']) {
-    assert.match(say('correct_fineprint', { label: 'Milk', seller: 'X' }, who), /(Once you send it|When you send it|Sent, it)/);
+    // Amended 2026-11-11 (D-268 H35): blunt said "Sent, it" before sending; it now reads "Once sent: a report".
+    assert.match(say('correct_fineprint', { label: 'Milk', seller: 'X' }, who), /(Once you send it|When you send it|Once sent: a report)/);
     assert.doesNotMatch(say('correct_fineprint', { label: 'Milk', seller: 'X' }, who), /has been|is recorded now|was recorded/i);
   }
   const src = read('js/screens/correct.js');

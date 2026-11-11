@@ -468,7 +468,7 @@ const EN = {
 
   /* ---------------------------------------------------------- the correction */
   correct_kicker: 'Teach Pexi',
-  correct_title: 'Tell Pexi the price',
+  correct_title: 'Report a wrong price', // D-268 H35: the You row that opens it says this
   correct_which_shop: 'Which shop?',
   correct_on_sale: 'On sale',
   correct_save_it: 'Send it', // D-268 A1 2026-11-11: was "Save it", the same words as the sheet's Save (to Saved); this sends a correction
@@ -715,10 +715,10 @@ const EN = {
   /* The Savings Overview screen (his welcome screen 32). Total Saved and Monthly
      Goal Progress draw only from a measured figure; until one exists they are not
      drawn and nothing explains their absence (2026-10-10 audit row 32). */
-  savings_title: 'Savings Overview',
+  savings_title: 'Savings overview', // D-268 F30: as its You row says it
   savings_total: 'Total Saved',
   savings_goal: 'Monthly Goal Progress',
-  savings_recent: 'Recently Scanned',
+  savings_recent: 'Recently scanned',
   savings_amt: (f) => `$${f.n}`,
   savings_goal_of: (f) => `$${f.saved} of $${f.target}`,
   savings_recent_empty: 'Nothing scanned yet.',
@@ -1132,7 +1132,7 @@ const FR = {
 
   /* ----------------------------------------------------------- la correction */
   correct_kicker: 'Apprends à Pexi',
-  correct_title: 'Dis le prix à Pexi',
+  correct_title: 'Signaler un prix erroné',
   correct_which_shop: 'Quel magasin?',
   correct_on_sale: 'En solde',
   correct_save_it: 'Envoyer',

@@ -178,7 +178,8 @@ test('Savings Overview: Recently Scanned is the real history, newest first, capp
   assert.deepEqual(v.recent.map((r) => r.label), ['Item 0', 'Item 1', 'Item 2', 'Item 3', 'Item 4']);
   assert.equal(v.recent[0].cents, 100);
   const html = savings.savingsHtml(v);
-  assert.match(html, /Recently Scanned/);
+  // Amended 2026-11-11 (D-268 F30): sentence case, like every other heading.
+  assert.match(html, /Recently scanned/);
   assert.equal((html.match(/data-savings-row/g) ?? []).length, 5);
   assert.doesNotMatch(html, /Great Deal|Good Deal/, 'a verdict word was drawn on a history row');
 });
