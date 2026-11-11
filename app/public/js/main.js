@@ -102,7 +102,7 @@ startThemeColourSync();
    (screens/permissions.js), which is that flow's own step 24 standing on its
    own: switching the flow off must not take the camera and location ask with
    it. The flow module reads the flags itself; this passes nothing. */
-// Item 9: nothing opens before the 18+ tick and the Claude choice, whatever the link says.
+// Item 9: nothing opens before the terms tick and the Claude choice, whatever the link says.
 router.setGuard((id) => (id !== 'agree' && needsAgreement(store.get()) ? 'agree' : null));
 const first = firstScreen(store.get());
 /* `?onboarding=1` replays the welcome once, for someone who has finished it

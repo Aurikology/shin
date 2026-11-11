@@ -105,14 +105,24 @@ export const OLD_PRICE_DAYS = 90;
 
 /**
  * A price row's date: the label by the same rule as every dated row, and whether the price is old.
- * A day with no time ("2026-10-07", what the price list carries) counts as noon UTC of that day, so
- * "2 d ago" is 2 whatever the hour it is read. Absent is absent (no label, not old); present and
+ * A day with no time ("2026-10-07", what the price list carries) counts as noon UTC of that day and
+ * is labelled in whole UTC calendar days, so "2 d ago" is 2 whatever the hour it is read. Absent is absent (no label, not old); present and
  * unreadable throws through dateLabel, because a printed date that is wrong is worse than none.
  */
 export function priceAge(seenOn, now = Date.now()) {
   if (seenOn === undefined || seenOn === null || seenOn === '') return { label: '', old: false };
-  const iso = typeof seenOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(seenOn) ? `${seenOn}T12:00:00Z` : seenOn;
-  const label = dateLabel(iso, now);
+  const dayOnly = typeof seenOn === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(seenOn);
+  const iso = dayOnly ? `${seenOn}T12:00:00Z` : seenOn;
+  /* A day-only date counts whole UTC calendar days. Hours from noon, rounded, read "3 d ago" for a
+     two-day-old price from 23:30Z to midnight. From yesterday on, the label is read at noon of
+     today's UTC day; a price from today keeps the real clock. */
+  let at = now;
+  if (dayOnly) {
+    const today = new Date(now);
+    const todayNoon = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 12);
+    if (todayNoon - Date.parse(iso) >= 86400000) at = todayNoon;
+  }
+  const label = dateLabel(iso, at);
   return { label, old: now - Date.parse(iso) > OLD_PRICE_DAYS * 86400000 };
 }
 

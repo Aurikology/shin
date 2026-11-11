@@ -322,6 +322,16 @@ test('R-55 (build 7): a price seen more than 90 days ago is marked old in its ro
   assert.ok(!isOld(rows[1]), 'a 30 day old price must not be marked old');
 });
 
+test('R-55: a day-only price date counts whole days, whatever the hour it is read', () => {
+  // Was red from 23:30Z to midnight: noon two days back is 59.5+ hours, which rounded to "3 d ago".
+  for (const hour of ['00:05', '06:00', '12:00', '18:00', '23:31', '23:59']) {
+    const now = Date.parse(`2026-11-10T${hour}:00Z`);
+    assert.equal(dom.priceAge('2026-11-08', now).label, '2 d ago', `read at ${hour}Z`);
+    assert.equal(dom.priceAge('2026-11-03', now).label, '7 d ago', `read at ${hour}Z`);
+    assert.match(dom.priceAge('2026-11-02', now).label, ABSOLUTE, `read at ${hour}Z`);
+  }
+});
+
 test('R-55 (keep): the share card keeps its absolute date and the paywall keeps weekday and date', () => {
   const share = readFileSync(new URL('../../public/js/screens/share.js', import.meta.url), 'utf8');
   assert.match(share, /toLocaleDateString\(undefined, \{ year: 'numeric', month: 'short', day: 'numeric' \}\)/);
