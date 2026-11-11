@@ -1,4 +1,4 @@
-Mac: please make build 7 (iPhone only, same settings as build 6) from 21fe098 or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, then 624ac89). If build 7 is already uploaded from 624ac89, make this one build 8.
+Mac: please make build 7 (iPhone only, same settings as build 6) from abe6fea or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, then 624ac89). If build 7 is already uploaded from 624ac89, make this one build 8.
 
 **New in native/: a plugin.** Before archiving, in native/: `npm ci`, then `npx cap sync ios` (it runs pod install for CapacitorTextZoom). Without it the app still runs; it just ignores the phone's text size.
 
@@ -26,6 +26,7 @@ What build 7 carries since build 6:
 - d6b3367: the shop list promises to remember only with location on.
 - 1f1f59c: Recently removed names each row's list, no "--".
 - 21fe098: "Your report" in plain words.
+- abe6fea: Saved says the same usual as the sheet, and "usually $5.00".
 
 Gate on 283044c: check exit 0; npm test 1979 pass, 0 fail, 5 skipped; test:ux 539 pass, 0 fail; WebKit sweep 36 taps 0 problems; fake-camera barcode press works, 0 errors. Every item above had a test seen red first. Not seen on a phone.
 

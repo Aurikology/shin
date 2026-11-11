@@ -23,6 +23,10 @@ Jamin: Aurik's PC session took the screen half of the 2026-11-11 bug sweep (docs
 12. `/api/correction` with no product code drops the typed name (C4, server.ts 3430-3443).
 13. "Find a better buy" has no route (D-256).
 
+**Screen text that comes from the server**
+15. "Where this comes from" (D-268 H36) is fetched from `/api/attribution` (`app/src/attribution.ts`), so its words are yours: raw ISO dates ("counted 2026-10-06", "between 2020-02-01 and 2026-08-26"), "T and T" where the app says "T&T", and internal legal notes shown to shoppers (ANBL and Walmart: "Verdict: automated reading and reuse are both unlicensed; written permission ... needed"). If you want the dates formatted on the phone instead, send them as ISO in their own field and Aurik's side formats them.
+16. "Delete my data" on You is a mailto to useshinapp@gmail.com, the old Shin address. Which address should it be?
+
 **A flaky server test**
 14. `app/test/scan-record-complete.test.ts`, "5.1 control: the shopper's own call is kept as first given", failed in 2 of 5 full `npm test` runs on the PC (passes 9 of 9 alone). It is server code (`/api/scan-call`); the PC session touched no server file. Probably a timing or shared-state race inside the parallel suite; not looked into.
 
