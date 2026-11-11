@@ -59,6 +59,11 @@ async function fresh() {
   p.on('pageerror', (e) => note('pageerror', `${e.message} @ ${(e.stack ?? '').split('\n')[1] ?? ''}`));
   p.on('console', (m) => { if (m.type() === 'error') note('console.error', m.text().slice(0, 200)); });
   await p.goto(BASE); await p.waitForTimeout(1500);
+  // The first screen (agree.js, 2026-11-05 on): the terms tick and a Claude answer, or Continue stays disabled.
+  if (await p.locator('[data-agree-tick]').count()) {
+    await p.locator('[data-agree-tick]').check();
+    await p.locator('[data-agree-claude][value="no"]').check();
+  }
   for (let i = 0; i < 4; i++) {
     const c = p.locator('#screen button:visible', { hasText: /Continue|Get started|Start|Allow|OK|Next/ }).first();
     if (!(await c.count())) break;

@@ -83,6 +83,18 @@ npm run build-eye     # only if src/eye/ changed; exit 0
 A red you did not cause: confirm it is red on clean `main` too, say so in the commit, and carry it
 as its own item. Never commit over a red you caused.
 
+**Then check it in a real browser engine (the tests passing only proves the code does what you
+wrote):** any change to a screen gets these, with `PLAYWRIGHT_DIR` pointing at a folder holding
+`node_modules/playwright` (one exists under an older session's scratchpad `pw\`; else `npm i
+playwright` in your scratchpad and `npx playwright install webkit chromium`):
+
+```
+node scripts/webkit-sweep.mjs 2        # Safari's engine, every button, 0 problems expected; no camera
+node scripts/fake-camera-check.mjs     # Chromium with a fake camera: the camera screen and the barcode press
+```
+
+Neither one is a phone. Write down what they saw, and still say "not seen on a phone".
+
 ## 6. Commit, one per fix
 
 - Stage named paths only (a hook refuses a blanket `git add`). Pull right before.
