@@ -55,6 +55,44 @@
 .corr-shop-btn { min-height: 44px; }
 .corr-shop-btn[aria-pressed="true"] { background: var(--raised); color: var(--ink); }
 .corr .actions { display: flex; gap: var(--s-2); }
+/* D-268 A1 (2026-11-11 walk): the keypad grid lived only under .padsheet and
+   .page-correct, so this panel's keypadHtml() collapsed 1-9 into one row and
+   "On sale" drew as a default grey button. Same grid and pill as those two. */
+.corr .keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 48px);
+  gap: 6px;
+}
+.corr .keypad-bottom {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 48px;
+  gap: 6px;
+  margin-top: 6px;
+}
+.corr .keypad-bottom-3 { grid-template-columns: repeat(3, 1fr); }
+.corr .chip {
+  align-self: start;
+  padding: 7px 14px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.corr .chip-on {
+  background: var(--raised);
+  border-color: currentColor;
+  color: var(--ink);
+}
+.corr .chip:focus-visible {
+  outline: var(--ring-width) solid currentColor;
+  outline-offset: var(--ring-offset);
+}
 .toast[data-corr-toast] {
   position: absolute;
   left: var(--s-4);

@@ -461,7 +461,7 @@ const EN = {
   correct_title: 'Tell Pexi the price',
   correct_which_shop: 'Which shop?',
   correct_on_sale: 'On sale',
-  correct_save_it: 'Save it',
+  correct_save_it: 'Send it', // D-268 A1 2026-11-11: was "Save it", the same words as the sheet's Save (to Saved); this sends a correction
   correct_not_now: 'Not now',
   /* N05: a price needs an item. With none handed in, the screen asks which of the shopper's scanned items it is for. */
   correct_pick_h: 'Which item is the price for?',
@@ -1116,7 +1116,7 @@ const FR = {
   correct_title: 'Dis le prix à Pexi',
   correct_which_shop: 'Quel magasin?',
   correct_on_sale: 'En solde',
-  correct_save_it: 'Enregistrer',
+  correct_save_it: 'Envoyer',
   correct_not_now: 'Pas maintenant',
   correct_pick_h: 'Pour quel produit est ce prix?',
   correct_pick_or_scan: 'Ce n’est aucun de ceux-là? Scanne plutôt son code-barres.',
