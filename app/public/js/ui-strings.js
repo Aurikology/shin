@@ -727,6 +727,9 @@ const EN = {
   you_ratings_none: 'None yet',
   you_thumbs_up: 'thumbs up',
   you_thumbs_down: 'thumbs down',
+  // D-268 F31: the ratings row in plain words (was "0 thumbs up · 1 thumbs down").
+  you_rated_right: (f) => `${f.n} looked right`,
+  you_rated_wrong: (f) => `${f.n} looked wrong`,
   you_data_h: 'What Pexi does with your data',
   you_photos: 'Photos',
   you_location: 'Location',
@@ -747,7 +750,7 @@ const EN = {
      when no lookup knows a barcode. Costs money per picture, so off by default. */
   dev_pack_read: 'Send picture to Claude',
   dev_pack_read_caption: 'When no lookup knows a barcode, the camera picture goes to Claude to read the pack. Each picture costs money, so it is off for everyone else, and the server must also list this phone.',
-  you_build: 'Build',
+  you_build: 'Server updated', // D-268 F31: the date is the server's start, not an app build
   you_build_note: '(when this server last started)',
   you_can_price: 'Products Pexi can price',
   you_row_can_answer: 'can answer',
@@ -1348,6 +1351,8 @@ const FR = {
   you_ratings_none: 'Aucune pour l’instant',
   you_thumbs_up: 'pouces en haut',
   you_thumbs_down: 'pouces en bas',
+  you_rated_right: (f) => `${f.n} ${Number(f.n) > 1 ? 'semblaient justes' : 'semblait juste'}`,
+  you_rated_wrong: (f) => `${f.n} ${Number(f.n) > 1 ? 'semblaient fausses' : 'semblait fausse'}`,
   you_data_h: 'Ce que Pexi fait avec tes données',
   you_photos: 'Photos',
   you_location: 'Localisation',
@@ -1364,7 +1369,7 @@ const FR = {
   dev_tags_caption: 'Une petite étiquette comme a12 dans le coin de chaque écran, pour pouvoir nommer un écran dans un message. Désactivé pour tout le monde.',
   dev_pack_read: 'Envoyer la photo à Claude',
   dev_pack_read_caption: 'Quand aucune recherche ne connaît un code-barres, la photo de la caméra part chez Claude pour lire l’emballage. Chaque photo coûte de l’argent : désactivé pour tout le monde, et le serveur doit aussi connaître ce téléphone.',
-  you_build: 'Version',
+  you_build: 'Serveur mis à jour',
   you_build_note: '(dernier démarrage de ce serveur)',
   you_can_price: 'Produits auxquels Pexi peut donner un prix',
   you_row_can_answer: 'peut répondre',

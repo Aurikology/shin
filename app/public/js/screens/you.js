@@ -389,7 +389,7 @@ export default {
           <p class="fineprint">${
             ratedCounts.total === 0
               ? escapeHtml(t('you_ratings_none'))
-              : `${escapeHtml(String(ratedCounts.up))} ${escapeHtml(t('you_thumbs_up'))} · ${escapeHtml(String(ratedCounts.down))} ${escapeHtml(t('you_thumbs_down'))}`
+              : `${escapeHtml(t('you_rated_right', { n: ratedCounts.up }))} · ${escapeHtml(t('you_rated_wrong', { n: ratedCounts.down }))}`
           }</p>
         </section>
 
@@ -525,7 +525,7 @@ export default {
     void buildStamp().then((stamp) => {
       if (ac.signal.aborted || !stamp) return;
       const line = root.querySelector('[data-build]');
-      if (line) line.textContent = `${t('you_build')} ${stamp} ${t('you_build_note')}`;
+      if (line) line.textContent = `${t('you_build')} ${stamp}`; // D-268 F31: no "(when this server last started)"
     }).catch(() => {});
 
     /* This week's scans, from the server's own count. Never awaited: the page
