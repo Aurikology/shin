@@ -158,6 +158,9 @@ const EN = {
   cam_items_in_the_deal: 'Items in the deal',
   cam_pad_after_pct: (f) => `${f.price} after ${f.pct}% off`,
   cam_pad_each: (f) => `${f.price} each`,
+  // D-268 E23: a lit modifier outside its range prices nothing and says what to type.
+  cam_mod_pct_range: (f) => `Type a discount from ${f.min} to ${f.max}%`,
+  cam_mod_n_range: (f) => `Type how many, from ${f.min} to ${f.max}`,
   cam_one_seller: '1 seller',
   cam_comma_one_seller: ', one seller',
   cam_that_item: 'that item',
@@ -883,6 +886,8 @@ const FR = {
   cam_items_in_the_deal: 'Articles dans le rabais',
   cam_pad_after_pct: (f) => `${f.price} après ${f.pct} % de rabais`,
   cam_pad_each: (f) => `${f.price} chacun`,
+  cam_mod_pct_range: (f) => `Entre un rabais de ${f.min} à ${f.max} %`,
+  cam_mod_n_range: (f) => `Entre combien, de ${f.min} à ${f.max}`,
   cam_one_seller: '1 marchand',
   cam_comma_one_seller: ', un marchand',
   cam_that_item: 'cet article',

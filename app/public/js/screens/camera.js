@@ -299,25 +299,43 @@ function grabber() {
  * being the asking price once a modifier is active, and the confirm key sends
  * the effective price, never the sticker number alone.
  */
-function effectivePriceCents(typedCents, modifier) {
-  if (typedCents == null) return null;
-  if (!modifier) return typedCents;
+/* D-268 E23 (2026-11-11 walk): the same limits as the inputs' own min/max.
+   A lit modifier outside them used to fall back to the sticker price, so
+   "96% off" priced and "150% off" sent the sticker number with "% off" lit. */
+const PCT_MIN = 1;
+const PCT_MAX = 95;
+const NFOR_MIN = 2;
+const NFOR_MAX = 20;
+
+/** The ui-strings key saying what to type, or null when the modifier is usable. */
+function modifierProblem(modifier) {
+  if (!modifier) return null;
   if (modifier.kind === 'percent') {
-    const pct = modifier.pct;
-    if (!Number.isFinite(pct) || pct <= 0 || pct >= 100) return typedCents;
-    return Math.max(0, Math.round(typedCents * (1 - pct / 100)));
+    const p = modifier.pct;
+    return Number.isInteger(p) && p >= PCT_MIN && p <= PCT_MAX ? null : 'cam_mod_pct_range';
   }
   if (modifier.kind === 'nfor') {
     const n = modifier.n;
-    if (!Number.isFinite(n) || n < 2) return typedCents;
-    return Math.round(typedCents / n);
+    return Number.isInteger(n) && n >= NFOR_MIN && n <= NFOR_MAX ? null : 'cam_mod_n_range';
   }
+  return null;
+}
+
+function effectivePriceCents(typedCents, modifier) {
+  if (typedCents == null) return null;
+  if (!modifier) return typedCents;
+  if (modifierProblem(modifier)) return null;
+  if (modifier.kind === 'percent') return Math.max(0, Math.round(typedCents * (1 - modifier.pct / 100)));
+  if (modifier.kind === 'nfor') return Math.round(typedCents / modifier.n);
   return typedCents;
 }
 
 /** The labelled effective price under the pad, e.g. "$5.00 after 20% off". */
 function modifierLabel(typedCents, modifier) {
-  if (typedCents == null || !modifier) return '';
+  if (!modifier) return '';
+  const problem = modifierProblem(modifier);
+  if (problem) return t(problem, { min: modifier.kind === 'percent' ? PCT_MIN : NFOR_MIN, max: modifier.kind === 'percent' ? PCT_MAX : NFOR_MAX });
+  if (typedCents == null) return '';
   const eff = effectivePriceCents(typedCents, modifier);
   if (eff === null || eff === typedCents) return '';
   // D-248: in the reader's language, like every other line on the pad.
