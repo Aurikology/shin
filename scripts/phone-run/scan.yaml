@@ -1,4 +1,4 @@
-appId: com.useshinapp.shin
+appId: ${APP_ID}    # the installed package id; see README (run maestro with -e APP_ID=...)
 name: Pexi first scan (fake barcode in the emulator's virtual scene)
 ---
 # Before running: the emulator is up with the poster, the camera is pointing at it

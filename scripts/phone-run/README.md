@@ -8,7 +8,10 @@ barcode reader, and the call to the live server (relay.anjiawenda.com). Note the
 zxing-wasm inside the WebView (src/eye), NOT by the ML Kit barcode plugin, which is installed but unused.
 
 Paths below assume `C:\Android\Sdk`, worktree `C:\shin-lanes\android-run`, tools in `%USERPROFILE%\tools`.
-No admin, reboot or paid account is needed. Package id is `com.useshinapp.shin`.
+No admin, reboot or paid account is needed. The package id is whatever `applicationId` in
+`native/android/app/build.gradle` says. RULINGS.md (bundle id ruling) sets it to com.getpexi.app, but on
+2026-11-11 the Android build still carried the old id; `scan.yaml` and the grant below must use the installed one
+(`adb shell pm list packages | findstr -i "pexi shin"`). Set it once: `set APP_ID=<that id>`.
 
 ## 1. System image and AVD (about 2.3 GB image, 5.7 GB AVD while running)
 
@@ -51,7 +54,7 @@ APK: `native\android\app\build\outputs\apk\debug\app-debug.apk` (80 MB).
 If `adb devices` says `unauthorized`: `adb kill-server && adb start-server`.
 
     adb install -r app-debug.apk
-    adb shell pm grant com.useshinapp.shin android.permission.CAMERA
+    adb shell pm grant %APP_ID% android.permission.CAMERA
 
 ## 4. Aim the virtual camera at the wall poster
 
@@ -69,7 +72,7 @@ survives app restarts but not emulator restarts.
 
     Download https://github.com/mobile-dev-inc/maestro/releases (maestro.zip, 2.12.1 used), unzip to %USERPROFILE%\tools\maestro
     set PATH=%USERPROFILE%\tools\maestro\bin;C:\Android\Sdk\platform-tools;%PATH%
-    maestro test scripts/phone-run/scan.yaml
+    maestro test -e APP_ID=%APP_ID% scripts/phone-run/scan.yaml
 
 The flow clears app data, does the consent and permission screens, waits for "Barcode. Hold it there." (the reader
 has seen the code), taps the round scan button (50%,90%, it has no text label), then expects the product name
