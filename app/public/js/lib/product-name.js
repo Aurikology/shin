@@ -20,6 +20,21 @@ function squash(s) {
   return String(s ?? '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+/**
+ * D-268 B16/B17, the screen half of D-261 (2026-11-11 walk): a string shouted
+ * end to end ("OREO", "FILLED BISCUITS", shop titles in capitals) is the feed's
+ * casing, not the brand's, so it reads in title case. Kept as written: any
+ * string with a lower-case letter (deliberate casing), words of two letters or
+ * fewer (PC, KD), words with no vowel (BBQ), and words with a digit (900G, 7UP).
+ */
+export function unshout(s) {
+  if (/\p{Ll}/u.test(s)) return s;
+  return s.replace(/[\p{L}\p{N}'’]+/gu, (w) => {
+    if (w.length <= 2 || /\p{N}/u.test(w) || !/[AEIOUYÀ-ÖØ-Ý]/u.test(w)) return w;
+    return w[0] + w.slice(1).toLowerCase();
+  });
+}
+
 /** One name with the feed's decoration taken off. */
 export function cleanName(raw) {
   let s = String(raw ?? '');
@@ -28,7 +43,7 @@ export function cleanName(raw) {
   s = s.replace(FLAG_EMOJI, '');
   s = s.replace(FANCY_LETTERS, '');
   s = s.replace(/\s*[•·●]\s*/g, ' ');
-  s = s.replace(/\s{2,}/g, ' ').trim();
+  s = unshout(s.replace(/\s{2,}/g, ' ').trim());
   // A quantity written twice in a row at the end: "95 pack 95 pack".
   return s.replace(/(\b\d+(?:[.,]\d+)?\s*[A-Za-z]+)\s+\1\s*$/i, '$1');
 }

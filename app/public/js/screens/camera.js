@@ -3034,7 +3034,7 @@ function candidateRow({ brand, name, size, category } = {}) {
   const title = brandLeadsName ? [n, s] : [b, n, s];
   return {
     label: title.filter(Boolean).join(' '),
-    meta: brandLeadsName ? b : (category ?? ''),
+    meta: brandLeadsName ? b : cleanName(category ?? ''), // D-268 B16: raw "FILLED BISCUITS" category tags
   };
 }
 
