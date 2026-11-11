@@ -685,6 +685,7 @@ const EN = {
   /* ----------------------------------------------------------- the watchlist */
   saved_title: 'Saved',
   saved_no_usual: 'no usual price',
+  saved_usual_is: (f) => `usually ${f.usual}`, // D-268 D20
   saved_at_the_usual: 'at the usual',
   saved_under_usual: 'under the usual',
   saved_over_usual: 'over the usual',
@@ -1314,6 +1315,7 @@ const FR = {
   /* ----------------------------------------------------------- les gardés */
   saved_title: 'Gardés',
   saved_no_usual: 'aucun prix habituel',
+  saved_usual_is: (f) => `habituellement ${f.usual}`,
   saved_at_the_usual: 'au prix habituel',
   saved_under_usual: 'sous l’habituel',
   saved_over_usual: 'au-dessus de l’habituel',

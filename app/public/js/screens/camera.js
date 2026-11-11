@@ -6301,7 +6301,9 @@ export default {
             category: null,
             lastCents: shopper,
             askingSeller: null,
-            usualCents: v ? Math.round(v.centreCents) : null,
+            // D-268 D20 (2026-11-11 walk): the usual the sheet showed (rounded, R-42), so Saved says
+            // the same "$1.29 over" as the sheet, not "$1.31" off the unrounded centre.
+            usualCents: v ? roundEstimateCents(v.centreCents) : null,
             thumb: last?.thumb ?? null,
             /* D07, D20: the verdict on file travels with the saved row, so Saved
                opens with it and wears the zone word's face. */

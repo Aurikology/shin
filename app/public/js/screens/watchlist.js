@@ -120,7 +120,8 @@ export function row(w, history) {
   /* R-54: the difference is FROZEN. It is worked out from the price and the usual the row was saved
      with, never from a live estimate, and it is printed with the same currency as the price beside it
      and the date it was saved on (the sub line below), so it reads "$0.80 under the usual, saved Sep 9". */
-  const delta = moved === null ? t('saved_no_usual')
+  // D-268 D20: a usual with no shelf price of its own says the usual, not "no usual price".
+  const delta = moved === null ? (usualCents !== null ? t('saved_usual_is', { usual: money(usualCents, answer?.currency) }) : t('saved_no_usual'))
     : moved === 0 ? t('saved_at_the_usual')
     : cheaper ? `▼ ${money(Math.abs(moved), answer?.currency)} ${t('saved_under_usual')}`
     : `▲ ${money(moved, answer?.currency)} ${t('saved_over_usual')}`;
