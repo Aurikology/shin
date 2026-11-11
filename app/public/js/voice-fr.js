@@ -303,6 +303,11 @@ export const LINES_FR = {
     warm: () => "Voici les magasins autour de toi. Touche celui où tu te trouves et je vais m'en souvenir, comme ça je ne te le redemanderai pas la prochaine fois que tu viens ici.",
     blunt: () => "Les magasins proches. Touche le tien. Je vais m'en souvenir.",
   },
+  shop_pick_prompt_noloc: {
+    deadpan: () => "Touche le magasin où tu es.",
+    warm: () => "Dans quel magasin es-tu? Touche-le.",
+    blunt: () => "Touche ton magasin.",
+  },
   shop_none_nearby: {
     deadpan: () => "Aucun magasin sur la carte par ici. Le prix vaut quand même la peine d'être noté sans magasin.",
     warm: () => "Je ne trouve aucun magasin sur la carte par ici, ce qui veut souvent dire que personne ne les a encore ajoutés. Le prix vaut quand même la peine d'être noté sans magasin.",

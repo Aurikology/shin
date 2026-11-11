@@ -541,6 +541,12 @@ const LINES_EN = {
     warm: () => 'Shops near you. Tap yours and I will remember it.',
     blunt: () => 'Shops near you. Tap yours, I will remember.',
   },
+  /* D-268 E25: with location off nothing is kept per place, so no promise to remember. */
+  shop_pick_prompt_noloc: {
+    deadpan: () => 'Tap the shop you are in.',
+    warm: () => 'Which shop are you in? Tap it.',
+    blunt: () => 'Tap your shop.',
+  },
   shop_none_nearby: {
     deadpan: () => 'No shops mapped here. Write the price down anyway.',
     warm: () => 'No shops mapped here yet. Write the price down anyway.',

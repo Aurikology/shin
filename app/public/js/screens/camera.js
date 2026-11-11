@@ -2505,7 +2505,7 @@ function shopRowsHtml(list, chosenId = null) {
  * @param {{needed?: boolean, query?: string}} [opts]  `needed` says why the
  *   sheet opened: the shopper tried to file a price with no shop chosen.
  */
-function storePickerSheet(shopList, chosenId = null, { needed = false, query = '' } = {}) {
+function storePickerSheet(shopList, chosenId = null, { needed = false, query = '', remembers = true } = {}) {
   return `
     <section class="sheet shopsheet" data-tier="unknown" data-conf="reading" tabindex="-1">
       <span class="grabber" aria-hidden="true"></span>
@@ -2514,7 +2514,8 @@ function storePickerSheet(shopList, chosenId = null, { needed = false, query = '
             not discard what the shopper already typed. */ backButton(t('nav_back'), 'shop-back')}
       <div class="sheet-peek">
         <div class="sheet-head">
-          ${shinSay('asking', 'shop_pick_prompt', {}, { size: 64 })}
+          ${/* D-268 E25: "I will remember it" only when it can be kept (a shop is kept per location cell). */ ''}
+          ${shinSay('asking', remembers ? 'shop_pick_prompt' : 'shop_pick_prompt_noloc', {}, { size: 64 })}
         </div>
         <h2 class="vword" style="font-size:20px">${escapeHtml(t('correct_which_shop'))}</h2>
         ${needed ? `<p class="fineprint" role="status" data-shop-needed>${escapeHtml(pt('shop_needed'))}</p>` : ''}
@@ -5009,7 +5010,7 @@ export default {
       shopNeeded = needed;
       shopNearby = shops.nearbyCached();
       shopList = pickerRows();
-      slot.innerHTML = storePickerSheet(shopList, shops.chosenId(), { needed });
+      slot.innerHTML = storePickerSheet(shopList, shops.chosenId(), { needed, remembers: shops.locationAllowed() });
       // Not focused on the search box: on a phone that raises the keyboard over the list the shopper opened to read.
       mounted();
       // The radio group keyboard `lib/radiogroup.js` exists for, wired on every open.
