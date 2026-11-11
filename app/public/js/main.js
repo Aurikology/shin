@@ -22,6 +22,7 @@
 
 import * as router from './router.js';
 import { startThemeColourSync } from './lib/theme.js';
+import { startTextSizeSync } from './lib/text-size.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
@@ -84,6 +85,8 @@ try {
    over a cream page. Started after the line above so the first paint of the
    chrome is already the right colour. */
 startThemeColourSync();
+/* D-254: the phone's text size (iOS Larger Text, Android font size), on the native app only. */
+startTextSizeSync();
 
 /**
  * Item 6b: the consent screen sits between the attitude picker and the
