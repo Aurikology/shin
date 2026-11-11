@@ -177,12 +177,23 @@ function assertGuessed(answer: Record<string, any>, what: string, wrongCents: nu
   assert.ok(!(v.dots ?? []).some((d: { cents: number }) => d.cents === wrongCents), `${what}: the guessed product's prices are drawn as dots`);
 }
 
+/** The range card is the second price path: it must not be the guessed product's own range either. */
+function assertRangeNotGuessed(answer: Record<string, any>, what: string, wrongCents: number): void {
+  const r = answer.range;
+  if (!r) return;
+  assert.ok(!(r.basis === 'this_product' && r.medianCents === wrongCents), `${what}: the range card is the guessed product's own range`);
+}
+
 test('wrong product: typed "milk" is not judged as the coconut milk a loose text match found', async () => {
-  assertGuessed(await byName('milk', 1500), '"milk" at $15', 299);
+  const answer = await byName('milk', 1500);
+  assertGuessed(answer, '"milk" at $15', 299);
+  assertRangeNotGuessed(answer, '"milk" at $15', 299);
 });
 
 test('wrong product: typed "kraft dinner" is not judged as the 12-pack when the size is unknown', async () => {
-  assertGuessed(await byName('kraft dinner', 900), '"kraft dinner" at $9', 1399);
+  const answer = await byName('kraft dinner', 900);
+  assertGuessed(answer, '"kraft dinner" at $9', 1399);
+  assertRangeNotGuessed(answer, '"kraft dinner" at $9', 1399);
 });
 
 test('control: the scanned coconut milk barcode still answers from its own prices', async () => {

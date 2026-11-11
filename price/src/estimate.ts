@@ -102,6 +102,8 @@ export const HORIZON_DAYS = 730;
 export const HALF_LIFE_DAYS = 365;
 /** A price this many times off its category median is a wrong row, left out of the centre. */
 export const WRONG_ROW_FACTOR = 5;
+/** D-267: a name-joined row agrees with the barcode-joined rows when within this factor of their median. */
+export const NAME_JOIN_AGREE = 2;
 /** The pack-size band: half to double this item's size. */
 export const BAND_LOW = 0.5;
 export const BAND_HIGH = 2;
@@ -1031,11 +1033,18 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     }
   }
   const selfCat = selfKey ? cat.get(selfKey) ?? null : null;
-  // D-267: rows joined to this barcode by name only are the product's own prices (and its dots) only
-  // when no row joined by the barcode itself exists; alone they can never make the answer "Certain".
+  // D-267: a row joined to this barcode by name only may be another product with a similar name. Where
+  // rows joined by the barcode itself exist, a name-joined row counts (as a price and a dot) only when
+  // it agrees with them, within NAME_JOIN_AGREE of their median; alone, name-joined rows still answer
+  // but never make the answer "Certain". Live 2026-11-11: dropping every name-joined row moved Kraft
+  // peanut butter from $7.55 to $9.78, because most shops' rows for it are name-joined and right.
   const ownAny = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
   const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
-  const ownAll = ownByBarcode.length > 0 ? ownByBarcode : ownAny;
+  const barcodeMid = ownByBarcode.length > 0 ? medianOf(ownByBarcode.map((r) => Math.log(r.cents))) : null;
+  const ownAll =
+    barcodeMid === null
+      ? ownAny
+      : ownAny.filter((r) => !r.nameJoined || Math.abs(Math.log(r.cents) - barcodeMid) <= Math.log(NAME_JOIN_AGREE));
   const ownByNameOnly = ownAll.length > 0 && ownByBarcode.length === 0;
   const ownNewest = [...ownAll].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0))[0] ?? null;
 

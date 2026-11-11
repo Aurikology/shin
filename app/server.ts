@@ -1240,7 +1240,9 @@ async function typedFromOwnData(
   if (first && verdictCtx) {
     const code = resolution?.row?.code ?? match?.code ?? null;
     const canonical = code ? canonicalBarcode(code) : null;
-    if (canonical) {
+    // A guessed product never takes the barcode route: its range card would be the guessed product's
+    // (live 2026-11-11, "milk" showed a coconut milk's $2.29 to $3.49). The words are priced instead.
+    if (canonical && typedId.grade === 'sure') {
       try {
         barcodeAnswer = await catalogueFirstBarcode(verdictCtx.askRange, canonical, verdictCtx.market, device, verdictCtx.shopper, undefined, typedId);
       } catch (err) {

@@ -59,6 +59,16 @@ test('D-267: a name-joined row is not an own price when barcode-joined rows exis
   assert.equal(verdict.centreCents, 700);
 });
 
+test('D-267: a name-joined row that agrees with the barcode-joined rows still counts (live peanut butter case)', async () => {
+  // Live 2026-11-11: Metro and Save-On joined by barcode at $8.49; No Frills, Walmart and others joined by
+  // name at $5.97 to $7.99 for the same jar. Dropping them moved the typical price above every price seen.
+  const byBarcode = [0, 1].map((i) => obs({ priceCents: 849, seller: `b${i}` }));
+  const byName = [597, 599, 699, 799].map((c, i) => obs({ priceCents: c, seller: `n${i}`, joinMethod: 'name' }));
+  const { verdict } = await estimate(item, null, { prices: pricesDb([...byBarcode, ...byName]), askClaude: noClaude });
+  assert.deepEqual(verdict.dots.map((d) => d.cents).sort((a, b) => a - b), [597, 599, 699, 799, 849, 849]);
+  assert.ok(verdict.centreCents <= 849, `centre ${verdict.centreCents} sits above every price seen`);
+});
+
 test('D-267: name-joined rows alone still answer, but never "Certain"', async () => {
   const byName = [0, 1, 2, 3].map((i) => obs({ priceCents: 700, seller: `n${i}`, joinMethod: 'name' }));
   const { verdict } = await estimate(item, null, { prices: pricesDb(byName), askClaude: noClaude });
