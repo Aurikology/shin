@@ -211,6 +211,7 @@ function runOnBarcode(flags, consentPhotos) {
   const build = new Function('deps', `
     const { cam, video, FLAGS, store, ctx, track, captureThumb, captureFrame, packReadOn, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode } = deps;
     let dead = false, gen = 0;
+    const stopBarcodeLook = () => {}; // 2026-11-10: a read ends any press still looking
     let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, torchAckActive = false, pendingEscalation = null, coachKey = null, scanThumb = null, scanFrame = null;
     ${src}
     return onBarcode;

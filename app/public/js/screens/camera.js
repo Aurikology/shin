@@ -83,6 +83,9 @@ const FACE_HIDDEN_IN = new Set(['choosing', 'asking', 'reading', 'texting', 'res
  */
 export const MIN_CAPTURE_INTERVAL_MS = 1200;
 
+/** How long one press of the barcode button keeps looking for a settled code before it coaches. */
+export const BARCODE_LOOK_MS = 2500;
+
 /**
  * Pure so the arithmetic is checked without a DOM: `lastCaptureAt` of 0 means
  * nothing has been captured yet this screen, which always allows. `now` and
@@ -3372,6 +3375,8 @@ export default {
     let scanBarcode = null;
     /** The code the eye's vote has settled on (the button is showing for it), or null. */
     let barcodeReady = null;
+    /** The barcode press that is still looking for a settled code (setInterval id), or null. */
+    let barcodeLook = null;
     /** The shelf price typed at scan time, in cents, or null when skipped or not yet asked. Cleared by `reset()`. */
     let scanShelfCents = null;
     /*
@@ -3744,6 +3749,14 @@ export default {
     }
 
     /** The barcode button is always there; it lights (`is-ready`) exactly when the vote has a winner, at idle. */
+    function stopBarcodeLook() {
+      clearInterval(barcodeLook);
+      barcodeLook = null;
+      const btn = root.querySelector('.scan-code-btn');
+      btn?.classList.remove('is-looking');
+      btn?.removeAttribute('aria-busy');
+    }
+
     function paintBarcodeButton() {
       const btn = root.querySelector('.scan-code-btn');
       if (!btn) return;
@@ -4242,6 +4255,7 @@ export default {
       scanBarcode = read.value;
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
+      stopBarcodeLook();
       clearTimeout(torchAckTimer);
       torchAckActive = false;
       pendingEscalation = null;
@@ -5256,6 +5270,7 @@ export default {
       lastCaptureAt = Date.now();
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
+      stopBarcodeLook();
       clearTimeout(torchAckTimer);
       torchAckActive = false;
       pendingEscalation = null;
@@ -6061,11 +6076,31 @@ export default {
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
         if (!captureAllowed(Date.now(), lastCaptureAt)) return;
+        if (barcodeLook) return; // already looking for this press
         track('barcode_scan_pressed', {});
         const sent = eye?.scanBarcode?.();
+        if (!sent && eye?.scanBarcode) {
+          /* Aurik, 2026-11-10, build 6 on a phone: "make the capture button like an actual button
+             because if you click it nothing happens". A press before the vote settled used to end
+             here with only a dock line. Now the button stays pressed (is-looking) and keeps asking
+             for BARCODE_LOOK_MS; the first settled code fires, and only a miss says what to do. */
+          const btn = root.querySelector('.scan-code-btn');
+          btn?.classList.add('is-looking');
+          btn?.setAttribute('aria-busy', 'true');
+          const until = Date.now() + BARCODE_LOOK_MS;
+          barcodeLook = setInterval(() => {
+            if (dead || cam.dataset.state !== 'idle') { stopBarcodeLook(); return; }
+            if (eye?.scanBarcode?.()) { stopBarcodeLook(); lastCaptureAt = Date.now(); return; }
+            if (Date.now() < until) return;
+            stopBarcodeLook();
+            barcodeReady = null;
+            paintBarcodeButton();
+            sayNoBarcode();
+          }, 100);
+          return;
+        }
         if (!sent) {
-          // Nothing settled, or the code left the frame between the vote and
-          // the press. Nothing was sent; say what to do.
+          // No eye at all: nothing can read a code. Say what to do.
           barcodeReady = null;
           paintBarcodeButton();
           sayNoBarcode();
@@ -7309,6 +7344,7 @@ export default {
       stopShelfCapture();
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
+      stopBarcodeLook();
       clearTimeout(torchAckTimer);
       torchAckActive = false;
       pendingEscalation = null;

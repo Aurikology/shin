@@ -266,3 +266,20 @@ test('every barcode in view gets a mark, and the focused one looks different', (
   const emit = between(EYE, '  #emitBarcodes(): void {', '  /**\n   * The torch, and the case', '#emitBarcodes');
   assert.ok(emit.includes('for (const t of tracks)'), 'the eye reports fewer codes than are in view');
 });
+
+/* -------------------- 5. a press with no settled code keeps looking (2026-11-10) */
+
+test('a press before the vote settles keeps looking, visibly, then coaches', () => {
+  // Aurik, build 6 on a phone: "if you click it nothing happens".
+  const h = between(SCREEN, "if (act === 'scan-barcode') {", "if (act === 'watchlist')", 'scan-barcode handler');
+  assert.ok(h.includes("classList.add('is-looking')"), 'the press no longer shows that it is looking');
+  assert.ok(/barcodeLook = setInterval\(/.test(h), 'the press no longer keeps asking the eye');
+  assert.ok(/if \(eye\?\.scanBarcode\?\.\(\)\) \{ stopBarcodeLook\(\); lastCaptureAt = Date\.now\(\); return; \}/.test(h),
+    'a code that settles while looking does not fire');
+  assert.ok(/if \(Date\.now\(\) < until\) return;\s*stopBarcodeLook\(\);[\s\S]*sayNoBarcode\(\);/.test(h),
+    'a miss after the look does not coach');
+  assert.match(SCREEN, /export const BARCODE_LOOK_MS = 2500;/);
+  assert.match(CSS, /\.scan-code-btn\.is-looking \{/, 'no pressed look for a press that is looking');
+  // Every way off the viewfinder stops the look (teardown and both resets).
+  assert.equal((SCREEN.match(/clearTimeout\(scanPressTimer\);\n\s*stopBarcodeLook\(\);/g) ?? []).length, 3);
+});

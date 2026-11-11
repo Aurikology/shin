@@ -631,6 +631,17 @@
 .scan-code-btn:active { background: #d9dde5; } /* build 7 R-87: a tint, no scale */
 .scan-code-btn:focus-visible { outline: 3px solid #fff; outline-offset: 5px; }
 .scan-code-btn.is-ready { box-shadow: 0 0 0 4px var(--brand), 0 0 0 9px rgba(229, 22, 94, .22); }
+/* A press still looking for a settled code (camera.js BARCODE_LOOK_MS): the button stays pressed
+   and a brand ring turns round it, so the tap visibly did something. iOS draws :active only
+   briefly, which is why a press with no code looked like nothing happened. */
+.scan-code-btn.is-looking { position: relative; background: #d9dde5; box-shadow: 0 0 0 4px var(--brand); }
+.scan-code-btn.is-looking::after {
+  content: ''; position: absolute; inset: -9px; border-radius: 50%;
+  border: 3px solid transparent; border-top-color: #fff; border-right-color: #fff;
+  animation: scan-look 800ms linear infinite;
+}
+@keyframes scan-look { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .scan-code-btn.is-looking::after { animation: none; border-color: #fff; } }
 .type-btn {
   display: grid;
   place-items: center;

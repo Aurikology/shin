@@ -151,20 +151,24 @@ test('every icon button is at least 44px each way, and the keyboard one is the s
 // needs it fails on its own if the source it cuts from has moved.
 const runDispatch = (...args) => new Function(
   'act', 'cam', 'track', 'eye', 'paintBarcodeButton', 'sayNoBarcode', 'buzz', 'openManualSearch', 'shoot', 'btn', 'out',
-  'captureAllowed', 'lastCaptureAt',
-  `let barcodeReady = { value: '0123456789012' };\ntry {\n${
+  'captureAllowed', 'lastCaptureAt', 'root', 'stopBarcodeLook', 'setInterval', 'BARCODE_LOOK_MS',
+  `let barcodeReady = { value: '0123456789012' }; let barcodeLook = null; const dead = false;\ntry {\n${
     between(CAMERA, "      if (act === 'shoot') { shoot(); return; }", "      if (act === 'watchlist')", 'the click dispatch')
-  }\n} finally { out.barcodeReady = barcodeReady; }`,
+  }\n} finally { Object.defineProperty(out, 'barcodeReady', { get: () => barcodeReady }); }`,
 )(...args);
 
 // `lastCaptureAt` defaults to 0, which `captureAllowed` (item 8, the real
 // export, not a stub) treats as "nothing captured yet" and always allows;
 // these tests are about the barcode/eye wiring, not the throttle, so they
 // run as if the last capture was long enough ago.
-function press(act, { state = 'idle', sent = true, noEye = false, lastCaptureAt = 0 } = {}) {
+function press(act, { state = 'idle', sent = true, noEye = false, lastCaptureAt = 0, later = [] } = {}) {
   const log = [];
-  const eye = noEye ? undefined : { scanBarcode: () => { log.push('eye.scanBarcode'); return sent; } };
+  // `sent` answers the press; `later` answers each tick of the look that follows a miss.
+  const answers = [sent, ...later];
+  const eye = noEye ? undefined : { scanBarcode: () => { log.push('eye.scanBarcode'); return answers.length > 1 ? answers.shift() : answers[0]; } };
   const out = {};
+  const ticks = [];
+  const btnEl = { classList: { add: (c) => log.push(`add:${c}`) }, setAttribute: () => {} };
   runDispatch(
     act,
     { dataset: { state } },
@@ -179,7 +183,12 @@ function press(act, { state = 'idle', sent = true, noEye = false, lastCaptureAt 
     out,
     captureAllowed,
     lastCaptureAt,
+    { querySelector: () => btnEl },
+    () => log.push('stopLook'),
+    (fn) => { ticks.push(fn); return 1; },
+    0, // the look runs out on its first tick, so a test steps it by hand
   );
+  for (let i = 0; i < ticks.length; i += 1) ticks[i]();
   return { log, ready: out.barcodeReady };
 }
 
@@ -199,11 +208,18 @@ test('pressing the barcode icon takes the code the eye has read', () => {
 });
 
 test('pressing the barcode icon with nothing read answers with the coaching line instead of doing nothing', () => {
+  // Amended 2026-11-10 (build 6, "if you click it nothing happens"): the press shows it is looking,
+  // asks again for BARCODE_LOOK_MS, and coaches only once the look runs out.
   const { log, ready } = press('scan-barcode', { sent: false });
-  assert.deepEqual(log, ['track:barcode_scan_pressed', 'eye.scanBarcode', 'paint', 'sayNoBarcode']);
+  assert.deepEqual(log, ['track:barcode_scan_pressed', 'eye.scanBarcode', 'add:is-looking', 'eye.scanBarcode', 'stopLook', 'paint', 'sayNoBarcode']);
   assert.equal(ready, null, 'the button still thinks a code is ready after the eye said there is none');
   assert.deepEqual(press('scan-barcode', { noEye: true }).log, ['track:barcode_scan_pressed', 'paint', 'sayNoBarcode'],
     'a camera with no eye leaves the press unanswered');
+});
+
+test('a code that settles while the press is looking fires, with no coaching line', () => {
+  const { log } = press('scan-barcode', { sent: false, later: [true] });
+  assert.deepEqual(log, ['track:barcode_scan_pressed', 'eye.scanBarcode', 'add:is-looking', 'eye.scanBarcode', 'stopLook']);
 });
 
 test('neither scan button fires under a sheet that is already up', () => {
