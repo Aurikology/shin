@@ -1,4 +1,4 @@
-Mac: please make build 7 (iPhone only, same settings as build 6) from 283044c or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, then 624ac89). If build 7 is already uploaded from 624ac89, make this one build 8.
+Mac: please make build 7 (iPhone only, same settings as build 6) from 21fe098 or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, then 624ac89). If build 7 is already uploaded from 624ac89, make this one build 8.
 
 **New in native/: a plugin.** Before archiving, in native/: `npm ci`, then `npx cap sync ios` (it runs pod install for CapacitorTextZoom). Without it the app still runs; it just ignores the phone's text size.
 
@@ -18,6 +18,14 @@ What build 7 carries since build 6:
 - 7057718: the first screen says why Continue is still off.
 - 579eb4d: "Pexi's estimate" sits above the verdict word.
 - 283044c: You's ratings row and footer in plain words.
+- 57064e6: thousands separators, "aisle", the search box asks for a product name.
+- 74c49fe: names shouted in capitals by a shop feed read in title case.
+- a2fafbe: pages titled what the row that opens them says.
+- 532ed3a: Torch Off hides the brightness slider.
+- 858f6f1: Dollar mode says the dollars in the verdict line.
+- d6b3367: the shop list promises to remember only with location on.
+- 1f1f59c: Recently removed names each row's list, no "--".
+- 21fe098: "Your report" in plain words.
 
 Gate on 283044c: check exit 0; npm test 1979 pass, 0 fail, 5 skipped; test:ux 539 pass, 0 fail; WebKit sweep 36 taps 0 problems; fake-camera barcode press works, 0 errors. Every item above had a test seen red first. Not seen on a phone.
 
