@@ -31,6 +31,17 @@ import { firstScreen } from '../onboarding-flow.js';
 export const AGREEMENT_VERSION = 1;
 
 /** True until this install has answered the current version of this screen. */
+/**
+ * D-268 G32 (2026-11-11 walk): Continue sat grey with no word on why. What is
+ * still missing, said under it; empty once both are answered (a no is an answer).
+ */
+export function agreeHint(ticked, claude) {
+  if (!ticked && claude === null) return t('agree_hint_both');
+  if (!ticked) return t('agree_hint_terms');
+  if (claude === null) return t('agree_hint_claude');
+  return '';
+}
+
 export function needsAgreement(s) {
   return !(s?.agreement?.at && s.agreement.version >= AGREEMENT_VERSION && typeof s.agreement.claude === 'boolean');
 }
@@ -89,12 +100,15 @@ export default {
 
         <div class="page-foot">
           <button type="button" class="cta" data-act="agree-go" disabled>${escapeHtml(t('consent_continue'))}</button>
+          <p class="fineprint gate" data-agree-hint role="status">${escapeHtml(agreeHint(false, null))}</p>
         </div>
       </div>`;
 
     const go = root.querySelector('[data-act="agree-go"]');
+    const hint = root.querySelector('[data-agree-hint]');
     const paint = () => {
       go.disabled = !(ticked && claude !== null);
+      hint.textContent = agreeHint(ticked, claude);
     };
 
     on(root, 'change', (e) => {
