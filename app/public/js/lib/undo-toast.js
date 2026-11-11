@@ -14,7 +14,19 @@
  * most one tick and the countdown is the same under a mocked timer as on a phone.
  */
 
+import { html } from './dom.js';
+import { t } from '../ui-strings.js';
+
 export const UNDO_MS = 4000;
+
+/** The undo bar one list screen draws while a removal can be undone (Saved, and Past scans since D-268 D21). */
+export function undoToastHtml(label) {
+  return html`
+    <div class="undo-bar" data-list-toast role="status">
+      <span class="undo-bar-t">${label}</span>
+      <button type="button" class="undo-bar-btn" data-act="undo-remove" data-fk="undo-remove">${t('cam_undo')}</button>
+    </div>`;
+}
 const TICK_MS = 100;
 
 /**

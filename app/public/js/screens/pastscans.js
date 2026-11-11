@@ -28,6 +28,7 @@ import { say, wordFor, refusalLabel } from '../voice.js';
 import * as store from '../store.js';
 import { escapeHtml, html, raw, ago, dateLabel, on } from '../lib/dom.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
+import { createUndoToast, undoNow, undoToastHtml } from '../lib/undo-toast.js';
 import { pageBar, backButton, goBack, removeGlyph, rowChevron } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
 import { cleanName } from '../lib/product-name.js';
@@ -256,6 +257,8 @@ export default {
 
   render(root, ctx) {
     let openId = null;
+    /* D-268 D21: the open undo bar after a removal, or null. Up here with the other state so a repaint never reads it before it exists. */
+    let undo = null;
     /** The focus key of the row that opened the dialog, so closing it puts the
      *  user back on that row rather than at the top of the document. */
     let returnKey = null;
@@ -347,6 +350,8 @@ export default {
 
           ${raw(body)}
 
+          ${raw(undo?.isOpen ? undoToastHtml(undo.label) : '')}
+
           ${raw(pageBar('watchlist'))}
         </div>
         ${raw(phase === 'ready' && open ? detail(open) : '')}`;
@@ -396,8 +401,28 @@ export default {
       // the pointer was over the overlay element and nothing else.
       if (e.target.closest('[data-act="close-detail"]') || onBackdrop(e)) { closeModal(); return; }
 
+      if (e.target.closest('[data-act="undo-remove"]')) {
+        undoNow(undo, 'pastscans');
+        undo = null;
+        repaint();
+        return;
+      }
+
+      /* D-268 D21 (2026-11-11 walk): a past scan went with no confirmation and no undo. Same as
+         Saved (R-93, R-94): no confirmation, because it can be undone for four seconds. */
       const del = e.target.closest('[data-remove]');
-      if (del) { store.removeScan(del.dataset.remove); return; }
+      if (del) {
+        const id = del.dataset.remove;
+        store.removeScan(id);
+        undo?.close();
+        undo = createUndoToast({
+          label: t('removed_toast'),
+          restore: () => store.restoreRemoved('scan', id),
+          onClose: () => { if (!listeners.signal.aborted) repaint(); },
+        });
+        repaint();
+        return;
+      }
 
       const open = e.target.closest('[data-open]');
       if (open) { openId = open.dataset.open; returnKey = open.dataset.fk ?? null; repaint(); }
@@ -413,12 +438,20 @@ export default {
 
     on(document, 'keydown', modalKeys(root, () => openId !== null, closeModal), listeners.signal);
 
+    // R-94: the four seconds stop while a finger is on the bar and carry on with what was left.
+    const overToast = (e) => e.target?.closest?.('[data-list-toast]');
+    root.addEventListener('pointerdown', (e) => { if (overToast(e)) undo?.press(); }, { signal: listeners.signal });
+    for (const type of ['pointerup', 'pointercancel']) {
+      root.addEventListener(type, () => undo?.release(), { signal: listeners.signal });
+    }
+
     // Wrapped, not passed: subscribers are called with the new state, and
     // `repaint`'s first argument is a focus key to prefer.
     const unsub = store.subscribe(() => repaint());
     return () => {
       unsub();
       listeners.abort();
+      undo?.close(); // its timers stop with the screen
     };
   },
 };

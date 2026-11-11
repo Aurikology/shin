@@ -30,7 +30,7 @@ import * as store from '../store.js';
 import { FLAGS } from '../flags.js';
 import { escapeHtml, html, raw, ago, dateLabel, on } from '../lib/dom.js';
 import { attachSwipe } from '../lib/swipe.js';
-import { createUndoToast, undoNow } from '../lib/undo-toast.js';
+import { createUndoToast, undoNow, undoToastHtml } from '../lib/undo-toast.js';
 import { repainter, syncModal, modalKeys, onBackdrop } from '../lib/listscreen.js';
 import { pageBar, rowChevron, removeGlyph } from '../lib/pagebar.js';
 import { t } from '../ui-strings.js';
@@ -250,14 +250,6 @@ export function detailModal(w, match) {
 }
 
 /** The undo toast drawn above the page bar after a removal. Sticky, so it stays in view above the bar. */
-function undoToastHtml(label) {
-  return html`
-    <div class="undo-bar" data-list-toast role="status">
-      <span class="undo-bar-t">${label}</span>
-      <button type="button" class="undo-bar-btn" data-act="undo-remove" data-fk="undo-remove">${t('cam_undo')}</button>
-    </div>`;
-}
-
 export default {
   id: 'watchlist',
   title: 'Saved',
