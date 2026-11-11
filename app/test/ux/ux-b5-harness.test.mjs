@@ -914,7 +914,10 @@ export function makeServer(routes = {}) {
     if (typeof init.body === 'string') { try { body = JSON.parse(init.body); } catch { body = init.body; } }
     const call = { method, path: u.pathname, query: Object.fromEntries(u.searchParams), body, url: String(url) };
     calls.push(call);
-    const key = [`${method} ${u.pathname}`, u.pathname].find((k) => table.has(k));
+    // A key ending in '*' answers every path that starts with what precedes it (added for scripts/crawler;
+    // no existing test uses one, so every exact-match lookup behaves as before).
+    const key = [`${method} ${u.pathname}`, u.pathname].find((k) => table.has(k))
+      ?? [...table.keys()].find((k) => k.endsWith('*') && u.pathname.startsWith(k.slice(0, -1)));
     if (!key) {
       unrouted.push(call);
       return respond(404, { error: 'no route in the test server' });
@@ -936,7 +939,9 @@ export function makeServer(routes = {}) {
 export const status = (code, body = {}) => ({ __status: code, body });
 
 function respond(code, body) {
-  const text = JSON.stringify(body ?? {});
+  // A body of { __raw: 'text' } is sent as that exact text, so a test can serve a body that is not JSON
+  // (added for scripts/crawler; no existing test sends a __raw field).
+  const text = body && typeof body === 'object' && typeof body.__raw === 'string' ? body.__raw : JSON.stringify(body ?? {});
   return {
     ok: code >= 200 && code < 300,
     status: code,
