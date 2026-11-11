@@ -2525,7 +2525,9 @@
 .vd-chart { margin: 8px 0 2px; }
 /* R-89: the bell's first draw ends within 260 ms, with the sheet's own 260 ms rise; every
    delay plus duration below stays at or under 260 (the dots' stagger is capped at 80 ms). */
-.vbell { margin: 0; --vb-halo: var(--tier); color: inherit; }
+/* D-268 B6 (2026-11-11, measured at 390x844, 375x667, 390x664): the caption under the chart sat behind
+   the first position's pinned Save. It goes above the chart, in space that was empty, so it always shows. */
+.vbell { margin: 0; --vb-halo: var(--tier); color: inherit; display: flex; flex-direction: column; }
 .sheet[data-conf="thin"] .vbell { --vb-halo: color-mix(in srgb, var(--tier) 12%, var(--ground)); }
 .vbell svg { display: block; width: 100%; height: auto; overflow: visible; }
 /* Everything but the zone strip is drawn in the sheet's own text colour
@@ -2585,7 +2587,7 @@
 /* The shopper's dot: the largest mark, in the text colour with a ring of the field, so it is the one thing on the line the eye lands on. */
 .vb-youdot { fill: currentColor; stroke: var(--vb-halo); stroke-width: 3; }
 .vb-youlbl { font: 800 17px var(--f-ui); fill: currentColor; font-variant-numeric: tabular-nums; paint-order: stroke; stroke: var(--vb-halo); stroke-width: 4px; stroke-linejoin: round; }
-.vb-cap { margin: 2px 0 0; font: 500 12px var(--f-ui); color: inherit; opacity: .88; }
+.vb-cap { margin: 0 0 4px; font: 500 12px var(--f-ui); color: inherit; opacity: .88; order: -1; }
 .vd-still .vb-curve, .vd-still .vb-area, .vd-still .vb-band, .vd-still .vb-track, .vd-still .vb-zone, .vd-still .vb-dot, .vd-still .vb-report { animation: none; }
 .vd-still .vb-you { animation-delay: 0ms; }
 .vd-morphing .vb-curve, .vd-morphing .vb-area, .vd-morphing .vb-band, .vd-morphing .vb-track, .vd-morphing .vb-zone, .vd-morphing .vb-dot, .vd-morphing .vb-you, .vd-morphing .vb-report { animation: none; }
