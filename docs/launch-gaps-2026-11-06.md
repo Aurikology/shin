@@ -119,7 +119,14 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    vibrations (lib/haptics.js: barcode captured, a confident verdict, saved), never felt on a
    phone; the verdict one cannot have fired, since no verdict ever reached a phone (item 0).
 9. **[Aurik] Torch may never light on phones (D-237, major, open).** From notes. Needs a native
-   camera path.
+   camera path. **2026-11-10, build 6: it lights** (reported by Aurik); it flashed on and off in
+   auto mode (D-251), fixed in ecc9622 (auto never puts out its own torch; default off). Left: on
+   build 7, the button turns it on and off.
+9b. **[Aurik] Barcode button looked dead on build 6 (D-252).** Fixed in f9f5dd2 (a press keeps
+   looking for 2.5 s with a turning ring); seen working in Chromium with a fake camera. Check on
+   build 7. Build 7 asked of the Mac from f9f5dd2 or later (comms 2026-11-11).
+9c. **[Jamin] Aurik asks for the 18+ checkbox back** (2026-11-10), which reverses "Pexi is for all
+   ages". Nothing built; Jamin's yes or no asked in comms 2026-11-11-aurik-to-jamin-bring-back-18-plus.
 10. **CLOSED, stale entry (checked 2026-11-07):** DEFECTS shows D-036 "Closed 2026-09-13, with the
     founder's rule" (leaf category first, parent only if the leaf is empty, never the grandparent);
     the "open, gates showing" words below are its original state, quoted. Left from it: D-097
@@ -270,6 +277,9 @@ backend verdict rows are tested once after it is live, not twice.
 - **[Aurik] Screens, on build 4:** D-011, D-013, D-015, D-016, D-024, D-050, D-092, D-116, D-133,
   D-151, D-154, D-172, D-206, D-207, D-217, D-218, D-219, D-225, D-226, D-227, D-237 (torch, item 9),
   D-250 (crashes, item 4).
+  **Re-read 2026-11-11:** all but D-151, D-237 and D-250 already say Closed or fixed in their state
+  column (the triage matched on the first word, "Open", of a column that ends in "Closed"). Open for
+  Aurik: D-151 (medium confidence), D-237 (item 9), D-250 (item 4), D-254 (text size).
 
 34. **[Jamin] Project Hammer prices and names (2026-11-07/08):** importer built (f400ac3, 2ad8994),
     weekly refresh script (89e018d), credits entry live. PC trial: 98,918 prices on 47,404 barcodes;
@@ -320,6 +330,9 @@ backend verdict rows are tested once after it is live, not twice.
 - **[Jamin]** The rest of DEFECTS read item by item (only open rows were scanned; D-115 status
   unclear), each assigned to its owner.
 - **[Jamin]** Per-scan cost at launch volume and the worst case for one heavy user.
-- **[Aurik]** Accessibility (large text, VoiceOver, contrast).
+- **[Aurik]** Accessibility (large text, VoiceOver, contrast). **Partly run 2026-11-11** (Chromium,
+  iPhone 13 size): every visible control on agree, camera, You and Saved has a name a screen reader
+  reads, no image lacks alt, nothing scrolls sideways. Large text: the app ignores the phone's
+  setting (D-254, Aurik's call, not a review blocker). VoiceOver itself needs a phone.
 - QUEUE is stale in both directions (7.1 and 7.4 show queued, both done), so every QUEUE item
   above needs a check before work starts.
