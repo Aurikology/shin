@@ -632,12 +632,20 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     }
   });
   const chosen = new Set(labelledDots(g.dots, { shopperCents: g.shopper?.cents ?? null, centreCents: verdict.centreCents }));
+  // D-260 (2026-11-11 walk, "Galleria 303G" twice): one shop's price seen on
+  // several days is several dots with the same words; the words go on once.
+  const seenText = new Set();
   const labels = placeLabels(
-    g.dots.map((d, i) => ({ i, x: d.x, text: chosen.has(i) ? dotLabel(d) : '' })).filter((l) => l.text),
+    g.dots
+      .map((d, i) => ({ i, x: d.x, text: chosen.has(i) ? dotLabel(d) : '' }))
+      .filter((l) => l.text && !seenText.has(l.text) && seenText.add(l.text)),
     { rows: 2, width: W, size: LABEL_SIZE },
   );
+  // D-260: 13px labels need more than 16 units under the 13px $ row, or they touch it.
+  const DOT_ROW0 = 20;
+  const DOT_ROW_PITCH = 16;
   for (const l of labels) {
-    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + 16 + l.row * 15}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
+    p.push(`<text class="vb-dotlbl" x="${l.x}" y="${lblY + DOT_ROW0 + l.row * DOT_ROW_PITCH}" text-anchor="middle" data-vb-dotlbl="${l.i}">${esc(l.text)}</text>`);
   }
 
   // R-67: the shopper's price, a solid line from the base up to the curve, a dot where it meets the curve,
@@ -668,7 +676,7 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     );
   }
   const lastRow = labels.reduce((m, l) => Math.max(m, l.row), 0);
-  const h = lblY + (labels.length ? 20 + lastRow * 15 : 8);
+  const h = lblY + (labels.length ? DOT_ROW0 + 4 + lastRow * DOT_ROW_PITCH : 8);
   return `<figure class="vbell" data-verdict-bell data-mu="${r1(g.domain.mu * 1000) / 1000}" data-sigma="${verdict.sigmaLog}">
     <svg viewBox="0 0 ${W} ${Math.round(h)}" width="100%" role="img" aria-label="${esc(alt)}" focusable="false">${p.join('')}</svg>
     ${band ? `<figcaption class="vb-cap">${esc(band)}</figcaption>` : ''}
