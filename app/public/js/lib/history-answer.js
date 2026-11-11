@@ -101,9 +101,13 @@ export function answerLook(a) {
   };
 }
 
-/** The headline word: the zone word, or "Answered" when the answer had no shopper price to judge. */
+/**
+ * The headline word: the zone word, or "Typical price" when the answer had no
+ * shopper price to judge. D-268 C19 (2026-11-11 walk): it was "Answered", which
+ * the share card, its copied text and the camera bubble all printed as the headline.
+ */
 export function answerWord(a) {
-  return a.zone ? t(`vd_zone_${a.zone}`) : t('cam_gem_answered_word');
+  return a.zone ? t(`vd_zone_${a.zone}`) : t('answer_word_typical');
 }
 
 /**

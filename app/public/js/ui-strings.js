@@ -178,6 +178,8 @@ const EN = {
   cam_gem_median_bare: (f) => `Middle price: ${f.median}`,
   cam_gem_shelf: (f) => `Shelf price: ${f.label}`,
   cam_gem_answered_word: 'Answered',
+  // D-268 C19: the headline of an answer with no shelf price to judge (was "Answered").
+  answer_word_typical: 'Typical price',
   cam_gem_failed_word: 'No answer',
   /* WHEN THE ANSWER WAS CHECKED (ruling 1, docs/decisions.md: a cached answer
      may be served "for six hours and ALWAYS SHOWN WITH WHEN IT WAS CHECKED").
@@ -903,6 +905,7 @@ const FR = {
   cam_gem_median_bare: (f) => `Prix du milieu : ${f.median}`,
   cam_gem_shelf: (f) => `Prix en rayon : ${f.label}`,
   cam_gem_answered_word: 'Répondu',
+  answer_word_typical: 'Prix habituel',
   cam_gem_failed_word: 'Pas de réponse',
   /* `when` arrive deja construit par `ago()` ("il y a 3 h"), qui met la
      preposition devant la ou l'anglais la met derriere. La phrase ci-dessous
