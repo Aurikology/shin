@@ -101,6 +101,14 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
   (docs/decisions.md "A broad guess is saved, a typed miss gets one, and the bell moves faster"),
   seen in desktop Chromium at phone size only.
 
+- **2026-11-11 bug sweep, screen half (Aurik's PC):** 20 screen fixes pushed (ef44c26 to abe6fea),
+  each with a test seen red first; listed in DEFECTS D-259, D-260, D-265, D-268. The server, data and
+  search halves went to Jamin in `comms/messages/2026-11-11-aurik-to-jamin-server-halves-of-the-bug-sweep.md`.
+  Open for Aurik with a decision or a phone: "Bad price" at full strength on a weak estimate (D-270
+  A2, screen half), the Shaded caption clipped under the button (B6, needs a look at phone size),
+  no undo on removing a past scan (D21). Waiting on Jamin: D-264's price-first order. Mac asked for
+  build 7 from abe6fea. None of it seen on a phone.
+
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the
 cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled in code: a typed name
 answers only from Shin's own data (no Gemini call), and the barcode button sends no photo. Settled
