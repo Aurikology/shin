@@ -1666,10 +1666,16 @@ function provenanceLine(v) {
     return t('cat_basis_statcan', { place: na.place, month: na.month });
   }
   if (v.basis !== 'own_prices') return t(`vd_prov_${v.basis}`);
-  const regular = v.dots.filter((d) => d.kind === 'regular');
-  const prices = regular.length || v.n || 0;
-  const shops = v.n || new Set(regular.map((d) => d.store)).size || prices;
-  const newest = regular.map((d) => d.seenOn).sort().pop();
+  // D-259 (2026-11-11 walk, "7 prices from 7 shops" above a 12-row list): the
+  // line describes the "Prices Pexi has seen" list under it, so it counts every
+  // row that list shows, sale ones included, and each shop once. The server's
+  // `n` (fresh shops keyed seller|place) is only the fallback with no dots.
+  const listed = v.dots;
+  const prices = listed.length || v.n || 0;
+  const shops = listed.length
+    ? new Set(listed.map((d) => String(d.store ?? '').trim().toLowerCase())).size
+    : (v.n || prices);
+  const newest = listed.map((d) => d.seenOn).filter(Boolean).sort().pop();
   const days = newest ? daysSince(newest) : null;
   return t('vd_prov_own_prices', { prices, shops, ago: days === null ? '' : days === 0 ? t('vd_today') : t('vd_days_ago', { n: days }) });
 }
