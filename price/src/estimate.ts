@@ -868,6 +868,34 @@ export function categoryOnlyLines(base: Thresholds, given: LinesGiven, mu: numbe
   return { greatPct, goodPct, badPct, fromShopper: base.fromShopper };
 }
 
+/** The typical price as the phone shows it (app/public/js/lib/verdict-chart.js roundEstimateCents). */
+function shownCents(cents: number): number {
+  if (cents < 1000) return Math.round(cents / 5) * 5;
+  if (cents < 10000) return Math.round(cents / 10) * 10;
+  return Math.round(cents / 100) * 100;
+}
+
+/**
+ * D-270 A2/B3 (bug sweep 2026-11-11, family 5). The word agrees with the band the phone shades
+ * ("8 in 10 prices", p10 to p90): a price inside it is never good, great or bad. A default line that
+ * would cut into the band is moved to just past its end; a line the shopper set himself is his and is
+ * kept as typed (as in `categoryOnlyLines`). The cut is made against both the exact centre and the
+ * rounded centre the phone draws (`zoneCuts` on `asShown`), so the server's word and the phone's agree.
+ * Great keeps its gap past good.
+ */
+export function bandLines(base: Thresholds, given: LinesGiven, centreCents: number, p10Cents: number, p90Cents: number): Thresholds {
+  const up1 = (x: number) => Math.ceil(x * 10 - 1e-9) / 10;
+  const shown = shownCents(centreCents) > 0 ? shownCents(centreCents) : centreCents;
+  const lo = Math.min(centreCents, shown);
+  const hi = Math.max(centreCents, shown);
+  const underPct = up1(Math.min(99, Math.max(0, (1 - (p10Cents - 0.5) / hi) * 100)));
+  const overPct = up1(Math.min(1000, Math.max(0, ((p90Cents + 0.5) / lo - 1) * 100)));
+  const goodPct = given.goodPct ? base.goodPct : Math.max(base.goodPct, underPct);
+  const badPct = given.badPct ? base.badPct : Math.max(base.badPct, overPct);
+  const greatPct = given.greatPct ? base.greatPct : Math.min(99, Math.max(base.greatPct, goodPct + Math.max(0, base.greatPct - base.goodPct)));
+  return { greatPct, goodPct, badPct, fromShopper: base.fromShopper };
+}
+
 /* ------------------------------------------------------------- shopper */
 
 function zoneOf(cents: number, centre: number, t: Thresholds): Zone {
@@ -1467,7 +1495,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));
   const read = readThresholdsGiven(shopper?.thresholds, centreCents);
   const categoryOnly = (basis === 'leaf_category' || basis === 'parent_category') && catSpread !== null;
-  const thresholds = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catSpread!.p10, catSpread!.p90) : read.thresholds;
+  const p10Cents = Math.max(1, Math.round(Math.exp(mu - Z10 * sigma)));
+  const p90Cents = Math.max(1, Math.round(Math.exp(mu + Z10 * sigma)));
+  const lines = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catSpread!.p10, catSpread!.p90) : read.thresholds;
+  const thresholds = bandLines(lines, read.given, centreCents, p10Cents, p90Cents);
   let perUnit: Verdict['perUnit'] = null;
   if (item.weighed) perUnit = { label: 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
@@ -1499,8 +1530,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     currency,
     centreCents,
     sigmaLog: Math.round(sigma * 10000) / 10000,
-    p10Cents: Math.max(1, Math.round(Math.exp(mu - Z10 * sigma))),
-    p90Cents: Math.max(1, Math.round(Math.exp(mu + Z10 * sigma))),
+    p10Cents,
+    p90Cents,
     basis: basis!,
     spreadFrom,
     confidence,

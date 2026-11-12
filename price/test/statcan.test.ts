@@ -287,7 +287,9 @@ test('the rung answers before Claude, centred on the shelf-adjusted average, wit
   assert.equal(verdict.n, 0);
   assert.equal(verdict.scaledTo, '1 kg');
   assert.ok(verdict.shopper, 'a shopper price is placed on it');
-  assert.equal(verdict.shopper!.zone, 'good', '$7.00 against a $9.02 centre is 22% under');
+  // D-270 B3: $7.00 is 22% under a $9.02 centre but inside the shaded band ($5.61 to $14.49), so not "good".
+  assert.equal(verdict.shopper!.zone, 'reasonable', '$7.00 sits inside the 8-in-10 band');
+  assert.equal(verdict.shopper!.offByPct, -22.4);
   assert.equal(trace.nationalAverage?.product, 'Peanut butter, 1 kilogram');
   assert.equal(trace.claude, null, 'Claude was never asked');
   assert.deepEqual(trace.tried.find((t) => t.rung === 'national_average'), { rung: 'national_average', outcome: 'used', n: 0, detail: 'Peanut butter, 1 kilogram | Ontario | 2026-09' });

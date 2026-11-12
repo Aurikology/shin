@@ -426,7 +426,11 @@ test('case 23: no price typed, the bell is drawn and shopper is null', async () 
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.equal(verdict.shopper, null);
   assert.ok(verdict.centreCents > 0 && verdict.p10Cents < verdict.centreCents && verdict.p90Cents > verdict.centreCents);
-  assert.deepEqual(verdict.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: false });
+  // D-270 B3: this leaf's band runs past 20% either side, so the default lines sit just past the band.
+  assert.equal(verdict.thresholds.fromShopper, false);
+  assert.ok(verdict.thresholds.goodPct >= 20 && verdict.thresholds.badPct >= 20);
+  assert.ok(verdict.centreCents * (1 - verdict.thresholds.goodPct / 100) < verdict.p10Cents);
+  assert.ok(verdict.centreCents * (1 + verdict.thresholds.badPct / 100) > verdict.p90Cents);
 });
 
 test('case 24: a likely typo (x100) is suspect with a suggestion, and the chart still shows', async () => {
@@ -471,10 +475,14 @@ test('zones: default thresholds, and the shopper own lines replace them (percent
   const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }]);
   const deps: EstimateDeps = { prices, catalogue, askClaude: noClaude };
   const z = async (cents: number, thresholds?: unknown) => (await estimate(item(), { cents, thresholds }, deps)).verdict.shopper!.zone;
+  // D-270 B3: the band here is $19.88 to $31.44, so the default lines sit just past it ($20.00 and $30.00
+  // read "good" and "bad" until 2026-11-12, inside the shaded band).
   assert.equal(await z(1700), 'great');
-  assert.equal(await z(2000), 'good');
+  assert.equal(await z(1900), 'good');
+  assert.equal(await z(2000), 'reasonable');
   assert.equal(await z(2400), 'reasonable');
-  assert.equal(await z(3000), 'bad');
+  assert.equal(await z(3000), 'reasonable');
+  assert.equal(await z(3200), 'bad');
   assert.equal(await z(2300, { greatPct: 5, goodPct: 2, badPct: 50 }), 'great');
   assert.equal(await z(2300, { unit: 'percent', great: 5, good: 2, bad: 50 }), 'great');
   assert.equal(await z(2300), 'reasonable');

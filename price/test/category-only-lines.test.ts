@@ -146,10 +146,17 @@ test('category-only: in a tight group the lines stay at 20%', async () => {
   const v = (await estimate(item, { cents: 2000 }, deps)).verdict;
   assert.deepEqual(v.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: false });
 });
-test('an answer with its own prices keeps the shopper\'s lines or the defaults, untouched by the group', async () => {
+test('an answer with its own prices keeps the shopper\'s lines, and moves a default line only to its own drawn band, never the group\'s percentiles', async () => {
   const deps = world(0.5, 2500);
   const v = (await estimate(item, { cents: Math.round(2500 * 0.75) }, deps)).verdict;
   assert.equal(v.basis, 'own_prices');
-  assert.deepEqual(v.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: false });
-  assert.equal(v.shopper!.zone, 'good');
+  // D-270 B3 (2026-11-12): until then the defaults stayed at 20% here and $18.75 read "good" while inside
+  // the shaded 8-in-10 band. The default lines now sit just past the band the phone draws.
+  assert.ok(v.centreCents * (1 - v.thresholds.goodPct / 100) < v.p10Cents, 'the good line is under the band');
+  assert.ok(v.centreCents * (1 + v.thresholds.badPct / 100) > v.p90Cents, 'the bad line is over the band');
+  assert.equal(v.thresholds.fromShopper, false);
+  assert.equal(v.shopper!.zone, 'reasonable');
+  const his = (await estimate(item, { cents: Math.round(2500 * 0.75), thresholds: { greatPct: 30, goodPct: 20, badPct: 20 } }, deps)).verdict;
+  assert.deepEqual(his.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: true });
+  assert.equal(his.shopper!.zone, 'good', 'lines the shopper set are his');
 });
