@@ -1,4 +1,4 @@
-package com.useshinapp.shin;
+package com.getpexi.app;
 
 import android.content.Context;
 import android.os.Build;

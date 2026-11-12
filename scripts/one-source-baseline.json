@@ -2,8 +2,6 @@
   "docs/jamin-gemini-rules.md :: THE PRICE SHOULD NOT COME FROM US",
   "docs/jamin-gemini-rules.md :: barcode will not be sent to shins servers as of now",
   "native/README.md :: com.useshinapp.shin",
-  "native/android/app/src/main/java/com/useshinapp/shin/MainActivity.java :: com.useshinapp.shin",
-  "native/android/app/src/main/java/com/useshinapp/shin/ShinHapticsPlugin.java :: com.useshinapp.shin",
   "notes/listing-draft.md :: com.useshinapp.shin",
   "price/src/verdict.ts :: at the high end",
   "price/src/verdict.ts :: at the low end"

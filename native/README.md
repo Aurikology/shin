@@ -43,11 +43,11 @@ ones later is ONE edit per file listed here, no hunting:
 | What | File | Current value |
 |---|---|---|
 | App display name (source of truth) | `native/capacitor.config.json` | `appName: "Pexi"` (renamed 2026-10-06, RULINGS.md "Name: Pexi") |
-| Bundle id (source of truth) | `native/capacitor.config.json` | `appId: "com.useshinapp.shin"` (cleared) |
+| Bundle id (source of truth) | `native/capacitor.config.json` | `appId: "com.getpexi.app"` (RULINGS.md "App id com.getpexi.app on both stores") |
 | Android app label | `native/android/app/src/main/res/values/strings.xml` | `app_name`, `title_activity_main` = `Pexi` (renamed 2026-10-06) |
-| Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.useshinapp.shin` (cleared) |
-| Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.useshinapp.shin` (cleared) |
-| Android Java package + folder | `native/android/app/src/main/java/com/useshinapp/shin/MainActivity.java` | package `com.useshinapp.shin` (cleared; the folder path has already moved) |
+| Android package id | `native/android/app/src/main/res/values/strings.xml` | `package_name`, `custom_url_scheme` = `com.getpexi.app` (moved 2026-11-11) |
+| Android application id | `native/android/app/build.gradle` | `namespace` and `applicationId` = `com.getpexi.app` (moved 2026-11-11) |
+| Android Java package + folder | `native/android/app/src/main/java/com/getpexi/app/MainActivity.java` | package `com.getpexi.app` (moved 2026-11-11) |
 | iOS display name | `native/ios/App/App/Info.plist` | `CFBundleDisplayName` = `Pexi` (renamed 2026-10-06) |
 | iOS bundle id | `native/ios/App/App.xcodeproj/project.pbxproj` | `PRODUCT_BUNDLE_IDENTIFIER = com.getpexi.app;` (both configs, 2026-10-16; permanent on Apple, never change it) |
 
@@ -368,7 +368,7 @@ The web app's `app/public/js/lib/haptics.js` reaches two native plugins through
   `ios/App/Podfile` as `CapacitorHaptics`; it was in `CapApp-SPM/Package.swift` before the
   2026-10-17 move to CocoaPods).
 - Android: the wrapper's own `ShinHaptics` plugin
-  (`android/app/src/main/java/com/useshinapp/shin/ShinHapticsPlugin.java`, registered in
+  (`android/app/src/main/java/com/getpexi/app/ShinHapticsPlugin.java`, registered in
   `MainActivity.java`): `perform({effect})` with `TICK` (API 29+) and `CONFIRM` (API 30+). It has its
   own name because `@capacitor/haptics` on Android has only raw millisecond waveforms and no preset,
   and a plugin name cannot be registered twice. A phone older than the preset resolves

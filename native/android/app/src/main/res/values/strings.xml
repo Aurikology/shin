@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Pexi</string>
     <string name="title_activity_main">Pexi</string>
-    <string name="package_name">com.useshinapp.shin</string>
-    <string name="custom_url_scheme">com.useshinapp.shin</string>
+    <string name="package_name">com.getpexi.app</string>
+    <string name="custom_url_scheme">com.getpexi.app</string>
 </resources>
