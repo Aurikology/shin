@@ -325,13 +325,15 @@ test('case 15: two stores far apart are both dots, and the centre is blended', a
   assert.equal(verdict.centreCents, Math.round(Math.exp((2 * Math.log(1600) + leafMu) / 3)));
 });
 
-test('case 16: all stores equal, the spread floor holds (the category spread, and never below 0.05)', async () => {
+test('case 16: all stores equal, the spread floor holds (never below 0.05)', async () => {
   const own = [0, 1, 2, 3, 4].map((i) => obs({ code: SELF, priceCents: 2500, seller: `s${i}` }));
   const withCat = leafFixture([{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }], own);
   const a = await estimate(item(), null, { ...withCat, askClaude: noClaude });
   assert.equal(a.verdict.spreadFrom, 'own_prices');
-  const leafSigma = (Math.log(2800) - Math.log(2200)) / 1.349;
-  close(a.verdict.sigmaLog, Math.round(leafSigma * 10000) / 10000, 1e-4);
+  // D-270 A4 (2026-11-12): 3+ shops' own spread is theirs alone, so the category no longer floors it
+  // (it was the leaf's 0.1788, a bell wider than every price seen); the 0.05 floor still holds.
+  assert.equal(a.verdict.sigmaLog, 0.05);
+  assert.equal(a.verdict.confidence, 'high');
 
   const bare = await estimate(item({ barcode: SELF }), null, { prices: pricesDb(own.map((o) => ({ ...o, sellerSku: o.sellerSku + 'x' }))), askClaude: noClaude });
   assert.equal(bare.verdict.sigmaLog, 0.05);

@@ -163,10 +163,10 @@ test('D-233: the item\'s own prices are untouched by a wide pool beside them', a
   assert.equal(c.calls.length, 0);
   assert.equal(verdict.basis, 'own_prices');
   assert.equal(verdict.spreadFrom, 'leaf_category');
-  // The blend the design states: mu = (n * mu_own + 1 * mu_leaf) / (n + 1), as before.
-  // The median of two shops is the lower one (nearest rank).
-  const muOwn = Math.log(1999);
-  assert.equal(verdict.centreCents, Math.round(Math.exp((2 * muOwn + Math.log(2547)) / 3)));
+  // D-270 A5 (2026-11-12): two shops are still blended with their category, but never with a pool too
+  // wide to mean anything (until then this centre was pulled toward the wide pool's $25.47). The median
+  // of two shops is the lower one (nearest rank).
+  assert.equal(verdict.centreCents, 1999);
   assert.ok(verdict.shopper !== null);
   assert.equal(trace.widePool, null);
   assert.equal(trace.tooThin, null);

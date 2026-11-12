@@ -150,12 +150,12 @@ test('an answer with its own prices keeps the shopper\'s lines, and moves a defa
   const deps = world(0.5, 2500);
   const v = (await estimate(item, { cents: Math.round(2500 * 0.75) }, deps)).verdict;
   assert.equal(v.basis, 'own_prices');
-  // D-270 B3 (2026-11-12): until then the defaults stayed at 20% here and $18.75 read "good" while inside
-  // the shaded 8-in-10 band. The default lines now sit just past the band the phone draws.
+  // D-270 A4/B3 (2026-11-12): three shops at $25.00 draw their own narrow band (the wide group no longer
+  // floors it), so the default lines sit outside it and stay at 20%; $18.75 is under the band and good.
   assert.ok(v.centreCents * (1 - v.thresholds.goodPct / 100) < v.p10Cents, 'the good line is under the band');
   assert.ok(v.centreCents * (1 + v.thresholds.badPct / 100) > v.p90Cents, 'the bad line is over the band');
-  assert.equal(v.thresholds.fromShopper, false);
-  assert.equal(v.shopper!.zone, 'reasonable');
+  assert.deepEqual(v.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: false });
+  assert.equal(v.shopper!.zone, 'good');
   const his = (await estimate(item, { cents: Math.round(2500 * 0.75), thresholds: { greatPct: 30, goodPct: 20, badPct: 20 } }, deps)).verdict;
   assert.deepEqual(his.thresholds, { greatPct: 30, goodPct: 20, badPct: 20, fromShopper: true });
   assert.equal(his.shopper!.zone, 'good', 'lines the shopper set are his');

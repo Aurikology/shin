@@ -87,8 +87,8 @@ function zoneAt(cents: number, centre: number, t: { greatPct: number; goodPct: n
 /* ------------------------------------------------ fix 1: the word agrees with the band (D-270 A2/B3) */
 
 test('D-270 B3: a price inside the shaded 8-in-10 band is never "bad", "good" or "great", on the server or the phone', async () => {
-  // Five shops: 450..560, own spread used (5+ shops), floored by the leaf's spread.
-  const own = [450, 480, 500, 520, 560].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+  // Five shops, $3.80 to $6.50: their own spread (D-270 A4) runs about 28% either side of the centre.
+  const own = [380, 440, 500, 570, 650].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
   const { prices, catalogue } = fixture(own);
   const { verdict } = await estimate(item(), null, { prices, catalogue });
   assert.ok(verdict.p90Cents / verdict.centreCents > 1.2, `this fixture needs a band wider than the default bad line (p90 ${verdict.p90Cents}, centre ${verdict.centreCents})`);
@@ -102,7 +102,7 @@ test('D-270 B3: a price inside the shaded 8-in-10 band is never "bad", "good" or
 });
 
 test('D-270 B3 control: a price past the band still gets its word', async () => {
-  const own = [450, 480, 500, 520, 560].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+  const own = [380, 440, 500, 570, 650].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
   const { prices, catalogue } = fixture(own);
   const { verdict } = await estimate(item(), null, { prices, catalogue });
   const high = await estimate(item(), { cents: Math.ceil(verdict.p90Cents * 1.02) }, { prices, catalogue });
@@ -122,7 +122,7 @@ test('D-270 B3 control: a narrow bell keeps the default lines (good 20, great 30
 });
 
 test('D-270 B3 control: a line the shopper set himself is kept as typed (RULINGS: his own thresholds)', async () => {
-  const own = [450, 480, 500, 520, 560].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+  const own = [380, 440, 500, 570, 650].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
   const { prices, catalogue } = fixture(own);
   const { verdict } = await estimate(item(), { cents: 600, thresholds: { greatPct: 30, goodPct: 20, badPct: 10 } }, { prices, catalogue });
   assert.equal(verdict.thresholds.badPct, 10);
@@ -135,7 +135,7 @@ test('D-270 B3 control: a line the shopper set himself is kept as typed (RULINGS
 const threeShops = () => [480, 500, 520].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
 
 test('D-270 A3: three fresh shops under a bell wider than 1.5x (p90/p10) are not "Certain"', async () => {
-  const { prices, catalogue } = fixture(threeShops());
+  const { prices, catalogue } = fixture([440, 500, 580].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` })));
   const { verdict } = await estimate(item(), null, { prices, catalogue });
   const width = verdict.p90Cents / verdict.p10Cents;
   assert.ok(width > 1.5 && width <= 2.25, `fixture: band ${verdict.p10Cents}..${verdict.p90Cents} is ${width.toFixed(2)}x`);
@@ -143,7 +143,7 @@ test('D-270 A3: three fresh shops under a bell wider than 1.5x (p90/p10) are not
 });
 
 test('D-270 A3: a bell wider than 2.25x (the 1.5x line twice over) is "Not fully confident"', async () => {
-  const { prices, catalogue } = fixture(threeShops(), [300, 350, 500, 700, 800]);
+  const { prices, catalogue } = fixture([380, 500, 700].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` })));
   const { verdict } = await estimate(item(), null, { prices, catalogue });
   assert.ok(verdict.p90Cents / verdict.p10Cents > 2.25, `fixture: band ${verdict.p10Cents}..${verdict.p90Cents}`);
   assert.equal(verdict.confidence, 'low');
@@ -205,4 +205,54 @@ test('D-260: Hammer rows repeated day after day, and its sale plus regular pair,
   assert.equal(verdict.n, 2, `6 rows from 2 shops count as ${verdict.n}`);
   assert.ok(verdict.notes.includes('few_prices'));
   assert.notEqual(verdict.confidence, 'high');
+});
+
+/* ---------- fix 6: 3+ shops set the centre and the spread alone (D-270 A4/A5/B1, the range card agrees) */
+
+/** The live Kraft peanut butter 1 kg regular prices, 2026-11-08: seven shops, $5.97 to $8.49. */
+const KRAFT_PB = [597, 629, 699, 699, 799, 849, 849];
+/** A dearer, wide leaf: its centre ($10) and spread pulled the live bell to $7.55, $4.81 to $11.85. */
+const DEAR_WIDE_LEAF = [700, 850, 1000, 1300, 1500];
+
+test('D-270 A4/A5/B1: seven shops set the centre and the band alone, matching the range card', async () => {
+  const { priceRangeFor } = await import('../src/range.ts');
+  const own = KRAFT_PB.map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+  const { prices, catalogue } = fixture(own, DEAR_WIDE_LEAF);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  const card = priceRangeFor({ barcode: SELF, asOf: AS_OF }, { prices, catalogue });
+  assert.equal(card.basis, 'this_product');
+  assert.equal(verdict.centreCents, (card as { medianCents: number }).medianCents, 'the bell centre is the range card median ($6.99)');
+  assert.ok(verdict.p10Cents >= 500 && verdict.p90Cents <= 950, `band ${verdict.p10Cents}..${verdict.p90Cents} is near the $5.97-$8.49 seen`);
+  assert.equal(verdict.spreadFrom, 'own_prices');
+  assert.notEqual(verdict.confidence, 'low');
+  const at9 = await estimate(item(), { cents: 900 }, { prices, catalogue });
+  assert.equal(at9.verdict.shopper!.zone, 'reasonable');
+  const at12 = await estimate(item(), { cents: 1200 }, { prices, catalogue });
+  assert.equal(at12.verdict.shopper!.zone, 'bad');
+});
+
+test('D-270 A4: three shops that agree draw a narrow bell and read "Certain", category or no category', async () => {
+  for (const leaf of [DEAR_WIDE_LEAF, null]) {
+    const own = [299, 299, 299].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+    const { prices, catalogue } = leaf ? fixture(own, leaf) : { prices: pricesDb(own), catalogue: undefined };
+    const { verdict } = await estimate(item(), null, { prices, catalogue });
+    assert.equal(verdict.centreCents, 299);
+    assert.ok(verdict.p90Cents / verdict.p10Cents <= 1.5, `band ${verdict.p10Cents}..${verdict.p90Cents}`);
+    assert.equal(verdict.confidence, 'high');
+  }
+});
+
+test('D-270 A5 control: one shop still blends with its category (Oreo shape)', async () => {
+  const own = [obs({ code: SELF, priceCents: 400, seller: 'hammer', storeName: 'Galleria' })];
+  const { prices, catalogue } = fixture(own, NARROW_LEAF);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.equal(verdict.centreCents, Math.round(Math.exp((Math.log(400) + Math.log(500)) / 2)), 'blended halfway to the $5.00 leaf');
+  assert.equal(verdict.spreadFrom, 'leaf_category');
+});
+
+test('D-270 A5: one shop never blends with a pool too wide to mean anything', async () => {
+  const own = [obs({ code: SELF, priceCents: 600, seller: "hammer", storeName: "Galleria" })];
+  const { prices, catalogue } = fixture(own, [300, 500, 900, 1500, 2500]);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.equal(verdict.centreCents, 600, "not pulled toward the pool median of $9.00");
 });

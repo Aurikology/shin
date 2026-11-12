@@ -111,8 +111,12 @@ export const BAND_HIGH = 2;
 export const MEDIUM_LEAF_PRODUCTS = 20;
 /** Own prices from this many shops, fresh, are high confidence. */
 export const HIGH_OWN_SHOPS = 3;
-/** Own prices from this many shops give their own spread. */
-export const OWN_SPREAD_SHOPS = 5;
+/**
+ * Own prices from this many shops give the centre and the spread on their own, with no category blend
+ * and no category floor (D-270 A4/A5/B1, 2026-11-12; was 5 for the spread, and the centre always blended).
+ * The same count as range.ts MIN_OWN_SHOPS, so the bell and the range card stand on the same shops.
+ */
+export const OWN_SPREAD_SHOPS = 3;
 /** The widest-category prior needs at least this many products. */
 export const MIN_PRIOR_PRODUCTS = 3;
 /** At most this many dots. */
@@ -1187,7 +1191,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       ? weightedMedian(ownShops.map((s) => ({ log: Math.log(s.cents), w: Math.pow(0.5, s.age / HALF_LIFE_DAYS) })))
       : medianOf(ownShops.map((s) => Math.log(s.cents)));
     n = ownShops.length;
-    mu = catStats ? (n * muOwn + BLEND_K * catStats.mu) / (n + BLEND_K) : muOwn;
+    // D-270 A4/A5/B1: from OWN_SPREAD_SHOPS shops up the centre is theirs alone (the range card's median);
+    // under that it is blended with the category, never with a pool too wide to mean anything (D-233).
+    const blendWith = n < OWN_SPREAD_SHOPS && catStats && !tooWide(catStats) ? catStats : null;
+    mu = blendWith ? (n * muOwn + BLEND_K * blendWith.mu) / (n + BLEND_K) : muOwn;
     basis = 'own_prices';
     evidenceAge = Math.min(...ownShops.map((s) => s.age));
     if (fromOtherRegion) notes.add('other_region');
@@ -1472,7 +1479,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     spreadFrom = 'prior';
   }
   // Never below the category's spread (equal provincial prices cannot collapse the bell), never below 0.05.
-  sigma = Math.max(sigma, catSpread?.sigma ?? 0, MIN_SIGMA);
+  // D-270 A4: a spread from 3+ shops' own prices is theirs alone, floored only at 0.05.
+  sigma = Math.max(sigma, ownSpread ? 0 : catSpread?.sigma ?? 0, MIN_SIGMA);
   if (evidenceAge !== null && evidenceAge > OLD_DAYS) notes.add('old_prices');
   if (notes.has('old_prices')) sigma *= WIDEN;
   if (notes.has('other_region')) sigma *= WIDEN;
