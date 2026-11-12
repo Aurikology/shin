@@ -142,12 +142,22 @@ test("5.1 control: the shopper's own call is kept as first given; a second call 
   const device = 'rec-twice';
   const answer = await h.get(`/api/identify?gtin=${TATERS}&deviceId=${device}`);
   const scanId = answer.scanId as number;
-  assert.equal((await h.post('/api/scan-call', { deviceId: device, scanId, call: 'great', beforeVerdict: true })).body.stored, true);
+  /*
+   * This test failed about 2 in 5 full runs on two machines (D-268 item 14) and
+   * could not be made to fail again: 40+ runs of this file under heavy parallel
+   * load and 5 full suites (3 at once) were all green. Nothing here can be
+   * blamed on a race that was never seen, so every step now says what the
+   * server answered, and the next red run names its own cause.
+   */
+  assert.equal(typeof scanId, 'number', `identify wrote no scan row: ${JSON.stringify(answer).slice(0, 300)}`);
+  const first = await h.post('/api/scan-call', { deviceId: device, scanId, call: 'great', beforeVerdict: true });
+  assert.equal(first.body.stored, true, `the first call was refused: ${first.status} ${JSON.stringify(first.body)}`);
   const again = await h.post('/api/scan-call', { deviceId: device, scanId, call: 'bad', beforeVerdict: false });
-  assert.equal(again.body.stored, false);
+  assert.equal(again.body.stored, false, `the second call was stored: ${again.status} ${JSON.stringify(again.body)}`);
   const [row] = h.rows<Record<string, any>>('SELECT shopper_call, shopper_call_before_verdict FROM scan WHERE id = ?', scanId);
-  assert.equal(row!.shopper_call, 'great');
-  assert.equal(row!.shopper_call_before_verdict, 1);
+  assert.ok(row, `scan ${scanId} is not in the scan file`);
+  assert.equal(row.shopper_call, 'great', `scan ${scanId} holds ${JSON.stringify(row)}`);
+  assert.equal(row.shopper_call_before_verdict, 1);
 });
 
 test('5.1 known-bad: a call outside the four words, or on another device\'s scan, is refused and stores nothing', async () => {
