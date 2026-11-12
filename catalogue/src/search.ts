@@ -681,8 +681,30 @@ function ftsTokens(text: string): string[] {
  * still matches, joined by whichever operator the caller is trying.
  */
 function joinFts(tokens: readonly string[], op: 'AND' | 'OR'): string {
-  return tokens.map((t, i) => (i === tokens.length - 1 ? `"${t}"*` : `"${t}"`)).join(` ${op} `);
+  return tokens
+    .map((t, i) => (i === tokens.length - 1 && t.length >= SHORT_TOKEN ? `"${t}"*` : `"${t}"`))
+    .join(` ${op} `);
 }
+
+/**
+ * A token under three characters ("pc", "oj", "tp") is not a half-typed word to
+ * complete, it is an abbreviation, and treating it as one was the slow query
+ * (D-269: a typed "pc" ran past the 5 second ceiling and the shopper got an
+ * error). A prefix of two letters matches a large share of the whole catalogue
+ * (millions of rows), and ORDER BY bm25 has to score every one of them before
+ * LIMIT can cut. So a token this short is searched as the exact word, never as
+ * a prefix.
+ */
+const SHORT_TOKEN = 3;
+
+/**
+ * How many matches a query made only of short tokens may score. Such a query
+ * matches so many rows that ranking them all is the cost, not the answer, so
+ * it takes the first SHORT_QUERY_SCAN matches in index order, scores just
+ * those, and keeps the best RETRIEVE_N. The list can be less exact than a full
+ * ranking would give; it can no longer time out.
+ */
+const SHORT_QUERY_SCAN = 2000;
 
 /**
  * How many strict hits are enough to skip the loose pass.
@@ -1109,16 +1131,18 @@ export class Catalogue {
   ): { hits: { row: Row; bm25: number }[]; wordsMatched: 'all' | 'some' | 'n/a' } {
     const tokens = ftsTokens(text);
     if (tokens.length === 0) return { hits: [], wordsMatched: 'n/a' };
+    // See SHORT_QUERY_SCAN: every word two letters or fewer means the biggest match set in the catalogue.
+    const bounded = tokens.every((t) => t.length < SHORT_TOKEN);
 
-    // One word: the strict and loose passes are the same search, so "only some
+    // One word:the strict and loose passes are the same search, so "only some
     // of the words matched" is not a thing that can happen and must not be
     // reported. Saying 'some' here would make every one-word grocery query --
     // "milk", "bread" -- look like weak evidence and send it to the fallback.
     if (tokens.length === 1) {
-      return { hits: this.#runFts(joinFts(tokens, 'OR'), sources, text), wordsMatched: 'n/a' };
+      return { hits: this.#runFts(joinFts(tokens, 'OR'), sources, text, bounded), wordsMatched: 'n/a' };
     }
 
-    const strict = this.#runFts(joinFts(tokens, 'AND'), sources, text);
+    const strict = this.#runFts(joinFts(tokens, 'AND'), sources, text, bounded);
     if (strict.length >= ENOUGH_STRICT_HITS) return { hits: strict, wordsMatched: 'all' };
 
     // `wordsMatched` keys on whether the strict pass found ANYTHING, not on
@@ -1135,7 +1159,7 @@ export class Catalogue {
     // whether to trust a narrowed answer actually has. Whether the ranked list
     // handed back came from the strict or the loose pass is a separate matter,
     // and the loose list is still the better one to return here.
-    const loose = this.#runFts(joinFts(tokens, 'OR'), sources, text);
+    const loose = this.#runFts(joinFts(tokens, 'OR'), sources, text, bounded);
     return { hits: loose, wordsMatched: strict.length > 0 ? 'all' : 'some' };
   }
 
@@ -1153,7 +1177,7 @@ export class Catalogue {
    * moment survivors fall below RETRIEVE_N and reads as a weak arm rather than
    * a truncated one. Left alone until someone measures it properly.
    */
-  #runFts(match: string, sources?: readonly string[], text?: string): { row: Row; bm25: number }[] {
+  #runFts(match: string, sources?: readonly string[], text?: string, bounded = false): { row: Row; bm25: number }[] {
     const narrowed = sources && sources.length > 0;
     // Rows whose source grants no reuse licence are never read (source-rights.ts), narrowed or not.
     const clause = ` AND ${licensedOnlySql('p.')}${narrowed ? ` AND p.source IN (${sources.map(() => '?').join(',')})` : ''}`;
@@ -1188,15 +1212,17 @@ export class Catalogue {
          FROM product_fts f
          JOIN product p ON p.rowid = f.rowid
          WHERE product_fts MATCH ?${clause}${exclusion}
-         ORDER BY score
+         ${bounded ? '' : 'ORDER BY score'}
          LIMIT ?`,
       ).all(
         match,
         ...(narrowed ? sources : []),
         ...exclusionParams,
-        RETRIEVE_N,
+        bounded ? SHORT_QUERY_SCAN : RETRIEVE_N,
       ) as unknown as (Row & { score: number })[];
-    return rows.map((r) => ({ row: r, bm25: r.score }));
+    // A bounded query is not ranked in SQL: ORDER BY would score every match (SHORT_QUERY_SCAN says why).
+    if (bounded) rows.sort((a, b) => a.score - b.score);
+    return rows.slice(0, RETRIEVE_N).map((r) => ({ row: r, bm25: r.score }));
   }
 
   async #vectorSearch(text: string): Promise<{ row: Row; similarity: number }[]> {
