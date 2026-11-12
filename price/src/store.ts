@@ -168,6 +168,15 @@ export interface ObservationRow {
    * training data. Added 2026-09-28 (third audit, the inverted model).
    */
   readonly priceVerified?: number | null;
+  /**
+   * D-267 A9, added 2026-11-12. 1 when `seenOn` is only the day the row was loaded because the source
+   * gives no date of its own; every reader then treats the price as of unknown age, weighted like an old
+   * one (range.ts UNKNOWN_AGE_DAYS), never as seen that day. 0 when `seenOn` is the source's own date
+   * (BC's list month, New Brunswick's PDF date). NULL for every source that stamps the day it read the
+   * shop's page, and for rows written before the column existed (`markLoadDayRows` flags those of a
+   * loader that never had a date).
+   */
+  readonly seenOnUnknown?: number | null;
 }
 
 /*
@@ -242,6 +251,8 @@ CREATE TABLE IF NOT EXISTS observation (
   tile_image      TEXT,
   flags           TEXT,
   price_verified  INTEGER NOT NULL DEFAULT 0,
+  /* D-267 A9, 2026-11-12: 1 when seen_on is only the load day (ObservationRow.seenOnUnknown). */
+  seen_on_unknown INTEGER,
   PRIMARY KEY (seller, seller_sku, seen_on)
 );
 
@@ -460,6 +471,7 @@ function addMissingColumns(db: DatabaseSync): void {
   }
   // A constant default is allowed by ADD COLUMN: no row is rewritten, every existing row reads 0.
   if (!have.has('price_verified')) db.exec('ALTER TABLE observation ADD COLUMN price_verified INTEGER NOT NULL DEFAULT 0');
+  if (!have.has('seen_on_unknown')) db.exec('ALTER TABLE observation ADD COLUMN seen_on_unknown INTEGER');
   const tileCols = new Set(
     (db.prepare('PRAGMA table_info(capture_tile)').all() as unknown as { name: string }[]).map((c) => c.name),
   );
@@ -709,11 +721,12 @@ function installKeepEverything(db: DatabaseSync): void {
  * store_* columns were added to the table in this same change; if a future
  * column is added to the table and not added here, in both the column list
  * and the values list and the bind arguments below, it will quietly wipe
- * itself out on the next INSERT OR REPLACE for that key. Count them: 33
- * columns, 33 placeholders, 33 bind arguments below. Keep the three counts
+ * itself out on the next INSERT OR REPLACE for that key. Count them: 34
+ * columns, 34 placeholders, 34 bind arguments below. Keep the three counts
  * equal. (`page_gtin` was the 21st, added 2026-09-08; `base_price_cents` the
  * 22nd, added 2026-09-26; the ten printout columns, store_category through
- * flags, are the 23rd to 32nd, added 2026-09-28; price_verified is the 33rd.)
+ * flags, are the 23rd to 32nd, added 2026-09-28; price_verified is the 33rd;
+ * seen_on_unknown the 34th, added 2026-11-12.)
  */
 export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
   db.prepare(
@@ -723,8 +736,8 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
         seen_on, url, image_url, in_stock, store_name, store_city, store_osm,
         page_gtin, base_price_cents,
         store_category, was_cents, is_sale, unit_price_per, parsed_brand,
-        parsed_size, parsed_variant, capture_tile_id, tile_image, flags, price_verified)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        parsed_size, parsed_variant, capture_tile_id, tile_image, flags, price_verified, seen_on_unknown)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
      ON CONFLICT (seller, seller_sku, seen_on) DO UPDATE SET
          code = excluded.code,
          seller_name = excluded.seller_name,
@@ -755,7 +768,8 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
          capture_tile_id = excluded.capture_tile_id,
          tile_image = excluded.tile_image,
          flags = excluded.flags,
-         price_verified = excluded.price_verified`,
+         price_verified = excluded.price_verified,
+         seen_on_unknown = excluded.seen_on_unknown`,
   ).run(
     o.code,
     o.seller,
@@ -790,7 +804,18 @@ export function recordObservation(db: DatabaseSync, o: ObservationRow): void {
     o.tileImage ?? null,
     o.flags ?? null,
     o.priceVerified ?? 0,
+    o.seenOnUnknown ?? null,
   );
+}
+
+/**
+ * D-267 A9: flags every row of `seller` written before its loader carried a date (`seen_on_unknown` NULL) as
+ * dated only by its load day. For a loader that never had a date of its own (bcldb, anbl), run at the start
+ * of each load; rows the fixed loader writes carry 0 or 1, so a second run changes nothing. An update, so
+ * the append-only log keeps the row as it was; nothing is deleted. Returns the rows flagged.
+ */
+export function markLoadDayRows(db: DatabaseSync, seller: string): number {
+  return Number(db.prepare('UPDATE observation SET seen_on_unknown = 1 WHERE seller = ? AND seen_on_unknown IS NULL').run(seller).changes);
 }
 
 export function recordAttempt(

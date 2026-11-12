@@ -62,7 +62,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { statSync } from 'node:fs';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
-import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, readAge, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide, TARGET_WIDTH } from './width-flag.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
@@ -430,6 +430,8 @@ interface Row {
   readonly nameJoined: boolean;
   /** Seen while the shop listed it out of stock (`in_stock = 0`): still a real price (D-267 A4). */
   readonly outOfStock: boolean;
+  /** Dated only by the day it was loaded (`seen_on_unknown = 1`, D-267 A9): `age` is at least UNKNOWN_AGE_DAYS. */
+  readonly dateUnknown: boolean;
 }
 
 function str(v: unknown): string | null {
@@ -466,7 +468,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
       `SELECT code, ${col('page_gtin')}, seller, seller_sku, seller_name, seller_brand, price_cents, ${col('base_price_cents')},
               kind, ${col('is_sale')}, region, ${col('store_name')}, ${col('store_city')}, ${col('store_osm')}, seen_on, url,
               ${col('parsed_size')}, ${col('parsed_brand')}, ${col('store_category')}, ${col('capture_tile_id')}, ${col('price_verified')},
-              ${col('join_method')}, ${col('in_stock')}
+              ${col('join_method')}, ${col('in_stock')}, ${col('seen_on_unknown')}
          FROM observation WHERE currency = ?`,
     )
     .all(currency) as Record<string, unknown>[];
@@ -480,7 +482,8 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
     let age: number;
     try {
       if (isFutureDated(seen, asOf)) continue;
-      age = ageDays(seen, asOf);
+      // D-267 A9: a row dated only by its load day is read as of unknown age, weighted like an old price.
+      age = readAge(ageDays(seen, asOf), r.seen_on_unknown);
     } catch {
       continue;
     }
@@ -513,6 +516,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
       printout,
       nameJoined: r.join_method === 'name',
       outOfStock: r.in_stock === 0,
+      dateUnknown: r.seen_on_unknown === 1,
     });
   }
   return out;
@@ -601,14 +605,17 @@ interface Product {
 }
 
 /**
- * One price per shop: the latest; on the same day, a listing not marked out of stock before one that is
- * (D-267 A4: the price a shopper can buy there), then the lower.
+ * One price per shop: a row with the source's own date before one dated only by its load day (D-267 A9),
+ * then the latest; on the same day, a listing not marked out of stock before one that is (D-267 A4: the
+ * price a shopper can buy there), then the lower.
  */
-function latestPerShop<T extends { shop: string; seenOn: string; cents: number; outOfStock?: boolean }>(rows: readonly T[]): T[] {
+function latestPerShop<T extends { shop: string; seenOn: string; cents: number; outOfStock?: boolean; dateUnknown?: boolean }>(rows: readonly T[]): T[] {
   const by = new Map<string, T>();
   for (const o of rows) {
     const have = by.get(o.shop);
-    if (!have || o.seenOn > have.seenOn) by.set(o.shop, o);
+    if (have && !!have.dateUnknown !== !!o.dateUnknown) {
+      if (have.dateUnknown) by.set(o.shop, o);
+    } else if (!have || o.seenOn > have.seenOn) by.set(o.shop, o);
     else if (o.seenOn === have.seenOn) {
       const stock = Number(!!have.outOfStock) - Number(!!o.outOfStock);
       if (stock > 0 || (stock === 0 && o.cents < have.cents)) by.set(o.shop, o);
@@ -1565,8 +1572,11 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   if (item.weighed) perUnit = { label: 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
 
+  // Newest first; a row dated only by its load day after every dated one (D-267 A9).
   const dots: Dot[] = [...ownAll]
-    .sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : a.cents - b.cents))
+    .sort((a, b) =>
+      a.dateUnknown !== b.dateUnknown ? Number(a.dateUnknown) - Number(b.dateUnknown) : a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : a.cents - b.cents,
+    )
     .slice(0, MAX_DOTS)
     .map((r) => ({
       cents: r.cents,

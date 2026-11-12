@@ -41,7 +41,8 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { openPrices, recordObservation, type ObservationRow } from './store.ts';
+import type { DatabaseSync } from 'node:sqlite';
+import { markLoadDayRows, openPrices, recordObservation, type ObservationRow } from './store.ts';
 import { requireSourceUse } from './registry.ts';
 
 export const SELLER = 'bcldb';
@@ -176,7 +177,28 @@ export interface LoadResult {
   readonly skippedShortUpc: number;
 }
 
-async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+/**
+ * D-267 A9: the date this list's prices were seen. The CSV has no date column; the publisher republishes
+ * it monthly and names the month in the file ("..._price_list_june_2026.csv"), so its prices are dated the
+ * first of that month, the earliest day they can be read as current. A name with no month, or a month
+ * after `today`, gives the load day flagged `unknown`, which every reader treats as of unknown age.
+ */
+export function bcSeenOn(csvPath: string, today: string): { seenOn: string; unknown: boolean } {
+  const base = csvPath.split(/[\\/]/).pop()!.toLowerCase();
+  const m = new RegExp(`(?:^|[^a-z])(${MONTHS.join('|')})[_\\- ]?(\\d{4})(?:[^0-9]|$)`).exec(base);
+  if (m) {
+    const seenOn = `${m[2]}-${String(MONTHS.indexOf(m[1]!) + 1).padStart(2, '0')}-01`;
+    if (seenOn <= today) return { seenOn, unknown: false };
+  }
+  return { seenOn: today, unknown: true };
+}
+
+export async function loadBcldb(
+  csvPath: string = DEFAULT_CSV,
+  opts: { db?: DatabaseSync; today?: string } = {},
+): Promise<LoadResult> {
   const text = readFileSync(csvPath, 'utf8');
   const { header, rows } = parseCsv(text);
 
@@ -185,11 +207,15 @@ async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
   const NAME = columnIndex(header, 'PRODUCT_LONG_NAME');
   const PRICE = columnIndex(header, 'PRODUCT_PRICE');
 
-  const db = openPrices(undefined, { enforceSources: true });
+  const db = opts.db ?? openPrices(undefined, { enforceSources: true });
   // Requirement 4.8: the database refuses unregistered sellers, and no automated
   // reader runs without a recorded basis or on a source whose basis forbids one.
   requireSourceUse(db, SELLER, 'automated');
-  const today = new Date().toISOString().slice(0, 10);
+  const { seenOn, unknown } = bcSeenOn(csvPath, opts.today ?? new Date().toISOString().slice(0, 10));
+  // Every row an earlier load wrote is dated by its load day: flagged, never deleted (D-267 A9).
+  const flagged = markLoadDayRows(db, SELLER);
+  if (flagged > 0) console.log(`bcldb: ${flagged} rows from earlier loads flagged as dated only by their load day`);
+  if (unknown) console.error(`bcldb: no month in the file name ${csvPath}; rows are flagged as of unknown date`);
 
   let written = 0;
   let skippedNoUpc = 0;
@@ -243,7 +269,8 @@ async function loadBcldb(csvPath: string = DEFAULT_CSV): Promise<LoadResult> {
       country: 'CA',
       region: 'British Columbia',
       joinMethod: 'gtin',
-      seenOn: today,
+      seenOn,
+      seenOnUnknown: unknown ? 1 : 0,
       url: null,
       imageUrl: null,
       inStock: null,

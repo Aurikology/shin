@@ -60,7 +60,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync, unlinkSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openPrices, recordObservation, PRICES_DB_PATH, type JoinMethod } from './store.ts';
+import { markLoadDayRows, openPrices, recordObservation, PRICES_DB_PATH, type JoinMethod } from './store.ts';
 import { requireSourceUse } from './registry.ts';
 import { CATALOGUE_PATH } from './crawl.ts';
 
@@ -127,10 +127,39 @@ function parseLine(line: string): NbRow | null {
   };
 }
 
-function fetchPdf(): Promise<Buffer> {
+/**
+ * D-267 A9: the date this price list's prices were seen. ANBL's PDF has no date in its name, so its own
+ * date is used: the PDF's ModDate (else CreationDate) as `pdfinfo -isodates` prints it, else the server's
+ * Last-Modified header from the fetch. Neither, or a date after `today`: the load day, flagged `unknown`,
+ * which every reader treats as of unknown age, never as seen today.
+ */
+export function nbSeenOn(pdfInfo: string | null, lastModified: string | null, today: string): { seenOn: string; unknown: boolean } {
+  const field = (name: string): string | null => {
+    const m = pdfInfo ? new RegExp(`^${name}:\\s*(\\d{4}-\\d{2}-\\d{2})`, 'm').exec(pdfInfo) : null;
+    return m ? m[1]! : null;
+  };
+  const fromHeader = (): string | null => {
+    const t = lastModified ? Date.parse(lastModified) : NaN;
+    return Number.isNaN(t) ? null : new Date(t).toISOString().slice(0, 10);
+  };
+  const seenOn = field('ModDate') ?? field('CreationDate') ?? fromHeader();
+  return seenOn && seenOn <= today ? { seenOn, unknown: false } : { seenOn: today, unknown: true };
+}
+
+/** `pdfinfo -isodates` (poppler, installed beside pdftotext), or null when it cannot be run. */
+function pdfInfo(pdfPath: string): string | null {
+  try {
+    return execFileSync('pdfinfo', ['-isodates', pdfPath], { encoding: 'utf8' });
+  } catch (err) {
+    console.error(`anbl: pdfinfo could not read the PDF's own date (${err instanceof Error ? err.message : String(err)})`);
+    return null;
+  }
+}
+
+function fetchPdf(): Promise<{ bytes: Buffer; lastModified: string | null }> {
   return fetch(PDF_URL).then(async (res) => {
     if (!res.ok) throw new Error(`ANBL price list fetch failed: HTTP ${res.status}`);
-    return Buffer.from(await res.arrayBuffer());
+    return { bytes: Buffer.from(await res.arrayBuffer()), lastModified: res.headers.get('last-modified') };
   });
 }
 
@@ -147,17 +176,21 @@ async function main(): Promise<void> {
   let pdfPath = localPath;
   let cleanup: (() => void) | null = null;
 
+  let lastModified: string | null = null;
   if (pdfPath === null) {
-    const bytes = await fetchPdf();
+    const got = await fetchPdf();
+    lastModified = got.lastModified;
     const dir = mkdtempSync(join(tmpdir(), 'anbl-'));
     pdfPath = join(dir, 'PriceList-Public.pdf');
-    writeFileSync(pdfPath, bytes);
+    writeFileSync(pdfPath, got.bytes);
     cleanup = () => unlinkSync(pdfPath!);
-    console.log(`fetched ${bytes.length} bytes`);
+    console.log(`fetched ${got.bytes.length} bytes, Last-Modified ${lastModified ?? '(none)'}`);
   }
 
   const text = extractTable(pdfPath!);
+  const dated = nbSeenOn(pdfInfo(pdfPath!), lastModified, new Date().toISOString().slice(0, 10));
   if (cleanup) cleanup();
+  console.log(`price list dated ${dated.seenOn}${dated.unknown ? ' (no date in the PDF or the response: rows flagged as of unknown date)' : ''}`);
 
   /* pdftotext writes CRLF. A trailing \r left on each line would sit between
    * `(.*)` and the `$` anchor in LINE_START below and fail every match,
@@ -173,7 +206,9 @@ async function main(): Promise<void> {
   // Requirement 4.8: the database refuses unregistered sellers, and no automated
   // reader runs without a recorded basis or on a source whose basis forbids one.
   requireSourceUse(db, SELLER, 'automated');
-  const today = new Date().toISOString().slice(0, 10);
+  // Every row an earlier load wrote is dated by its load day: flagged, never deleted (D-267 A9).
+  const flagged = markLoadDayRows(db, SELLER);
+  if (flagged > 0) console.log(`  ${flagged} rows from earlier loads flagged as dated only by their load day`);
 
   let candidateLines = 0;
   let parsed = 0;
@@ -249,7 +284,8 @@ async function main(): Promise<void> {
       country: 'CA',
       region: 'New Brunswick',
       joinMethod,
-      seenOn: today,
+      seenOn: dated.seenOn,
+      seenOnUnknown: dated.unknown ? 1 : 0,
       url: PDF_URL,
       imageUrl: null,
       inStock: null,

@@ -72,6 +72,19 @@ import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 export const WINDOW_DAYS = 90;
 
 /**
+ * D-267 A9: the age a price is read at when its source gave no date and the row carries only the day it
+ * was loaded (`seen_on_unknown = 1`). Just over a year: older than any price still called recent (estimate.ts
+ * OLD_DAYS), so it is weighted like an old price, never counted as fresh, and never sets "Certain". A load
+ * day further back than this is older still and is read as that.
+ */
+export const UNKNOWN_AGE_DAYS = 366;
+
+/** The age a row is read at: its own, or for a row dated only by its load day at least UNKNOWN_AGE_DAYS. */
+export function readAge(age: number, seenOnUnknown: unknown): number {
+  return seenOnUnknown === 1 ? Math.max(age, UNKNOWN_AGE_DAYS) : age;
+}
+
+/**
  * Own-product step: at least 3 shops, one latest price each. Two numbers are a
  * pair, not a range, and a single chain crawled daily must not be able to pass
  * this alone, which is why the count is of shops and never of rows.
@@ -363,7 +376,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
   const rows = db
     .prepare(
       `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url,
-              ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}, ${col('in_stock')}
+              ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}, ${col('in_stock')}, ${col('seen_on_unknown')}
          FROM observation
         WHERE ${where} AND kind = 'regular' AND currency = ?`,
     )
@@ -393,7 +406,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
       warnRangeFault('unparseable_as_of', `${asOf} (${err instanceof Error ? err.message : String(err)})`);
       continue;
     }
-    if (age > windowDays) continue;
+    if (readAge(age, r.seen_on_unknown) > windowDays) continue;
     // The shop, not the publisher: Open Prices publishes many shops under one seller string.
     const place = (r.store_osm ?? r.store_name ?? r.region ?? '') as string;
     out.push({ key: codeKey(r.code), seller: r.seller, shop: `${r.seller}|${String(place).toLowerCase().trim()}`, cents, seenOn: seen, outOfStock: r.in_stock === 0 });
