@@ -41,6 +41,9 @@ const db = openCatalogueReadOnly(dbPath);
  */
 const embedder = defaultEmbedder();
 const catalogue = new Catalogue(db, embedder, loadRingTaxonomy());
+// D-263: the spelling vocabulary, read in steps so searches keep answering meanwhile (spelling.ts).
+// Its own failure is logged inside and never stops a search.
+void catalogue.startSpelling();
 
 export type Job =
   | { readonly kind: 'warm' }

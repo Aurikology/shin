@@ -43,6 +43,8 @@ import {
 import { variantCarriedBy, variantTokens } from './variant-words.ts';
 import { upcEOf, upcAOf } from './upc.ts';
 import { isNeverSentToAModel, isUnlicensedSource, licensedOnlySql } from './source-rights.ts';
+import { Speller } from './spelling.ts';
+import type { SpellingStats } from './spelling.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
 const RRF_K = 60;
@@ -569,6 +571,14 @@ export interface SearchResult {
    * answer is trustworthy enough to suppress the whole-catalogue fallback.
    */
   readonly wordsMatched: 'all' | 'some' | 'n/a';
+  /**
+   * D-263. Present only when a misspelt word was corrected and the answer
+   * comes from the corrected words: `correctedFrom` is what was typed,
+   * `correctedTo` what was searched, so a screen can say "showing results for
+   * deodorant". Absent on every answer the typed words found by themselves.
+   */
+  readonly correctedFrom?: string;
+  readonly correctedTo?: string;
 }
 
 interface Row {
@@ -1059,6 +1069,45 @@ export class Catalogue {
     if (taxonomy === undefined) logTaxonomyUnavailableOnce('no taxonomy was passed to the Catalogue');
     this.#taxonomy = taxonomy ?? null;
     this.#ftsWeights = ftsWeights(db);
+    this.#speller = new Speller(db);
+  }
+
+  /** D-263: the spelling fallback (spelling.ts). Built only when asked, so a barcode-only handle never pays for it. */
+  readonly #speller: Speller;
+
+  /** Starts building the spelling vocabulary in steps; the search worker calls it once at start. Idempotent. */
+  startSpelling(): Promise<void> {
+    return this.#speller.start();
+  }
+
+  spellingStats(): SpellingStats {
+    return this.#speller.stats();
+  }
+
+  /** The correction for one typed word, or null (see Speller.correct for every null). */
+  spellingFix(word: string): string | null {
+    return this.#speller.correct(word);
+  }
+
+  /**
+   * The typed text with each misspelt word corrected, or null when nothing changed.
+   *
+   * A last word that begins some indexed word is left alone: the search already
+   * completes it as a prefix ("ketch" finds ketchup), so it is half typed, not wrong.
+   */
+  #correctedText(text: string): string | null {
+    const tokens = ftsTokens(text);
+    const last = tokens[tokens.length - 1];
+    let changed = false;
+    const out = text.replace(/[\p{L}\p{N}]+/gu, (word) => {
+      const lower = word.toLowerCase();
+      if (lower === last && this.#speller.startsAWord(lower)) return word;
+      const fix = this.#speller.correct(lower);
+      if (fix === null) return word;
+      changed = true;
+      return fix;
+    });
+    return changed ? out : null;
   }
 
   /** Exact barcode lookup. Decision 15: a barcode is truth, so it short-circuits. */
@@ -1394,16 +1443,35 @@ export class Catalogue {
       this.#recordGap({ gtin: query.gtin, recordMiss: query.recordMiss });
     }
 
-    const text = query.text?.trim();
-    if (!text) {
+    const typed = query.text?.trim();
+    if (!typed) {
       this.#recordGap(query);
       return { band: 'miss', candidates: [], ring: null, matchedBy: 'none', wordsMatched: 'n/a' };
     }
 
-    const [textResult, vecHitsRaw] = await Promise.all([
-      Promise.resolve(this.#textSearch(text, query.sources)),
-      query.vectors === false ? Promise.resolve([]) : this.#vectorSearch(text),
-    ]);
+    /*
+     * D-263: a misspelt word. Tried only when the typed words found nothing or
+     * matched only some of the words, and only on words the index has never
+     * seen, so a query that already answers is never second-guessed. The
+     * corrected answer is kept only when it is better: something where there
+     * was nothing, or every word matched where only some had.
+     */
+    let text = typed;
+    let textResult = this.#textSearch(text, query.sources);
+    let correction: { correctedFrom: string; correctedTo: string } | null = null;
+    if (textResult.hits.length === 0 || textResult.wordsMatched === 'some') {
+      const fixed = this.#correctedText(typed);
+      if (fixed !== null) {
+        const retry = this.#textSearch(fixed, query.sources);
+        if (retry.hits.length > 0 && (textResult.hits.length === 0 || retry.wordsMatched !== 'some')) {
+          text = fixed;
+          textResult = retry;
+          correction = { correctedFrom: typed, correctedTo: fixed };
+        }
+      }
+    }
+
+    const vecHitsRaw = query.vectors === false ? [] : await this.#vectorSearch(text);
     // Unit 8's SQL clause (see #runFts) only reaches the text arm: vec0 has no
     // WHERE. Measured on "asus rt-n66u": without this line the bare row
     // "RT-N66U" still won on the vector arm alone and came back as result #1
@@ -1599,7 +1667,14 @@ export class Catalogue {
 
     if (band === 'miss') this.#recordGap(query);
 
-    return { band, candidates, ring, matchedBy: candidates.length > 0 ? 'hybrid' : 'none', wordsMatched: textResult.wordsMatched };
+    return {
+      band,
+      candidates,
+      ring,
+      matchedBy: candidates.length > 0 ? 'hybrid' : 'none',
+      wordsMatched: textResult.wordsMatched,
+      ...(correction ?? {}),
+    };
   }
 
   #band(candidates: readonly Candidate[], wordsMatched: 'all' | 'some' | 'n/a' = 'n/a'): Band {
