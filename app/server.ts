@@ -1154,9 +1154,10 @@ function typedCatalogueAttached(): boolean {
   return seam !== undefined ? seam !== null : !!searchService;
 }
 
-async function typedCatalogueSearch(text: string, device: string): Promise<{ rows: TypedRow[]; band: string }> {
+async function typedCatalogueSearch(text: string, device: string, pickedGtin: string | null = null): Promise<{ rows: TypedRow[]; band: string }> {
   const seam = catalogueFirstTest?.searcher;
-  const q = { text, limit: 5, vectors: vectorsOn };
+  // A barcode that rides with the words is the shopper's pick ("Not this", then a price): the barcode branch answers it, and the words search only when the catalogue does not know that barcode.
+  const q = { text, limit: 5, vectors: vectorsOn, ...(pickedGtin ? { gtin: pickedGtin } : {}) };
   try {
     let raw: { band?: string; candidates?: unknown[] };
     let downgrade = false;
@@ -1199,6 +1200,8 @@ async function typedFromOwnData(
   /** `/api/price` naming a typed scan already has its row: it is reused, never duplicated. */
   existingScanId: number | null = null,
   verdictCtx: TypedVerdictContext | null = null,
+  /** The barcode of the product the shopper picked from a list, when the price call carried one (D-266 C1). */
+  pickedGtin: string | null = null,
 ): Promise<Record<string, unknown> & { scanId?: number }> {
   const first = verdictCtx !== null && catalogueFirstOn();
   /*
@@ -1208,7 +1211,7 @@ async function typedFromOwnData(
    * function, `catalogueFirstBarcode`, so the two cannot diverge. The top three
    * ride along so the shopper can change the pick.
    */
-  const searched = first ? await typedCatalogueSearch(text, device) : null;
+  const searched = first ? await typedCatalogueSearch(text, device, pickedGtin) : null;
   const resolution = searched ? resolveTypedName(text, searched.rows, searched.band) : null;
   const pickCandidates = searched ? searched.rows.slice(0, 3).map(pickCandidate) : [];
 
@@ -3346,7 +3349,9 @@ export const server = createServer(async (req, res) => {
       // (Jamin, 2026-11-07, RULINGS "Pexi uses Gemini for nothing"). The `kind: 'gemini'` word is
       // only the name the phone app reads this answer under.
       const row = scanKnown ? getScan(pricedScan) : null;
-      if (!searchGtin && searchText && (row === null || row.kind === 'text')) {
+      // D-266 C1: also when a barcode came along. The pad opened from a "Not this" pick sends the
+      // picked product's barcode with its words; that barcode is the product, so it goes to the lookup.
+      if (searchText && (row === null || row.kind === 'text')) {
         const own = await typedFromOwnData(
           searchText,
           pricedDevice,
@@ -3359,6 +3364,7 @@ export const server = createServer(async (req, res) => {
             market: marketOfContext(contextFrom((key) => q[key])),
             askRange: claudeRangeAsk(req),
           },
+          searchGtin ?? null,
         );
         if (typeof own.scanId === 'number') scanForLog = own.scanId;
         return json(200, { ...own, kind: 'gemini' });
