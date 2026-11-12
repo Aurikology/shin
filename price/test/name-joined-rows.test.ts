@@ -7,8 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { openPrices, recordObservation, type ObservationRow } from '../src/store.ts';
-import { estimate, type EstimateItem } from '../src/estimate.ts';
-import type { ClaudeAnswer } from '../src/claude.ts';
+import { estimate, type ClaudeAnswer, type EstimateItem } from '../src/estimate.ts';
 
 const SELF = '0068100084245';
 const AS_OF = '2026-09-30';
