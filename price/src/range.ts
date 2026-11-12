@@ -328,6 +328,8 @@ interface Obs {
   readonly shop: string;
   readonly cents: number;
   readonly seenOn: string;
+  /** Seen while the shop listed it out of stock (`in_stock = 0`): still a real price (D-267 A4). */
+  readonly outOfStock: boolean;
 }
 
 /** Hosts reserved for documentation and tests: a row linking there came from a test double. */
@@ -361,7 +363,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
   const rows = db
     .prepare(
       `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url,
-              ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}
+              ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}, ${col('in_stock')}
          FROM observation
         WHERE ${where} AND kind = 'regular' AND currency = ?`,
     )
@@ -394,17 +396,24 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
     if (age > windowDays) continue;
     // The shop, not the publisher: Open Prices publishes many shops under one seller string.
     const place = (r.store_osm ?? r.store_name ?? r.region ?? '') as string;
-    out.push({ key: codeKey(r.code), seller: r.seller, shop: `${r.seller}|${String(place).toLowerCase().trim()}`, cents, seenOn: seen });
+    out.push({ key: codeKey(r.code), seller: r.seller, shop: `${r.seller}|${String(place).toLowerCase().trim()}`, cents, seenOn: seen, outOfStock: r.in_stock === 0 });
   }
   return out;
 }
 
-/** One price per shop: the latest; on the same day, the lower. */
+/**
+ * One price per shop: the latest; on the same day, a listing not marked out of stock before one that is
+ * (D-267 A4: the price a shopper can buy there), then the lower.
+ */
 function latestPerShop(obs: readonly Obs[]): Obs[] {
   const by = new Map<string, Obs>();
   for (const o of obs) {
     const have = by.get(o.shop);
-    if (!have || o.seenOn > have.seenOn || (o.seenOn === have.seenOn && o.cents < have.cents)) by.set(o.shop, o);
+    if (!have || o.seenOn > have.seenOn) by.set(o.shop, o);
+    else if (o.seenOn === have.seenOn) {
+      const stock = Number(have.outOfStock) - Number(o.outOfStock);
+      if (stock > 0 || (stock === 0 && o.cents < have.cents)) by.set(o.shop, o);
+    }
   }
   return [...by.values()];
 }

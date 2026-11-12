@@ -428,6 +428,8 @@ interface Row {
    * product's own price only when no barcode-joined row exists (bug sweep 2026-11-11, D-267).
    */
   readonly nameJoined: boolean;
+  /** Seen while the shop listed it out of stock (`in_stock = 0`): still a real price (D-267 A4). */
+  readonly outOfStock: boolean;
 }
 
 function str(v: unknown): string | null {
@@ -464,7 +466,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
       `SELECT code, ${col('page_gtin')}, seller, seller_sku, seller_name, seller_brand, price_cents, ${col('base_price_cents')},
               kind, ${col('is_sale')}, region, ${col('store_name')}, ${col('store_city')}, ${col('store_osm')}, seen_on, url,
               ${col('parsed_size')}, ${col('parsed_brand')}, ${col('store_category')}, ${col('capture_tile_id')}, ${col('price_verified')},
-              ${col('join_method')}
+              ${col('join_method')}, ${col('in_stock')}
          FROM observation WHERE currency = ?`,
     )
     .all(currency) as Record<string, unknown>[];
@@ -510,6 +512,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
       storeCategory: str(r.store_category),
       printout,
       nameJoined: r.join_method === 'name',
+      outOfStock: r.in_stock === 0,
     });
   }
   return out;
@@ -597,12 +600,19 @@ interface Product {
   readonly department: string | null;
 }
 
-/** One price per shop: the latest; on the same day, the lower. */
-function latestPerShop<T extends { shop: string; seenOn: string; cents: number }>(rows: readonly T[]): T[] {
+/**
+ * One price per shop: the latest; on the same day, a listing not marked out of stock before one that is
+ * (D-267 A4: the price a shopper can buy there), then the lower.
+ */
+function latestPerShop<T extends { shop: string; seenOn: string; cents: number; outOfStock?: boolean }>(rows: readonly T[]): T[] {
   const by = new Map<string, T>();
   for (const o of rows) {
     const have = by.get(o.shop);
-    if (!have || o.seenOn > have.seenOn || (o.seenOn === have.seenOn && o.cents < have.cents)) by.set(o.shop, o);
+    if (!have || o.seenOn > have.seenOn) by.set(o.shop, o);
+    else if (o.seenOn === have.seenOn) {
+      const stock = Number(!!have.outOfStock) - Number(!!o.outOfStock);
+      if (stock > 0 || (stock === 0 && o.cents < have.cents)) by.set(o.shop, o);
+    }
   }
   return [...by.values()];
 }
