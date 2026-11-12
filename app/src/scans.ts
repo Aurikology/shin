@@ -371,6 +371,8 @@ export interface ScanInput {
 export interface ScanPatch {
   readonly photoPath?: string | null;
   readonly typedPriceCents?: number | null;
+  /** The name a shopper typed for an item no product was found for (D-266 C4). */
+  readonly resolvedLabel?: string | null;
   readonly verdictTier?: string | null;
   readonly verdictConfidence?: string | null;
   readonly verdictSellers?: number | null;
@@ -402,6 +404,7 @@ export interface ScanPatch {
 const PATCH_COLUMNS: Readonly<Record<keyof ScanPatch, string>> = {
   photoPath: 'photo_path',
   typedPriceCents: 'typed_price_cents',
+  resolvedLabel: 'resolved_label',
   verdictTier: 'verdict_tier',
   verdictZone: 'verdict_zone',
   verdictConfidence: 'verdict_confidence',

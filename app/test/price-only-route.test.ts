@@ -136,6 +136,30 @@ test('the price lands on the scan row, which is the one place anything can read 
   assert.equal(getScan(scanId)!.typed_price_cents, 1234);
 });
 
+test('the name the shopper typed for the item is kept with the price and the shop (D-266 C4)', async () => {
+  const scanId = await unidentifiedScan('d-name');
+  assert.equal(getScan(scanId)!.resolved_label, null, 'the fixture scan already had a name');
+  const { body } = await post('/api/correction', {
+    clientId: 'c-name',
+    deviceId: 'd-name',
+    scanId,
+    priceCents: 649,
+    label: '  Mystery plum jam  ',
+  });
+  assert.equal(body.stored, true);
+  const row = getScan(scanId)!;
+  assert.equal(row.typed_price_cents, 649);
+  assert.equal(row.resolved_label, 'Mystery plum jam', 'the typed name was thrown away');
+  assert.equal(row.resolved_code, null, 'keeping the name must not invent a product');
+});
+
+test('a typed name never replaces a name the scan already carries', async () => {
+  const scanId = await unidentifiedScan('d-name-kept');
+  await post('/api/correction', { clientId: 'c-name-1', deviceId: 'd-name-kept', scanId, priceCents: 500, label: 'First name' });
+  await post('/api/correction', { clientId: 'c-name-2', deviceId: 'd-name-kept', scanId, priceCents: 510, label: 'Second name' });
+  assert.equal(getScan(scanId)!.resolved_label, 'First name');
+});
+
 test('an observation is not a correction: it never claims a product', async () => {
   /*
    * The guarantee the 19d refusal exists to give. An observation must not

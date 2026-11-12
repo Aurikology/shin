@@ -3500,6 +3500,9 @@ export const server = createServer(async (req, res) => {
           const observedWhere = locationFor(deviceId, c.cell, c.storeId, c.storeName);
           updateScan(scanRow.id, {
             typedPriceCents: observedCents,
+            // D-266 C4: the name the shopper typed for the item goes with its price. It names the
+            // scan only (no product code is invented) and never replaces a name the scan has.
+            ...(label !== null && scanRow.resolved_label === null ? { resolvedLabel: label } : {}),
             cell: observedWhere.cell ?? undefined,
             storeId: observedWhere.storeId ?? undefined,
             storeName: observedWhere.storeName ?? undefined,
