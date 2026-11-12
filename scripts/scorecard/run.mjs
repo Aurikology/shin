@@ -11,17 +11,20 @@
  *     change. Only the price data rules can read a prices file, so the other catchers are not run for it: they
  *     are recorded as "blind" and carry the control result.
  * Catchers (a bug is CAUGHT by a catcher when the catcher goes red where the control was green):
- *   answer key  app/test/answer-key.test.ts (synthetic mode)
+ *   answer key  app/test/answer-key.test.ts (synthetic mode: rules R6 and R7)
+ *   seam test   app/test/pad-sends-barcode.test.mjs (what the pad sends to the server for a typed pick)
  *   data rules  scripts/test/data-checks.test.mjs + the rules on a clean temp prices file (code bugs);
  *               the rules on the temp prices file with the planted rows (data bugs)
  *   crawler     scripts/crawler/crawl.mjs --runs 150 --steps 25 --seed 1; caught on exit 1 or on any
- *               non-expected failure the control run did not have
- *   old suites  `npm test` in app (minus the two new checks' own test files) + `npm run test:ux` in app +
+ *               non-expected failure the control run did not have; plus app/test/crawler.test.mjs (its content
+ *               rules run against the real verdict sheet and camera screen)
+ *   old suites  `npm test` in app (minus the new checks' own test files) + `npm run test:ux` in app +
  *               `npm test` in price
  * The control (no mutation) must be green on every catcher first, or the run stops.
  *
- * After every mutation, and at the end, `git status` must be clean apart from scripts/scorecard/; a leftover
- * is a loud failure (exit 1). Real data folders (app/data, price/data, catalogue/data, data/) are never touched:
+ * After every mutation, and at the end, `git status` must be exactly what it was when the run started (the run
+ * may start over uncommitted work, but never plants into a file that was already modified); anything else is a
+ * leftover and a loud failure (exit 1). Real data folders (app/data, price/data, catalogue/data, data/) are never touched:
  * mutation edits may not name a path under a `data` folder, and every temp file is under the system temp folder.
  * Writes scripts/scorecard/report.md (or --report).
  */
@@ -29,6 +32,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
@@ -39,7 +43,7 @@ const NODE = process.execPath;
 const CMD_TIMEOUT_MS = 10 * 60 * 1000;
 const SETUP = '--test-global-setup=test/setup/global.mjs';
 /** The new checks' own test files: not part of the old-suite catcher (they are the new catchers' tests). */
-const NEW_CHECK_TESTS = new Set(['answer-key.test.ts', 'crawler.test.mjs']);
+const NEW_CHECK_TESTS = new Set(['answer-key.test.ts', 'crawler.test.mjs', 'pad-sends-barcode.test.mjs']);
 
 const { values: opts } = parseArgs({
   options: {
@@ -72,13 +76,38 @@ function leftovers() {
     .filter((l) => !l.slice(3).replace(/\\/g, '/').startsWith('scripts/scorecard/'));
 }
 
+/**
+ * What the tree looked like when the run started, as git-status lines plus a hash of each such file's bytes.
+ * The scorecard used to refuse to start over any uncommitted work. It now starts over uncommitted work (a
+ * lane that adds checks has uncommitted checks) and holds the tree to EXACTLY that state: any other file, and
+ * any change to a file that was already dirty, is a leftover. It never plants into a file that was already
+ * dirty, because putting a plant back is `git checkout -- <file>`, which would throw that work away.
+ */
+let baseline = null;
+const fingerprint = () => {
+  const out = new Map();
+  for (const l of leftovers()) {
+    const rel = l.slice(3).replace(/\\/g, '/');
+    let h = 'absent';
+    try { h = createHash('sha256').update(readFileSync(join(ROOT, rel))).digest('hex'); } catch { /* deleted or a folder */ }
+    out.set(l, h);
+  }
+  return out;
+};
+
 function assertClean(where) {
-  const left = leftovers();
+  const now = fingerprint();
+  if (baseline === null) baseline = now;
+  const left = [];
+  for (const [l, h] of now) if (baseline.get(l) !== h) left.push(`${l}${baseline.has(l) ? '  (changed since the run started)' : ''}`);
+  for (const l of baseline.keys()) if (!now.has(l)) left.push(`${l}  (was there when the run started, now gone)`);
   if (left.length > 0) {
-    console.error(`SCORECARD FAILED: git status is not clean ${where}:\n${left.join('\n')}`);
+    console.error(`SCORECARD FAILED: git status is not what it was when the run started, ${where}:\n${left.join('\n')}`);
     process.exit(1);
   }
 }
+
+const dirtyAtStart = (rel) => [...(baseline ?? new Map()).keys()].some((l) => l.slice(3).replace(/\\/g, '/') === rel);
 
 /** Run a command, capture its output, never throw. */
 function runCmd(args, { cwd = ROOT, env = {} } = {}) {
@@ -129,6 +158,7 @@ function plant(m) {
       if (rel.split('/').includes('data')) throw new Error(`${m.id}: refusing to edit a path under a data folder: ${rel}`);
       const tracked = git('ls-files', '--', rel).trim();
       if (tracked !== rel) throw new Error(`${m.id}: ${rel} is not a tracked file`);
+      if (dirtyAtStart(rel)) throw new Error(`${m.id}: ${rel} had uncommitted changes when the run started, and putting the plant back would discard them`);
       const abs = join(ROOT, rel);
       const text = readFileSync(abs, 'utf8');
       const crlf = text.includes('\r\n');
@@ -163,11 +193,11 @@ for (const sig of ['SIGINT', 'SIGTERM']) {
 const appTestFiles = () => readdirSync(join(ROOT, 'app', 'test')).filter((f) => /\.test\.(ts|mjs)$/.test(f) && !NEW_CHECK_TESTS.has(f)).sort();
 
 async function catchOldSuites() {
-  const [app, ux, price] = await Promise.all([
-    runCmd(['--test', SETUP, ...appTestFiles().map((f) => `test/${f}`)], { cwd: join(ROOT, 'app') }),
-    runCmd(['--test', SETUP, 'test/ux/*.test.mjs'], { cwd: join(ROOT, 'app') }),
-    runCmd(['--test', 'test/*.test.ts'], { cwd: join(ROOT, 'price') }),
-  ]);
+  // One suite at a time: run together, the load pushed the ux journey test's 600 ms barcode
+  // window over (J1 red in 2 of 2 control runs on 2026-11-12, green 3 of 3 alone).
+  const app = await runCmd(['--test', SETUP, ...appTestFiles().map((f) => `test/${f}`)], { cwd: join(ROOT, 'app') });
+  const ux = await runCmd(['--test', SETUP, 'test/ux/*.test.mjs'], { cwd: join(ROOT, 'app') });
+  const price = await runCmd(['--test', 'test/*.test.ts'], { cwd: join(ROOT, 'price') });
   const parts = { app, ux, price };
   const red = Object.entries(parts).filter(([, r]) => r.code !== 0);
   const files = [...new Set(red.flatMap(([, r]) => failedFiles(r.out)))].sort();
@@ -182,6 +212,12 @@ async function catchOldSuites() {
 
 async function catchAnswerKey() {
   const r = await runCmd(['--test', SETUP, 'test/answer-key.test.ts'], { cwd: join(ROOT, 'app') });
+  return { caught: r.code !== 0, files: r.code !== 0 ? failedFiles(r.out) : [], detail: `exit ${r.code} ${JSON.stringify(testSummary(r.out))}`, ms: r.ms, tail: r.code !== 0 ? r.out.slice(-1500) : '' };
+}
+
+/** The seam test: what the pad sends to the server when the shopper typed a name (the barcode must ride along). */
+async function catchSeam() {
+  const r = await runCmd(['--test', SETUP, 'test/pad-sends-barcode.test.mjs'], { cwd: join(ROOT, 'app') });
   return { caught: r.code !== 0, files: r.code !== 0 ? failedFiles(r.out) : [], detail: `exit ${r.code} ${JSON.stringify(testSummary(r.out))}`, ms: r.ms, tail: r.code !== 0 ? r.out.slice(-1500) : '' };
 }
 
@@ -224,7 +260,12 @@ async function catchDataRules(spec) {
 async function catchCrawler(controlSigs) {
   const dir = mkdtempSync(join(tmpdir(), 'scorecard-crawl-'));
   try {
-    const r = await runCmd(['scripts/crawler/crawl.mjs', '--runs', '150', '--steps', '25', '--seed', '1', '--out', dir]);
+    // The crawl itself, and the crawler's own test file (its content-rule tests drive the real verdict sheet
+    // and the real camera screen, which a random crawl reaches only rarely). Both are the crawler catcher.
+    const [r, ct] = await Promise.all([
+      runCmd(['scripts/crawler/crawl.mjs', '--runs', '150', '--steps', '25', '--seed', '1', '--out', dir]),
+      runCmd(['--test', SETUP, 'test/crawler.test.mjs'], { cwd: join(ROOT, 'app') }),
+    ]);
     const jl = join(dir, 'failures.jsonl');
     const lines = existsSync(jl) ? readFileSync(jl, 'utf8').trim().split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
     const real = lines.filter((l) => l.severity !== 'expected');
@@ -233,16 +274,18 @@ async function catchCrawler(controlSigs) {
     // Low-severity tap-does-nothing findings differ between two identical control runs (they depend on timing under load), so they are reported but never make a catch.
     const freshHigh = fresh.filter((f) => f.severity !== 'low');
     const noReport = !existsSync(join(dir, 'report.md'));
-    const caught = noReport || r.code !== 0 || freshHigh.length > 0;
+    const caught = noReport || r.code !== 0 || freshHigh.length > 0 || ct.code !== 0;
     const first = existsSync(join(dir, 'report.md')) ? readFileSync(join(dir, 'report.md'), 'utf8').split('\n')[0] : 'no report written';
     return {
       caught,
       files: [],
       sigs,
       fresh,
-      detail: `exit ${r.code}; ${first}${fresh.length ? `; NEW (${freshHigh.length} above low): ${fresh.map((f) => `${f.severity}: ${f.sig}`).join(' | ').slice(0, 400)}` : ''}`,
-      ms: r.ms,
-      tail: r.code !== 0 && lines.length === 0 ? r.out.slice(-1500) : '',
+      detail: `exit ${r.code}; ${first}${fresh.length ? `; NEW (${freshHigh.length} above low): ${fresh.map((f) => `${f.severity}: ${f.sig}`).join(' | ').slice(0, 400)}` : ''}; crawler.test.mjs exit ${ct.code} ${JSON.stringify(testSummary(ct.out))}`,
+      ms: Math.max(r.ms, ct.ms),
+      tail: (r.code !== 0 && lines.length === 0 ? r.out.slice(-1500) : '') + (ct.code !== 0 ? ct.out.slice(-1500) : ''),
+      crawlCaught: noReport || r.code !== 0 || freshHigh.length > 0,
+      testCaught: ct.code !== 0,
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -263,6 +306,7 @@ async function runCatchers(controlSigs, { dataSpec = null, skipBlind = false, se
   const jobs = {
     old: skipBlind ? null : () => catchOldSuites(),
     key: skipBlind ? null : () => catchAnswerKey(),
+    seam: skipBlind ? null : () => catchSeam(),
     crawler: skipBlind ? null : () => catchCrawler(controlSigs),
     data: () => catchDataRules(dataSpec),
   };
@@ -280,7 +324,7 @@ async function runCatchers(controlSigs, { dataSpec = null, skipBlind = false, se
 /* ------------------------------------------------------------------ main */
 
 async function main() {
-  assertClean('before the run (the scorecard will not run over uncommitted work)');
+  assertClean('before the run (this takes the snapshot every later check compares against)');
   const head = git('rev-parse', '--short', 'HEAD').trim();
   const mutations = loadMutations();
   log(`scorecard on ${head}: ${mutations.length} mutation(s), control first`);
@@ -292,6 +336,7 @@ async function main() {
   const ctlGreen = {
     'old suites': !control.old.caught,
     'answer key': !control.key.caught,
+    'seam test': !control.seam.caught,
     'data rules': !control.data.caught,
     crawler: !control.crawler.caught,
   };
@@ -327,7 +372,7 @@ async function main() {
       } else {
         log(`${m.id} ${m.defects}: planting rows in a temp prices file`);
         res = await runCatchers(controlSigs, { dataSpec: m.file, skipBlind: true });
-        for (const k of ['old', 'key', 'crawler']) res[k] = { caught: false, blind: true, files: [], detail: 'blind: cannot read a prices file, not run', ms: 0 };
+        for (const k of ['old', 'key', 'seam', 'crawler']) res[k] = { caught: false, blind: true, files: [], detail: 'blind: cannot read a prices file, not run', ms: 0 };
       }
     } finally {
       try { revert(touched); } catch (e) { console.error(`REVERT FAILED for ${m.id}: ${e.message}`); process.exit(1); }
@@ -339,7 +384,7 @@ async function main() {
     const proofRed = own.length > 0 && (own.some((f) => redFiles.includes(f)) || proofs.some((p) => p.red));
     const oldOtherThanOwn = res.old.caught && (redFiles.length === 0 || redFiles.some((f) => !own.includes(f)));
     results.push({ m, res, proofs, proofRed, oldOtherThanOwn, ms: Date.now() - started });
-    log(`${m.id} done in ${secs(Date.now() - started)}: key ${res.key.caught ? 'CAUGHT' : 'missed'}, data ${res.data.caught ? 'CAUGHT' : 'missed'}, crawler ${res.crawler.caught ? 'CAUGHT' : 'missed'}, old ${res.old.caught ? 'CAUGHT' : 'missed'}`);
+    log(`${m.id} done in ${secs(Date.now() - started)}: key ${res.key.caught ? 'CAUGHT' : 'missed'}, seam ${res.seam.caught ? 'CAUGHT' : 'missed'}, data ${res.data.caught ? 'CAUGHT' : 'missed'}, crawler ${res.crawler.caught ? 'CAUGHT' : 'missed'}, old ${res.old.caught ? 'CAUGHT' : 'missed'}`);
   }
 
   assertClean('at the end of the run');
@@ -359,11 +404,11 @@ function writeReport({ head, control, ctlGreen, controlSigs, results, controlOk,
   L.push('');
   L.push('## Control (no mutation)');
   L.push('');
-  L.push(`${controlOk ? 'All four catchers green.' : '**NOT GREEN: the scorecard below means nothing.**'}`);
+  L.push(`${controlOk ? 'All five catchers green.' : '**NOT GREEN: the scorecard below means nothing.**'}`);
   L.push('');
   L.push('| Catcher | Control | Detail | Time |');
   L.push('| --- | --- | --- | --- |');
-  const names = [['answer key', 'key'], ['data rules', 'data'], ['crawler', 'crawler'], ['old suites', 'old']];
+  const names = [['answer key', 'key'], ['seam test', 'seam'], ['data rules', 'data'], ['crawler', 'crawler'], ['old suites', 'old']];
   for (const [label, k] of names) L.push(`| ${label} | ${ctlGreen[label] ? 'green' : 'RED'} | ${control[k].detail.replace(/\|/g, '/')} | ${secs(control[k].ms)} |`);
   L.push('');
   L.push(`The crawler's control run reports ${controlSigs.length} non-expected failure(s), none high: ${controlSigs.map((s) => `${s.severity}: ${s.sig}`).join(' | ') || 'none'}. A mutation counts as caught by the crawler on exit 1 or on a non-expected failure above low severity that is not in that list. Low-severity tap-does-nothing findings change between two identical control runs (this run and an earlier one listed different ones), so they are noted and never counted.`);
@@ -375,19 +420,19 @@ function writeReport({ head, control, ctlGreen, controlSigs, results, controlOk,
 
   L.push('## Matrix: bug by catcher');
   L.push('');
-  L.push('| Id | Family | DEFECTS | Bug | Answer key | Data rules | Crawler | Old suites | New | Old |');
-  L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
+  L.push('| Id | Family | DEFECTS | Bug | Answer key | Seam test | Data rules | Crawler | Old suites | New | Old |');
+  L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   const rowsOut = results.map(({ m, res }) => {
-    const newC = res.key.caught || res.data.caught || res.crawler.caught;
+    const newC = res.key.caught || res.seam.caught || res.data.caught || res.crawler.caught;
     const oldC = res.old.caught;
     return { m, res, newC, oldC };
   });
   for (const { m, res, newC, oldC } of rowsOut) {
     const short = m.title.length > 90 ? `${m.title.slice(0, 87)}...` : m.title;
-    L.push(`| ${m.id} | ${m.family} | ${m.defects} | ${short.replace(/\|/g, '/')} | ${mark(res.key)} | ${mark(res.data)} | ${mark(res.crawler)} | ${mark(res.old)} | ${newC ? 'yes' : 'no'} | ${oldC ? 'yes' : 'no'} |`);
+    L.push(`| ${m.id} | ${m.family} | ${m.defects} | ${short.replace(/\|/g, '/')} | ${mark(res.key)} | ${mark(res.seam)} | ${mark(res.data)} | ${mark(res.crawler)} | ${mark(res.old)} | ${newC ? 'yes' : 'no'} | ${oldC ? 'yes' : 'no'} |`);
   }
   L.push('');
-  L.push('"missed (blind)": a data bug is planted as rows in a temp prices file; only the data rules can read one, so the other three were not run for it.');
+  L.push('"missed (blind)": a data bug is planted as rows in a temp prices file; only the data rules can read one, so the other four were not run for it.');
   L.push('');
 
   const n = rowsOut.length;
@@ -409,7 +454,7 @@ function writeReport({ head, control, ctlGreen, controlSigs, results, controlOk,
   L.push(`| Caught by the old suites | ${oldOnly + both} of ${n} | ${pct(oldOnly + both)} |`);
   L.push('');
   const per = (label, k) => `${label} ${count((r) => r.res[k].caught)}`;
-  L.push(`Per catcher, of ${n}: ${per('answer key', 'key')}, ${per('data rules', 'data')}, ${per('crawler', 'crawler')}, ${per('old suites', 'old')}.`);
+  L.push(`Per catcher, of ${n}: ${per('answer key', 'key')}, ${per('seam test', 'seam')}, ${per('data rules', 'data')}, ${per('crawler', 'crawler')}, ${per('old suites', 'old')}.`);
   L.push('');
 
   const code = rowsOut.filter((r) => r.m.kind === 'code');

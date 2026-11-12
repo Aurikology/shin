@@ -11,6 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { identifyRoute, status, verdictAt, CODE, KD } from '../../../app/test/ux/ux-b5-harness.test.mjs';
+import { CROWDED } from '../../../app/test/verdict-fixtures.mjs';
 import { streamFor, hash32 } from './rng.mjs';
 import { KNOWN_CODES } from './data.mjs';
 
@@ -50,14 +51,23 @@ const missAnswer = (barcode) => ({
   verdict: null, storeIdentity: null, scanId: 42,
 });
 
+/** The same answer with the app's own CROWDED fixture list (14 own-price rows, 3 of them on sale) in place of the four-row one. */
+function withCrowdedList(answer) {
+  return answer.verdict ? { ...answer, verdict: { ...answer.verdict, dots: JSON.parse(JSON.stringify(CROWDED.dots)) } } : answer;
+}
+
 /** The catalogue answer: a known code or a typed name gets a verdict; anything else is a miss. */
 function identifyAnswer() {
   const hit = identifyRoute({ identity: KD });
   const hit2 = identifyRoute({ identity: KD2 });
   return async (call) => {
     const gtin = call.query.gtin;
-    if (gtin && IDENTITIES.has(gtin)) return gtin === KD2.barcode ? hit2(call) : hit(call);
-    if (!gtin && String(call.query.text ?? '').trim().length >= 3) return hit(call);
+    // The second product and every typed name answer with a crowded list that mixes sale and regular rows (D-259's
+    // shape), so the count line over that list is something a content rule can check; the first product keeps the
+    // plain four-row list.
+    if (gtin === KD2.barcode) return withCrowdedList(await hit2(call));
+    if (gtin && IDENTITIES.has(gtin)) return hit(call);
+    if (!gtin && String(call.query.text ?? '').trim().length >= 3) return withCrowdedList(await hit(call));
     return missAnswer(gtin ?? '');
   };
 }

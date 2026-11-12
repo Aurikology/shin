@@ -193,3 +193,129 @@ test('crawler allow-list: a deliberate loud log is counted as expected, and an u
   assert.ok(!r.failures.some((f) => /scan ended with no name/.test(f.message)), 'the listed log is not a failure');
   assert.ok(r.expected.some((e) => /scan ended with no name/.test(e.what) && e.count > 0), 'the listed log is counted');
 });
+
+/* ---------------------------------------------------------------------------------------------
+ * CONTENT RULES (scripts/crawler/lib/content-rules.mjs): what the words say against the list under
+ * them and the flags the app launched with. Each is shown to fail on a planted screen and to stay quiet
+ * on the same screen made right; the unit calls and the crawl both run.
+ * ------------------------------------------------------------------------------------------- */
+import { installFakeBrowser, launchReturning, pressScan, typePrice } from './ux/ux-b5-harness.test.mjs';
+import { normalRoutes } from '../../scripts/crawler/lib/routes.mjs';
+import { KNOWN_CODES } from '../../scripts/crawler/lib/data.mjs';
+import { visibleText } from '../../scripts/crawler/lib/world.mjs';
+import { contentFindings, countLineFindings, flagCopyFindings } from '../../scripts/crawler/lib/content-rules.mjs';
+
+const rowsHtml = (n) => Array.from({ length: n }, (_, i) => `<li class="vd-dotrow">Store ${i + 1}</li>`).join('');
+const countSheet = (line, rows) => `<div class="sheet-half"><p class="vd-basis" data-vd-basis>${line}</p><ul class="vd-dots" data-vd-dots>${rows}</ul></div>`;
+function screenOf(html) {
+  const env = installFakeBrowser();
+  env.slot.innerHTML = html;
+  return env.slot;
+}
+
+test('content rule count-line (unit): "7 prices from 7 shops" over 12 rows is flagged, and the right count is not', () => {
+  const planted = countLineFindings(screenOf(countSheet('7 prices from 7 shops, newest 3 days ago', rowsHtml(12))), { text: visibleText });
+  assert.equal(planted.length, 1, JSON.stringify(planted));
+  assert.equal(planted[0].rule, 'count-line');
+  assert.match(planted[0].message, /says 7 prices, the list under it has 12 rows/);
+  assert.deepEqual(countLineFindings(screenOf(countSheet('12 prices from 7 shops', rowsHtml(12))), { text: visibleText }), []);
+  // more shops than rows is also impossible
+  assert.equal(countLineFindings(screenOf(countSheet('3 prices from 9 shops', rowsHtml(3))), { text: visibleText }).length, 1);
+  // a one-price line singular, and a line with no list under it, are left alone
+  assert.deepEqual(countLineFindings(screenOf(countSheet('1 price from 1 shop', rowsHtml(1))), { text: visibleText }), []);
+  assert.deepEqual(countLineFindings(screenOf('<div><p data-vd-basis>4 prices from 3 shops</p></div>'), { text: visibleText }), []);
+});
+
+test('content rule count-line (unit): an "N items" / "N results" heading over a list must equal its rows', () => {
+  const html = (line, n) => `<div><h3>${line}</h3><ul>${rowsHtml(n)}</ul></div>`;
+  assert.equal(countLineFindings(screenOf(html('5 results', 3)), { text: visibleText }).length, 1);
+  assert.equal(countLineFindings(screenOf(html('12 items', 11)), { text: visibleText }).length, 1);
+  assert.deepEqual(countLineFindings(screenOf(html('3 results', 3)), { text: visibleText }), []);
+  assert.deepEqual(countLineFindings(screenOf(html('1 item', 1)), { text: visibleText }), []);
+  // a sentence that merely contains a number is not a count line
+  assert.deepEqual(countLineFindings(screenOf('<div><p>Try 5 results later</p><ul><li>a</li></ul></div>'), { text: visibleText }), []);
+});
+
+test('content rule flag-copy (unit): each flag state is held to its own copy', () => {
+  const on = { photoId: true, languages: true };
+  const off = { photoId: false, languages: false };
+  const say = (html, flags, screen = 'camera/idle') => flagCopyFindings(screenOf(html), { flags, screen, text: visibleText });
+  const sends = '<p>Every scan sends a picture, always. Photo: kept if Photos is on.</p>';
+  const never = '<p>A scan sends the barcode and your price. Never a picture.</p>';
+  // photoId off + the "sends a picture" line (what M08 / D-265 put back): flagged; with photoId on the same words are the truth
+  assert.equal(say(sends, off).length, 1);
+  assert.match(say(sends, off)[0].message, /photoId off/);
+  assert.deepEqual(say(sends, on), []);
+  // photoId on + "never a picture" on the camera: flagged; off it is the truth
+  assert.equal(say(never, on).length, 1);
+  assert.deepEqual(say(never, off), []);
+  assert.deepEqual(say(never, on, 'you/idle'), [], 'the never-a-picture rule is the camera screen only');
+  // languages off + French offered by name
+  assert.equal(say('<button>Français</button>', off, 'you/idle').length, 1);
+  assert.deepEqual(say('<button>Français</button>', on, 'you/idle'), []);
+  assert.deepEqual(flagCopyFindings(screenOf(sends), { flags: undefined, screen: 'camera', text: visibleText }), [], 'no flags known, nothing to compare');
+  assert.equal(contentFindings(screenOf(sends), { flags: off, screen: 'camera/idle', text: visibleText }).length, 1);
+});
+
+const FLAGS_OFF = { centsFirstPad: true, feed: false, placeholderLabels: false, onboarding: false, photoId: false, languages: false, market: false };
+
+test('crawler rule count-line: a screen whose count line disagrees with its list is flagged in a crawl, and the right count is not', async () => {
+  const r = await crawlFake({
+    'plant-home': (root) => { root.innerHTML = `<p>Plant</p>${countSheet('7 prices from 7 shops', rowsHtml(12))}<button type="button">Next</button>`; },
+  }, 'plant-home');
+  const hit = r.failures.find((f) => f.rule === 'count-line');
+  assert.ok(hit, `count-line was flagged; got ${sigs(r)}`);
+  assert.equal(hit.severity, 'high');
+  assert.equal(r.exitCode, 1);
+  const right = await crawlFake({
+    'plant-home': (root) => { root.innerHTML = `<p>Plant</p>${countSheet('12 prices from 7 shops', rowsHtml(12))}<button type="button">Next</button>`; },
+  }, 'plant-home');
+  assert.ok(!right.failures.some((f) => f.rule === 'count-line'), `the right count was flagged; got ${sigs(right)}`);
+});
+
+test('crawler rule flag-copy: a screen that says a scan sends a picture while photoId is off is flagged, and is not when it is on', async () => {
+  const screens = { 'plant-home': (root) => { root.innerHTML = '<p>Every scan sends a picture, always.</p><button type="button">Next</button>'; } };
+  const off = await crawlFake(screens, 'plant-home', { pin: { ...RETURNING_NO_FAULTS, flags: { ...FLAGS_OFF, photoId: false } } });
+  const hit = off.failures.find((f) => f.rule === 'flag-copy');
+  assert.ok(hit, `flag-copy was flagged; got ${sigs(off)}`);
+  assert.match(hit.message, /photoId off/);
+  assert.equal(hit.severity, 'high');
+  const on = await crawlFake(screens, 'plant-home', { pin: { ...RETURNING_NO_FAULTS, flags: { ...FLAGS_OFF, photoId: true } } });
+  assert.ok(!on.failures.some((f) => f.rule === 'flag-copy'), `with photoId on the same words were flagged; got ${sigs(on)}`);
+});
+
+test('content rule count-line on the REAL verdict sheet: the shipped count line passes, and the same sheet with a row missing is flagged', async () => {
+  // This is what keeps the rule's selectors honest: a rule written against a made-up screen could pass forever
+  // on a real one that has been renamed. The crowded list has 14 rows in the fixture and the sheet draws 12.
+  const app = await launchReturning({ server: normalRoutes() });
+  await pressScan(app, KNOWN_CODES[1]);
+  await typePrice(app, ['4', '9', '9']);
+  await app.wait(100);
+  assert.equal(app.atVerdict(), true, `setup: no verdict (state=${app.state})`);
+  const line = app.root.querySelector('[data-vd-basis]');
+  assert.ok(line, 'the verdict sheet has no count line to check');
+  const rows = app.root.querySelectorAll('[data-vd-dots] li');
+  assert.ok(rows.length >= 7, `the list under the count line has ${rows.length} rows; the crowded fixture should draw a long one`);
+  assert.deepEqual(countLineFindings(app.root, { text: visibleText }), [], `the shipped line "${visibleText(line)}" over ${rows.length} rows was flagged`);
+  rows[0].remove();
+  const after = countLineFindings(app.root, { text: visibleText });
+  assert.equal(after.length, 1, `a missing row was not flagged; line "${visibleText(line)}", rows ${app.root.querySelectorAll('[data-vd-dots] li').length}`);
+  assert.match(after[0].message, new RegExp(`list under it has ${rows.length - 1} rows`));
+  app.takeErrors();
+  app.stop();
+});
+
+test('crawler content rules on the REAL app: no count-line or flag-copy failure across 30 runs with random flags', async () => {
+  const out = tempOut();
+  try {
+    const r = await crawl({
+      runs: 30, steps: 20, seed: 4, workers: 0, coverage: false, out, shrinkBudget: 30, maxShrinks: 2,
+      pin: { first: false, consent: { photos: true, location: false }, claude: true, faults: [], search: '' },
+    });
+    const content = r.failures.filter((f) => f.rule === 'count-line' || f.rule === 'flag-copy');
+    assert.deepEqual(content.map((f) => f.sig), [], `content rules fired on the current app: ${content.map((f) => f.sig).join(' | ')}`);
+    assert.ok(r.stepsTaken >= 100, `the crawl took ${r.stepsTaken} steps`);
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
+});

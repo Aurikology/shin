@@ -52,6 +52,8 @@ export interface Running {
   readonly base: string;
   readonly tempDir: string;
   readonly meter: Meter;
+  /** The in-memory catalogue handed to the server (synthetic runs), else null. */
+  readonly catalogue: unknown;
   readonly realDataChanges: () => string[];
   stop(): Promise<void>;
 }
@@ -184,6 +186,8 @@ export async function startAnswerKeyServer(opts: StartOptions): Promise<Running>
   if (injected) {
     mod.setCatalogueForTests(injected.catalogue);
     mod.setCatalogueFirstForTests({ searcher: injected.catalogue, db: injected.db, rangeAskProvider: stubProvider, packReadProvider: stubProvider });
+    // The typed-search list route (/api/search, the list the pick sheet shows) reads the same in-memory catalogue (rule R7).
+    mod.setSearchServiceForTests(injected.catalogue);
   } else {
     // db and searcher left undefined: the server uses the catalogue it attached itself (read-only).
     mod.setCatalogueFirstForTests({ rangeAskProvider: stubProvider, packReadProvider: stubProvider });
@@ -216,10 +220,12 @@ export async function startAnswerKeyServer(opts: StartOptions): Promise<Running>
     base,
     tempDir,
     meter,
+    catalogue: injected?.catalogue ?? null,
     realDataChanges: () => dataPaths.treeDifferences(before, dataPaths.snapshotTree([...new Set(roots)])),
     async stop() {
       mod.setCatalogueForTests?.(null);
       mod.setCatalogueFirstForTests?.(null);
+      if (injected) mod.setSearchServiceForTests?.(null);
       globalThis.fetch = realFetch;
       await new Promise<void>((r) => server.close(() => r()));
       server.closeAllConnections?.();

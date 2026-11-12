@@ -23,8 +23,8 @@ export interface SyntheticRow {
   name: string;
   brand: string;
   quantity: string;
-  sizeValue: number;
-  sizeUnit: string;
+  sizeValue: number | null;
+  sizeUnit: string | null;
   path: string;
   leaf: string;
   /** Shelf prices (cents) to write into the prices file; empty means unpriced. */
@@ -38,6 +38,7 @@ const SPREAD_PATH = '["en:spreads","en:peanut-butters"]';
 const JUICE_PATH = '["en:beverages","en:fruit-juices"]';
 const SOUP_PATH = '["en:meals","en:soups"]';
 const CHEESE_PATH = '["en:dairies","en:cheeses"]';
+const COOKIE_PATH = '["en:snacks","en:biscuits-and-cakes"]';
 
 
 export const SYNTHETIC_ROWS: SyntheticRow[] = [
@@ -58,6 +59,19 @@ export const SYNTHETIC_ROWS: SyntheticRow[] = [
   { code: withCheck('062699003008'), name: 'Old Cheddar Cheese Block 1 kg', brand: 'Black Diamond', quantity: '1 kg', sizeValue: 1000, sizeUnit: 'g', path: CHEESE_PATH, leaf: 'en:cheeses', prices: [1299, 1299, 1399] },
 ];
 
+/**
+ * Rows that are NOT products to ask about (no size, so the key's product list never holds them) but sit in the
+ * catalogue so a typed search can meet them: "oreo" listed "Oreo / OREO" (brand Oreo) and "Oreo" (brand OREO),
+ * two barcodes and nothing on screen to tell them apart (D-245). Rule R7 must see one row for the two.
+ */
+export const LOOKALIKE_ROWS: SyntheticRow[] = [
+  { code: withCheck('062699004001'), name: 'Oreo / OREO', brand: 'Oreo', quantity: '', sizeValue: null, sizeUnit: null, path: COOKIE_PATH, leaf: 'en:biscuits-and-cakes', prices: [] },
+  { code: withCheck('062699004002'), name: 'Oreo', brand: 'OREO', quantity: '', sizeValue: null, sizeUnit: null, path: COOKIE_PATH, leaf: 'en:biscuits-and-cakes', prices: [] },
+];
+
+/** Typed texts whose result list rule R7 checks besides every product's own typed forms. */
+export const LIST_PROBES: readonly string[] = ['oreo', 'Oreo cookies'];
+
 const NO_EMBEDDER = {
   id: 'test:none',
   dim: 384,
@@ -76,7 +90,7 @@ export interface Synthetic {
 }
 
 /** Builds the in-memory catalogue and writes the prices file into `dir`. */
-export async function buildSynthetic(dir: string, rows: readonly SyntheticRow[] = SYNTHETIC_ROWS): Promise<Synthetic> {
+export async function buildSynthetic(dir: string, rows: readonly SyntheticRow[] = [...SYNTHETIC_ROWS, ...LOOKALIKE_ROWS]): Promise<Synthetic> {
   const imp = (p: string) => import(pathToFileURL(join(REPO_ROOT, p)).href);
   const { openCatalogue, rebuildFts } = await imp('catalogue/src/schema.ts');
   const { rebuildCategoriesFromPaths } = await imp('catalogue/test/helpers/path-taxonomy.ts');

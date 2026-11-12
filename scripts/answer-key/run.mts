@@ -17,7 +17,7 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
-import { httpAsker, runKey, type Finding, type KeyProduct, type RunSummary } from './core.ts';
+import { catalogueLister, httpAsker, httpLister, runKey, type Finding, type KeyProduct, type RunSummary } from './core.ts';
 import { startAnswerKeyServer, type Meter } from './server.ts';
 
 
@@ -45,6 +45,7 @@ interface CatRow {
   size_unit: string | null;
 }
 
+
 const COLS = 'code, name, name_en, brands, quantity, size_value, size_unit';
 const ELIGIBLE = `code GLOB '[0-9]*' AND length(code) BETWEEN 8 AND 14 AND sold_in_canada = 1
   AND coalesce(nullif(trim(name_en), ''), nullif(trim(name), '')) IS NOT NULL
@@ -53,7 +54,7 @@ const ELIGIBLE = `code GLOB '[0-9]*' AND length(code) BETWEEN 8 AND 14 AND sold_
 function toKey(r: CatRow, medianCents: number | null): KeyProduct {
   const size = r.quantity?.trim() || (r.size_value !== null && r.size_unit ? `${r.size_value} ${r.size_unit}` : null);
   const brand = (r.brands ?? '').split(',')[0].trim();
-  return { code: r.code, name: (r.name_en?.trim() || r.name?.trim() || ''), brand: brand || null, size, medianCents };
+  return { code: r.code, name: (r.name_en?.trim() || r.name?.trim() || ''), brand: brand || null, size, medianCents, sizeValue: r.size_value, sizeUnit: r.size_unit };
 }
 
 function median(xs: number[]): number | null {
@@ -154,6 +155,8 @@ export interface AnswerKeyOptions {
   region?: string;
   concurrency?: number;
   quiet?: boolean;
+  /** Extra typed texts whose result list is checked for rows that read the same (rule R7). */
+  listProbes?: readonly string[];
 }
 
 export interface AnswerKeyResult {
@@ -211,7 +214,11 @@ export async function runAnswerKey(opts: AnswerKeyOptions): Promise<AnswerKeyRes
     }
     running = await startAnswerKeyServer({ cataloguePath: opts.cataloguePath, pricesPath: opts.pricesPath, buildInjected: opts.buildInjected ?? null });
     meter = running.meter;
+    // R7 asks the typed search list over HTTP; R6's pinned probe needs the in-memory catalogue, so only a synthetic run has it.
+    const lists = { typed: httpLister(running.base), ...(running.catalogue ? { pinned: catalogueLister(running.catalogue) } : {}) };
     summary = await runKey(products, httpAsker(running.base, opts.region), {
+      lists,
+      listProbes: opts.listProbes,
       region: opts.region,
       concurrency: opts.concurrency ?? 1,
       onProgress: (done, total) => {
@@ -231,6 +238,8 @@ export async function runAnswerKey(opts: AnswerKeyOptions): Promise<AnswerKeyRes
   if (summary && summary.productsChecked === 0) failures.push('zero products were checked');
   if (!summary && failures.length === 0) failures.push('the server did not start');
   if (summary && summary.perRule.R2 > 0) failures.push(`${summary.perRule.R2} R2 violation(s): a different product answered with confidence`);
+  if (summary && summary.perRule.R6 > 0) failures.push(`${summary.perRule.R6} R6 violation(s): a wrong-word form came back confident`);
+  if (summary && summary.perRule.R7 > 0) failures.push(`${summary.perRule.R7} R7 violation(s): a typed search list holds rows that read the same`);
   if (modelCalls > 0) failures.push(`${modelCalls} model call(s) were attempted`);
   if (realDataChanges.length > 0) failures.push(`a real data folder changed: ${realDataChanges.slice(0, 5).join('; ')}`);
 
@@ -278,11 +287,13 @@ function renderReport(x: {
     R3: 'the full name should find the product (low severity)',
     R4: 'the same ask twice gives the same answer',
     R5: 'a typo is never more confident than the full name',
+    R6: 'a wrong-word form is never confident',
+    R7: 'no two rows of a typed search list read the same',
     ERR: 'HTTP error, 5 s timeout or non-JSON answer',
   };
-  for (const r of ['R1', 'R2', 'R3', 'R4', 'R5', 'ERR'] as const) L.push(`- ${r} ${names[r]}: ${s?.perRule[r] ?? 0}`);
-  const worst = (s?.findings ?? []).filter((f) => f.rule === 'R2').sort((a, b) => b.score - a.score).slice(0, 20);
-  L.push('', '## The 20 worst R2 cases', '');
+  for (const r of ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'ERR'] as const) L.push(`- ${r} ${names[r]}: ${s?.perRule[r] ?? 0}`);
+  const worst = (s?.findings ?? []).filter((f) => f.rule === 'R2' || f.rule === 'R6' || f.rule === 'R7').sort((a, b) => b.score - a.score).slice(0, 20);
+  L.push('', '## The 20 worst R2, R6 and R7 cases', '');
   if (worst.length === 0) L.push('None.');
   for (const f of worst) {
     L.push(`- ${f.code} [${f.variant}] typed "${f.text}" at ${f.priceCents} cents: ${f.why}`);

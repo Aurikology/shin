@@ -60,6 +60,12 @@ before(() => {
     return row({ code, sellerName: `Acme Thing ${size}`, ...o });
   };
 
+  /** `n` unjoined rows of one chain (its shop label), each with the city and region the callbacks give for row i. */
+  const chainRows = (skuPrefix, chain, n, cityOf, regionOf) =>
+    Array.from({ length: n }, (_, i) =>
+      row({ sellerSku: `${skuPrefix}-${i}`, seller: `seller-${skuPrefix}`, sellerName: `Item ${i}`, joinMethod: 'none', code: null, storeName: chain, storeCity: cityOf(i), region: regionOf(i) }),
+    );
+
   const clean = [
     // C1: three sellers, consistent stored unit prices.
     product('0000000000017', '500 g', { sellerSku: 'CLEAN-1a', seller: 's1', priceCents: 400, unitPriceCents: 80, unitPricePer: '100g' }),
@@ -88,6 +94,11 @@ before(() => {
     row({ sellerSku: 'CLEAN-unjoined', sellerName: 'Mystery Item 1 kg', joinMethod: 'none', code: null }),
     // C9: a US row in USD is consistent.
     product('0000000000070', '1 kg', { sellerSku: 'CLEAN-us', country: 'US', currency: 'USD' }),
+    // C10 (D9): a multi-province chain one row under the 10-row line, all one city; the same chain with 10 rows in two cities;
+    // and a chain not known to trade in several provinces (and written under one region) with 10 rows in one city.
+    ...chainRows('CLEAN-D9a', 'Walmart', 9, () => 'Hamilton', () => 'ON'),
+    ...chainRows('CLEAN-D9b', 'Metro', 10, (i) => (i % 2 ? 'Hamilton' : 'Vancouver'), () => 'ON'),
+    ...chainRows('CLEAN-D9c', 'Galleria', 10, () => 'Toronto', () => 'ON'),
   ];
 
   const planted = [
@@ -118,6 +129,10 @@ before(() => {
     // D8: a priced code the catalogue lacks, and a barcode-joined row whose size contradicts the catalogue.
     row({ code: '0000000000116', sellerSku: 'PLANT-D8A', sellerName: 'Acme Mystery 1 kg' }),
     (catalogue.set('0000000000117', '250 g'), row({ code: '0000000000117', sellerSku: 'PLANT-D8B', sellerName: 'Acme Tea 100 g' })),
+    // D9: a known multi-province chain, exactly 10 rows, every one "Toronto" (the D-257 shape); and an unlisted chain
+    // written under two regions with every row "Hamilton".
+    ...chainRows('PLANT-D9a', 'Save-On-Foods', 10, () => 'Toronto', () => 'ON'),
+    ...chainRows('PLANT-D9b', 'Acme Mart', 10, () => 'Hamilton', (i) => (i < 5 ? 'ON' : 'BC')),
   ];
 
   const build = (path, rows, withDuplicate) => {
@@ -162,7 +177,7 @@ const skus = (run, id, bucket) => rule(run, id).buckets.find((b) => b.id === buc
 test('every rule fires on exactly its planted row, and on no clean row', () => {
   const run = check(plantedDb, true);
   assert.deepEqual(run.errors, []);
-  assert.deepEqual(run.rules.map((r) => r.id), ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8']);
+  assert.deepEqual(run.rules.map((r) => r.id), ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']);
 
   assert.deepEqual(skus(run, 'D1', 'stale_read'), ['PLANT-D1']);
   assert.deepEqual(skus(run, 'D2', 'out_of_stock_used'), ['PLANT-D2']);
@@ -186,13 +201,15 @@ test('every rule fires on exactly its planted row, and on no clean row', () => {
   assert.deepEqual(skus(run, 'D7', 'unit_price_disagrees'), ['PLANT-D7']);
   assert.deepEqual(skus(run, 'D8', 'not_in_catalogue'), ['PLANT-D8A']);
   assert.deepEqual(skus(run, 'D8', 'size_disagrees'), ['PLANT-D8B']);
+  assert.deepEqual(skus(run, 'D9', 'known_chain_one_city'), Array.from({ length: 10 }, (_, i) => `PLANT-D9a-${i}`).sort());
+  assert.deepEqual(skus(run, 'D9', 'regions_one_city'), Array.from({ length: 10 }, (_, i) => `PLANT-D9b-${i}`).sort());
 });
 
 test('the headline counts are the planted rows, nothing more, and no clean row is flagged by anything', () => {
   const run = check(plantedDb, true);
   const counts = Object.fromEntries(run.rules.map((r) => [r.id, r.count]));
   // D3 headline = every name-joined row (the two planted); D5 = the seven classes; D6 headline = the exact duplicate; D8 = two.
-  assert.deepEqual(counts, { D1: 1, D2: 1, D3: 2, D4: 1, D5: 6, D6: 1, D7: 1, D8: 2 });
+  assert.deepEqual(counts, { D1: 1, D2: 1, D3: 2, D4: 1, D5: 6, D6: 1, D7: 1, D8: 2, D9: 20 });
   for (const r of run.rules) {
     for (const b of r.buckets) {
       for (const e of b.examples) {
@@ -247,7 +264,7 @@ test('exit 1 on impossible values, with report.md and findings.jsonl written, an
   assert.match(r.stderr, /D5 impossible values: 6/);
   assert.equal(sha(plantedDb), before, 'the prices file changed');
   const report = readFileSync(join(out, 'report.md'), 'utf8');
-  for (const id of ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8']) assert.match(report, new RegExp(`## ${id}\\.`));
+  for (const id of ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9']) assert.match(report, new RegExp(`## ${id}\\.`));
   assert.match(report, /Used by verdicts: \*\*(yes|no|partly)\*\*/);
   const lines = readFileSync(join(out, 'findings.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l));
   assert.ok(lines.some((l) => l.rule === 'D3' && l.bucket === 'size_mismatch' && l.count === 1));

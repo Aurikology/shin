@@ -3,7 +3,7 @@
  *
  *   node scripts/data-checks/run.mts --prices <prices.db> [--catalogue <catalogue.db>] [--out <dir>] [--as-of YYYY-MM-DD]
  *
- * Counts every class of row that would make a price verdict wrong (rules.mts D1 to D8) and writes report.md and
+ * Counts every class of row that would make a price verdict wrong (rules.mts D1 to D9) and writes report.md and
  * findings.jsonl to --out (default: a new folder under the system temp directory).
  *
  * READ-ONLY: both databases are opened with readOnly, and --out may not be inside a folder named `data`.

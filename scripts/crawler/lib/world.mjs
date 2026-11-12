@@ -15,6 +15,7 @@ import { launchApp, settle } from '../../../app/test/ux/ux-b5-harness.test.mjs';
 import { normalRoutes, withFaults, serverHasPath } from './routes.mjs';
 import { allowedDeadEnd } from './allow.mjs';
 import { expectedEntry } from './expected.mjs';
+import { contentFindings } from './content-rules.mjs';
 
 const REAL = { Date, setTimeout: globalThis.setTimeout, consoleError: console.error };
 const APP_ROOT_URL = pathToFileURL(fileURLToPath(new URL('../../../app/public/js/', import.meta.url))).href;
@@ -87,6 +88,11 @@ function installEyeFidelity() {
       h.__crawlerWrapped = true;
       const attach = h.attach.bind(h);
       h.attach = async (video, surfaces, handlers) => {
+        // The camera screen paints its one-line privacy note while the camera permission is still being asked and
+        // swaps it out the moment the eye answers, so a judge that only looks after a step never sees it. One
+        // microtask later the screen has finished rendering and the eye has not answered: that is the look.
+        await null;
+        globalThis.__crawlerAtPermission?.(video);
         const eye = await attach(video, surfaces, handlers);
         eye.setTorch = async (on) => Boolean(on);
         eye.setTorchSetting = () => {};
@@ -457,6 +463,12 @@ export async function runOnce(o) {
   });
 
   globalThis.__crawlerFlags = start.flags;
+  // The look at the camera screen while its permission is pending (see installEyeFidelity): content rules only.
+  globalThis.__crawlerAtPermission = (video) => {
+    const body = video?.ownerDocument?.body;
+    if (!body) return;
+    for (const c of contentFindings(body, { flags: start.flags, screen: 'camera/permission', text: visibleText })) add(failure(c.rule, 'high', 'camera/permission', c.message));
+  };
   installClock((start.clockDays ?? 0) * 86400000);
   const args = launchArgs(start);
   let app = null;
@@ -493,6 +505,8 @@ export async function runOnce(o) {
         const token = bad[0] === '[object Object]' ? 'object' : bad[1];
         add(failure('bad-text', 'high', curScreen, `"${bad[0]}" on screen in ${whereText(app.root, token) || 'text'}`));
       }
+      // Content rules (lib/content-rules.mjs): the words on the screen against the list under them and the flags it launched with.
+      for (const c of contentFindings(app.root, { flags: start.flags, screen: curScreen, text: visibleText })) add(failure(c.rule, 'high', curScreen, c.message));
       if (text === '') add(failure(afterFault ? 'blank-after-fault' : 'blank-screen', 'high', curScreen, 'no visible text'));
       let acts = actionables(app.root);
       if (acts.length === 0 && !allowedDeadEnd(app)) {
@@ -573,6 +587,7 @@ export async function runOnce(o) {
     restoreClock();
     globalThis.setTimeout = REAL.setTimeout;
     delete globalThis.__crawlerFlags;
+    delete globalThis.__crawlerAtPermission;
   }
   return { steps, failures, screens, states, injected, gaps };
 }

@@ -52,8 +52,12 @@ if (values.spec) {
   const spec = JSON.parse(readFileSync(values.spec, 'utf8'));
   if (spec.kind !== 'data') throw new Error(`${values.spec} is not a data mutation`);
   for (const r of spec.rows) {
-    const { daysAgo: d, ...rest } = r;
-    rows.push({ ...base, ...rest, ...(d !== undefined ? { seenOn: daysAgo(d) } : {}) });
+    // `copies` (default 1) writes the row that many times: sku suffixed, price nudged up 5 cents per copy so no two are
+    // the same observation (D6). For a bug that only shows across many rows of one shop (D-257, rule D9).
+    const { daysAgo: d, copies = 1, ...rest } = r;
+    for (let i = 0; i < copies; i += 1) {
+      rows.push({ ...base, ...rest, ...(copies > 1 ? { sellerSku: `${rest.sellerSku}-${i}`, priceCents: rest.priceCents + 5 * i } : {}), ...(d !== undefined ? { seenOn: daysAgo(d) } : {}) });
+    }
   }
 }
 

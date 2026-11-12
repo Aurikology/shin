@@ -20,6 +20,12 @@
  *   R3 the full "brand name size" text should find the product or an equivalent (low severity).
  *   R4 the same ask twice gives the same answer.
  *   R5 the typo form never answers with higher confidence than the full form when it names a different product.
+ *   R6 a wrong-word form (the product's brand and size pinned, one name word replaced by an unrelated word)
+ *      is never banded `confident`, and never answers above 'low' by name (D-074, bug M09). Two probes:
+ *      the catalogue searched in process with brand and size pinned (the only way to reach the band: no
+ *      HTTP route pins them), and the typed route with the brand, wrong name and size typed out.
+ *   R7 in any typed search result list (GET /api/search), no two rows read the same to a shopper: the same
+ *      words of brand and name in order (a repeated word said once) and the same normalised size (D-245, bug M10).
  *   Plus: an HTTP error, a 5 s timeout, or a non-JSON answer is a finding.
  */
 
@@ -33,9 +39,15 @@ export interface KeyProduct {
   size: string | null;
   /** Median of the product's own prices in the prices file, or null when it has none. */
   medianCents: number | null;
+  /** The catalogue's own size columns (grams or millilitres), used to pin the size in the R6 in-process probe. */
+  sizeValue?: number | null;
+  sizeUnit?: string | null;
 }
 
-export type VariantKind = 'barcode' | 'full' | 'nameSize' | 'name' | 'brandName' | 'typo' | 'lower' | 'head';
+export type VariantKind = 'barcode' | 'full' | 'nameSize' | 'name' | 'brandName' | 'typo' | 'lower' | 'head' | 'wrong';
+
+/** The unrelated word that replaces one name word in the wrong-word form. Not a word in any catalogue name. */
+export const WRONG_WORD = 'Xylophone';
 
 export interface Variant {
   kind: VariantKind;
@@ -68,13 +80,45 @@ export interface Reading {
   signature: string;
 }
 
-export type Rule = 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'ERR';
+export type Rule = 'R1' | 'R2' | 'R3' | 'R4' | 'R5' | 'R6' | 'R7' | 'ERR';
+
+/** One row of a result list, as a shopper would read it. */
+export interface ListRow {
+  code: string | null;
+  name: string | null;
+  brand: string | null;
+  size: string | null;
+}
+
+export interface ListAnswer {
+  band: string | null;
+  rows: ListRow[];
+  /** Set when the search failed or did not answer: itself a finding. */
+  error: string | null;
+}
+
+export interface ListQuery {
+  text: string;
+  brand?: string | null;
+  sizeValue?: number | null;
+  sizeUnit?: string | null;
+}
+
+export type Lister = (q: ListQuery) => Promise<ListAnswer>;
+
+/** The two list probes. Either may be absent (a real catalogue run has no in-process catalogue to pin brand and size on). */
+export interface Lists {
+  /** The catalogue searched in process with brand and size pinned (rule R6). */
+  pinned?: Lister;
+  /** The typed search list, GET /api/search (rule R7). */
+  typed?: Lister;
+}
 
 export interface Finding {
   rule: Rule;
   severity: 'high' | 'low';
   code: string;
-  variant: VariantKind;
+  variant: VariantKind | 'list';
   text: string;
   priceCents: number;
   why: string;
@@ -99,8 +143,29 @@ export function norm(s: string | null | undefined): string {
 /** The identity two catalogue rows share when they are the same product listed twice. */
 export function identityKey(brand: string | null | undefined, name: string | null | undefined, size: string | null | undefined): string {
   // "225 g", "225g" and "225 G" are one size; a number glued to or spaced from its unit must not split a product in two.
-  const sizeKey = norm(size).replace(/(\d)\s+(?=[a-z])/g, '$1');
-  return [norm(brand), norm(name), sizeKey].join('|');
+  return [norm(brand), norm(name), sizeKeyOf(size)].join('|');
+}
+
+/** A size with its number glued to its unit: "225 g", "225g" and "225 G" are one size. */
+export function sizeKeyOf(size: string | null | undefined): string {
+  return norm(size).replace(/(\d)\s+(?=[a-z])/g, '$1');
+}
+
+/**
+ * What a shopper reads on a result row: the words of brand and name in order, a repeated word said once
+ * ("Oreo / OREO" with brand Oreo reads "oreo"), plus the size. Two rows with the same reading have nothing
+ * on screen to choose between (D-245). Order is kept, so "chocolate milk" and "milk chocolate" stay two rows.
+ */
+export function readsAs(brand: string | null | undefined, name: string | null | undefined, size: string | null | undefined): string {
+  const words = norm(`${brand ?? ''} ${name ?? ''}`).split(' ').filter(Boolean);
+  return `${[...new Set(words)].join(' ')}|${sizeKeyOf(size)}`;
+}
+
+/** The name with its last word swapped for an unrelated one: a shopper who half remembers the product. */
+export function wrongWordName(name: string): string {
+  const words = name.trim().split(/\s+/);
+  words[words.length - 1] = WRONG_WORD;
+  return words.join(' ');
 }
 
 /** A barcode compared by digits with leading zeros dropped, so UPC-A and EAN-13 spellings meet. */
@@ -152,6 +217,7 @@ export function variantsOf(p: KeyProduct): Variant[] {
   const typo = typoOf(p.name.trim());
   if (typo) out.push({ kind: 'typo', text: typo });
   out.push({ kind: 'lower', text: norm(full) });
+  out.push({ kind: 'wrong', text: join(brand, wrongWordName(p.name), size) });
   const seen = new Set<string>();
   return out.filter((v) => {
     if (!v.text || seen.has(v.text)) return false;
@@ -223,7 +289,7 @@ function summary(a: AskResult, r: Reading): Record<string, unknown> {
 }
 
 /** The checker. `ask` is the only thing that touches a server, so a test can hand in a stubbed answer. */
-export async function checkProduct(p: KeyProduct, ask: Asker, device: string, region = 'British Columbia'): Promise<CheckResult> {
+export async function checkProduct(p: KeyProduct, ask: Asker, device: string, region = 'British Columbia', lists: Lists = {}): Promise<CheckResult> {
   const findings: Finding[] = [];
   let asks = 0;
   let askMs = 0;
@@ -278,6 +344,19 @@ export async function checkProduct(p: KeyProduct, ask: Asker, device: string, re
       }
     }
 
+    // R6 (typed route): a wrong-word form that still names THIS product must not answer above 'low'. (A different
+    // product named is R2's case, above.)
+    if (v.kind === 'wrong' && r.named && sameProduct(r.named, p) && confRank(r.confidence) > confRank('low')) {
+      findings.push({
+        rule: 'R6', severity: 'high', code: p.code, variant: v.kind, text: v.text, priceCents: cents,
+        why: `a wrong-word form named the product at confidence "${r.confidence}"`,
+        got: summary(first.a, r), repro: first.repro, score: 600 + confRank(r.confidence),
+      });
+    }
+
+    // R7: the list a shopper sees for this typed text has no two rows that read the same.
+    if (lists.typed) findings.push(...(await listFindings(v.text, lists.typed, p.code, v.kind)));
+
     // R3: the full text should find the product (or an equivalent).
     if (v.kind === 'full' && !sameProduct(r.named, p)) {
       findings.push({
@@ -296,6 +375,25 @@ export async function checkProduct(p: KeyProduct, ask: Asker, device: string, re
     }
   }
 
+  // R6 (in process): the catalogue searched with brand and size pinned and one wrong word in the name is never `confident`.
+  if (lists.pinned && p.brand && p.sizeValue != null && p.sizeUnit) {
+    const text = wrongWordName(p.name);
+    const q: ListQuery = { text, brand: p.brand, sizeValue: p.sizeValue, sizeUnit: p.sizeUnit };
+    const repro = `catalogue.search ${JSON.stringify(q)}`;
+    asks += 1;
+    const ans = await lists.pinned(q);
+    if (ans.error) {
+      findings.push({ rule: 'ERR', severity: 'high', code: p.code, variant: 'wrong', text, priceCents: cents, why: ans.error, got: { band: ans.band }, repro, score: 1000 });
+    } else if (ans.band === 'confident') {
+      const top = ans.rows[0];
+      findings.push({
+        rule: 'R6', severity: 'high', code: p.code, variant: 'wrong', text, priceCents: cents,
+        why: `brand and size pinned with one wrong word, and the search still banded confident on "${top?.brand ?? ''} ${top?.name ?? ''} ${top?.size ?? ''}" (${top?.code ?? 'no row'})`,
+        got: { band: ans.band, rows: ans.rows.slice(0, 3) }, repro, score: 700,
+      });
+    }
+  }
+
   // R5: the typo form never answers more confidently than the full form when it names a different product.
   const typo = readings.get('typo');
   const full = readings.get('full');
@@ -310,7 +408,64 @@ export async function checkProduct(p: KeyProduct, ask: Asker, device: string, re
   return { findings, asks, askMs };
 }
 
+/**
+ * R7: ask the typed search list for `text`; every row must read differently from every other. A list that
+ * could not be fetched is a finding too, never a pass.
+ */
+export async function listFindings(text: string, typed: Lister, code: string, variant: VariantKind | 'list'): Promise<Finding[]> {
+  const ans = await typed({ text });
+  const repro = `/api/search?q=${encodeURIComponent(text)}&limit=10`;
+  if (ans.error) {
+    return [{ rule: 'ERR', severity: 'high', code, variant, text, priceCents: 0, why: `the typed search list: ${ans.error}`, got: { band: ans.band }, repro, score: 1000 }];
+  }
+  const seen = new Map<string, ListRow>();
+  const out: Finding[] = [];
+  for (const row of ans.rows) {
+    const key = readsAs(row.brand, row.name, row.size);
+    const first = seen.get(key);
+    if (first) {
+      out.push({
+        rule: 'R7', severity: 'high', code, variant, text, priceCents: 0,
+        why: `two rows read the same, "${row.brand ?? ''} ${row.name ?? ''} ${row.size ?? ''}" (${first.code}) and (${row.code})`,
+        got: { first, second: row, rows: ans.rows.length }, repro, score: 200,
+      });
+    } else seen.set(key, row);
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ the HTTP asker */
+
+/** The typed search list over HTTP (GET /api/search). Text only: that is all the route takes. */
+export function httpLister(base: string): Lister {
+  return async (q) => {
+    const path = `/api/search?q=${encodeURIComponent(q.text)}&limit=10`;
+    try {
+      const res = await fetch(base + path, { signal: AbortSignal.timeout(ASK_TIMEOUT_MS) });
+      if (res.status !== 200) return { band: null, rows: [], error: `http ${res.status}` };
+      const json = (await res.json()) as { band?: string; candidates?: any[]; error?: string };
+      if (json.error) return { band: json.band ?? null, rows: [], error: json.error };
+      const rows = (json.candidates ?? []).map((c) => ({ code: c?.code ?? null, name: c?.name ?? c?.nameEn ?? null, brand: c?.brands ?? null, size: c?.quantity ?? null }));
+      return { band: json.band ?? null, rows, error: null };
+    } catch (err) {
+      return { band: null, rows: [], error: `no answer: ${String((err as Error)?.message ?? err)}` };
+    }
+  };
+}
+
+/** The catalogue searched in process (rule R6). `catalogue` is the Catalogue the server was handed. */
+export function catalogueLister(catalogue: unknown): Lister {
+  const c = catalogue as { search(q: unknown): Promise<{ band?: string; candidates?: any[] }> };
+  return async (q) => {
+    try {
+      const res = await c.search({ text: q.text, brand: q.brand ?? undefined, sizeValue: q.sizeValue ?? undefined, sizeUnit: q.sizeUnit ?? undefined, limit: 5, vectors: false });
+      const rows = (res.candidates ?? []).map((x) => ({ code: x?.code ?? null, name: x?.name ?? null, brand: x?.brands ?? null, size: x?.quantity ?? null }));
+      return { band: res.band ?? null, rows, error: null };
+    } catch (err) {
+      return { band: null, rows: [], error: `search threw: ${String((err as Error)?.message ?? err)}` };
+    }
+  };
+}
 
 export function httpAsker(base: string, region = 'British Columbia'): Asker {
   return async (kind, value, cents, device) => {
@@ -351,7 +506,7 @@ export interface RunSummary {
 export async function runKey(
   products: readonly KeyProduct[],
   ask: Asker,
-  opts: { region?: string; concurrency?: number; onProgress?: (done: number, total: number) => void; runId?: string } = {},
+  opts: { region?: string; concurrency?: number; onProgress?: (done: number, total: number) => void; runId?: string; lists?: Lists; listProbes?: readonly string[] } = {},
 ): Promise<RunSummary> {
   const t0 = performance.now();
   const findings: Finding[] = [];
@@ -365,7 +520,7 @@ export async function runKey(
       const i = next;
       next += 1;
       if (i >= products.length) return;
-      const r = await checkProduct(products[i], ask, `ak-${runId}-${i}`, opts.region);
+      const r = await checkProduct(products[i], ask, `ak-${runId}-${i}`, opts.region, opts.lists);
       findings.push(...r.findings);
       asks += r.asks;
       askMs += r.askMs;
@@ -374,7 +529,9 @@ export async function runKey(
     }
   };
   await Promise.all(Array.from({ length: Math.max(1, opts.concurrency ?? 4) }, worker));
-  const perRule: Record<Rule, number> = { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, ERR: 0 };
+  // Typed texts worth a list check that no product's own forms cover (lookalike rows the catalogue holds, say).
+  if (opts.lists?.typed) for (const text of opts.listProbes ?? []) findings.push(...(await listFindings(text, opts.lists.typed, '', 'list')));
+  const perRule: Record<Rule, number> = { R1: 0, R2: 0, R3: 0, R4: 0, R5: 0, R6: 0, R7: 0, ERR: 0 };
   for (const f of findings) perRule[f.rule] += 1;
   return { productsChecked: done, asks, askMs, findings, perRule, elapsedMs: performance.now() - t0 };
 }

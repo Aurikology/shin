@@ -58,6 +58,12 @@ export interface Row {
   readonly isSale: number | null;
   readonly tile: number | null;
   readonly verified: number | null;
+  /** The shop label a shopper reads ("Save-On-Foods"); null when the file has no store_name or it is empty. */
+  readonly store: string | null;
+  /** The place label a shopper reads next to it ("Toronto"); null when absent. */
+  readonly city: string | null;
+  /** The province or region the row was written under ('ON', 'BC'); null when absent. */
+  readonly region: string | null;
 }
 
 export interface Example {
@@ -267,7 +273,7 @@ export function loadRows(db: DatabaseSync): Row[] {
   const stmt = db.prepare(
     `SELECT rowid AS id, code, seller, seller_sku, seller_name, price_cents, kind, ${col('unit_price_cents')}, ${col('unit_label')},
             ${col('unit_price_per')}, currency, country, ${col('join_method')}, seen_on, ${col('in_stock')}, ${col('parsed_size')},
-            ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}
+            ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}, ${col('store_name')}, ${col('store_city')}, ${col('region')}
        FROM observation`,
   );
   const out: Row[] = [];
@@ -292,6 +298,9 @@ export function loadRows(db: DatabaseSync): Row[] {
       isSale: numOrNull(r.is_sale),
       tile: numOrNull(r.capture_tile_id),
       verified: numOrNull(r.price_verified),
+      store: str(r.store_name),
+      city: str(r.store_city),
+      region: str(r.region),
     });
   }
   return out;
@@ -688,6 +697,69 @@ function ruleD8(rows: readonly Row[], max: number, cat: Map<string, CatInfo>): R
   return b.result();
 }
 
+/**
+ * D9: one place label stamped on a chain that trades in more than one province (D-257, scorecard M06).
+ *
+ * The bug: price/src/hammer.ts:210 writes storeCity 'Toronto' on every vendor's rows, so result lists read
+ * "Save-On-Foods, Toronto". The chain is the shop label (store_name, else the seller). Two forms, both needing
+ * D9_MIN_ROWS rows that carry a city, because one row of one store says nothing and one store really has one city:
+ *   known_chain_one_city  the chain is on KNOWN_MULTI_PROVINCE (a list I wrote from general knowledge of where
+ *                         each chain has stores; it is an assumption, not read from any file) and every one of
+ *                         its rows says the same city. Catches the real shape, where the region is stamped too.
+ *   regions_one_city      any chain whose rows are written under two or more regions yet all say one city. Needs
+ *                         no list, so it cannot go stale; blind when the region is stamped as well.
+ */
+export const D9_MIN_ROWS = 10;
+const KNOWN_MULTI_PROVINCE: readonly string[] = [
+  'save on foods', 'walmart', 'costco', 'canadian tire', 'shoppers drug mart', 'sobeys', 'safeway', 'real canadian superstore',
+  'superstore', 'metro', 't t', 'london drugs', 'giant tiger', 'no frills',
+];
+const chainWords = (label: string): string =>
+  label.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const isKnownChain = (words: string): boolean => KNOWN_MULTI_PROVINCE.some((k) => words === k || words.startsWith(`${k} `));
+
+function ruleD9(rows: readonly Row[], max: number): RuleResult {
+  const b = new Builder(
+    {
+      id: 'D9',
+      title: `Place label: a chain in more than one province with one single city on all its rows (${D9_MIN_ROWS}+ rows)`,
+      used: 'yes',
+      usedWhy: [
+        'price/src/lookup.ts:109 reads store_name and store_city into the result list and price/src/estimate.ts:451 and 491 read them too, so the label is what a shopper reads next to the price.',
+        'price/src/hammer.ts:210 is the writer that stamps one city on every vendor (DEFECTS D-257).',
+      ],
+    },
+    rows.length,
+    max,
+    [
+      { id: 'known_chain_one_city', label: 'a chain known to trade in several provinces, every row with one city', headline: true, severity: 'medium' },
+      { id: 'regions_one_city', label: 'a chain written under two or more regions, every row with one city', headline: true, severity: 'medium' },
+    ],
+  );
+  b.notes.push(`the multi-province list is ${KNOWN_MULTI_PROVINCE.length} chain names written from general knowledge, not read from a file; a chain needs ${D9_MIN_ROWS}+ rows that carry a city before it is judged`);
+  const chains = new Map<string, Row[]>();
+  for (const r of rows) {
+    const label = r.store ?? r.seller;
+    if (!label || r.city === null) continue;
+    const key = chainWords(label);
+    const g = chains.get(key);
+    if (g) g.push(r);
+    else chains.set(key, [r]);
+  }
+  for (const [key, g] of chains) {
+    if (g.length < D9_MIN_ROWS) continue;
+    const cities = new Set(g.map((r) => chainWords(r.city!)));
+    if (cities.size !== 1) continue;
+    const city = g[0]!.city!;
+    const regions = new Set(g.flatMap((r) => (r.region === null ? [] : [chainWords(r.region)])));
+    const bucket = isKnownChain(key) ? 'known_chain_one_city' : regions.size >= 2 ? 'regions_one_city' : null;
+    if (!bucket) continue;
+    const why = `"${g[0]!.store ?? g[0]!.seller}": all ${g.length} rows say "${city}"${regions.size >= 2 ? `, written under ${regions.size} regions` : ''}`;
+    for (const r of g) b.add(bucket, r, why);
+  }
+  return b.result();
+}
+
 /* ------------------------------------------------------------------------ runner */
 
 /** Runs every rule on an open prices handle. A rule that throws is recorded in `errors` and the rest still run. */
@@ -725,6 +797,7 @@ export function runChecks(prices: DatabaseSync, opts: CheckOptions): CheckRun {
   attempt('D6', () => ruleD6(rows, max));
   attempt('D7', () => ruleD7(rows, max));
   if (catalogueOk) attempt('D8', () => ruleD8(rows, max, cat!));
+  attempt('D9', () => ruleD9(rows, max));
 
   return { asOf: opts.asOf, totalRows: rows.length, hasCatalogue: catalogueOk, rules, errors };
 }
