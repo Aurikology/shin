@@ -160,6 +160,10 @@ export interface OwnMatch {
   readonly score: number;
   /** Latest price per store, cheapest first. Never empty. */
   readonly prices: readonly OwnPrice[];
+  /** Other products (another brand, or another known size) the typed words name as well as this one. */
+  readonly rivals?: number;
+  /** The shopper typed a size and this product's row printed none, so the two were never compared. */
+  readonly sizeUnconfirmed?: boolean;
 }
 
 export interface OwnLookupSources {
@@ -554,6 +558,23 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
     const all = candidates.filter((c) => c.identity === best.identity).flatMap((c) => pricesFor(c));
     const list = latestPerStore(all);
     if (list.length === 0) return { match: null, searched, unavailable };
+    /*
+     * Whether the words single out this product (answer key on the real catalogue, 2026-11-12: "Coconut
+     * Milk 400 ml" was answered as Aroy-D's with confidence high while Thai Kitchen's carries the same
+     * words; "Tilda Jasmine Rice" as the 250 g bag beside a 907 g one). A rival scores as well and is
+     * another brand, or the same brand in another known size. Priced or not: it is still another product.
+     */
+    const brandKey = (c: Candidate) => tokensOf(c.brand?.split(',')[0]).join(' ');
+    const rivals = new Set(
+      candidates
+        .filter(
+          (c) =>
+            c !== best &&
+            c.score >= best.score - 1e-9 &&
+            (brandKey(c) !== brandKey(best) || (c.size !== null && best.size !== null && !sameSize(c.size, best.size))),
+        )
+        .map((c) => c.identity),
+    ).size;
     return {
       match: {
         name: best.name,
@@ -562,6 +583,10 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
         code: best.code,
         score: Math.round(best.score * 1000) / 1000,
         prices: list,
+        rivals,
+        // The shopper typed a size and this row printed none, so the size was never compared ("Bick's Sweet
+        // Green Relish 500ml" answered as the 375 ml jar, 2026-11-12).
+        sizeUnconfirmed: qSize !== null && best.size === null,
       },
       searched,
       unavailable,

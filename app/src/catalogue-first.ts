@@ -1344,7 +1344,7 @@ export function typedIdentity(
   rows: readonly TypedRow[],
   resolution: TypedResolution | null,
   /** The own-price text match (own-prices.ts), when the catalogue resolved nothing. */
-  match: { readonly score: number; readonly size: string | null } | null = null,
+  match: { readonly score: number; readonly size: string | null; readonly rivals?: number; readonly sizeUnconfirmed?: boolean } | null = null,
 ): Identity {
   const guess: Identity = { grade: 'guess', words: text };
   const typed = wordsOf(text);
@@ -1359,7 +1359,9 @@ export function typedIdentity(
   if (!top) {
     // The text match is sure only when the typed words ARE the product's name (score 1: none of its
     // name words left uncovered) and its size is settled.
-    const whole = match !== null && match.score >= 0.999;
+    // And it is the ONLY product the words name, with the typed size confirmed (answer key, 2026-11-12:
+    // 30 typed asks answered as another brand or size with confidence high; see own-prices.ts rivals).
+    const whole = match !== null && match.score >= 0.999 && !match.rivals && !match.sizeUnconfirmed;
     return whole && !otherSizeThan(match.size, null) ? { grade: 'sure' } : guess;
   }
   return otherSizeThan(top.quantity, top) ? guess : { grade: 'sure' };
