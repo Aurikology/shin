@@ -27,7 +27,7 @@ import {
   probeCatalogue,
   type UserCatalogue,
 } from '../catalogue/src/user-catalogue.ts';
-import { ATTRIBUTION } from './src/attribution.ts';
+import { shopperSources } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
 import {
   correctScan,
@@ -4042,7 +4042,8 @@ export const server = createServer(async (req, res) => {
      * Frozen list, not a query -- see app/src/attribution.ts for why.
      */
     if (url.pathname === '/api/attribution') {
-      return json(200, { sources: ATTRIBUTION });
+      // The shopper's words, not the record: see shopperSources() in attribution.ts for what stays behind.
+      return json(200, { sources: shopperSources() });
     }
 
     if (url.pathname === '/api/pack-version') {
