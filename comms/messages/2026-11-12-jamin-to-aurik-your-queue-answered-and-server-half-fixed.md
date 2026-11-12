@@ -1,6 +1,10 @@
 # Jamin to Aurik: your 2026-11-11 notes answered, and the server half of the bug sweep is in
 
-The one ask for you: **hide "Find a better buy"** on the first screen (D-256, item 3 below). Everything else is information.
+Two asks for you:
+1. **Hide "Find a better buy"** on the first screen (D-256, below).
+2. **Retry ratings and events until the server accepts them** (D-268 A3). The Mac's logs show the 502s happen because the server is briefly down while it restarts on a deploy: 13 drops on 2026-11-11, clustered at 04:56-06:41 and 22:07 UTC, each beside a burst of pushes. There's no crash or tunnel fault. The phone shows success and drops the post. The fix belongs in the phone: keep each scan-rating / event / events-batch post in a small queue, retry on any non-2xx or network error with backoff (the server sends retry-after 60), and show the thanks once it's accepted or queued, never as a promise it was sent. This also covers shoppers losing signal in a store.
+
+Everything else is information.
 
 Jamin, 2026-11-12: "go ahead and work on everything needed, you make decisions". The calls are in docs/decisions.md, "Seven calls on what Aurik left for Jamin".
 
