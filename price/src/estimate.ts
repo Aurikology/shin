@@ -63,7 +63,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { statSync } from 'node:fs';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
-import { flagWide } from './width-flag.ts';
+import { flagWide, TARGET_WIDTH } from './width-flag.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
@@ -1488,6 +1488,13 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   } else if (basis === 'leaf_category' && n >= MEDIUM_LEAF_PRODUCTS && !notes.has('size_assumed')) {
     confidence = 'medium';
   }
+  // D-270 A3: the confidence agrees with the bell drawn beside it. A shaded band (p90/p10) wider than
+  // the 1.5x line the category safeguards call narrow (width-flag.ts) is never "Certain"; wider than
+  // that line twice over (2.25x) it is "Not fully confident". A starting guess, to be replaced by each
+  // rung's measured hit rate like the rest of design call 5.
+  const bandWidth = Math.exp(2 * Z10 * sigma);
+  if (bandWidth > TARGET_WIDTH * TARGET_WIDTH) confidence = 'low';
+  else if (bandWidth > TARGET_WIDTH && confidence === 'high') confidence = 'medium';
   if ((basis === 'own_prices' || basis === 'other_size') && n < 3) notes.add('few_prices');
   if ((basis === 'category_prior' || basis === 'department_prior') && n < MIN_CATEGORY_PRODUCTS) notes.add('few_prices');
 

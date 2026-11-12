@@ -70,14 +70,15 @@ test('D-267: a name-joined row that agrees with the barcode-joined rows still co
 });
 
 test('D-267: name-joined rows alone still answer, but never "Certain"', async () => {
-  const byName = [0, 1, 2, 3].map((i) => obs({ priceCents: 700, seller: `n${i}`, joinMethod: 'name' }));
+  // Five shops, so the bell is their own narrow spread (D-270 A3: a wide bell is never "Certain" either way).
+  const byName = [0, 1, 2, 3, 4].map((i) => obs({ priceCents: 700, seller: `n${i}`, joinMethod: 'name' }));
   const { verdict } = await estimate(item, null, { prices: pricesDb(byName), askClaude: noClaude });
   assert.equal(verdict.basis, 'own_prices', 'every data point still counts when it is all there is');
   assert.equal(verdict.confidence, 'medium');
 });
 
-test('D-267 control: the same four rows joined by barcode are "Certain"', async () => {
-  const byBarcode = [0, 1, 2, 3].map((i) => obs({ priceCents: 700, seller: `g${i}` }));
+test('D-267 control: the same five rows joined by barcode are "Certain"', async () => {
+  const byBarcode = [0, 1, 2, 3, 4].map((i) => obs({ priceCents: 700, seller: `g${i}` }));
   const { verdict } = await estimate(item, null, { prices: pricesDb(byBarcode), askClaude: noClaude });
   assert.equal(verdict.confidence, 'high');
 });

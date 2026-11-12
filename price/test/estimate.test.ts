@@ -266,7 +266,8 @@ test('case 11: a bigger pack is a side note, never folded into the bell', async 
   // 300 g at 4.50 scaled to 200 g; the 1 kg pack stays out.
   assert.equal(verdict.centreCents, 300);
   assert.deepEqual(verdict.biggerPack, { quantity: '1 kg', perUnitCents: 100, store: 'Costco' });
-  assert.equal(verdict.confidence, 'medium');
+  // D-270 A3: with no category its bell is the empty prior's (p90/p10 about 13x), so it is not "Fairly sure".
+  assert.equal(verdict.confidence, 'low');
 });
 
 test('case 12: a store brand priced by one chain stands on its own prices with the category spread', async () => {
@@ -660,7 +661,8 @@ test('the parent category answers when the leaf is thin, and brand markup when b
 
 test('high confidence needs own prices from 3+ shops, fresh', async () => {
   const own = [0, 1, 2].map((i) => obs({ code: SELF, priceCents: 2400 + i * 50, seller: `s${i}` }));
-  const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }], own);
+  // A narrow leaf: D-270 A3 keeps "high" off a bell wider than 1.5x, which the default leaf's is (1.58x).
+  const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }], own, [2400, 2450, 2500, 2550, 2600]);
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.equal(verdict.confidence, 'high');
   assert.ok(!verdict.notes.includes('few_prices'));

@@ -128,3 +128,30 @@ test('D-270 B3 control: a line the shopper set himself is kept as typed (RULINGS
   assert.equal(verdict.thresholds.badPct, 10);
   assert.equal(verdict.thresholds.fromShopper, true);
 });
+
+/* ------------------------------------------- fix 2: a wide bell is never "Certain" (D-270 A3) */
+
+/** Three fresh shops of this item: the old rule called that "high" ("Certain") whatever the bell's width. */
+const threeShops = () => [480, 500, 520].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+
+test('D-270 A3: three fresh shops under a bell wider than 1.5x (p90/p10) are not "Certain"', async () => {
+  const { prices, catalogue } = fixture(threeShops());
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  const width = verdict.p90Cents / verdict.p10Cents;
+  assert.ok(width > 1.5 && width <= 2.25, `fixture: band ${verdict.p10Cents}..${verdict.p90Cents} is ${width.toFixed(2)}x`);
+  assert.equal(verdict.confidence, 'medium');
+});
+
+test('D-270 A3: a bell wider than 2.25x (the 1.5x line twice over) is "Not fully confident"', async () => {
+  const { prices, catalogue } = fixture(threeShops(), [300, 350, 500, 700, 800]);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.ok(verdict.p90Cents / verdict.p10Cents > 2.25, `fixture: band ${verdict.p10Cents}..${verdict.p90Cents}`);
+  assert.equal(verdict.confidence, 'low');
+});
+
+test('D-270 A3 control: three fresh shops under a narrow bell stay "Certain"', async () => {
+  const { prices, catalogue } = fixture(threeShops(), [480, 490, 500, 510, 520]);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.ok(verdict.p90Cents / verdict.p10Cents <= 1.5);
+  assert.equal(verdict.confidence, 'high');
+});

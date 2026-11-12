@@ -199,7 +199,11 @@ test('wrong product: typed "kraft dinner" is not judged as the 12-pack when the 
 test('control: the scanned coconut milk barcode still answers from its own prices', async () => {
   const v = (await byBarcode(COCONUT, 1500)).verdict;
   assert.equal(v?.basis, 'own_prices');
-  assert.notEqual(v?.confidence, 'low');
+  // Its own three shops set the centre. Its confidence is no longer the test: with no category pool its
+  // bell is the empty prior's (about 13x wide), and since D-270 A3 (2026-11-12) a bell that wide is
+  // "Not fully confident" whatever product it is.
+  assert.equal(v?.centreCents, 299);
+  assert.equal(v?.n, 3);
 });
 
 test('control: a typed name that names the size is still that product (D04 parity)', async () => {
