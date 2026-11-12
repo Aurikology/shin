@@ -206,6 +206,14 @@ export function setCategoryGuardForTests(guard: CategoryGuard): void {
 }
 
 /** TEST ONLY: replace the catalogue search worker `/api/search` calls, to drive a ring through the route. */
+/** The barcode a search box holds, or null: only digits (spaces and dashes allowed), 7 to 14 of them, passing the barcode check. */
+function typedBarcode(text: string): string | null {
+  if (!/^[\d\s-]+$/.test(text)) return null;
+  const digits = text.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 14) return null;
+  return canonicalGtin(digits);
+}
+
 export function setSearchServiceForTests(fake: SearchService | null): void {
   searchService = fake;
 }
@@ -3024,7 +3032,13 @@ export const server = createServer(async (req, res) => {
         // Same ceiling `identify()` obeys: past 90,000 embedded rows a KNN
         // scans the whole table (2.8 microseconds a row, measured), and this
         // endpoint is not exempt just because it shows more than one result.
-        const query = { text, limit, vectors: vectorsOn };
+        // A barcode typed into the search box (D-255): digits that check out
+        // as one go to the catalogue's barcode branch, which a name search
+        // never reaches. Spaces and dashes are how a barcode is printed under
+        // the bars. A name, a short number or digits with a wrong check digit
+        // carry no gtin and search as words, as before.
+        const typedGtin = typedBarcode(text);
+        const query = { text, limit, vectors: vectorsOn, ...(typedGtin ? { gtin: typedGtin } : {}) };
         /*
          * Routed by the same history `/api/identify` used, and the matching
          * matters here more than the narrowing does.
