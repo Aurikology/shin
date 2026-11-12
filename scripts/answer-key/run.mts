@@ -12,12 +12,12 @@
  * prices file is COPIED to a temp folder first, every writable store lives in a fresh temp folder, and no model can
  * be called. The temp folder is deleted at the end.
  */
-import { mkdirSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, writeFileSync, existsSync, statSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
-import { catalogueLister, httpAsker, httpLister, runKey, type Finding, type KeyProduct, type RunSummary } from './core.ts';
+import { catalogueLister, codeKey, httpAsker, httpLister, runKey, type Finding, type KeyProduct, type RunSummary } from './core.ts';
 import { startAnswerKeyServer, type Meter } from './server.ts';
 
 
@@ -143,6 +143,8 @@ export function sampleProducts(cataloguePath: string, pricesPath: string | null,
 /* ------------------------------------------------------------------ the run */
 
 export interface AnswerKeyOptions {
+  /** Only these codes of the seeded sample (a rerun of what an earlier run flagged, same seed and sample). */
+  onlyCodes?: readonly string[];
   cataloguePath: string | null;
   pricesPath: string | null;
   sample?: number;
@@ -203,6 +205,13 @@ export async function runAnswerKey(opts: AnswerKeyOptions): Promise<AnswerKeyRes
       products = s.products;
       priced = s.priced;
       unpriced = s.unpriced;
+      if (opts.onlyCodes) {
+        const want = new Set(opts.onlyCodes.map(codeKey));
+        products = products.filter((p) => want.has(codeKey(p.code)));
+        priced = products.filter((p) => p.medianCents !== null).length;
+        unpriced = products.length - priced;
+        log(`kept ${products.length} of the sample: the ${want.size} codes asked for`);
+      }
       log(`sampled ${products.length} products (${priced} priced, ${unpriced} not)`);
     } else {
       priced = products.filter((p) => p.medianCents !== null).length;
@@ -280,6 +289,8 @@ function renderReport(x: {
   L.push(`- Model calls made: ${x.modelCalls} (provider stub ${x.meter?.providerCalls ?? 0}, refused model fetches ${x.meter?.modelFetches ?? 0})`);
   if (x.meter && x.meter.otherOutbound.length > 0) L.push(`- Other outbound requests refused: ${x.meter.otherOutbound.length} (${[...new Set(x.meter.otherOutbound)].join(', ')})`);
   L.push(`- Real data folders changed during the run: ${x.realDataChanges.length}`);
+  // Every one by name: the failure line shows only the first five (2026-11-12: the count said 6, five were named).
+  for (const c of x.realDataChanges) L.push(`  - ${c}`);
   L.push('', '## Findings per rule', '');
   const names: Record<string, string> = {
     R1: 'barcode control',
@@ -315,6 +326,7 @@ async function main(): Promise<void> {
       out: { type: 'string' },
       region: { type: 'string', default: 'British Columbia' },
       concurrency: { type: 'string', default: '1' },
+      codes: { type: 'string' },
     },
   });
   const usage = 'usage: node scripts/answer-key/run.mts --catalogue <path> --prices <path> [--sample 2000] [--seed 1] [--out <dir>]';
@@ -337,6 +349,8 @@ async function main(): Promise<void> {
     outDir,
     region: values.region,
     concurrency: Number(values.concurrency),
+    // A file of codes, one per line: rerun only those products of the same seeded sample.
+    ...(values.codes ? { onlyCodes: readFileSync(values.codes, 'utf8').split(/\s+/).filter(Boolean) } : {}),
   });
   process.stderr.write(`${result.exitCode === 0 ? 'PASS' : 'FAIL'}: ${result.summary?.productsChecked ?? 0} products, ${result.summary?.asks ?? 0} asks, R2 ${result.summary?.perRule.R2 ?? 0}, model calls ${result.modelCalls}; report in ${outDir}\n`);
   for (const f of result.failures) process.stderr.write(`  ${f}\n`);

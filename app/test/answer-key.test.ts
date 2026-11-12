@@ -14,7 +14,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { checkProduct, listFindings, readsAs, readAnswer, wrongWordName, type AskResult, type Asker, type KeyProduct, type ListAnswer, type ListRow, type Lister } from '../../scripts/answer-key/core.ts';
+import { checkProduct, codeKey, listFindings, readsAs, readAnswer, wrongWordName, type AskResult, type Asker, type KeyProduct, type ListAnswer, type ListRow, type Lister } from '../../scripts/answer-key/core.ts';
 import { runAnswerKey } from '../../scripts/answer-key/run.mts';
 import { buildSynthetic, LIST_PROBES, LOOKALIKE_ROWS, SYNTHETIC_ROWS } from '../../scripts/answer-key/synthetic.ts';
 
@@ -158,4 +158,13 @@ test('the made-up catalogue really holds the lookalike rows R7 needs, so the R7 
   const have = syn.db.prepare('SELECT count(*) AS n FROM product WHERE code IN (?, ?)').get(LOOKALIKE_ROWS[0].code, LOOKALIKE_ROWS[1].code) as { n: number };
   assert.equal(have.n, 2);
   assert.ok(LIST_PROBES.length > 0);
+});
+
+// 2026-11-12, real catalogue: "06999108" answered as 0069000009918 was counted a different product; it is the
+// same Pepsi 591 ml, UPC-E and its long UPC-A form. An EAN-8 whose UPC-E reading fails its check digit stays itself.
+test('a UPC-E and its UPC-A are one code to the key', () => {
+  assert.equal(codeKey('06999108'), codeKey('0069000009918'));
+  assert.equal(codeKey('06748605'), codeKey('0067000004865'));
+  assert.equal(codeKey('05630804'), codeKey('0056000003084'));
+  assert.equal(codeKey('00008735'), '8735');
 });

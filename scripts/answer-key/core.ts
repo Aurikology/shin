@@ -170,7 +170,31 @@ export function wrongWordName(name: string): string {
 
 /** A barcode compared by digits with leading zeros dropped, so UPC-A and EAN-13 spellings meet. */
 export function codeKey(code: string | null | undefined): string {
-  return (code ?? '').replace(/\D+/g, '').replace(/^0+/, '');
+  const digits = (code ?? '').replace(/\D+/g, '');
+  return (upcEToUpcA(digits) ?? digits).replace(/^0+/, '');
+}
+
+/**
+ * The 12-digit UPC-A an 8-digit UPC-E stands for (GS1 zero-suppression), written here from the standard
+ * rather than imported from the server, so the key does not trust the code it checks. 2026-11-12: the
+ * real-catalogue run counted "06999108 answered as 0069000009918" (Pepsi 591 ml) as a different product;
+ * it is the same code, long form. Null for anything that is not a UPC-E with number system 0 or 1.
+ */
+export function upcEToUpcA(eight: string): string | null {
+  if (!/^[01]\d{7}$/.test(eight)) return null;
+  const ns = eight[0]!;
+  const d = eight.slice(1, 7);
+  const check = eight[7]!;
+  const last = d[5]!;
+  let body: string;
+  if (last <= '2') body = `${d.slice(0, 2)}${last}0000${d.slice(2, 5)}`;
+  else if (last === '3') body = `${d.slice(0, 3)}00000${d.slice(3, 5)}`;
+  else if (last === '4') body = `${d.slice(0, 4)}00000${d[4]}`;
+  else body = `${d.slice(0, 5)}0000${last}`;
+  const upca = `${ns}${body}${check}`;
+  // The check digit has to hold on the long form, or this was an EAN-8 and not a UPC-E.
+  const sum = [...upca.slice(0, 11)].reduce((s, c, i) => s + Number(c) * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - (sum % 10)) % 10 === Number(check) ? upca : null;
 }
 
 /** Swaps two adjacent different letters in the longest word (4+ letters). Null when no word allows it. */
