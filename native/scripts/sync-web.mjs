@@ -13,6 +13,7 @@
  */
 import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,9 +79,32 @@ if (!existsSync(capacitorBuild)) {
   process.exit(1);
 }
 
+/*
+ * The barcode reader is build output, not source: app/public/js/eye.js and
+ * js/vendor/zxing_reader.wasm come from `npm run build-eye` and are gitignored.
+ * Until 2026-11-11 nothing here ran it, so a phone build from a fresh clone
+ * opened the camera and never read a barcode (found by the Android emulator run,
+ * scripts/phone-run: three 404s, the button stuck on "Point me at the barcode"),
+ * and a machine with an old build shipped an old reader. Build it every time.
+ */
+const buildEye = path.join(repoRoot, 'app', 'scripts', 'build-eye.mjs');
+const built = spawnSync(process.execPath, [buildEye], { cwd: path.join(repoRoot, 'app'), stdio: 'inherit' });
+if (built.status !== 0) {
+  console.error(`[sync-web] the camera build failed (exit ${built.status}). Run npm ci in app/ and retry; a phone build without it cannot read barcodes.`);
+  process.exit(1);
+}
+
 rmSync(dest, { recursive: true, force: true });
 mkdirSync(dest, { recursive: true });
 cpSync(source, dest, { recursive: true });
+
+// build-eye only warns when a wasm is missing, so check what actually landed in the copy.
+for (const rel of ['js/eye.js', 'js/vendor/zxing_reader.wasm']) {
+  if (!existsSync(path.join(dest, rel))) {
+    console.error(`[sync-web] ${rel} is missing from the phone copy, so the app would have no barcode reader. Run npm ci in app/ and retry.`);
+    process.exit(1);
+  }
+}
 
 const indexPath = path.join(dest, 'index.html');
 let html = readFileSync(indexPath, 'utf8');
