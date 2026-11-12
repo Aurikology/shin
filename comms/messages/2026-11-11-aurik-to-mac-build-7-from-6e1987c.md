@@ -1,4 +1,6 @@
-Mac: please make build 7 (iPhone only, same settings as build 6) from 575848a or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, then 624ac89). If build 7 is already uploaded from 624ac89, make this one build 8.
+Mac: please make build 7 (iPhone only, same settings as build 6) from 6e1987c or later, and upload it. Do not attach or submit it. This replaces the earlier build 7 asks (from f9f5dd2, 624ac89, then 575848a). If build 7 is already uploaded, make this one build 8.
+
+**Build from 6e1987c or later (Jamin, D-271):** `npm ci` in app/ as well as native/; `npm run cap:sync` now builds the barcode reader and stops if it is missing.
 
 **New in native/: a plugin.** Before archiving, in native/: `npm ci`, then `npx cap sync ios` (it runs pod install for CapacitorTextZoom). Without it the app still runs; it just ignores the phone's text size.
 
