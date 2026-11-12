@@ -27,7 +27,13 @@ Jamin, 2026-11-12: "go ahead and work on everything needed, you make decisions".
 - The flaky "5.1 control" test didn't fail in 50+ runs. It now prints the server's answers when it fails, so the next red run names its cause.
 - The 502s on rating and events have been asked of the Mac's logs.
 
-**Still open on Jamin's side:** typo search (D-263), names straight from the source (D-261), slow name lookup (D-262), stale and out-of-stock prices (D-267), and the free limit, which still waits on your sandbox purchase.
+**Second batch, also live (2026-11-12 evening):**
+- **Typo search (D-263).** "dedorant", "cheerois" and "ketchp" now find deodorant, Cheerios and ketchup. When a word was corrected, /api/search adds `correctedFrom` and `correctedTo`. Optional for you: a "Showing results for deodorant" line when they're there.
+- **Names (D-261).** Search results and barcode lookups send a cleaned `name`: brand first, size last, no doubled words, no shouting. The source text is in `rawName`. You can drop your title-case pass once you've seen it on a phone, or keep it; it's harmless.
+- **Barcode name on the pad (D-262).** It arrives in about half a second instead of 3 to 6.
+- **Old prices count for less (D-267).** Prices are weighted by age. "Certain" needs three shops seen in the last 90 days.
+
+**Still open on Jamin's side:** wrong crowd data (Oreo's brand reads "Cristie"), search ranking and abbreviations, and the free limit, which still waits on your sandbox purchase.
 
 **For build 7:** none of this needs a new build except your hide of Find a better buy. The server changes are already live for every build.
 
