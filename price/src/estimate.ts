@@ -10,9 +10,9 @@
  * wasting time").
  *
  * THE LADDER, first rung with evidence:
- *   own_prices       this item's own regular prices, latest per shop, 90 days
- *                    first, else up to 2 years with age weighting; median of
- *                    shops; blended with the category centre,
+ *   own_prices       this item's own regular prices, latest per shop, up to 2
+ *                    years, each weighted by age (`ageWeight`, D-267 A3);
+ *                    weighted median of shops; under 3 shops blended with the category centre,
  *                    mu = (n * mu_own + k * mu_cat) / (n + k), k = 1.
  *   other_size       the same product (normalised brand and name) in another
  *                    size inside the pack-size band, unit price scaled here.
@@ -98,8 +98,18 @@ export const WIDEN = 1.25;
 export const OLD_DAYS = 365;
 /** No price older than this (days) is read at all. */
 export const HORIZON_DAYS = 730;
-/** Age weighting past the window: a price loses half its weight per year. */
-export const HALF_LIFE_DAYS = 365;
+/**
+ * D-267 A3, age weighting of own prices. Inside the range card's window (range.ts WINDOW_DAYS, 90 days)
+ * a price counts in full, as the range card already treats it as current, so the bell and the card stand
+ * on the same median whenever every shop is fresh (D-270 B1). Past the window it loses half its weight
+ * every 180 days: 270 days old counts half, 450 days a quarter, the 730-day horizon about 8%. Shelf
+ * prices move with sales cycles and yearly cost increases, so a year-old price is a weak witness of
+ * today's, but it is never zero (RULINGS 2026-09-28, "every data point": weight rows, never drop them).
+ */
+export const HALF_LIFE_DAYS = 180;
+export function ageWeight(age: number): number {
+  return age <= WINDOW_DAYS ? 1 : Math.pow(0.5, (age - WINDOW_DAYS) / HALF_LIFE_DAYS);
+}
 /** A price this many times off its category median is a wrong row, left out of the centre. */
 export const WRONG_ROW_FACTOR = 5;
 /** D-267: a name-joined row agrees with the barcode-joined rows when within this factor of their median. */
@@ -697,15 +707,40 @@ function statsOf(points: readonly { log: number; age: number }[]): Stats | null 
   };
 }
 
-function weightedMedian(points: readonly { log: number; w: number }[]): number {
+/** The nearest-rank `p`th percentile by weight; with equal weights exactly `nearestRankIndex`. */
+function weightedPercentile(points: readonly { log: number; w: number }[], p: number): number {
   const s = [...points].sort((a, b) => a.log - b.log);
-  const total = s.reduce((a, p) => a + p.w, 0);
+  const total = s.reduce((a, q) => a + q.w, 0);
   let cum = 0;
-  for (const p of s) {
-    cum += p.w;
-    if (cum >= total / 2) return p.log;
+  for (const q of s) {
+    cum += q.w;
+    if (cum * 100 >= p * total * (1 - 1e-12)) return q.log;
   }
   return s[s.length - 1]!.log;
+}
+
+function weightedMedian(points: readonly { log: number; w: number }[]): number {
+  return weightedPercentile(points, 50);
+}
+
+/**
+ * `statsOf` with each point weighted (D-267 A3): the wrong-row cut around the weighted median, then
+ * weighted percentiles, so older prices neither move nor widen the bell the fresh ones draw.
+ */
+function weightedStatsOf(points: readonly { log: number; age: number; w: number }[]): Stats | null {
+  if (points.length === 0) return null;
+  const m0 = weightedMedian(points);
+  const kept = points.filter((p) => Math.abs(p.log - m0) <= Math.log(WRONG_ROW_FACTOR));
+  if (kept.length === 0) return null;
+  return {
+    n: kept.length,
+    mu: weightedPercentile(kept, 50),
+    sigma: (weightedPercentile(kept, 75) - weightedPercentile(kept, 25)) / 1.349,
+    p10: weightedPercentile(kept, 10),
+    p90: weightedPercentile(kept, 90),
+    newestAge: Math.min(...kept.map((p) => p.age)),
+    logs: kept.map((p) => p.log).sort((a, b) => a - b),
+  };
 }
 
 /**
@@ -1173,10 +1208,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     regional = plausible;
     fromOtherRegion = wantRegion !== null;
   }
-  const shopsAll = latestPerShop(regional);
-  const fresh = shopsAll.filter((s) => s.age <= WINDOW_DAYS);
-  const ownShops = fresh.length > 0 ? fresh : shopsAll;
-  const ownAged = fresh.length === 0 && shopsAll.length > 0;
+  // D-267 A3: one price per shop (the newest leads), every shop kept and weighted by age, none dropped.
+  const ownShops = latestPerShop(regional);
+  const freshShops = ownShops.filter((s) => s.age <= WINDOW_DAYS).length;
+  const ownWeighted = ownShops.map((s) => ({ log: Math.log(s.cents), age: s.age, w: ageWeight(s.age) }));
 
   let basis: Basis | null = null;
   let mu = 0;
@@ -1187,9 +1222,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let scaled = false;
 
   if (ownShops.length > 0) {
-    const muOwn = ownAged
-      ? weightedMedian(ownShops.map((s) => ({ log: Math.log(s.cents), w: Math.pow(0.5, s.age / HALF_LIFE_DAYS) })))
-      : medianOf(ownShops.map((s) => Math.log(s.cents)));
+    const muOwn = weightedMedian(ownWeighted);
     n = ownShops.length;
     // D-270 A4/A5/B1: from OWN_SPREAD_SHOPS shops up the centre is theirs alone (the range card's median);
     // under that it is blended with the category, never with a pool too wide to mean anything (D-233).
@@ -1457,7 +1490,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const catSpread = aside.stats.size > 0 ? leafSpread ?? parentSpread : catStats;
   let sigma: number;
   let spreadFrom: SpreadFrom;
-  const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? statsOf(ownShops.map((s) => ({ log: Math.log(s.cents), age: s.age }))) : null;
+  const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? weightedStatsOf(ownWeighted) : null;
   if (ownSpread) {
     sigma = ownSpread.sigma;
     spreadFrom = 'own_prices';
@@ -1490,7 +1523,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   /* ---- confidence (design call 5) */
   let confidence: Confidence = 'low';
   if (basis === 'own_prices') {
-    confidence = ownShops.length >= HIGH_OWN_SHOPS && !ownAged && !notes.has('old_prices') && !ownByNameOnly ? 'high' : 'medium';
+    // "Certain" needs HIGH_OWN_SHOPS shops seen inside the window; a newest price over a year old caps at "Fairly sure".
+    confidence = freshShops >= HIGH_OWN_SHOPS && !notes.has('old_prices') && !ownByNameOnly ? 'high' : 'medium';
   } else if (basis === 'other_size') {
     confidence = 'medium';
   } else if (basis === 'leaf_category' && n >= MEDIUM_LEAF_PRODUCTS && !notes.has('size_assumed')) {
