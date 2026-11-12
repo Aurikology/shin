@@ -59,6 +59,7 @@ import {
   type Identity,
   safeEstimate,
   shownVerdict,
+  catalogueHitIdentity,
   type BarcodeDeps,
   type MatchTextAnswer,
   type NamedElsewhere,
@@ -2814,6 +2815,9 @@ export const server = createServer(async (req, res) => {
       if (rawGtin && pickText('preview') === '1') {
         const canonical = gtin && catalogueFirstOn() ? canonicalBarcode(rawGtin) : null;
         if (!canonical) return json(200, { kind: 'catalogue', outcome: 'preview_unavailable', barcode: rawGtin, identity: null, preview: true });
+        // D-262: a product the catalogue knows is named from its row alone, with no price read at all.
+        const known = catalogueHitIdentity(canonical, fastLookup);
+        if (known) return json(200, { kind: 'catalogue', outcome: 'catalogue_hit', barcode: canonical.gtin, identity: known, preview: true });
         // Open Food Facts and a saved Claude reading name it here too, both free; no frame, so no Claude call.
         const { answer } = await catalogueFirstBarcode(
           undefined,

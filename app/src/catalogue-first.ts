@@ -678,6 +678,25 @@ function fromShinPrices(r: Exclude<RangeResult, { basis: 'none' }>, path: readon
 /* ------------------------------------------------------------------ barcode */
 
 /**
+ * D-262: what a barcode the catalogue knows IS, from its catalogue row alone. The preview (`preview=1`,
+ * the name on the price pad) needs nothing more, and taking the full answer for it ran the whole price
+ * ladder (the verdict estimate and the range card, which reads every price in the window for the category
+ * pools) only to throw the result away: the live Oreo preview took 3.3 s. Null when the catalogue does
+ * not hold the code or the lookup throws; the caller then takes the full answer, which logs a failed
+ * lookup loudly and names a miss from a store price or Open Food Facts.
+ */
+export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeDeps['lookup']): CatalogueIdentity | null {
+  if (!lookup) return null;
+  let hit: unknown;
+  try {
+    hit = lookup.byGtin(barcode.gtin);
+  } catch {
+    return null;
+  }
+  return isRow(hit) ? identityOf(normaliseRow(hit)) : null;
+}
+
+/**
  * The catalogue-first answer to one scanned barcode. Never throws: a broken
  * price file is a `none` ladder, a failed ask is a reason code.
  */

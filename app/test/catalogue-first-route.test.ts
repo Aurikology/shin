@@ -552,6 +552,35 @@ test('ON, preview=1 names the item and nothing else: no scan row, no Claude ask,
   assert.equal(typeof real.scanId, 'number');
 });
 
+test('D-262: preview=1 of a catalogue hit is named from the catalogue row alone, the price file never opened', async () => {
+  on();
+  // With the price file gone, every opening of it is counted as `missing` (D-231): the counter sees each price read.
+  const { renameSync } = await import('node:fs');
+  const opened = async (gtin: string): Promise<{ body: Record<string, unknown>; opens: number }> => {
+    const before = ((await (await fetch(`${base}/api/health`)).json()) as { pricesDbFaults: { missing?: number } }).pricesDbFaults.missing ?? 0;
+    const body = await preview(gtin);
+    const after = ((await (await fetch(`${base}/api/health`)).json()) as { pricesDbFaults: { missing?: number } }).pricesDbFaults.missing ?? 0;
+    return { body, opens: after - before };
+  };
+  renameSync(pricesPath, `${pricesPath}.away`);
+  try {
+    const hit = await opened(OWN_HIT);
+    assert.equal(hit.body.outcome, 'catalogue_hit');
+    assert.equal(hit.body.barcode, OWN_HIT);
+    assert.deepEqual(
+      { name: (hit.body.identity as { name: string }).name, brand: (hit.body.identity as { brand: string }).brand, size: (hit.body.identity as { size: string }).size },
+      { name: 'Smooth Peanut Butter', brand: 'Kraft', size: '1 kg' },
+    );
+    assert.equal(hit.opens, 0, 'the preview of a product the catalogue knows ran the whole price ladder (estimate, range card) only to throw it away');
+    // The control: a miss still takes the full path (a store price can name it), so the counter could have moved.
+    const miss = await opened(MISSING);
+    assert.equal(miss.body.outcome, 'not_in_catalogue');
+    assert.equal(miss.opens, 1, 'control failed: a preview of a miss did not open the price file, so the check above proves nothing');
+  } finally {
+    renameSync(`${pricesPath}.away`, pricesPath);
+  }
+});
+
 test('preview=1 on a malformed code, or with catalogue first off, answers with no identity and writes nothing', async () => {
   on();
   const rows = scanCount();
