@@ -185,3 +185,24 @@ test('D-258 control: three shops under a narrow bell are "Certain" and carry no 
   assert.equal(verdict.confidence, 'high');
   assert.ok(!verdict.notes.includes('few_prices'));
 });
+
+/* --------------- fix 4: Project Hammer's repeated rows count once toward n and confidence (D-260) */
+
+test('D-260: Hammer rows repeated day after day, and its sale plus regular pair, count once per shop', async () => {
+  const { observationsFor } = await import('../src/hammer.ts');
+  const product = (id: string, vendor: string) => ({ id, vendor, name: 'Cristie Oreo', units: '303g', brand: 'Christie', url: '', sku: id, code: SELF });
+  const rows: ObservationRow[] = [];
+  // Two refreshes a day apart, the same price each time (live: "Galleria $4.99 at 3 d and 4 d").
+  for (const day of ['20260919', '20260920']) {
+    rows.push(...observationsFor(product('g1', 'Galleria'), { day, current: '4.99', old: '', perUnit: '', other: '' }));
+    // On sale: the sale row plus the old price written again as a regular row.
+    rows.push(...observationsFor(product('m1', 'Metro'), { day, current: '3.99', old: '4.99', perUnit: '', other: '' }));
+  }
+  assert.equal(rows.length, 6, 'fixture: two Galleria rows, two Metro sale rows, two Metro regular rows');
+  const { prices, catalogue } = fixture(rows, NARROW_LEAF);
+  const { verdict } = await estimate(item({ region: 'Ontario' }), null, { prices, catalogue });
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 2, `6 rows from 2 shops count as ${verdict.n}`);
+  assert.ok(verdict.notes.includes('few_prices'));
+  assert.notEqual(verdict.confidence, 'high');
+});
