@@ -40,6 +40,7 @@ import {
   type UserConstraintPrefs,
 } from './alternative-modes.ts';
 import { licensedOnlySql } from './source-rights.ts';
+import { shopperNames } from './display-name.ts';
 import { UNKNOWN_MARKET, formatMoney, samePriceBasis, type Market } from './market.ts';
 import { sameFamily, sqlBaseValue, sqlFamily, toComparison, unitPriceCents } from './units.ts';
 
@@ -862,9 +863,8 @@ export async function alternativesFor(
     const per = rowPer ? rowPer.label : '100 g';
     const product: Candidate = {
       code: r.code,
-      name: r.name,
-      nameEn: r.name_en,
-      nameFr: r.name_fr,
+      // D-261: the same shopper names a search result carries (display-name.ts).
+      ...shopperNames(r),
       brands: r.brands,
       quantity: r.quantity,
       sizeValue: r.size_value,

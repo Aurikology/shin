@@ -723,7 +723,8 @@ export async function topMatchesFromText(
   const packWordList = [...packWords];
   const scored: TextMatchCandidate[] = [];
   for (const { c, best } of pool.values()) {
-    const names = [c.name, c.nameEn, c.nameFr].filter((n): n is string => !!n);
+    // The source's own name, not the shopper line (D-261): brand and size words added for reading must not dilute recall.
+    const names = [c.rawName ?? c.name, c.nameEn, c.nameFr].filter((n): n is string => !!n);
     let nameRecall = 0;
     for (const n of names) {
       const nw = words(n).filter((w) => w.length > 1 && !STOP.has(w));

@@ -75,20 +75,20 @@ test('a short word is the exact word, not a prefix that matches the catalogue', 
   await cat.search({ text: 'pc', limit: 5, vectors: false });
   const match = ran[0]!.params[0] as string;
   assert.equal(match, '"pc"');
-  const names = (await cat.search({ text: 'pc', limit: 60, vectors: false })).candidates.map((c) => c.name);
+  const names = (await cat.search({ text: 'pc', limit: 60, vectors: false })).candidates.map((c) => c.rawName);
   assert.ok(!names.includes('Pcb Tester'), 'pcb is not pc');
 });
 
 test('a short word beside a real word still finds the product both name', async () => {
   const { cat } = fixture();
   const result = await cat.search({ text: 'pc ketchup', limit: 5, vectors: false });
-  assert.equal(result.candidates[0]?.name, 'PC Ketchup');
+  assert.equal(result.candidates[0]?.rawName, 'PC Ketchup');
 });
 
 test('a normal word keeps its ranked search and its half-typed prefix', async () => {
   const { cat, ran } = fixture();
   const result = await cat.search({ text: 'ketch', limit: 5, vectors: false });
-  assert.equal(result.candidates[0]?.name, 'PC Ketchup');
+  assert.equal(result.candidates[0]?.rawName, 'PC Ketchup');
   assert.match(ran[0]!.sql, /ORDER BY score/);
   assert.equal(ran[0]!.params[0], '"ketch"*');
 });

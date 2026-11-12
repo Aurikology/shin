@@ -44,6 +44,7 @@ import { variantCarriedBy, variantTokens } from './variant-words.ts';
 import { upcEOf, upcAOf } from './upc.ts';
 import { isNeverSentToAModel, isUnlicensedSource, licensedOnlySql } from './source-rights.ts';
 import { Speller } from './spelling.ts';
+import { shopperNames } from './display-name.ts';
 import type { SpellingStats } from './spelling.ts';
 
 /** RRF's damping constant. 60 is the value from the original paper. */
@@ -338,7 +339,14 @@ export type Band = 'confident' | 'ambiguous' | 'miss';
 
 export interface Candidate {
   readonly code: string;
+  /** D-261. The line a shopper reads: display-name.ts shopperNames. The source's own text is `rawName`. */
   readonly name: string;
+  /**
+   * D-261. The row's name exactly as its source wrote it, for anything that needs the source text.
+   * Every candidate this file and alternatives.ts build carries it; optional only so a
+   * hand-built candidate elsewhere (tests, fakes) need not.
+   */
+  readonly rawName?: string;
   readonly nameEn: string | null;
   readonly nameFr: string | null;
   readonly brands: string | null;
@@ -1024,9 +1032,7 @@ function rowToCandidate(
 
   return {
     code: row.code,
-    name: row.name,
-    nameEn: row.name_en,
-    nameFr: row.name_fr,
+    ...shopperNames(row),
     brands: row.brands,
     quantity: row.quantity,
     sizeValue: row.size_value,
