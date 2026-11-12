@@ -690,7 +690,9 @@ export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeD
   let hit: unknown;
   try {
     hit = lookup.byGtin(barcode.gtin);
-  } catch {
+  } catch (err) {
+    // Loud, then the full answer takes over (category check A7: no silent catch here).
+    console.error('catalogue preview lookup failed:', err);
     return null;
   }
   return isRow(hit) ? identityOf(normaliseRow(hit)) : null;
