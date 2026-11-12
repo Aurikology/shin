@@ -136,7 +136,7 @@ test('case 1: a catalogue barcode with own prices blends own and category, sprea
   assert.equal(verdict.n, 2);
   // mu = (2 * ln 2000 + 1 * ln 2500) / 3
   assert.equal(verdict.centreCents, Math.round(Math.exp((2 * Math.log(2000) + leafMu) / 3)));
-  assert.equal(verdict.confidence, 'medium');
+  assert.equal(verdict.confidence, 'low'); // D-258: two shops are few prices, never "Fairly sure"
 });
 
 test('case 2: a priced barcode missing from the catalogue takes the store name, is sorted by name, and keeps the category spread', async () => {
@@ -311,7 +311,7 @@ test('case 14: one own price, a blended centre and the category spread', async (
   assert.equal(verdict.centreCents, Math.round(Math.exp((Math.log(2000) + leafMu) / 2)));
   assert.equal(verdict.spreadFrom, 'leaf_category');
   assert.ok(verdict.notes.includes('few_prices'));
-  assert.equal(verdict.confidence, 'medium');
+  assert.equal(verdict.confidence, 'low'); // D-258: one price is few prices, never "Fairly sure"
 });
 
 test('case 15: two stores far apart are both dots, and the centre is blended', async () => {
@@ -350,7 +350,7 @@ test('case 17: old prices are age weighted, the bell is widened and noted old_pr
   close(verdict.sigmaLog, Math.round(leafSigma * 1.25 * 10000) / 10000, 1e-4);
   // The newer price carries more weight: the weighted median is 2000, blended with the leaf.
   assert.equal(verdict.centreCents, Math.round(Math.exp((2 * Math.log(2000) + leafMu) / 3)));
-  assert.equal(verdict.confidence, 'medium');
+  assert.equal(verdict.confidence, 'low'); // D-258: two shops are few prices, never "Fairly sure"
 });
 
 test('case 18: a sale price never enters the centre and comes back as a sale dot', async () => {

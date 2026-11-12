@@ -1497,6 +1497,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   else if (bandWidth > TARGET_WIDTH && confidence === 'high') confidence = 'medium';
   if ((basis === 'own_prices' || basis === 'other_size') && n < 3) notes.add('few_prices');
   if ((basis === 'category_prior' || basis === 'department_prior') && n < MIN_CATEGORY_PRODUCTS) notes.add('few_prices');
+  // D-258: "Few prices behind this" and "Fairly sure" never sit side by side. One or two prices (one or
+  // two shops) still answer and still set the centre; the confidence says how thin that is.
+  if (notes.has('few_prices')) confidence = 'low';
 
   /* ---- the numbers */
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));

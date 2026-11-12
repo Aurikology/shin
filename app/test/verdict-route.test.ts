@@ -277,13 +277,13 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   assert.equal(v.basis, 'own_prices');
   assert.equal(v.spreadFrom, 'leaf_category');
   assert.equal(v.n, 1);
-  assert.equal(v.confidence, 'medium');
+  assert.equal(v.confidence, 'low'); // D-258: one own price is few prices, never "Fairly sure"
   assert.equal(v.centreCents, Math.round(Math.exp((Math.log(2400) + Math.log(2500)) / 2)));
   assert.equal(v.shopper.cents, 2300);
   assert.equal(askCalls.length, asks, 'Claude was asked although Pexi had a price');
   const row = scanRow(body.scanId);
   assert.equal(row.estimate_basis, 'own_prices');
-  assert.equal(row.estimate_confidence, 'medium');
+  assert.equal(row.estimate_confidence, 'low');
   assert.equal(row.estimate_zone, v.shopper.zone);
   assert.equal(row.estimate_centre_cents, v.centreCents);
   assert.equal(row.estimate_sigma_log, v.sigmaLog);

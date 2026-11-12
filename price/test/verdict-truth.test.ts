@@ -155,3 +155,33 @@ test('D-270 A3 control: three fresh shops under a narrow bell stay "Certain"', a
   assert.ok(verdict.p90Cents / verdict.p10Cents <= 1.5);
   assert.equal(verdict.confidence, 'high');
 });
+
+/* ---------------------- fix 3: one or two prices never read "Fairly sure" beside "Few prices" (D-258) */
+
+const NARROW_LEAF = [480, 490, 500, 510, 520];
+
+test('D-258: one shop seen on two days (live Oreo 303 g) is "Not fully confident", not "Fairly sure" beside "Few prices"', async () => {
+  const own = [obs({ code: SELF, priceCents: 499, seller: 'hammer', storeName: 'Galleria', seenOn: '2026-09-20' }),
+    obs({ code: SELF, priceCents: 499, seller: 'hammer', storeName: 'Galleria', seenOn: '2026-09-19' })];
+  const { prices, catalogue } = fixture(own, NARROW_LEAF);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 1);
+  assert.ok(verdict.notes.includes('few_prices'));
+  assert.equal(verdict.confidence, 'low');
+});
+
+test('D-258: two shops are "Not fully confident" too', async () => {
+  const own = [490, 510].map((c, i) => obs({ code: SELF, priceCents: c, seller: `own${i}` }));
+  const { prices, catalogue } = fixture(own, NARROW_LEAF);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.equal(verdict.n, 2);
+  assert.equal(verdict.confidence, 'low');
+});
+
+test('D-258 control: three shops under a narrow bell are "Certain" and carry no few-prices note', async () => {
+  const { prices, catalogue } = fixture(threeShops(), NARROW_LEAF);
+  const { verdict } = await estimate(item(), null, { prices, catalogue });
+  assert.equal(verdict.confidence, 'high');
+  assert.ok(!verdict.notes.includes('few_prices'));
+});
