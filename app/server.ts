@@ -2131,7 +2131,7 @@ const APP_ORIGINS: ReadonlySet<string> = new Set([
  * team's own tools, not the app, and a preflight is not how they are reached.
  */
 const CORS_ALLOW_HEADERS =
-  'content-type, x-shin-invite, x-shin-shutter, x-shin-locale, x-shin-lang, x-shin-device, x-shin-device-key, x-shin-plus';
+  'content-type, x-shin-invite, x-shin-shutter, x-shin-locale, x-shin-lang, x-shin-device, x-shin-device-key, x-shin-plus, x-shin-claude';
 
 /**
  * The value to echo in `Access-Control-Allow-Origin`, or null when this

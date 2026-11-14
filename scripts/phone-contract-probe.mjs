@@ -58,13 +58,19 @@ const DEVICE_KEY = randomBytes(16).toString('hex');
 const GTIN = '0066721005694'; // a barcode the live catalogue answered on 2026-10-11 (Mac's scan log)
 const BAD_BODY = '{"probe": '; // unparseable on purpose: a handler that reads it must refuse it
 
-/** The headers api.js headers() sends on every request (no shutter, no Plus, no Claude yes). */
+/**
+ * The headers api.js headers() sends on every request (no shutter, no Plus). The Claude yes is sent: the
+ * first screen asks for it, and 2026-11-14 a phone with it on had every request refused by its preflight
+ * (x-shin-claude was never in the server's allowed headers) while this probe, which left it out, passed.
+ * None of the routes below asks a model: the barcode route is a preview, the search answers from Pexi's data.
+ */
 function appHeaders(extra = {}) {
   const h = {
     'x-shin-locale': 'en-CA',
     'x-shin-lang': 'en',
     'x-shin-device': DEVICE,
     'x-shin-device-key': DEVICE_KEY,
+    'x-shin-claude': '1',
     ...extra,
   };
   if (INVITE) h['x-shin-invite'] = INVITE;

@@ -16,8 +16,9 @@
  */
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdtempSync, rmSync, readdirSync, readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import type { AddressInfo } from 'node:net';
 
@@ -102,6 +103,7 @@ test('every response carries the frame-embedding block, including a plain 404', 
  */
 
 const APP_ORIGIN = 'capacitor://localhost';
+const APP_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 test("the packaged app's preflight to a POST route is answered, not 405'd", async () => {
   const res = await fetch(`${base()}/api/events/batch`, {
@@ -122,19 +124,20 @@ test('the preflight allows every header api.js actually sends', async () => {
     method: 'OPTIONS',
     headers: { origin: APP_ORIGIN, 'access-control-request-method': 'POST' },
   });
-  const allowed = (res.headers.get('access-control-allow-headers') ?? '').toLowerCase();
-  // The list in public/js/api.js `headers()`, plus the POST bodies' content-type.
-  for (const h of [
-    'content-type',
-    'x-shin-invite',
-    'x-shin-shutter',
-    'x-shin-locale',
-    'x-shin-lang',
-    'x-shin-device',
-    'x-shin-device-key',
-    'x-shin-plus',
-  ]) {
-    assert.ok(allowed.includes(h), `${h} is sent by api.js but the preflight does not allow it`);
+  const allowed = (res.headers.get('access-control-allow-headers') ?? '').toLowerCase().split(/\s*,\s*/);
+  /* Every x-shin-* header name written anywhere in the app's own code, read from the source rather than
+     typed here. 2026-11-14: this list was typed by hand, x-shin-claude (sent once the shopper says yes to
+     Claude, da89050) was never added to it or to the server, and on a phone every request with that switch on
+     failed its preflight and showed "I need a connection". */
+  const publicJs = join(APP_DIR, 'public', 'js');
+  const sent = new Set<string>(['content-type']);
+  for (const f of readdirSync(publicJs, { recursive: true }) as string[]) {
+    if (!f.endsWith('.js') || f.includes('chunks')) continue;
+    for (const m of readFileSync(join(publicJs, f), 'utf8').matchAll(/['"](x-shin-[a-z-]+)['"]/g)) sent.add(m[1]);
+  }
+  assert.ok(sent.has('x-shin-device') && sent.size >= 8, `the source scan found too few headers to trust: ${[...sent].join(', ')}`);
+  for (const h of sent) {
+    assert.ok(allowed.includes(h), `${h} is sent by the app but the preflight does not allow it, so every request carrying it fails on a phone`);
   }
 });
 
