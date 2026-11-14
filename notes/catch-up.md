@@ -14,6 +14,26 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-11-14 (Jamin's PC): build 7 used in a store; screen problems for Aurik
+
+### To do
+
+- **Aurik: the four asks in comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md:**
+  hide every feature that is off (text scanning was Jamin's example), the answer sheet layout from the
+  Nutella screenshot, less scrolling, and "I need a connection" only for a real connection failure.
+
+### What changed
+
+- **Phones that said yes to Claude reached nothing from 2026-11-06 to 2026-11-14**: the server never
+  allowed the header that answer adds. Fixed on the server (ddd1ec3); the hourly probe and the CORS test
+  now send it.
+- **scripts/e2e-phone-live.mjs** runs the packaged app at https://localhost against the live server
+  across every Claude/location/language setting.
+
+Read by: Jamin
+
+---
+
 ## 2026-11-06 (Aurik's PC): Jamin's 13 App Store changes are in code
 
 ### To do
