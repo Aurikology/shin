@@ -23,11 +23,14 @@
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
 import { codeKey, type KeyProduct } from './core.ts';
 import { COLS, ELIGIBLE, median, runAnswerKey, sampleProducts, toKey, type AnswerKeyResult, type CatRow } from './run.mts';
+
+/** What one half's process leaves in its result.json. */
+type PhaseResult = Pick<AnswerKeyResult, 'summary' | 'modelCalls' | 'realDataChanges' | 'failures'>;
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BASELINE_CODES = join(HERE, 'baseline-2026-11-12-codes.txt');
@@ -191,8 +194,23 @@ async function main(): Promise<void> {
       score: { type: 'string' },
       products: { type: 'string' },
       asks: { type: 'string' },
+      phase: { type: 'string' },
+      'keep-asked': { type: 'boolean', default: false },
+      'products-file': { type: 'string' },
     },
   });
+
+  // One half of the run, in its own process. app/server.ts listens when it is first imported and reads its
+  // settings then, so a second answer-key server in the same process never listens (the Mac's smoke run,
+  // 2026-11-14: "server did not start listening within 30 s" on the fresh half, twice).
+  if (values.phase) {
+    const out = resolve(values.out!);
+    const products = JSON.parse(readFileSync(values['products-file']!, 'utf8')) as KeyProduct[];
+    const r = await runAnswerKey({ cataloguePath: resolve(values.catalogue!), pricesPath: resolve(values.prices!), products, outDir: out, region: values.region, concurrency: 1 });
+    writeFileSync(join(out, 'result.json'), JSON.stringify({ summary: r.summary, modelCalls: r.modelCalls, realDataChanges: r.realDataChanges, failures: r.failures }));
+    // The search worker thread keeps the process alive; the run is over, so end it.
+    process.exit(r.summary ? 0 : 2);
+  }
 
   if (values.score) {
     const products = Number(values.products);
@@ -223,26 +241,33 @@ async function main(): Promise<void> {
   log(`regression: ${reg.products.length} of ${baselineCodes.length} flagged products still eligible${reg.missing.length ? `; not eligible: ${reg.missing.join(' ')}` : ''}`);
 
   const exclude = new Set(baselineCodes.map(codeKey));
-  for (const p of sampleProducts(cataloguePath, pricesPath, 2000, 1).products) exclude.add(codeKey(p.code));
+  // --keep-asked: only for a test catalogue smaller than 2000 products, where seed 1's sample is every product.
+  if (!values['keep-asked']) for (const p of sampleProducts(cataloguePath, pricesPath, 2000, 1).products) exclude.add(codeKey(p.code));
   const fresh = freshProducts(cataloguePath, pricesPath, Number(values.fresh), Number(values.seed), exclude);
   log(`fresh: ${fresh.length} products (${fresh.filter((p) => p.medianCents !== null).length} priced), none asked before`);
 
-  const runs: Record<string, AnswerKeyResult> = {};
+  const runs: Record<string, PhaseResult> = {};
   for (const [name, products] of [['regression', reg.products], ['fresh', fresh]] as const) {
     if (products.length === 0) {
       console.error(`${name}: zero products to check`);
       process.exit(2);
     }
-    log(`${name}: starting ${products.length} products`);
-    runs[name] = await runAnswerKey({ cataloguePath, pricesPath, products, outDir: join(outDir, name), region: values.region, concurrency: 1 });
-    if (!runs[name].summary) {
-      console.error(`${name}: the run did not complete: ${runs[name].failures.join('; ')}`);
+    const dir = join(outDir, name);
+    mkdirSync(dir, { recursive: true });
+    const productsFile = join(dir, 'products.json');
+    writeFileSync(productsFile, JSON.stringify(products));
+    log(`${name}: starting ${products.length} products in a separate process`);
+    const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--phase', name, '--products-file', productsFile, '--catalogue', cataloguePath, '--prices', pricesPath, '--out', dir, '--region', values.region!], { stdio: 'inherit' });
+    const resultFile = join(dir, 'result.json');
+    if (child.status !== 0 || !existsSync(resultFile)) {
+      console.error(`${name}: the run did not complete (exit ${child.status ?? child.signal}${existsSync(resultFile) ? `: ${(JSON.parse(readFileSync(resultFile, 'utf8')) as PhaseResult).failures.join('; ')}` : ''})`);
       process.exit(2);
     }
+    runs[name] = JSON.parse(readFileSync(resultFile, 'utf8')) as PhaseResult;
     log(`${name}: done, ${runs[name].summary!.productsChecked} products, ${runs[name].summary!.asks} asks`);
   }
 
-  const score = (r: AnswerKeyResult) => scoreFindings(r.summary!.findings, r.summary!.productsChecked, r.summary!.asks);
+  const score = (r: PhaseResult) => scoreFindings(r.summary!.findings, r.summary!.productsChecked, r.summary!.asks);
   const regScore = score(runs.regression);
   const freshScore = score(runs.fresh);
   const verdict = gate(freshScore, runs.fresh.modelCalls);
