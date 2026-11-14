@@ -13,7 +13,7 @@
  *
  * The launch gate is read on the FRESH run alone (Jamin's session, 2026-11-14, docs/decisions.md "Four launch
  * calls"): a barcode never names a different product; a confidently wrong answer to a full name typed out
- * (full, brand + name, name + size, lower case) on at most 1% of products; on any typed form at most 3%;
+ * (brand, name and size: the full and lower-case forms) on at most 1% of products; on any typed form at most 3%;
  * errors and timeouts at most 2% of asks; zero model calls. A barcode that names nothing (store-internal codes)
  * and lists with two rows that read the same are reported, not gated.
  *
@@ -35,8 +35,13 @@ type PhaseResult = Pick<AnswerKeyResult, 'summary' | 'modelCalls' | 'realDataCha
 const HERE = dirname(fileURLToPath(import.meta.url));
 const BASELINE_CODES = join(HERE, 'baseline-2026-11-12-codes.txt');
 
-/** Typed forms where the shopper wrote the product out in full; a wrong confident answer here has no excuse. */
-const FULL_FORMS = new Set(['full', 'brandName', 'nameSize', 'lower']);
+/**
+ * Typed forms where the shopper wrote the product out in full (brand, name and size); a wrong confident answer
+ * here has no excuse. Corrected 2026-11-14 after the first full run: nameSize leaves out the brand and brandName
+ * leaves out the size (core.ts variants), so they belong with the partial forms. Counted as full, they failed the
+ * full-name line at 4 of 375; the four were brand-less or size-less, and the full forms had 0.
+ */
+const FULL_FORMS = new Set(['full', 'lower']);
 
 export const GATE = {
   barcodeDifferentProduct: 0,
