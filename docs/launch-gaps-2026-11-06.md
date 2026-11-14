@@ -232,13 +232,13 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 
 29. **Does "public launch only on the cheaper lookup" (QUEUE 7.21) still stand?** The 11-05
     ruling replaced its scan counts (3 free) but says nothing about the lookup itself.
-30. **Skip the two-week tester beta?** QUEUE 7.17 and 7.18 planned 10 to 20 testers for two
+30. **DECIDED 2026-11-14: skipped; submit on build 7's phone check and the accuracy gate** (docs/decisions.md, "Four launch calls"). Old text: **Skip the two-week tester beta?** QUEUE 7.17 and 7.18 planned 10 to 20 testers for two
     weeks, measured on four numbers, before launch. Never run, and could not have run: the phone
     app never reached the server (item 0). The MVP "done means" check on a phone over cellular
     (7.16) also never ran.
 31. **French first screen for Quebec?** The app is pinned to English. If yes, the build is Aurik's.
 32. **Old abandoned text already stored:** delete now or let it age out at 12 months.
-33. **iPhone only at launch?** Google Play account, subscriptions and build are all unstarted
+33. **DECIDED 2026-11-14: iPhone and Canada only; Google Play starts the week Apple approves 1.0** (same entry). Old text: **iPhone only at launch?** Google Play account, subscriptions and build are all unstarted
     (QUEUE 7.3, 7.5).
 
 ---

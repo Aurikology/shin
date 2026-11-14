@@ -35,7 +35,7 @@ export function rng(seed: number): () => number {
   };
 }
 
-interface CatRow {
+export interface CatRow {
   code: string;
   name: string | null;
   name_en: string | null;
@@ -46,18 +46,18 @@ interface CatRow {
 }
 
 
-const COLS = 'code, name, name_en, brands, quantity, size_value, size_unit';
-const ELIGIBLE = `code GLOB '[0-9]*' AND length(code) BETWEEN 8 AND 14 AND sold_in_canada = 1
+export const COLS = 'code, name, name_en, brands, quantity, size_value, size_unit';
+export const ELIGIBLE = `code GLOB '[0-9]*' AND length(code) BETWEEN 8 AND 14 AND sold_in_canada = 1
   AND coalesce(nullif(trim(name_en), ''), nullif(trim(name), '')) IS NOT NULL
   AND (nullif(trim(quantity), '') IS NOT NULL OR size_value IS NOT NULL)`;
 
-function toKey(r: CatRow, medianCents: number | null): KeyProduct {
+export function toKey(r: CatRow, medianCents: number | null): KeyProduct {
   const size = r.quantity?.trim() || (r.size_value !== null && r.size_unit ? `${r.size_value} ${r.size_unit}` : null);
   const brand = (r.brands ?? '').split(',')[0].trim();
   return { code: r.code, name: (r.name_en?.trim() || r.name?.trim() || ''), brand: brand || null, size, medianCents, sizeValue: r.size_value, sizeUnit: r.size_unit };
 }
 
-function median(xs: number[]): number | null {
+export function median(xs: number[]): number | null {
   if (xs.length === 0) return null;
   const s = [...xs].sort((a, b) => a - b);
   const m = Math.floor(s.length / 2);
