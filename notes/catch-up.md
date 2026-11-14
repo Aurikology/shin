@@ -18,6 +18,9 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ### To do
 
+- **Aurik: two new rulings (RULINGS.md):** a barcode is scanned only when the shopper taps its green
+  outline, every barcode in view outlined, nothing opens by itself; the price pad opens on "Is this a
+  good price?".
 - **Aurik: the four asks in comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md:**
   hide every feature that is off (text scanning was Jamin's example), the answer sheet layout from the
   Nutella screenshot, less scrolling, and "I need a connection" only for a real connection failure.

@@ -2,7 +2,15 @@
 
 Jamin used build 7 on his phone on 2026-11-14, including in a store. His words: *"there's a lot of ui problems with scrolling on unessesary stuff, badly formatted text, a lot of features don't work like the text scanning feature and are still appearing etc."* He asked for these to go to you.
 
-Four asks, most important first.
+Two new rulings from Jamin first (both in RULINGS.md today), then four asks.
+
+## A. A barcode is scanned only when the shopper taps it
+
+His words: *"when a barcode is identified, it should continuously show green outline around the barcode as well as all the other barcodes in its vision and the user has to press on it to actrually scan it. it should never automatically pop up."* So: a green outline on every barcode in view, all the time, not only the one being aimed at; a tap on an outlined barcode scans that one; no sheet ever opens from a detection alone.
+
+## B. The price pad opens on "Is this a good price?"
+
+His words: *"on the screen for inputting the price, the default selected should be is this a good price and not find a better buy"*. Today `effectiveAlt` (camera.js) picks `switching` ("Find a better buy") whenever no price has been typed, which is the state the pad opens in. It should open on `validation`. "Find a better buy" is to be hidden anyway until it works (D-256), so this matters most if it ever comes back.
 
 ## 1. Hide every feature that is switched off
 

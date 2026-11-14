@@ -612,6 +612,22 @@ px, 48-52px on the primary target. Torch is a user setting: auto-on at a slider 
 with an on-screen too-dark prompt. · 2026-09-17 · log: docs/walkthrough/jamin-notes-2026-09-17.md#notes-typed-into-the-tabs
 Retired wording: `Move back instruction`, `The lighting is bad instruction`, `no automatic barcode detection`, `refusal is a designed state`
 Governs: to fill
+### A barcode is scanned only when the shopper taps it
+Every barcode the camera can see carries a green outline, continuously, the one being aimed at and
+every other one in view. Nothing is scanned and no sheet opens until the shopper taps an outlined
+barcode; a detected barcode never opens an answer on its own. · 2026-11-14 · *"when a barcode is
+identified, it should continuously show green outline around the barcode as well as all the other
+barcodes in its vision and the user has to press on it to actrually scan it. it should never
+automatically pop up."* · log: comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md
+Retired wording: none
+Governs: app/public/js/screens/camera.js (the eye's readings, the scan trigger)
+### The price pad opens on "Is this a good price?"
+On the screen for typing the shelf price, the choice selected when it opens is "Is this a good
+price?" (validation), never "Find a better buy" (switching), whether or not a price has been typed.
+· 2026-11-14 · *"on the screen for inputting the price, the default selected should be is this a
+good price and not find a better buy"* · log: comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md
+Retired wording: none
+Governs: app/public/js/screens/camera.js (`effectiveAlt`, `padAltChoice`)
 ### Localization and onboarding
 Bilingual (Canadian French/English) from the first beta. French money prints 4,99 $ (comma
 decimal, symbol after the number, no-break space) client-side, server English stays the fallback;
