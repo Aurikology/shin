@@ -21,7 +21,7 @@ import {
   type StatcanTable,
 } from '../src/statcan.ts';
 import { toComparison } from '../../catalogue/src/units.ts';
-import { estimate, Z10, type ClaudeAnswer, type EstimateDeps } from '../src/estimate.ts';
+import { estimate, Z10, MAX_SIGMA, type ClaudeAnswer, type EstimateDeps } from '../src/estimate.ts';
 import { openPrices, recordObservation, type ObservationRow } from '../src/store.ts';
 
 const q = (v: number, u: string) => toComparison(v, u);
@@ -337,7 +337,8 @@ test('an unsized staple: the product size is assumed, the verdict says so, and t
   );
   assert.equal(verdict.basis, 'national_average');
   assert.equal(verdict.centreCents, Math.round(601 * 1.5));
-  assert.equal(verdict.sigmaLog, 0.45, 'the size-assumed spread, as measured');
+  // Measured at 0.45, then held to MAX_SIGMA (0.43), the widest a range is ever drawn (2026-11-14).
+  assert.equal(verdict.sigmaLog, MAX_SIGMA, 'the size-assumed spread, as measured, held to the widest allowed');
   assert.ok(verdict.notes.includes('size_assumed'));
   assert.equal(verdict.scaledTo, null);
   assert.equal(trace.nationalAverage?.sizeAssumed, true);

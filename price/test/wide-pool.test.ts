@@ -162,7 +162,7 @@ test('D-233: the item\'s own prices are untouched by a wide pool beside them', a
   const { verdict, trace } = await estimate(item(), { cents: 1999 }, { prices: w.prices, catalogue: w.catalogue, askClaude: c.ask });
   assert.equal(c.calls.length, 0);
   assert.equal(verdict.basis, 'own_prices');
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
   // D-270 A5 (2026-11-12): two shops are still blended with their category, but never with a pool too
   // wide to mean anything (until then this centre was pulled toward the wide pool's $25.47). The median
   // of two shops is the lower one (nearest rank).

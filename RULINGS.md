@@ -621,6 +621,16 @@ barcodes in its vision and the user has to press on it to actrually scan it. it 
 automatically pop up."* · log: comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md
 Retired wording: none
 Governs: app/public/js/screens/camera.js (the eye's readings, the scan trigger)
+### A price range is never wider than one product's prices across shops
+A range that gives the shopper no information is never shown. With own prices from one or two shops,
+the spread is how ONE product's price varies between shops (measured on Project Hammer 2026, 14,493
+products at 2+ chains: p90 sigmaLog 0.26, 8 in 10 within x0.72 to x1.39 of the centre), never the
+category's spread between different products. No range from any source is wider than one product's
+p99 across shops (sigmaLog 0.43, x0.58 to x1.73); doubt beyond that is said by the confidence. ·
+2026-11-14 · *"pexi should never give such a large price range, this give no valuable information"*
+(Big Soup instant noodles, one Walmart price $6.95, drawn $2.35 to $20.70) · log: price/src/estimate.ts SHOP_SPREAD_SIGMA, MAX_SIGMA
+Retired wording: none
+Governs: price/src/estimate.ts (spread ladder)
 ### The price pad opens on "Is this a good price?"
 On the screen for typing the shelf price, the choice selected when it opens is "Is this a good
 price?" (validation), never "Find a better buy" (switching), whether or not a price has been typed.

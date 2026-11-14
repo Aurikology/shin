@@ -94,6 +94,18 @@ export const BLEND_K = 1;
 export const MIN_SIGMA = 0.05;
 /** Old data, other-region data and an assumed size each widen the bell by this. */
 export const WIDEN = 1.25;
+/**
+ * How far ONE product's regular price varies from shop to shop, measured 2026-11-14 on Project Hammer's
+ * 2026 prices: 14,493 products at two or more chains, sigmaLog p50 0.118, p75 0.183, p90 0.256, p95 0.301,
+ * p99 0.429 (the same at 2, 3, 4 and 5+ chains). A product with own prices from fewer than
+ * OWN_SPREAD_SHOPS shops takes the p90, not its category's spread: a category's spread is the spread
+ * between DIFFERENT products (single packs and 5-packs, sizes unknown), and on instant noodles it drew
+ * $2.35 to $20.70 around one $6.95 shelf price (Jamin 2026-11-14, RULINGS "A price range is never wider
+ * than one product's prices across shops").
+ */
+export const SHOP_SPREAD_SIGMA = 0.26;
+/** No bell is wider than this, from any rung or widening: p99 of one product across shops. 8 in 10 between x0.58 and x1.73 of the centre. */
+export const MAX_SIGMA = 0.43;
 /** Older than this (days), the newest price behind the centre makes it `old_prices`. */
 export const OLD_DAYS = 365;
 /** No price older than this (days) is read at all. */
@@ -154,7 +166,7 @@ export type Basis =
   | 'claude_typical'
   | 'category_prior'
   | 'department_prior';
-export type SpreadFrom = 'own_prices' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
+export type SpreadFrom = 'own_prices' | 'shop_spread' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
 /**
@@ -1508,9 +1520,15 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let sigma: number;
   let spreadFrom: SpreadFrom;
   const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? weightedStatsOf(ownWeighted) : null;
+  const fewShops = basis === 'own_prices' && !ownSpread;
   if (ownSpread) {
     sigma = ownSpread.sigma;
     spreadFrom = 'own_prices';
+  } else if (fewShops) {
+    // One or two shops: the product's own price is the centre, and its spread is how one product's price
+    // varies between shops, never its category's spread between different products.
+    sigma = SHOP_SPREAD_SIGMA;
+    spreadFrom = 'shop_spread';
   } else if (leafSpread) {
     sigma = leafSpread.sigma;
     spreadFrom = 'leaf_category';
@@ -1530,12 +1548,15 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   }
   // Never below the category's spread (equal provincial prices cannot collapse the bell), never below 0.05.
   // D-270 A4: a spread from 3+ shops' own prices is theirs alone, floored only at 0.05.
-  sigma = Math.max(sigma, ownSpread ? 0 : catSpread?.sigma ?? 0, MIN_SIGMA);
+  sigma = Math.max(sigma, ownSpread || fewShops ? 0 : catSpread?.sigma ?? 0, MIN_SIGMA);
   if (evidenceAge !== null && evidenceAge > OLD_DAYS) notes.add('old_prices');
   if (notes.has('old_prices')) sigma *= WIDEN;
   if (notes.has('other_region')) sigma *= WIDEN;
   // Statistics Canada's size-assumed spread is measured, not this rule of thumb, so it is not widened twice.
   if (notes.has('size_assumed') && spreadFrom !== 'national_average') sigma *= WIDEN;
+  // RULINGS "A price range is never wider than one product's prices across shops": the doubt beyond this
+  // is said by the confidence, not by a range too wide to tell the shopper anything.
+  sigma = Math.min(sigma, MAX_SIGMA);
 
   /* ---- confidence (design call 5) */
   let confidence: Confidence = 'low';

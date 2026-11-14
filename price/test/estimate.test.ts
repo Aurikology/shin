@@ -17,6 +17,8 @@ import {
   productKey,
   readThresholds,
   VERDICT_FIELDS,
+  SHOP_SPREAD_SIGMA,
+  MAX_SIGMA,
   Z10,
   type ClaudeAnswer,
   type EstimateDeps,
@@ -107,6 +109,27 @@ function close(a: number, b: number, tol = 1e-6): void {
   assert.ok(Math.abs(a - b) <= tol, `${a} is not ${b}`);
 }
 
+/* ------------------------------------------------------------ 2026-11-14: never a range too wide to tell anything */
+
+test('one shop price in a category of very different products: the range is one product across shops, not the category ($6.95 noodles drew $2.35 to $20.70)', async () => {
+  // A leaf whose products run from single packs to multipacks, as instant noodles do with no sizes known.
+  const wideLeaf = [99, 150, 300, 700, 1200, 2000, 2600];
+  const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Big Soup Instant Noodles', quantity: '', path: LEAF }], [obs({ code: SELF, priceCents: 695, seller: 'walmart' })], wideLeaf);
+  const { verdict } = await estimate(item(), { cents: 700 }, { prices, catalogue, askClaude: noClaude });
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.spreadFrom, 'shop_spread');
+  assert.ok(verdict.sigmaLog <= MAX_SIGMA, `sigma ${verdict.sigmaLog} is wider than one product ever varies across shops`);
+  const ratio = verdict.p90Cents / verdict.p10Cents;
+  assert.ok(ratio < 2.2, `8 in 10 between ${verdict.p10Cents} and ${verdict.p90Cents} cents (x${ratio.toFixed(2)}): too wide to be worth showing`);
+});
+
+test('no rung or widening draws a bell wider than MAX_SIGMA', async () => {
+  // Old prices (widened) from one shop in a very wide leaf: every widening applies, and the cap still holds.
+  const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Old Thing', quantity: '', path: LEAF }], [obs({ code: SELF, priceCents: 500, seenOn: '2024-12-01' })], [50, 400, 3000, 9000]);
+  const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
+  assert.ok(verdict.sigmaLog <= MAX_SIGMA + 1e-9, `sigma ${verdict.sigmaLog}`);
+});
+
 /* ------------------------------------------------------------ contract */
 
 test('the verdict carries exactly the contract fields, in order', async () => {
@@ -132,7 +155,7 @@ test('case 1: a catalogue barcode with own prices blends own and category, sprea
   );
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.equal(verdict.basis, 'own_prices');
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
   assert.equal(verdict.n, 2);
   // mu = (2 * ln 2000 + 1 * ln 2500) / 3
   assert.equal(verdict.centreCents, Math.round(Math.exp((2 * Math.log(2000) + leafMu) / 3)));
@@ -153,7 +176,7 @@ test('case 2: a priced barcode missing from the catalogue takes the store name, 
   assert.equal(sortedName, 'Glacier Vodka 750 ml');
   assert.equal(trace.name, 'Glacier Vodka 750 ml');
   assert.equal(verdict.basis, 'own_prices');
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
   assert.equal(verdict.centreCents, Math.round(Math.exp((Math.log(2600) + leafMu) / 2)));
 });
 
@@ -281,7 +304,7 @@ test('case 12: a store brand priced by one chain stands on its own prices with t
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.equal(verdict.basis, 'own_prices');
   assert.equal(verdict.n, 2);
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
 });
 
 test('case 13: electronics with no own price ask Claude for the exact model, and carry no unit price', async () => {
@@ -309,7 +332,7 @@ test('case 14: one own price, a blended centre and the category spread', async (
   assert.equal(verdict.basis, 'own_prices');
   assert.equal(verdict.n, 1);
   assert.equal(verdict.centreCents, Math.round(Math.exp((Math.log(2000) + leafMu) / 2)));
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
   assert.ok(verdict.notes.includes('few_prices'));
   assert.equal(verdict.confidence, 'low'); // D-258: one price is few prices, never "Fairly sure"
 });
@@ -348,8 +371,8 @@ test('case 17: old prices are age weighted, the bell is widened and noted old_pr
   const { prices, catalogue } = leafFixture([{ code: SELF, name: 'Own Vodka', quantity: '750 ml', path: LEAF }], own);
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.ok(verdict.notes.includes('old_prices'));
-  const leafSigma = (Math.log(2800) - Math.log(2200)) / 1.349;
-  close(verdict.sigmaLog, Math.round(leafSigma * 1.25 * 10000) / 10000, 1e-4);
+  // Two shops: the spread is one product's across shops (SHOP_SPREAD_SIGMA, 2026-11-14), still widened for age.
+  close(verdict.sigmaLog, Math.round(SHOP_SPREAD_SIGMA * 1.25 * 10000) / 10000, 1e-4);
   // The newer price carries more weight: the weighted median is 2000, blended with the leaf.
   assert.equal(verdict.centreCents, Math.round(Math.exp((2 * Math.log(2000) + leafMu) / 3)));
   assert.equal(verdict.confidence, 'low'); // D-258: two shops are few prices, never "Fairly sure"

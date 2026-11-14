@@ -247,7 +247,7 @@ test('D-270 A5 control: one shop still blends with its category (Oreo shape)', a
   const { prices, catalogue } = fixture(own, NARROW_LEAF);
   const { verdict } = await estimate(item(), null, { prices, catalogue });
   assert.equal(verdict.centreCents, Math.round(Math.exp((Math.log(400) + Math.log(500)) / 2)), 'blended halfway to the $5.00 leaf');
-  assert.equal(verdict.spreadFrom, 'leaf_category');
+  assert.equal(verdict.spreadFrom, 'shop_spread'); // one or two shops: one product's spread across shops, not the category's (2026-11-14)
 });
 
 test('D-270 A5: one shop never blends with a pool too wide to mean anything', async () => {
