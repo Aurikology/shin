@@ -174,7 +174,7 @@ export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
  * the bell is drawn from a prior and no zone is given (`shopper` is null).
  */
 export type Note = 'size_assumed' | 'other_region' | 'old_prices' | 'identity_conflict' | 'claude_estimate' | 'few_prices' | 'too_thin';
-export type PerUnitLabel = 'per 100 g' | 'per 100 ml' | 'each' | 'per kg';
+export type PerUnitLabel = 'per 100 g' | 'per 100 ml' | 'each' | 'per kg' | 'per lb';
 
 export interface Dot {
   readonly cents: number;
@@ -240,6 +240,13 @@ export interface EstimateItem {
   readonly asOf: string;
   /** A weighed item (variable-measure label, loose produce): the bell is per kg (design case 10). */
   readonly weighed?: boolean;
+  /**
+   * The unit a weighed item is priced in: 'kg' (the default) or 'lb'. Loose produce is 'lb' (Canadian shelf tags
+   * show $/lb): the bell is per lb, a category pool is scaled to one pound, and `perUnit.label` says 'per lb'.
+   * Prices Pexi holds for the item itself are read as already in this unit (a weighed item's own rows carry
+   * its price per unit, not per pack).
+   */
+  readonly weighedUnit?: 'kg' | 'lb';
 }
 
 export interface ShopperInput {
@@ -1167,9 +1174,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   /* ---- size: as given, the catalogue's, the store row's, then the name's tail */
   let target: ComparisonQuantity | null = null;
   let sizeText: string | null = null;
+  const perLb = item.weighed === true && item.weighedUnit === 'lb';
   if (item.weighed) {
-    target = toComparison(1, 'kg');
-    sizeText = '1 kg';
+    target = toComparison(1, perLb ? 'lb' : 'kg');
+    sizeText = perLb ? '1 lb' : '1 kg';
   } else {
     const given = sizeFromText(str(item.size));
     const pick = given ?? (selfCat?.size ? { q: selfCat.size, text: selfCat.sizeText ?? sizeLabel(selfCat.size) } : null) ??
@@ -1212,7 +1220,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const inTree = (tag: string) => oneDepartment(scoped.filter((p) => p.path.includes(tag)));
   const categoryStats = (members: readonly Product[] | null): Stats | null => {
     if (!members) return null;
-    const s = statsOf(poolPoints(members, target, target !== null));
+    const s = statsOf(poolPoints(members, target, target !== null && item.weighed !== true));
     return s && s.n >= MIN_CATEGORY_PRODUCTS ? s : null;
   };
   const leafMembers = leaf ? inLeaf(leaf) : null;
@@ -1590,7 +1598,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const lines = categoryOnly ? categoryOnlyLines(read.thresholds, read.given, mu, catSpread!.p10, catSpread!.p90) : read.thresholds;
   const thresholds = bandLines(lines, read.given, centreCents, p10Cents, p90Cents);
   let perUnit: Verdict['perUnit'] = null;
-  if (item.weighed) perUnit = { label: 'per kg', centreCents };
+  if (item.weighed) perUnit = { label: perLb ? 'per lb' : 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
 
   // Newest first; a row dated only by its load day after every dated one (D-267 A9).
@@ -1610,7 +1618,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   let placed: ShopperPlacement | null = null;
   // D-233: a too-thin estimate places no shopper, so no zone is ever read off it.
-  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && !item.weighed && !tooThin && !noPrices) {
+  if (shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && (!item.weighed || perLb) && !tooThin && !noPrices) {
     const from = (shopper.currency ?? currency).trim().toUpperCase() || currency;
     const rate = from === currency ? 1 : deps.fxRates?.[from];
     if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
@@ -1630,7 +1638,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     confidence,
     n,
     perUnit,
-    scaledTo: scaled && target ? (item.weighed ? '1 kg' : sizeText ?? sizeLabel(target)) : null,
+    scaledTo: scaled && target ? (item.weighed ? (perLb ? '1 lb' : '1 kg') : sizeText ?? sizeLabel(target)) : null,
     dots,
     biggerPack,
     shopper: placed,

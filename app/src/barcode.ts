@@ -36,6 +36,7 @@
 
 import { gtinFrom, isValidGtin } from '../../identify/src/gtin.ts';
 import { upcAOf } from '../../catalogue/src/upc.ts';
+import { pluFromDigits, type PluRef } from '../../price/src/plu.ts';
 
 export { isValidGtin };
 
@@ -82,9 +83,11 @@ export interface CanonicalBarcode {
   /** The one digit string for the cache, Open Food Facts and Gemini. Same value `canonicalGtin` returns. */
   readonly gtin: string;
   /** `as_read` and `zero_padded` are the pre-7B.8 cases; the other two are new. */
-  readonly how: 'as_read' | 'zero_padded' | 'upc_e_expanded' | 'variable_measure';
+  readonly how: 'as_read' | 'zero_padded' | 'upc_e_expanded' | 'variable_measure' | 'plu';
   /** Present only when `how` is `variable_measure`. */
   readonly variableMeasure: VariableMeasure | null;
+  /** Present only when `how` is `plu`: the loose-produce code this reading stands for (price/src/plu.ts). `gtin` is its one key. */
+  readonly plu?: PluRef;
 }
 
 /** The GS1 mod-10 check digit that completes `body`, found with the one existing validator. */
@@ -162,6 +165,9 @@ function interpret(digits: string, how: 'as_read' | 'zero_padded', allowUpcE: bo
  * check digit, so one misread digit would be a confident wrong product.
  */
 export function canonicalBarcode(raw: string): CanonicalBarcode | null {
+  // Loose produce first: a bare PLU, or a zero-padded GTIN of one, is one key and never a stolen EAN-8 or UPC-E (price/src/plu.ts).
+  const plu = /^[\d\s-]+$/.test(raw) ? pluFromDigits(raw) : null;
+  if (plu) return { gtin: plu.key, how: 'plu', variableMeasure: null, plu };
   const direct = gtinFrom(raw);
   if (direct) return interpret(direct, 'as_read', true);
   const digits = raw.replace(/\D/g, '');

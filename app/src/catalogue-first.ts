@@ -115,6 +115,7 @@ import * as settings from '../../settings/src/index.ts';
 import { parentOf, priceRangeFor, type RangeResult } from '../../price/src/range.ts';
 import type { RangeAskFailure, RangeAskResult, RangeIdentity } from '../../identify/src/range-ask.ts';
 import type { CanonicalBarcode } from './barcode.ts';
+import type { PluRef } from '../../price/src/plu.ts';
 import {
   estimate,
   EMPTY_PRIOR,
@@ -230,6 +231,19 @@ export interface CatalogueIdentity {
   readonly size: string | null;
   readonly barcode: string;
   readonly category: CategoryRef | null;
+  /**
+   * Loose produce only (a PLU, price/src/plu.ts): `unit` is 'lb' (the price is per pound, the phone offers an amount
+   * picker), `plu` the code as printed on the sticker ('3110', '94011'), `organic` true for the 9-prefixed code.
+   * `barcode` is the PLU's one key. Absent on every packaged product.
+   */
+  readonly unit?: 'lb';
+  readonly plu?: string;
+  readonly organic?: boolean;
+}
+
+/** The identity a PLU resolves to, from the PLU list alone. */
+export function pluIdentity(plu: PluRef): CatalogueIdentity {
+  return { name: plu.name, brand: null, size: null, barcode: plu.key, category: null, unit: 'lb', plu: plu.code, organic: plu.organic };
 }
 
 export interface CatalogueRange {
@@ -286,6 +300,11 @@ export interface CatalogueAnswer {
    */
   readonly noRangeReason: NoRangeReason | null;
   readonly shelfPrice: { readonly cents: number; readonly from: 'weighed_label' } | null;
+  /**
+   * Loose produce (a PLU): 'lb', the whole answer is per pound (`verdict.perUnit.label` is 'per lb'). Absent on every
+   * packaged product. The same word is on `identity.unit`.
+   */
+  readonly unit?: 'lb';
   /**
    * The price verdict as a distribution (docs/verdict-distribution-design-2026-09-30.md,
    * price/src/estimate.ts). Set on every catalogue hit; on a barcode missing
@@ -490,6 +509,7 @@ function itemFor(item: EstimateItem, identity: Identity | undefined): EstimateIt
     currency: item.currency ?? null,
     asOf: item.asOf,
     ...(item.weighed !== undefined ? { weighed: item.weighed } : {}),
+    ...(item.weighedUnit !== undefined ? { weighedUnit: item.weighedUnit } : {}),
   };
 }
 
@@ -692,6 +712,8 @@ function fromShinPrices(r: Exclude<RangeResult, { basis: 'none' }>, path: readon
  * lookup loudly and names a miss from a store price or Open Food Facts.
  */
 export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeDeps['lookup']): CatalogueIdentity | null {
+  // Loose produce is named from the PLU list, no catalogue needed.
+  if (barcode.how === 'plu' && barcode.plu) return pluIdentity(barcode.plu);
   if (!lookup) return null;
   let hit: unknown;
   try {
@@ -714,6 +736,20 @@ export async function answerBarcodeFromCatalogue(
 ): Promise<{ answer: CatalogueAnswer; record: CatalogueRecord }> {
   const embedded = barcode.how === 'variable_measure' ? (barcode.variableMeasure?.embeddedPriceCents ?? null) : null;
   const shelfPrice = embedded !== null ? { cents: embedded, from: 'weighed_label' as const } : null;
+
+  /*
+   * Loose produce: a PLU is named by the PLU list and priced per lb through the ordinary ladder, keyed by the PLU's
+   * one key (the key its Project Hammer prices are stored under). It is a hit as far as the shopper is concerned.
+   */
+  if (barcode.how === 'plu' && barcode.plu) {
+    const id = pluIdentity(barcode.plu);
+    const out = await priceIdentity({ code: id.barcode, name: id.name, brands: null, quantity: null, leafCategory: null, categoryPath: [] }, id.barcode, id.barcode, deps, null, 'lb', {
+      outcome: 'catalogue_hit',
+      answerPath: 'catalogue_hit',
+      identitySource: null,
+    });
+    return { answer: { ...out.answer, unit: 'lb', identity: { ...(out.answer.identity ?? id), unit: 'lb', plu: id.plu, organic: id.organic } }, record: out.record };
+  }
 
   let row: CatalogueRow | null = null;
   // True when the lookup itself threw: the catalogue was asked and could not answer, which is
@@ -945,7 +981,7 @@ async function priceIdentity(
   answerBarcode: string,
   deps: BarcodeDeps,
   shelfPrice: CatalogueAnswer['shelfPrice'],
-  weighed: boolean,
+  weighed: boolean | 'lb',
   how: {
     outcome: 'catalogue_hit' | 'named_outside_catalogue';
     answerPath: CatalogueRecord['answerPath'];
@@ -1053,7 +1089,8 @@ async function priceIdentity(
       country: deps.country,
       currency: deps.currency,
       asOf: deps.asOf,
-      weighed,
+      weighed: weighed !== false,
+      ...(weighed === 'lb' ? { weighedUnit: 'lb' as const } : {}),
     },
     deps.shopper ?? null,
     {

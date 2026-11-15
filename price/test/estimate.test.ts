@@ -273,6 +273,43 @@ test('case 10: a weighed item gets a per kg bell and its embedded label total is
   assert.equal(verdict.shopper, null);
 });
 
+test('loose produce: a weighed item asked per lb gets a per lb bell from per-lb prices under its PLU key', async () => {
+  const key = '000000031103';
+  const rows = [189, 199, 219].map((c, i) => obs({ code: key, priceCents: c, seller: `s${i}`, sellerName: 'Cara Cara Oranges 1 lb', joinMethod: 'name' }));
+  const { verdict } = await estimate(item({ barcode: key, name: 'Cara Cara Oranges', weighed: true, weighedUnit: 'lb' }), null, {
+    prices: pricesDb(rows),
+    catalogue: catalogueDb([]),
+  });
+  assert.equal(verdict.perUnit!.label, 'per lb');
+  assert.equal(verdict.centreCents, 199);
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 3);
+});
+
+test('loose produce: with no price of its own, a per lb bell stands on the category scaled to one pound', async () => {
+  const path = ['en:fruits', 'en:apples'];
+  const prods = [0, 1, 2, 3, 4].map((i) => ({ code: `30000000000${i}`, name: `Apple ${i}`, quantity: '1 kg', path }));
+  const rows = [400, 450, 500, 550, 600].map((c, i) => obs({ code: `30000000000${i}`, priceCents: c, seller: `s${i}` }));
+  const { verdict } = await estimate(item({ barcode: null, name: 'Apples', leafCategory: 'en:apples', categoryPath: path, weighed: true, weighedUnit: 'lb' }), null, {
+    prices: pricesDb(rows),
+    catalogue: catalogueDb(prods),
+  });
+  assert.equal(verdict.perUnit!.label, 'per lb');
+  assert.equal(verdict.centreCents, Math.round(500 * 0.45359237));
+  assert.equal(verdict.scaledTo, '1 lb');
+});
+
+test('loose produce: weighed with no unit still means per kg', async () => {
+  const key = '000000031103';
+  const rows = [189, 199, 219].map((c, i) => obs({ code: key, priceCents: c, seller: `s${i}`, sellerName: 'Cara Cara Oranges 1 lb', joinMethod: 'name' }));
+  const { verdict } = await estimate(item({ barcode: key, name: 'Cara Cara Oranges', weighed: true }), null, {
+    prices: pricesDb(rows),
+    catalogue: catalogueDb([]),
+  });
+  assert.equal(verdict.perUnit!.label, 'per kg');
+  assert.equal(verdict.scaledTo, null);
+});
+
 test('case 11: a bigger pack is a side note, never folded into the bell', async () => {
   const path = ['en:snacks', 'en:chips'];
   const catalogue = catalogueDb([
