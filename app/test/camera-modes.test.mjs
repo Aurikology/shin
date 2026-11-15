@@ -131,7 +131,9 @@ test('the icon names and the manual search label are in both languages', () => {
 /* ---------------------------------------------------------- row 25: the choice */
 
 test('the pad carries a two-way choice that defaults as before and that the user can flip', () => {
-  assert.ok(CAMERA.includes('return padAlt ?? (typeof cents === \'number\' && cents > 0 ? \'validation\' : \'switching\');'), 'the default no longer follows the typed price');
+  /* 2026-11-14 (owner): the pad opens on "Is this a good price?" whether or not a price is typed. */
+  assert.ok(CAMERA.includes("return padAlt ?? 'validation';"), 'the pad does not open on validation');
+  assert.ok(!CAMERA.includes("? 'validation' : 'switching'"), 'an untyped price still flips the pad to switching');
   assert.match(CAMERA, /const altBtn = e\.target\.closest\('\[data-alt-mode\]'\);\n\s+if \(altBtn\) \{\n\s+padAlt = /, 'flipping the choice does nothing');
   const fn = between(CAMERA, '    function submitScanPrice(cents) {', '    /** The barcode\'s identification', 'submitScanPrice');
   assert.match(fn, /setScanIntent\?\.\(\{\n\s+mode: altMode,/, 'the choice is not sent as `mode`');

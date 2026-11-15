@@ -4413,7 +4413,7 @@ export default {
       /*
        * WHAT THIS SCAN IS FOR, sent with every call it makes (api.js
        * `setScanIntent`). `mode` is the user's own pick on the pad (row 25),
-       * or what they always got: validation with a price, switching without.
+       * or validation (2026-11-14), typed price or not.
        * `hint` is W30's Price Tag hint, sent with every shutter photo (the
        * camera button is the only photo route): the picture is a shelf tag, so
        * Gemini reads the tag's name and price. Cleared by `reset()`.
@@ -4805,12 +4805,12 @@ export default {
        back into `value`. */
     let padLabel = '';
     /* Row 25: what the user chose on the pad, `validation` or `switching`, or
-       null while they have not touched the choice. With no choice the mode
-       follows the typed price exactly as it did before there was a choice:
-       validation once a shelf price is typed, switching while it is skipped. */
+       null while they have not touched the choice. 2026-11-14 (owner: "the default
+       selected should be is this a good price and not find a better buy"): with
+       no choice the pad is on validation, typed price or not. */
     let padAlt = null;
-    function effectiveAlt(cents) {
-      return padAlt ?? (typeof cents === 'number' && cents > 0 ? 'validation' : 'switching');
+    function effectiveAlt(_cents) {
+      return padAlt ?? 'validation';
     }
     /* The shortlist as it was last rendered, so a tap on a row resolves to the
        shop object that built it rather than to the row's own text. */
