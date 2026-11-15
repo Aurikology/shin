@@ -275,7 +275,8 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   const { body } = await identify(OWN, '&shelfPriceCents=2300');
   const v = body.verdict;
   assert.equal(v.basis, 'own_prices');
-  assert.equal(v.spreadFrom, 'leaf_category');
+  // RULINGS "A price range is never wider than one product's prices across shops": one shop takes the shop-to-shop spread
+  assert.equal(v.spreadFrom, 'shop_spread');
   assert.equal(v.n, 1);
   assert.equal(v.confidence, 'low'); // D-258: one own price is few prices, never "Fairly sure"
   assert.equal(v.centreCents, Math.round(Math.exp((Math.log(2400) + Math.log(2500)) / 2)));
@@ -301,7 +302,9 @@ test('case 2: a barcode missing from the catalogue that a store prices answers u
   assert.equal(body.outcome, 'not_in_catalogue');
   assert.deepEqual(body.storeIdentity, { name: 'Vodka Number 750 ml', brand: null, size: '750 ml', barcode: STORE_ONLY });
   assert.equal(body.verdict.basis, 'own_prices');
-  assert.equal(body.verdict.spreadFrom, 'leaf_category', 'the store name was not sorted into its category');
+  assert.equal(body.verdict.spreadFrom, 'shop_spread');
+  // Sorted into its category: the one store price (2600) is blended toward the cheaper vodka leaf, not left alone.
+  assert.ok(body.verdict.centreCents < 2600 && body.verdict.centreCents > 2000, 'the store name was not sorted into its category');
   const row = scanRow(body.scanId);
   assert.equal(row.outcome, 'answered');
   assert.equal(row.estimate_basis, 'own_prices');
