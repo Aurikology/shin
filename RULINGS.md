@@ -631,6 +631,15 @@ p99 across shops (sigmaLog 0.43, x0.58 to x1.73); doubt beyond that is said by t
 (Big Soup instant noodles, one Walmart price $6.95, drawn $2.35 to $20.70) · log: price/src/estimate.ts SHOP_SPREAD_SIGMA, MAX_SIGMA
 Retired wording: none
 Governs: price/src/estimate.ts (spread ladder)
+### The shopper learns Pexi does not know a product before typing a price
+When a scanned barcode is not one Pexi knows, the shopper is told at once, before the price pad, and
+offered the next step there (type the name). The price is asked only for a product Pexi has named.
+The barcode's name preview already answers in about half a second (D-262), so the screen knows
+before the pad would open. Reverses docs/decisions.md "Seven calls" item 6 (2026-11-12, the shelf
+price still asked first, D-264's order). · 2026-11-14 · *"the user only knows pexi doesn't have a
+product after they put in a price"* · log: DEFECTS D-264
+Retired wording: none
+Governs: app/public/js/screens/camera.js (the scan's order: preview, then pad)
 ### The price pad opens on "Is this a good price?"
 On the screen for typing the shelf price, the choice selected when it opens is "Is this a good
 price?" (validation), never "Find a better buy" (switching), whether or not a price has been typed.
