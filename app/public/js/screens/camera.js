@@ -1538,13 +1538,15 @@ function geminiFailureSheet(result, item) {
 }
 
 /**
- * Whether a failed call was the server answering badly (a 5xx) rather than the
- * request never arriving. api.js throws `/api/... returned 503` for a bad
- * status and lets fetch's own TypeError through for a dead network.
+ * Whether a failed call got an answer from the server that was not a success
+ * (any non-2xx: a 5xx fault, or a 400/403/404 refusal) rather than the request
+ * never arriving. api.js throws `/api/... returned 503` for a bad status and
+ * lets fetch's own TypeError through for a dead network. Only the latter is
+ * "I need a connection" (2026-11-14: a refused request was shown as bad signal).
  */
 export function isServerFault(err) {
   const m = /returned (\d{3})\b/.exec(String(err?.message ?? ''));
-  return !!m && Number(m[1]) >= 500;
+  return !!m && Number(m[1]) >= 300;
 }
 
 /**

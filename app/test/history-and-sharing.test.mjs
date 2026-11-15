@@ -254,10 +254,12 @@ test('the share card prints the band ends rounded the way the sheet showed them'
 
 /* ------------------------------------------------------------------ D17, D37 */
 
-test('D17: a 5xx is a server fault and a network failure is not', () => {
+test('D17: any non-2xx answer is a server fault and a network failure is not', () => {
   assert.equal(camera.isServerFault(new Error('/api/identify returned 500')), true);
   assert.equal(camera.isServerFault(new Error('/api/identify returned 503')), true);
-  assert.equal(camera.isServerFault(new Error('/api/identify returned 404')), false);
+  assert.equal(camera.isServerFault(new Error('/api/identify returned 404')), true, 'a refusal is the server answering, not a dead connection');
+  assert.equal(camera.isServerFault(new Error('/api/identify returned 403')), true);
+  assert.equal(camera.isServerFault(new Error('/api/identify returned 400')), true);
   assert.equal(camera.isServerFault(new TypeError('Failed to fetch')), false);
   assert.equal(camera.isServerFault(undefined), false);
 });
