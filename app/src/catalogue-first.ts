@@ -56,7 +56,7 @@
  *     kind: 'catalogue',
  *     outcome: 'catalogue_hit' | 'not_in_catalogue' | 'named_outside_catalogue' | 'frame_wanted',
  *     offerManualEntry: boolean,      // true exactly when outcome is not_in_catalogue
- *     identitySource?: 'open_food_facts' | 'claude_reading',   // named_outside_catalogue only
+ *     identitySource?: 'open_food_facts' | 'claude_reading' | 'shopper_picks',   // named_outside_catalogue only
  *     noNameReasons?: string[],       // a miss after the naming steps ran: why each failed
  *     catalogueUp: boolean,           // false: the catalogue is not attached at all, or its lookup threw
  *                                     // ([catalogue-fault] lookup_failed): "we did not look", never "never seen"
@@ -331,7 +331,7 @@ export interface CatalogueRecord {
   readonly resolvedLabel: string | null;
   readonly outcome: 'answered' | 'refused';
   readonly failureClass: 'not_in_catalogue' | null;
-  readonly answerPath: 'catalogue_hit' | 'not_in_catalogue' | 'open_food_facts' | 'claude_reading' | 'frame_wanted';
+  readonly answerPath: 'catalogue_hit' | 'not_in_catalogue' | 'open_food_facts' | 'claude_reading' | 'shopper_picks' | 'frame_wanted';
   readonly rangeSource: 'shin_prices' | 'claude_typical' | 'none' | null;
   readonly rangeBasis: string | null;
   readonly rangeMissReason: string | null;
@@ -352,7 +352,7 @@ export interface NamedElsewhere {
   readonly name: string;
   readonly brand: string | null;
   readonly size: string | null;
-  readonly source: 'open_food_facts' | 'claude_reading';
+  readonly source: 'open_food_facts' | 'claude_reading' | 'shopper_picks';
 }
 
 /**
@@ -422,6 +422,12 @@ export interface BarcodeDeps {
    * lookup, a saved Claude reading, the frame read by Claude. The server wires them; absent, a miss is a miss.
    */
   readonly nameElsewhere?: (gtin: string) => Promise<NameElsewhereResult>;
+  /**
+   * Learned barcode links (docs/decisions.md 2026-11-15): the catalogue code shoppers' picks have tied to a barcode
+   * the catalogue lacks (`learnedPickFor`, scans.ts, holds the trust rule), or null. Asked only on a catalogue miss
+   * with no store price, so it never overrides a barcode the catalogue knows. Absent: no learned links.
+   */
+  readonly learnedPick?: (gtin: string) => string | null;
   /**
    * How sure Pexi is that this barcode is the shopper's product (see `Identity`). Absent: a scanned or
    * picked barcode, which is `sure`. A barcode that came from a loose text match must say `guess`.
@@ -769,6 +775,9 @@ export async function answerBarcodeFromCatalogue(
      * last step, and the reasons every step failed travel on the answer.
      */
     let noName: Extract<NameElsewhereResult, { ok: false }> | null = null;
+    // Shoppers' picks: the product 2 or more devices named for this very barcode, found in the catalogue by its own code.
+    const learned = !verdict && deps.lookup && deps.learnedPick ? learnedNamed(barcode.gtin, deps) : null;
+    if (learned) return answerNamedItem(learned, barcode.gtin, barcode.gtin, deps, shelfPrice, barcode.how === 'variable_measure');
     if (!verdict && deps.nameElsewhere) {
       let named: NameElsewhereResult;
       try {
@@ -817,6 +826,21 @@ export async function answerBarcodeFromCatalogue(
     answerPath: 'catalogue_hit',
     identitySource: null,
   });
+}
+
+/** The product shoppers' picks tied to this barcode, named from its catalogue row, or null. Never throws. */
+function learnedNamed(gtin: string, deps: BarcodeDeps): NamedElsewhere | null {
+  try {
+    const code = deps.learnedPick?.(gtin) ?? null;
+    if (!code || code === gtin) return null;
+    const hit = deps.lookup?.byGtin(code);
+    if (!isRow(hit)) return null;
+    const id = identityOf(normaliseRow(hit));
+    return { name: id.name, brand: id.brand, size: id.size, source: 'shopper_picks' };
+  } catch (err) {
+    warnCatalogueFault('learned_pick_failed', `${gtin} ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
 }
 
 /** A miss answer with nothing in it yet: the shape every not-found answer starts from. */
@@ -902,7 +926,12 @@ export async function answerNamedItem(
     leafCategory: null,
     categoryPath: [],
   };
-  return priceIdentity(row, priceBarcode, answerBarcode, deps, shelfPrice, weighed, {
+  // Shoppers' picks are never sure: the name is priced as the kind of thing it names, answered "Not fully confident".
+  const priced: BarcodeDeps =
+    named.source === 'shopper_picks'
+      ? { ...deps, identity: { grade: 'guess', words: [named.brand, named.name, named.size].filter(Boolean).join(' ') } }
+      : deps;
+  return priceIdentity(row, priceBarcode, answerBarcode, priced, shelfPrice, weighed, {
     outcome: 'named_outside_catalogue',
     answerPath: named.source,
     identitySource: named.source,

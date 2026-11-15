@@ -37,6 +37,7 @@ import {
   recentCategories,
   recordScan,
   recordPick,
+  learnedPickFor,
   recordShopperCall,
   updateScan,
 } from './src/scans.ts';
@@ -1469,6 +1470,7 @@ async function withCatalogueFirstDeps<T>(
       sortName: sortByName(catalogueFirstTest?.searcher !== undefined ? catalogueFirstTest.searcher : searchService),
       ...(catalogueFirstTest?.claudeWaitMs !== undefined ? { claudeWaitMs: catalogueFirstTest.claudeWaitMs } : {}),
       ...(nameElsewhere ? { nameElsewhere } : {}),
+      learnedPick: learnedPickFor,
       ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
     });
   } finally {

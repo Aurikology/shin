@@ -327,7 +327,7 @@ export interface ScanInput {
    * Gemini is a capped fallback, never the identity"). Every older caller
    * leaves these out and writes nulls, exactly as before.
    */
-  readonly answerPath?: 'catalogue_hit' | 'not_in_catalogue' | 'text_match' | 'open_food_facts' | 'claude_reading' | 'frame_wanted' | null;
+  readonly answerPath?: 'catalogue_hit' | 'not_in_catalogue' | 'text_match' | 'open_food_facts' | 'claude_reading' | 'shopper_picks' | 'frame_wanted' | null;
   readonly rangeSource?: 'shin_prices' | 'claude_typical' | 'none' | null;
   readonly rangeBasis?: string | null;
   readonly rangeMissReason?: string | null;
@@ -667,6 +667,54 @@ export function recordPick(
     store.droppedWhy = err instanceof Error ? err.message : String(err);
     reportScanFault('recordPick', scanId, err);
     return { stored: false, why: 'the pick could not be written down' };
+  }
+}
+
+/**
+ * LEARNED BARCODE LINKS (decided 2026-11-15, docs/decisions.md). The product shoppers named for a barcode the
+ * catalogue does not know: the code picked after scanning it, from `scan_pick` rows on barcode scans whose
+ * `query_text` is that barcode. A link counts only when 2 or more DIFFERENT devices picked the same product and
+ * no other product was picked by as many different devices; a tie teaches nothing. Null otherwise, and
+ * never a throw. The caller decides the rest (a barcode the catalogue knows never asks).
+ */
+export function learnedPickFor(gtin: string): string | null {
+  const bare = (s: string) => s.replace(/\D/g, '').replace(/^0+/, '');
+  const key = bare(gtin);
+  if (key === '') return null;
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) return null;
+    const forms = new Set<string>([gtin.trim(), key]);
+    for (const n of [8, 12, 13, 14]) if (key.length <= n) forms.add(key.padStart(n, '0'));
+    const list = [...forms];
+    const rows = store.db
+      .prepare(
+        `SELECT p.picked_code AS code, p.device_id AS device, s.query_text AS scanned
+           FROM scan_pick p JOIN scan s ON s.id = p.scan_id
+          WHERE s.kind = 'barcode' AND s.query_text IN (${list.map(() => '?').join(',')})
+          ORDER BY p.id`,
+      )
+      .all(...list) as { code: string; device: string; scanned: string }[];
+    const by = new Map<string, { code: string; devices: Set<string>; picks: number }>();
+    for (const r of rows) {
+      if (bare(r.scanned) !== key) continue;
+      const k = bare(r.code);
+      if (k === '' || k === key) continue;
+      const got = by.get(k) ?? { code: r.code, devices: new Set<string>(), picks: 0 };
+      got.code = r.code;
+      got.devices.add(r.device);
+      got.picks += 1;
+      by.set(k, got);
+    }
+    const ranked = [...by.values()].sort((a, b) => b.devices.size - a.devices.size || b.picks - a.picks);
+    const top = ranked[0];
+    if (!top || top.devices.size < 2) return null;
+    const next = ranked[1];
+    if (next && next.devices.size >= top.devices.size) return null;
+    return top.code;
+  } catch (err) {
+    reportScanFault('learnedPickFor', 0, err);
+    return null;
   }
 }
 
