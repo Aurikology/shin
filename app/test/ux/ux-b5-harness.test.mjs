@@ -1032,6 +1032,11 @@ export function makeEyeHub() {
       hub.readyCode = code;
       hub.handlers.onBarcodeReady?.(code ? { value: code, format: 'EAN13', box: { x: 0, y: 0, width: 10, height: 10 }, frames } : null);
     },
+    /** 2026-11-14, tap to scan: the shopper taps the green outline drawn on `code` (eye-attach.js `onCodeTap`). */
+    tapCode(code, frames = 12) {
+      assert.ok(hub.handlers, 'eye stub: the camera screen never attached an eye');
+      hub.handlers.onCodeTap?.({ value: code, format: 'tap', frames });
+    },
     /** The vote loses its winner (the code left the frame). */
     lost() { hub.readyCode = null; hub.handlers.onBarcodeReady?.(null); },
   };
@@ -1305,6 +1310,18 @@ export async function reachVerdict(app, keys) {
   const k = keys ?? (app.has('[data-pad="."]') ? ['4', '.', '9', '9'] : ['4', '9', '9']);
   await typePrice(app, k);
   assert.equal(app.atVerdict(), true, `setup failed: the verdict is not up (screen=${app.screen}, state=${app.state})`);
+}
+
+/**
+ * Tap the green outline drawn on `code` (2026-11-14: a detection alone no longer scans; the tap does).
+ * One counted tap, then the capture hold, the way `pressScan` does for the scan control.
+ */
+export async function tapOutline(app, code = CODE) {
+  app.hub.tapCode(code);
+  app.taps += 1;
+  app.log.push(`${app.taps}. Tap the outline on the barcode`);
+  const { CAPTURE_HOLD_MS } = await app.mod('lib/haptics.js');
+  await app.wait(CAPTURE_HOLD_MS + 40);
 }
 
 /**

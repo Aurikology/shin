@@ -19,7 +19,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { launchReturning, pressScan, holdSteady, typePrice, verdictAt, CODE, KD } from './ux-b5-harness.test.mjs';
+import { launchReturning, pressScan, tapOutline, typePrice, verdictAt, CODE, KD } from './ux-b5-harness.test.mjs';
 
 const BAD_CHECKSUM = '0068100084240'; // CODE with its last digit changed: the check digit fails
 const READ = { name: 'Sea Salt Coconut Sandwich Cookies', brand: 'Oreo', size: '97 g' };
@@ -64,23 +64,20 @@ test('a misread keeps the camera reading: nothing looked up, no "not found", and
   // The good reading arrives inside the wait and takes the ordinary road (after the press's own
   // MIN_CAPTURE_INTERVAL_MS, which a pressed misread spends like any press).
   app.hub.lost();
-  await holdSteady(app, CODE, 1800);
+  await app.wait(1800);
+  await tapOutline(app, CODE);
   assert.equal(app.state, 'asking', `a good read after a misread did not open the pad (state=${app.state})`);
   await app.wait((await fallbackMs(app)) + 100);
   assert.equal(app.server.callsTo('/api/identify/pack').length, 0, 'the misread fallback fired although a good read had arrived');
   app.stop();
 });
 
-test('an auto-fired misread is loud but never "not found"', async () => {
+test('a tapped misread never opens a sheet and never says "not found"', async () => {
   const app = await launchReturning();
-  try {
-    await holdSteady(app, BAD_CHECKSUM, 400);
-  } catch {
-    /* the auto-fire throws on a bad check digit; that is its loud signal */
-  }
+  await tapOutline(app, BAD_CHECKSUM);
   app.takeErrors();
-  assert.equal(app.state, 'idle', 'an auto-fired misread left the camera');
-  assert.equal(sawNotFound(app), false, 'an auto-fired misread showed "not found"');
+  assert.equal(app.state, 'idle', 'a tapped misread left the camera');
+  assert.equal(sawNotFound(app), false, 'a tapped misread showed "not found"');
   app.hub.lost();
   app.stop();
 });

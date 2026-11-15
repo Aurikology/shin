@@ -28,7 +28,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  launchApp, launchReturning, onboard, pressScan, typePrice, holdSteady, reachVerdict,
+  launchApp, launchReturning, onboard, pressScan, typePrice, holdSteady, tapOutline, reachVerdict,
   identifyRoute, status, CODE, KD, RETURNING,
 } from './ux-b5-harness.test.mjs';
 
@@ -49,38 +49,38 @@ function findSave(app) {
 
 /* ----------------------------------------------------------------- J1 */
 
-test('J1 target: first launch to the first verdict is 6 app taps, the barcode firing itself (pass: 6; today 8)', async () => {
+test('J1 target: first launch to the first verdict is 7 app taps, one of them on the barcode outline (pass: 7)', async () => {
   const app = await FIRST_RUN();
   await onboard(app);
   app.hub.ready(CODE);
-  await holdSteady(app, CODE, 600);
-  assert.equal(app.state, 'asking', `the steady barcode did not open the price pad on its own within 600 ms (state=${app.state}); the scan press is still needed, so J1 cannot reach 6`);
+  await tapOutline(app, CODE);
+  assert.equal(app.state, 'asking', `tapping the barcode outline did not open the price pad (state=${app.state})`);
   await typePrice(app, ['4', '9', '9']);
   assert.equal(app.atVerdict(), true, `no verdict (screen=${app.screen}, state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.taps, 6, `J1 counted ${app.taps}, target 6. Log: ${app.log.join(' | ')}`);
+  assert.equal(app.taps, 7, `J1 counted ${app.taps}, target 7. Log: ${app.log.join(' | ')}`);
   app.stop();
 });
 
-test('J1 target: first launch with the price skipped is 3 app taps (pass: 3; today 4)', async () => {
+test('J1 target: first launch with the price skipped is 4 app taps (pass: 4)', async () => {
   const app = await FIRST_RUN();
   await onboard(app);
-  await holdSteady(app, CODE, 600);
-  assert.equal(app.state, 'asking', `the steady barcode did not open the pad on its own (state=${app.state})`);
+  await tapOutline(app, CODE);
+  assert.equal(app.state, 'asking', `tapping the barcode outline did not open the pad (state=${app.state})`);
   await app.tap('[data-act="pad-skip"]', 'Skip the price');
   assert.equal(app.atVerdict(), true);
-  assert.equal(app.taps, 3, `J1-skipped counted ${app.taps}, target 3. Log: ${app.log.join(' | ')}`);
+  assert.equal(app.taps, 4, `J1-skipped counted ${app.taps}, target 4. Log: ${app.log.join(' | ')}`);
   app.stop();
 });
 
 /* ----------------------------------------------------------------- J2 */
 
-test('J2 target: returning, scan a barcode, type $4.99 is 4 taps (pass: 4; today 6)', async () => {
+test('J2 target: returning, tap a barcode outline, type $4.99 is 5 taps (pass: 5)', async () => {
   const app = await launchReturning();
-  await holdSteady(app, CODE, 600);
-  assert.equal(app.state, 'asking', `the steady barcode did not open the pad on its own (state=${app.state}), so the scan press is still a tap`);
+  await tapOutline(app, CODE);
+  assert.equal(app.state, 'asking', `tapping the barcode outline did not open the pad (state=${app.state})`);
   await typePrice(app, ['4', '9', '9']);
   assert.equal(app.atVerdict(), true, `no verdict (state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.taps, 4, `J2 counted ${app.taps}, target 4. Log: ${app.log.join(' | ')}`);
+  assert.equal(app.taps, 5, `J2 counted ${app.taps}, target 5. Log: ${app.log.join(' | ')}`);
   const sent = app.server.callsTo('/api/identify').at(-1);
   assert.equal(sent?.query.shelfPriceCents, '499', 'the three digits 4 9 9 must price the item at 499 cents');
   app.stop();
@@ -198,12 +198,12 @@ test('J11 keep: at the free-scan limit the paywall opens with 0 taps beyond the 
   const app = await launchReturning({
     server: { '/api/identify': () => status(402, { failure: 'scan_limit', used: 5, limit: 5, resetsAt: '2026-10-12T00:00:00Z' }) },
   });
-  // Build 5: the barcode fires itself, so the scan is 0 taps; the price is 3 digits and a confirm.
-  await holdSteady(app, CODE, 600);
-  assert.equal(app.state, 'asking', `the steady barcode did not open the pad (state=${app.state}); a limit answered at capture must not stop the pad`);
+  // Tap to scan: the scan is one tap on the outline; the price is 3 digits and a confirm.
+  await tapOutline(app, CODE);
+  assert.equal(app.state, 'asking', `the tapped barcode did not open the pad (state=${app.state}); a limit answered at capture must not stop the pad`);
   await typePrice(app, ['4', '9', '9']);
   assert.equal(app.screen, 'paywall', `the limit did not open the paywall (screen=${app.screen})`);
-  assert.equal(app.taps, 4, 'the paywall at the limit must cost exactly the scan taps and none more');
+  assert.equal(app.taps, 5, 'the paywall at the limit must cost exactly the scan taps and none more');
   app.stop();
 });
 

@@ -1332,16 +1332,9 @@ const LINES_EN = {
   },
   /* D18: the hint while photo ID is off (flags.js `photoId:false`): the camera reads barcodes only. */
   cam_aim_barcode: {
-    deadpan: () => 'Point at a barcode.',
-    warm: () => 'Point me at a barcode.',
-    blunt: () => 'Barcode. Point at it.',
-  },
-  /* 2026-11-14: the aim line until a first barcode has been read on this phone. It steers early scans to where
-     Pexi is strong (measured on the live price data, 2026-11-15), in the seller's voice and never as a list of gaps. */
-  cam_aim_barcode_first: {
-    deadpan: () => 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
-    warm: () => 'Packaged groceries are my thing: Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
-    blunt: () => 'Barcode. Best on packaged groceries at Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
+    deadpan: () => 'Point at a barcode, then tap its green box.',
+    warm: () => 'Point me at a barcode, then tap its green box.',
+    blunt: () => 'Barcode. Point at it, tap the box.',
   },
   /*
    * --- the four measured lines. Every one of them is produced by a number

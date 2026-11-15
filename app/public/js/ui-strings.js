@@ -264,6 +264,8 @@ const EN = {
   note_price_saved: 'Price saved for the next shopper',
   note_prices_added: (f) => `You've added ${f.n} price${f.n === '1' ? '' : 's'}`,
   note_strongest: "Pexi's strongest on packaged groceries. Try a box or can.",
+  /* First-run tip, over the feed until a first barcode has been read on this phone (where Pexi is strong, measured 2026-11-15). */
+  note_first_tip: 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart and Save-On-Foods',
   cam_typed_pick_which: (f) => `Which one is "${f.query}"?`,
   cam_typed_pick_none: 'None of these',
   cam_typed_pick_none_meta: 'Search with the words as typed',
@@ -1021,6 +1023,7 @@ const FR = {
   note_price_saved: 'Prix gardé pour le prochain acheteur',
   note_prices_added: (f) => `Tu as ajouté ${f.n} prix`,
   note_strongest: 'Pexi est le plus fort sur les produits emballés. Essaie une boîte ou une conserve.',
+  note_first_tip: 'Fonctionne mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart et Save-On-Foods',
   cam_typed_pick_which: (f) => `Lequel est « ${f.query} » ?`,
   cam_typed_pick_none: 'Aucun de ceux-ci',
   cam_typed_pick_none_meta: 'Chercher avec les mots tapés',

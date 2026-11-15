@@ -75,7 +75,7 @@ test('an unknown barcode says so and offers "Type the name" with the field on th
 });
 
 test('every new line has French, and the saved-price count is a running count', () => {
-  for (const key of ['cat_unknown_one', 'cat_type_the_name', 'pad_no_price_yet', 'note_price_saved', 'note_prices_added', 'note_strongest']) {
+  for (const key of ['cat_unknown_one', 'cat_type_the_name', 'pad_no_price_yet', 'note_price_saved', 'note_prices_added', 'note_strongest', 'note_first_tip']) {
     assert.ok(key in TABLES.en && key in TABLES.fr, `${key} is missing in a language`);
   }
   assert.equal(t('note_prices_added', { n: '6' }), "You've added 6 prices");
@@ -101,10 +101,8 @@ test('a saved price is said with the running count', () => {
   assert.match(sc, /t\('note_price_saved'\)/);
 });
 
-test('the first aim line carries the tip, in every voice and in French', async () => {
-  const v = await import('../public/js/voice.js');
-  const fr = await import('../public/js/voice-fr.js');
-  assert.match(v.say('cam_aim_barcode_first'), /Loblaws, No Frills, Metro, Walmart/);
-  assert.ok(Object.keys(fr).length > 0);
-  assert.match(CAMERA, /firstRunTipPending\(\) \? 'cam_aim_barcode_first' : 'cam_aim_barcode'/);
+test('the first-run tip is one line over the feed, in English and French, shown once per visit until a barcode is read', () => {
+  assert.equal(t('note_first_tip'), 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart and Save-On-Foods');
+  assert.match(TABLES.fr.note_first_tip, /Loblaws, No Frills, Metro, Walmart/);
+  assert.match(CAMERA, /if \(!firstTipShown && firstRunTipPending\(\)\) \{\s+firstTipShown = true;\s+showScanNote\(t\('note_first_tip'\), 9000\);/);
 });

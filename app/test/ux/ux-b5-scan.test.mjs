@@ -50,74 +50,52 @@ function padOpen(app) {
   return app.state === 'asking' && app.has('.padsheet');
 }
 
-/* ------------------------------------------------------------------ R-25 */
+/* ------------------------------------------- tap to scan (replaces R-25's auto-fire, 2026-11-14) */
 
-test('R-25: a barcode steady for 150 ms fires with no scan press (pass: pad open, 0 taps)', async () => {
+const OTHER = '4006381333931'; // a second valid EAN-13 in view
+
+test('tap to scan: a code held steady in view never opens a sheet by itself (pass: idle, 0 taps, 0 lookups)', async () => {
   const app = await launchReturning();
-  const early = await holdSteady(app, CODE, 60);
-  assert.ok(early >= 55, 'setup: the hold ended early');
-  assert.equal(app.state, 'idle', 'the scan fired before the code had been steady for 150 ms');
-  await holdSteady(app, CODE, 600);
-  assert.ok(padOpen(app), `a code held steady for 660 ms did not fire on its own (state=${app.state}); today only the scan press sends a barcode out of the camera reader`);
-  assert.equal(app.taps, 0, 'the scan needed a tap');
+  await holdSteady(app, CODE, 900);
+  assert.equal(app.state, 'idle', `a detection alone opened a sheet (state=${app.state}); only a tap on the outline may scan`);
+  assert.equal(app.taps, 0);
+  assert.equal(app.server.callsTo('/api/identify').length, 0, 'a code that was only detected was looked up');
+  // Positive control: the same screen scans the moment the outline is tapped.
+  app.hub.tapCode(CODE);
+  await app.wait(400);
+  assert.ok(padOpen(app), `tapping the outline did not scan the code (state=${app.state}), so the check above proves nothing`);
   app.stop();
 });
 
-test('R-25: a code that leaves the frame before 150 ms does not fire, and a different code every tick never settles (pass: 0 fires, then 1)', async () => {
+test('tap to scan: the tapped outline is the code scanned, even when another code leads the vote (pass: the tapped code is looked up once)', async () => {
   const app = await launchReturning();
-  // Negative controls first: neither of these may fire.
-  app.hub.ready(CODE);
-  await app.wait(80);
-  app.hub.lost();
+  app.hub.ready(CODE); // CODE leads the vote and its button is up
+  app.hub.tapCode(OTHER);
+  await app.wait(400);
+  assert.ok(padOpen(app), `no scan after the tap (state=${app.state})`);
+  const lookups = app.server.calls.filter((c) => c.path === '/api/identify');
+  assert.equal(lookups.length, 1, 'the tapped capture was not looked up exactly once');
+  assert.equal(lookups[0].query.gtin, OTHER, 'the code scanned is not the code that was tapped');
+  // A second tap while the sheet is opening is dropped, not a second scan.
+  app.hub.tapCode(CODE);
+  await app.wait(200);
+  assert.equal(app.server.calls.filter((c) => c.path === '/api/identify').length, 1, 'a second tap started a second scan');
+  app.stop();
+});
+
+test('tap to scan fails loudly: a tapped code with a bad check digit is not looked up and never says "not found"', async () => {
+  const app = await launchReturning();
+  app.hub.tapCode(BAD_CHECKSUM);
   await app.wait(300);
-  assert.equal(app.state, 'idle', 'a code that left the frame after 80 ms fired');
-  const t0 = Date.now();
-  let flip = false;
-  while (Date.now() - t0 < 500) {
-    app.hub.ready(flip ? '0068100084246' : CODE);
-    flip = !flip;
-    await app.wait(25);
-  }
-  assert.equal(app.state, 'idle', 'two codes taking turns in frame fired; steady means the same code');
-  // Positive control: the same screen DOES fire for a steady code. Without this
-  // the two checks above pass on a screen that never fires at all.
-  app.hub.lost();
-  await holdSteady(app, CODE, 600);
-  assert.ok(padOpen(app), `the positive control failed: a steady code did not fire (state=${app.state}), so the checks above prove nothing`);
-  app.stop();
-});
-
-test('R-25: the code that fired is the code on the pad, and it is looked up once (pass: 1 lookup, the steady code)', async () => {
-  const app = await launchReturning();
-  await holdSteady(app, CODE, 700);
-  assert.ok(padOpen(app), `no auto-fire (state=${app.state})`);
-  await app.wait(300);
-  const lookups = app.server.calls.filter((c) => c.path === '/api/identify' || c.path === '/api/search');
-  assert.ok(lookups.length >= 1, 'the item was never looked up at capture');
-  assert.ok(lookups.every((c) => (c.query.gtin ?? CODE) === CODE), 'a lookup was made for a code other than the steady one');
-  assert.equal(lookups.filter((c) => c.path === '/api/identify').length, 1, 'the same capture was looked up more than once while the code stayed in frame');
-  app.stop();
-});
-
-test('R-25 fails loudly: a barcode that fails its check digit throws at the auto-fire and is not passed on (pass: 1 error naming the check digit, 0 lookups)', async () => {
-  const app = await launchReturning();
-  let sync = null;
-  try {
-    app.hub.ready(BAD_CHECKSUM);
-    await holdSteady(app, BAD_CHECKSUM, 600);
-  } catch (e) {
-    sync = e;
-  }
-  const thrown = sync ?? app.takeErrors()[0];
-  assert.ok(thrown, 'the camera reader delivered a code with a bad check digit and nothing threw: it was ignored or passed on silently');
-  assert.match(String(thrown.message ?? thrown), /check ?digit|checksum/i, 'the error does not say why');
-  assert.equal(app.state, 'idle', 'a code with a bad check digit opened the pad');
+  assert.equal(app.state, 'idle', 'a code with a bad check digit opened a sheet');
   assert.equal(app.server.callsTo('/api/identify').length, 0, 'a code with a bad check digit was sent to the server');
-  // The same screen still fires for a good code: the guard is not a blanket refusal.
-  app.takeErrors();
+  assert.equal(app.has('.sheet.catalogue[data-outcome="not_in_catalogue"]') || app.has('[data-textroute-input]'), false, 'a misread was shown as "not found"');
+  // The guard is not a blanket refusal: a valid tap still scans.
   app.hub.lost();
-  await holdSteady(app, CODE, 600);
-  assert.ok(padOpen(app), 'after the guard threw, a valid steady code no longer fires');
+  await app.wait(1800);
+  app.hub.tapCode(CODE);
+  await app.wait(400);
+  assert.ok(padOpen(app), 'after the guard, a valid tap no longer scans');
   app.stop();
 });
 

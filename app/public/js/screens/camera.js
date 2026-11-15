@@ -59,8 +59,7 @@ import { geminiWordFor } from '../shin.js';
 import { getDeviceId } from '../device.js';
 import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
-import { createAutoFire } from '../lib/auto-fire.js';
-import { assertCheckDigit, hasValidCheckDigit } from '../lib/gtin.js';
+import { hasValidCheckDigit } from '../lib/gtin.js';
 import { packReadOn, devOn } from '../dev-mode.js';
 import { tagsOn } from '../screen-tag-badge.js';
 import { sessionMisses, readPreview, firstRunTipPending, markFirstRunTipSeen } from '../scan-notes.js';
@@ -3469,6 +3468,11 @@ export default {
         `reset()` and by this render's own teardown, same as every other timer
         here. */
     let retryCountdownTimer = null;
+    /** The line over the feed that goes by itself (`showScanNote`), and whether this visit has shown the first-run tip. */
+    let scanNoteTimer = null;
+    let firstTipShown = false;
+    /** How many barcodes the eye has outlined right now (`onBarcodes`). */
+    let codesInView = 0;
     /** The code the current scan came from, when a barcode started it. */
     let scanBarcode = null;
     /** The code the eye's vote has settled on (the button is showing for it), or null. */
@@ -3502,29 +3506,13 @@ export default {
      * where the type-it route out of a refusal identifies first.
      */
     let manualSearch = false;
-    /**
-     * R-25: the scan fires itself. The press (`scan-barcode`) stays for what
-     * detection does not cover. The check digit is verified HERE and throws:
-     * with no press, nobody has confirmed this read, so a read that fails its
-     * check digit must be loud and must not be looked up (lib/gtin.js).
+    /*
+     * 2026-11-14, tap to scan (owner's note "screen problems from the store", section A): the scan no
+     * longer fires itself (R-25's auto-fire is gone from this screen). Every barcode in view is outlined in
+     * green (eye-attach.js `paintCodes`); a detection alone never opens a sheet. Tapping an outline
+     * (`onCodeTap` below) or pressing the scan control is the shopper's own act and the only way a code
+     * is scanned. Nobody confirmed a read until they tap, so the check digit is still verified in `takeRead`.
      */
-    const autoFire = createAutoFire({
-      canFire: () => !dead && cam.dataset.state === 'idle' && !barcodeInFlight && captureAllowed(Date.now(), lastCaptureAt),
-      fire: (read) => {
-        try {
-          assertCheckDigit(read.value);
-        } catch (err) {
-          track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames });
-          // A misread, not a missing product: the camera keeps reading (and reads the pack if no good read comes).
-          onMisread(read);
-          throw err;
-        }
-        lastCaptureAt = Date.now();
-        track('barcode_auto_fired', { format: read.format, frames: read.frames });
-        endMisreadWait();
-        onBarcode(read);
-      },
-    });
     /* The type-it field opened from the catalogue-first "not in the catalogue"
        sheet (`data-carry-price`): the shelf price was already asked on the pad
        for the barcode, so the typed name goes out carrying it, `{ cents }`, and
@@ -3568,18 +3556,24 @@ export default {
        * The idle gate stays: the ordinary "a sheet is up, this screen is busy"
        * guard every handler in this render has.
        */
-      onBarcode: (read) => {
-        if (dead || cam.dataset.state !== 'idle') return;
-        /* RULINGS.md "A scan never ends with no result": a pressed reading whose
-           check digit fails is a misread, never looked up and never "not found".
-           The camera keeps reading for a good one (`onMisread`). */
-        if (!hasValidCheckDigit(read.value)) {
-          track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames ?? 0 });
-          onMisread(read);
-          return;
+      onBarcode: (read) => takeRead(read),
+      /* Codes in view, drawn as tappable outlines by the eye. While one is in view "No barcode to scan?" would
+         contradict the screen, so that line waits (`armHintEscalation`) and a standing one gives way to the aim hint. */
+      onBarcodes: (list) => {
+        const had = codesInView > 0;
+        codesInView = list.length;
+        if (!had && codesInView > 0 && hintEscalated && !dead && cam.dataset.state === 'idle' && !coachKey) {
+          hintEscalated = false;
+          showAimHint();
         }
-        endMisreadWait();
-        onBarcode(read);
+      },
+      /* Tap to scan: the shopper tapped a green outline. The read is that outline's code, taken the way a
+         press of the scan control is. A second tap while the first is still opening its sheet is dropped. */
+      onCodeTap: (read) => {
+        if (dead || cam.dataset.state !== 'idle' || barcodeInFlight || !captureAllowed(Date.now(), lastCaptureAt)) return;
+        lastCaptureAt = Date.now();
+        track('barcode_tapped', { frames: read.frames ?? 0 });
+        takeRead(read);
       },
       /*
        * D-232: the eye keeps seeing a barcode it cannot decode (zxing reads it
@@ -3873,14 +3867,6 @@ export default {
       barcodeReady = ready;
       paintBarcodeButton();
       if (ready && !was) track('barcode_button_shown', { format: ready.format, frames: ready.frames });
-      // R-25: a code settled for AUTO_FIRE_STEADY_MS fires on its own. A throw
-      // (the check digit failed) is raised from a timer of its own: this call
-      // arrives inside the eye's frame loop, which a thrown error must not stop.
-      try {
-        autoFire.ready(ready);
-      } catch (err) {
-        setTimeout(() => { throw err; }, 0);
-      }
     }
 
     /**
@@ -4087,8 +4073,12 @@ export default {
       // to do, and the generic hint would be talking over it.
       if (coachKey) return;
       if (hintEscalated) dockSay('asking', FLAGS.photoId ? 'hint_escalated' : 'hint_escalated_barcode', {}, anim ?? 'nudge-arrive');
-      /* 2026-11-14: until a first barcode has been read the aim line also says where Pexi is strongest. */
-      else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : firstRunTipPending() ? 'cam_aim_barcode_first' : 'cam_aim_barcode', {}, anim);
+      else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : 'cam_aim_barcode', {}, anim);
+      /* 2026-11-14: until a first barcode has been read on this phone, one line over the feed says where Pexi is strongest. */
+      if (!firstTipShown && firstRunTipPending()) {
+        firstTipShown = true;
+        showScanNote(t('note_first_tip'), 9000);
+      }
     }
 
     /*
@@ -4106,6 +4096,11 @@ export default {
       // @budget counted: unprompted, so the budget is asked first and spent after the line is shown.
       hintTimer = setTimeout(function escalate() {
         if (dead || hintEscalated || coachKey || cam.dataset.state !== 'idle') return;
+        // A code is in view and outlined: nothing is missing, so the "no barcode" line waits and looks again.
+        if (codesInView > 0) {
+          hintTimer = setTimeout(escalate, 2000);
+          return;
+        }
         // D-236: a torch acknowledgement is on screen. It is the answer to the shopper own tap and holds its
         // full time, so this waits behind it and runs again the moment it ends, or is skipped if the camera has moved on.
         if (torchAckActive) {
@@ -4342,6 +4337,21 @@ export default {
       }, MISREAD_FALLBACK_MS);
     }
 
+    /** A read the shopper asked for (the scan control or a tap on an outline): checked, then scanned. */
+    function takeRead(read) {
+      if (dead || cam.dataset.state !== 'idle') return;
+      /* RULINGS.md "A scan never ends with no result": a reading whose check digit
+         fails is a misread, never looked up and never "not found". The camera keeps
+         reading for a good one (`onMisread`). */
+      if (!hasValidCheckDigit(read.value)) {
+        track('barcode_bad_check_digit', { value: read.value, format: read.format, frames: read.frames ?? 0 });
+        onMisread(read);
+        return;
+      }
+      endMisreadWait();
+      onBarcode(read);
+    }
+
     /*
      * A barcode ends the guessing. It arrives without a shutter press, so the
      * screen jumps straight from idle to the working state with an identity
@@ -4461,7 +4471,6 @@ export default {
      * A short line over the live feed, under the top band, that goes by itself: the things said around
      * a scan that are not part of its answer (a price saved, where Pexi is strongest). Never a sheet.
      */
-    let scanNoteTimer = null;
     function showScanNote(text, ms = 7000) {
       cam.querySelector('.scan-note')?.remove();
       const el = document.createElement('div');
@@ -7510,7 +7519,6 @@ export default {
       // teardown so `cam.dataset.state` is still whatever it was left in.
       trackScanAbandonedIfMidScan('left_screen');
       dead = true;
-      autoFire.cancel();
       listeners.abort();
       textMatch?.stop();
       unsub();

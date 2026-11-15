@@ -368,20 +368,31 @@
  * already moved on, so the bar completing and the answer arriving are the same
  * event rather than two.
  */
+/* The green is a literal, like every colour drawn over the feed: the light theme's --good-bright is a dark
+   green (#0A6138) that disappears on a photograph of a shelf. */
 .code-mark {
   position: absolute;
   transform: translate(-50%, -50%);
-  border: 2px solid var(--good-bright);
+  border: 2px solid #38E08B;
   border-radius: 8px;
   box-shadow: 0 0 0 3px rgba(0, 0, 0, .28);
   overflow: hidden;
-  pointer-events: none;
+  /* Tap to scan (2026-11-14): every outline is a button, and the only thing that scans that code. */
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.code-mark:active { background: rgba(255, 255, 255, .1); }
+.code-mark:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .code-mark i {
   position: absolute;
   inset: auto 0 0 0;
   height: 3px;
-  background: var(--good-bright);
+  background: #38E08B;
   transform: scaleX(var(--code-progress, 0));
   transform-origin: left center;
   transition: transform 120ms linear;
@@ -395,15 +406,16 @@
  * button read as one thing.
  */
 .code-mark:not(.is-focus) {
-  border-width: 1px;
-  border-style: dashed;
-  border-color: rgba(255, 255, 255, .7);
-  box-shadow: none;
+  /* Tap to scan: every code in view is outlined in green, the one the vote leads included; a tap picks. */
+  border-width: 2px;
+  border-style: solid;
+  border-color: #38E08B;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .28);
 }
 .code-mark:not(.is-focus) i { display: none; }
 .code-mark.is-focus.is-ready {
   border-width: 3px;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, .28), 0 0 14px 2px var(--good-bright);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, .28), 0 0 14px 2px #38E08B;
 }
 
 /* Nothing drawn over the feed survives the shutter. From the moment the frame

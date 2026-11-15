@@ -771,14 +771,9 @@ export const LINES_FR = {
     blunt: () => "L'étiquette. Pointe-la.",
   },
   cam_aim_barcode: {
-    deadpan: () => "Pointe un code-barres.",
-    warm: () => "Pointe-moi vers un code-barres.",
-    blunt: () => "Code-barres. Pointe-le.",
-  },
-  cam_aim_barcode_first: {
-    deadpan: () => "Mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
-    warm: () => "Les produits emballés sont ma force: Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
-    blunt: () => "Code-barres. Mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
+    deadpan: () => "Pointe un code-barres, puis touche son cadre vert.",
+    warm: () => "Pointe-moi vers un code-barres, puis touche son cadre vert.",
+    blunt: () => "Code-barres. Pointe-le, touche le cadre.",
   },
   cam_hold_still: {
     deadpan: () => "Code-barres. Tiens-le là.",

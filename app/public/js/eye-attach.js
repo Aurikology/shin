@@ -207,10 +207,20 @@ export async function attachEye(video, surfaces, handlers = {}) {
     for (let i = 0; i < Math.max(list.length, pool.length); i += 1) {
       let el = pool[i];
       if (!el && i < list.length) {
-        el = document.createElement('div');
+        /* 2026-11-14 (tap to scan): every outline is a button. A detection only draws it; tapping it is the
+           shopper's own act and the only thing that scans that code (`onCodeTap`). The pooled element keeps
+           one listener and reads the code it is drawing now from `data-code`. */
+        el = document.createElement('button');
+        el.type = 'button';
         el.className = 'code-mark';
-        el.setAttribute('aria-hidden', 'true');
+        el.setAttribute('aria-label', 'Scan this barcode');
         el.innerHTML = '<i></i>';
+        el.addEventListener('click', (e) => {
+          e.stopPropagation?.();
+          const code = el.dataset.code;
+          if (dead.value || el.hidden || !code) return;
+          handlers.onCodeTap?.({ value: code, format: 'tap', frames: Number(el.dataset.frames) || 0 });
+        });
         marks.appendChild(el);
       }
       if (!el) continue;
@@ -221,12 +231,15 @@ export async function attachEye(video, surfaces, handlers = {}) {
       }
       const p = project(mark.box, fw, fh);
       el.hidden = false;
+      el.dataset.code = String(mark.value ?? '');
+      el.dataset.frames = String(mark.frames ?? 0);
       el.classList.toggle('is-focus', Boolean(mark.focused));
       el.classList.toggle('is-ready', Boolean(mark.confirmed));
       el.style.left = `${p.left}%`;
       el.style.top = `${p.top}%`;
       el.style.width = `${Math.max(56, p.width)}px`;
-      el.style.height = `${Math.max(28, p.height)}px`;
+      /* A fingertip target: a barcode strip can project to under thirty pixels tall. */
+      el.style.height = `${Math.max(44, p.height)}px`;
       el.style.setProperty('--code-progress', String(mark.total ? Math.min(1, mark.frames / mark.total) : 0));
     }
   };

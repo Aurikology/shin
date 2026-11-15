@@ -178,7 +178,7 @@ test('D18: with photo ID off the camera lines are about barcodes', () => {
   } finally {
     setPersonality(was);
   }
-  assert.match(CAMERA, /FLAGS\.photoId \? 'cam_aim_hint' : firstRunTipPending\(\) \? 'cam_aim_barcode_first' : 'cam_aim_barcode'/);
+  assert.match(CAMERA, /FLAGS\.photoId \? 'cam_aim_hint' : 'cam_aim_barcode'/);
   assert.match(CAMERA, /FLAGS\.photoId \? 'hint_escalated' : 'hint_escalated_barcode'/);
   assert.match(CAMERA, /FLAGS\.photoId \? 'reading' : 'reading_barcode'/);
 });
