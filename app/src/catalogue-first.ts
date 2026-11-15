@@ -1385,7 +1385,28 @@ export function typedIdentity(
     const whole = match !== null && match.score >= 0.999 && !match.rivals && !match.sizeUnconfirmed;
     return whole && !otherSizeThan(match.size, null) ? { grade: 'sure' } : guess;
   }
-  return otherSizeThan(top.quantity, top) ? guess : { grade: 'sure' };
+  if (otherSizeThan(top.quantity, top)) return guess;
+  return brandlessRival(text, rows, top) ? guess : { grade: 'sure' };
+}
+
+/**
+ * Launch check 2026-11-14: a name typed without a brand was answered "sure" as one brand's product while
+ * another brand sells the same name and size ("Zesty Italian 475ml" as Selection's). True when the typed words
+ * name no brand (none of the top row's brand words was typed) and another row of a DIFFERENT brand carries all
+ * the typed words (size included, "475 ml" read as "475ml") with a name about as long as the top's.
+ */
+function brandlessRival(text: string, rows: readonly TypedRow[], top: TypedRow): boolean {
+  const typed = wordsOf(text.replace(/(\d)\s+(ml|cl|l|g|kg|oz|lb|lbs)\b/gi, '$1$2'));
+  const brandWords = brandWordsOf(top).split(' ').filter(Boolean);
+  if (brandWords.some((w) => typed.includes(w))) return false;
+  const topLen = nameWordsOf(top).length;
+  return rows.some(
+    (r) =>
+      r !== top &&
+      brandWordsOf(r) !== brandWordsOf(top) &&
+      coversTyped(typed, r) &&
+      Math.abs(nameWordsOf(r).length - topLen) <= 1,
+  );
 }
 
 /** What the client's pick list needs of one row. */
