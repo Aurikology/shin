@@ -21,6 +21,12 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 - **Aurik: two new rulings (RULINGS.md):** a barcode is scanned only when the shopper taps its green
   outline, every barcode in view outlined, nothing opens by itself; the price pad opens on "Is this a
   good price?".
+- **For now front end is mainly Aurik's and backend Jamin's** (Jamin 2026-11-14). Not exclusive: when a screen blocks other work, Jamin's side builds it (Jamin 2026-11-15).
+- **Aurik: seven screen asks in comms/messages/2026-11-14-jamin-to-aurik-produce-and-unknown-barcodes.md:**
+  say what Pexi knows before the price pad (new ruling; `priceKnown` on the preview), offer typing
+  wherever a scan finds nothing, show a saved shopper price and the running count (`contributed`,
+  `pricesAdded`), steer first scans to the chains and aisles Pexi knows well, break a run of misses,
+  an amount for by-weight products. Server halves are live; only 27% of real scans had a shop price.
 - **Aurik: the four asks in comms/messages/2026-11-14-jamin-to-aurik-screen-problems-from-the-store.md:**
   hide every feature that is off (text scanning was Jamin's example), the answer sheet layout from the
   Nutella screenshot, less scrolling, and "I need a connection" only for a real connection failure.
