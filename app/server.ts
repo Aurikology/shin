@@ -2283,6 +2283,13 @@ export const server = createServer(async (req, res) => {
   const floodRefused = doorRefusal(req, url.pathname);
   if (floodRefused) {
     req.resume();
+    // The phone can only read this answer if it carries the CORS header the main path sets below;
+    // without it a refusal reaches the shopper as "I need a connection".
+    const floodOrigin = corsOriginFor(req);
+    if (floodOrigin !== null) {
+      res.setHeader('Access-Control-Allow-Origin', floodOrigin);
+      res.setHeader('Vary', 'Origin');
+    }
     res.writeHead(429, {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': 'no-store',

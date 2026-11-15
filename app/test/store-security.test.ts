@@ -206,3 +206,11 @@ test('item 4: one address flooding the door is refused before anything is logged
   assert.notEqual((await fetch(`${base()}/api/categories`, { headers: { 'cf-connecting-ip': '203.0.113.98' } })).status, 429);
   assert.notEqual((await fetch(`${base()}/api/categories`)).status, 429, 'a local request was limited');
 });
+
+test('item 4: the flood refusal carries the CORS header, so the phone reads "slow down" and not a dead connection', async () => {
+  const flood = { 'cf-connecting-ip': '203.0.113.97', origin: 'capacitor://localhost' };
+  let last: Response | null = null;
+  for (let i = 0; i < 7; i += 1) last = await fetch(`${base()}/api/categories`, { headers: flood });
+  assert.equal(last!.status, 429);
+  assert.equal(last!.headers.get('access-control-allow-origin'), 'capacitor://localhost');
+});
