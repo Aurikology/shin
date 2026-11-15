@@ -759,6 +759,50 @@ test('dots are at most 12, newest first, labelled with store, city and quantity'
   assert.equal(verdict.dots[0]!.quantity, '750 ml');
 });
 
+/*
+ * LIVE 2026-11-15: 4011 Bananas had 4 per-lb shop prices (69 to 89 cents) and the answer said national average, n 0.
+ * The item was sorted into a banana category whose pool is packaged goods scaled to a pound ($13+ a pound),
+ * which threw the PLU's own prices out as wrong rows. A PLU's rows are joined by its key, not by a name, and are
+ * already per lb, so a packaged-goods pool is neither the check on them nor a thing to blend them with.
+ */
+function bananaPool(): { prods: Array<{ code: string; name: string; quantity: string; path: string[] }>; rows: ObservationRow[] } {
+  const path = ['en:fruits', 'en:bananas'];
+  const prods = [0, 1, 2, 3, 4].map((i) => ({ code: `40000000000${i}`, name: `Banana snack ${i}`, quantity: '200 g', path }));
+  const rows = [700, 800, 900, 1000, 1100].map((c, i) => obs({ code: `40000000000${i}`, priceCents: c, seller: `p${i}` }));
+  return { prods, rows };
+}
+
+test('loose produce: own per lb prices are not thrown out as wrong rows by a packaged-goods category pool', async () => {
+  const key = '000000040112';
+  const { prods, rows } = bananaPool();
+  const own = [69, 88, 89, 88].map((c, i) => obs({ code: key, priceCents: c, seller: `s${i}`, sellerName: 'Bananas 1 lb', joinMethod: 'name' }));
+  const { verdict } = await estimate(
+    item({ barcode: key, name: 'Bananas', leafCategory: 'en:bananas', categoryPath: ['en:fruits', 'en:bananas'], weighed: true, weighedUnit: 'lb' }),
+    { cents: 158 },
+    { prices: pricesDb([...rows, ...own]), catalogue: catalogueDb(prods) },
+  );
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 4);
+  assert.equal(verdict.centreCents, 88);
+  assert.equal(verdict.perUnit!.label, 'per lb');
+});
+
+test('loose produce: two shops are not blended up toward a packaged-goods category pool', async () => {
+  const key = '000000031103';
+  const path = ['en:fruits', 'en:oranges'];
+  const prods = [0, 1, 2, 3, 4].map((i) => ({ code: `30000000000${i}`, name: `Orange sweet ${i}`, quantity: '200 g', path }));
+  const rows = [400, 450, 500, 550, 600].map((c, i) => obs({ code: `30000000000${i}`, priceCents: c, seller: `p${i}` }));
+  const own = [299, 399].map((c, i) => obs({ code: key, priceCents: c, seller: `s${i}`, sellerName: 'Cara Cara Orange 1 lb', joinMethod: 'name' }));
+  const { verdict } = await estimate(
+    item({ barcode: key, name: 'Cara Cara Oranges', leafCategory: 'en:oranges', categoryPath: path, weighed: true, weighedUnit: 'lb' }),
+    null,
+    { prices: pricesDb([...rows, ...own]), catalogue: catalogueDb(prods) },
+  );
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 2);
+  assert.ok(verdict.centreCents >= 299 && verdict.centreCents <= 399, `centre ${verdict.centreCents}`);
+});
+
 test('productKey: sizes and pack words out, brand kept apart', () => {
   assert.equal(productKey('Crunch Chips 200 g', 'Crunch'), productKey('Crunch Chips 1 kg', 'Crunch'));
   assert.notEqual(productKey('Crunch Chips', 'Crunch'), productKey('Crunch Salsa', 'Crunch'));

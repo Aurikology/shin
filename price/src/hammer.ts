@@ -35,7 +35,7 @@ import { openPrices, recordObservation, type ObservationRow } from './store.ts';
 import { registerSource, requireSourceUse, currentRegistry } from './registry.ts';
 import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
-import { looseCandidate, matchLoose, looseObservation, pluDisplayNames } from './hammer-produce.ts';
+import { looseCandidate, matchLoose, looseObservation, looseObservations, pluDisplayNames } from './hammer-produce.ts';
 
 export const SELLER = 'hammer';
 
@@ -344,7 +344,7 @@ async function main(): Promise<void> {
       if (looseIds.has(id)) {
         const m = matchLoose(p, l);
         if (m === null) { looseSkipped++; continue; }
-        recordObservation(db, looseObservation(p, l, m, SELLER, VENDOR_NAMES[p.vendor]));
+        for (const o of looseObservations(p, l, m, SELLER, VENDOR_NAMES[p.vendor])) recordObservation(db, o);
         nameRows.push({ base: m.plu.base, name: p.name });
         looseWritten++;
         looseByVendor[p.vendor] = (looseByVendor[p.vendor] ?? 0) + 1;

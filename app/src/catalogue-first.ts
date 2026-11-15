@@ -119,6 +119,7 @@ import type { PluRef } from '../../price/src/plu.ts';
 import {
   estimate,
   EMPTY_PRIOR,
+  MAX_SIGMA,
   Z10,
   type Basis,
   type ClaudeAskContext,
@@ -448,6 +449,11 @@ export interface BarcodeDeps {
    */
   readonly learnedPick?: (gtin: string) => string | null;
   /**
+   * Shoppers' prices for a product as one voice (price/src/shopper-prices.ts), handed to the estimate for a product the
+   * catalogue names. Absent: no shopper prices (decisions 2026-11-15, "Shopper prices").
+   */
+  readonly shopperVoice?: EstimateDeps['shopperVoice'];
+  /**
    * How sure Pexi is that this barcode is the shopper's product (see `Identity`). Absent: a scanned or
    * picked barcode, which is `sure`. A barcode that came from a loose text match must say `guess`.
    */
@@ -578,8 +584,11 @@ export function lastRungRange(
       source: v.basis === 'national_average' ? 'national_average' : 'shin_estimate',
     };
   }
-  const low = Math.max(1, Math.round(EMPTY_PRIOR.centreCents * Math.exp(-Z10 * EMPTY_PRIOR.sigmaLog)));
-  const high = Math.max(low, Math.round(EMPTY_PRIOR.centreCents * Math.exp(Z10 * EMPTY_PRIOR.sigmaLog)));
+  // RULINGS "A price range is never wider than one product's prices across shops": the fixed bell is held to
+  // MAX_SIGMA like the verdict's (it was $2.78 to $36.02 before 2026-11-15). The doubt is said by `confidence: 'low'`.
+  const sigma = Math.min(EMPTY_PRIOR.sigmaLog, MAX_SIGMA);
+  const low = Math.max(1, Math.round(EMPTY_PRIOR.centreCents * Math.exp(-Z10 * sigma)));
+  const high = Math.max(low, Math.round(EMPTY_PRIOR.centreCents * Math.exp(Z10 * sigma)));
   return {
     range: { lowCents: low, highCents: high, medianCents: null, n: 0, basis: 'fixed_prior', category: null, currency: cur, unit: null, confidence: 'low' },
     source: 'fixed_prior',
@@ -1101,6 +1110,7 @@ async function priceIdentity(
       sortName: deps.sortName,
       ...(deps.claudeWaitMs !== undefined ? { claudeWaitMs: deps.claudeWaitMs } : {}),
       ...(deps.nationalAverage ? { nationalAverage: deps.nationalAverage } : {}),
+      ...(deps.shopperVoice ? { shopperVoice: deps.shopperVoice } : {}),
     },
     deps.identity ?? BARCODE_IN_HAND,
   );

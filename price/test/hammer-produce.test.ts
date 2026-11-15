@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
-import { perLbCentsOf, looseCandidate, matchLoose, looseObservation, uniquePluForName, type LooseProduct, type LooseLatest } from '../src/hammer-produce.ts';
+import { perLbCentsOf, looseCandidate, matchLoose, looseObservation, looseObservations, uniquePluForName, type LooseProduct, type LooseLatest } from '../src/hammer-produce.ts';
 import { looseRowsFor } from '../src/hammer.ts';
 import { openPrices, recordObservation } from '../src/store.ts';
 import { estimate } from '../src/estimate.ts';
@@ -111,6 +111,44 @@ test('the observation sits under the PLU key, per lb, and a sale is marked', () 
   assert.equal(o.kind, 'promotional');
   assert.equal(o.seenOn, '2026-11-10');
   assert.equal(o.storeName, 'Metro');
+});
+
+test('a loose sale also writes the regular per-lb price beside it, scaled by the old and current price; a rise is no sale', () => {
+  const sof = prod({ id: 'SaveOnFoods3110', vendor: 'SaveOnFoods', sku: '3110', name: 'Cara Cara (Red Navel), Fresh, 200 Gram' });
+  const l = latest({ current: '1.32 avg/ea', old: '1.76 avg/ea', perUnit: '$0.66/100g' });
+  const rows = looseObservations(sof, l, matchLoose(sof, l)!, 'hammer', 'Save-On-Foods');
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].kind, 'promotional');
+  assert.equal(rows[0].priceCents, 299);
+  assert.equal(rows[1].kind, 'regular');
+  assert.equal(rows[1].priceCents, 399);
+  assert.equal(rows[1].sellerSku, 'SaveOnFoods3110#regular');
+  const gal = prod({ id: 'Galleria401', vendor: 'Galleria', sku: '401', name: 'BANANAS', units: '1LB' });
+  const rise = latest({ current: '2.98', old: '0.98', perUnit: '' });
+  const one = looseObservations(gal, rise, matchLoose(gal, rise)!, 'hammer', 'Galleria');
+  assert.equal(one.length, 1);
+  assert.equal(one[0].kind, 'regular');
+});
+
+test('end to end: a loose item with one regular and one sale-only shop reads as two own prices', async () => {
+  const db = openPrices(':memory:');
+  const metro = prod({ id: 'Metro3110', sku: '3110', name: 'Cara Cara Orange' });
+  const ml = latest({ perUnit: '$8.80 /kg' });
+  const sof = prod({ id: 'SaveOnFoods3110', vendor: 'SaveOnFoods', sku: '3110', name: 'Cara Cara (Red Navel), Fresh, 200 Gram' });
+  const sl = latest({ current: '1.32 avg/ea', old: '1.76 avg/ea', perUnit: '$0.66/100g' });
+  for (const o of looseObservations(metro, ml, matchLoose(metro, ml)!, 'hammer', 'Metro')) recordObservation(db, o);
+  for (const o of looseObservations(sof, sl, matchLoose(sof, sl)!, 'hammer', 'Save-On-Foods')) recordObservation(db, o);
+  const cat = new DatabaseSync(':memory:');
+  cat.exec(`CREATE TABLE product (
+    code TEXT PRIMARY KEY, name TEXT NOT NULL, name_en TEXT, brands TEXT, quantity TEXT, size_value REAL, size_unit TEXT,
+    category_path TEXT NOT NULL DEFAULT '[]', leaf_category TEXT, source TEXT)`);
+  const { verdict } = await estimate(
+    { barcode: pluKey('3110'), asOf: '2026-11-15', currency: 'CAD', country: 'CA', name: 'Cara Cara Orange', weighed: true, weighedUnit: 'lb' } as never,
+    null,
+    { prices: db, catalogue: cat } as never,
+  );
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.n, 2);
 });
 
 test('looseRowsFor in the importer returns the stored row for a match and nothing for a barcoded or unmatched product', () => {

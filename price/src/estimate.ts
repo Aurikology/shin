@@ -67,6 +67,7 @@ import { flagWide, TARGET_WIDTH } from './width-flag.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
+import { SHOPPER_VOICE_BELOW_SHOPS } from './shopper-prices.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
 // extension, and every server path that imports this file would pay for that at startup.
 type FillFromName = (typeof import('../../catalogue/src/size-fill.ts'))['fillFromName'];
@@ -315,6 +316,12 @@ export interface EstimateDeps {
   readonly categoryOfUnbarcoded?: (row: { name: string; storeCategory: string | null; seller: string }) => readonly string[] | null;
   /** One unit of each key currency in the item's currency (design case 26). No rate: the shopper's price is not placed. */
   readonly fxRates?: Readonly<Record<string, number>>;
+  /**
+   * Shoppers' prices for a product, as ONE voice (price/src/shopper-prices.ts `shopperVoiceFor`; the key is the code without
+   * zero padding). Taken as one shop's price, only while the product has fewer than SHOPPER_VOICE_BELOW_SHOPS shop prices,
+   * so it never weighs more than one shop and never lifts the answer past low confidence (decisions 2026-11-15).
+   */
+  readonly shopperVoice?: (codeKey: string) => { readonly cents: number; readonly seenOn: string; readonly region: string | null } | null;
 }
 
 /** What the Statistics Canada rung answers (statcan.ts `NationalAverage`, restated so this file imports no data). */
@@ -1141,6 +1148,42 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   // it agrees with them, within NAME_JOIN_AGREE of their median; alone, name-joined rows still answer
   // but never make the answer "Certain". Live 2026-11-11: dropping every name-joined row moved Kraft
   // peanut butter from $7.55 to $9.78, because most shops' rows for it are name-joined and right.
+  // Shoppers' prices: one voice, one shop's weight, only while shops have fewer than two prices for it (decisions 2026-11-15).
+  if (selfKey && deps.shopperVoice) {
+    try {
+      const shopsHere = new Set(rows.filter((r) => r.key === selfKey && !r.printout).map((r) => r.shop));
+      const v = shopsHere.size < SHOPPER_VOICE_BELOW_SHOPS ? deps.shopperVoice(selfKey) : null;
+      if (v && Number.isInteger(v.cents) && v.cents > 0 && !isFutureDated(v.seenOn, item.asOf)) {
+        rows = [
+          ...rows,
+          {
+            key: selfKey,
+            seller: 'shopper',
+            sku: '',
+            shop: 'shopper|',
+            cents: v.cents,
+            sale: false,
+            seenOn: v.seenOn,
+            age: ageDays(v.seenOn, item.asOf),
+            region: v.region,
+            store: 'Shopper price',
+            city: null,
+            name: str(item.name) ?? '',
+            brand: null,
+            sizeText: null,
+            size: null,
+            storeCategory: null,
+            printout: false,
+            nameJoined: false,
+            outOfStock: false,
+            dateUnknown: false,
+          },
+        ];
+      }
+    } catch {
+      /* a broken shopper store is no voice: the answer goes on from the shops' prices */
+    }
+  }
   const ownAny = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
   const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
   const barcodeMid = ownByBarcode.length > 0 ? medianOf(ownByBarcode.map((r) => Math.log(r.cents))) : null;
@@ -1232,7 +1275,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
 
   /* ---- own prices */
   const ownRegular = ownAll.filter((r) => !r.sale);
-  const wrongCut = catStats ? Math.log(WRONG_ROW_FACTOR) : Infinity;
+  // A loose-produce item (weighed, joined to its PLU key) has per-lb rows already in the asked unit, not name-joined
+  // guesses: a category pool of packaged goods scaled to a pound is not the check on them (live 2026-11-15, 4011).
+  const wrongCut = catStats && item.weighed !== true ? Math.log(WRONG_ROW_FACTOR) : Infinity;
   const plausible = ownRegular.filter((r) => !catStats || Math.abs(Math.log(r.cents) - catStats.mu) <= wrongCut);
   const wantRegion = province(item.region);
   const otherRegion = (r: Row) => {
@@ -1263,7 +1308,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     n = ownShops.length;
     // D-270 A4/A5/B1: from OWN_SPREAD_SHOPS shops up the centre is theirs alone (the range card's median);
     // under that it is blended with the category, never with a pool too wide to mean anything (D-233).
-    const blendWith = n < OWN_SPREAD_SHOPS && catStats && !tooWide(catStats) ? catStats : null;
+    const blendWith = n < OWN_SPREAD_SHOPS && catStats && !tooWide(catStats) && item.weighed !== true ? catStats : null;
     mu = blendWith ? (n * muOwn + BLEND_K * blendWith.mu) / (n + BLEND_K) : muOwn;
     basis = 'own_prices';
     evidenceAge = Math.min(...ownShops.map((s) => s.age));

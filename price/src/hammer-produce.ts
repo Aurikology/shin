@@ -241,9 +241,38 @@ export function pluDisplayNames(rows: ReadonlyArray<{ base: string; name: string
   return out;
 }
 
-/** The observations a loose-produce match turns into: one per-lb price under the PLU's key. */
+function leadingNumber(text: string): number | null {
+  const m = /^\$?\s*(\d+(?:\.\d+)?)/.exec(text.trim());
+  const v = m ? Number(m[1]) : NaN;
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+/**
+ * The per-lb price the old (crossed-out) price stands for: the per-lb price scaled by old over current, which
+ * are the same kind of price on the row ("1.32 avg/ea" and "1.76 avg/ea"). Null when there is no old price or
+ * it is not above the current one (a price that rose is not a sale).
+ */
+function regularPerLb(l: LooseLatest, m: LooseMatch): number | null {
+  const was = leadingNumber(l.old);
+  const cur = leadingNumber(l.current);
+  if (was === null || cur === null || was <= cur) return null;
+  return Math.round((m.perLbCents * was) / cur);
+}
+
+/** The observations a loose-produce match turns into: the per-lb price, and on a sale the regular per-lb price beside it. */
+export function looseObservations(p: LooseProduct, l: LooseLatest, m: LooseMatch, seller: string, vendorName: string): ObservationRow[] {
+  const main = looseObservation(p, l, m, seller, vendorName);
+  const regular = regularPerLb(l, m);
+  if (regular === null) return [main];
+  return [
+    { ...main, wasCents: regular },
+    { ...main, sellerSku: `${p.id}#regular`, priceCents: regular, unitPriceCents: regular, kind: 'regular', wasCents: null, isSale: 0 },
+  ];
+}
+
+/** One per-lb price under the PLU's key (a sale only when the old price is above the current or the row says sale). */
 export function looseObservation(p: LooseProduct, l: LooseLatest, m: LooseMatch, seller: string, vendorName: string): ObservationRow {
-  const sale = l.old.trim() !== '' || /sale/i.test(l.other);
+  const sale = regularPerLb(l, m) !== null || /sale/i.test(l.other);
   const iso = `${l.day.slice(0, 4)}-${l.day.slice(4, 6)}-${l.day.slice(6, 8)}`;
   return {
     code: canonicalCode(pluKey(m.plu.code)),
