@@ -115,8 +115,9 @@ test('D11: a code nothing knows no longer ends on the stand-in candidate list', 
 
 test('D11: the name prompt carries the price on to the typed route', () => {
   const fn = bodyOf(CAMERA, 'function askNameForUnknownBarcode(');
-  assert.match(fn, /typedAfterPad = \{ cents: scanShelfCents \}/);
-  assert.match(fn, /textRouteSheet\('', \{ unknownBarcode: true \}\)/);
+  /* 2026-11-14: a name asked by the preview (`fresh`) has no price yet, so the price follows the name. */
+  assert.match(fn, /typedAfterPad = fresh \? null : \{ cents: scanShelfCents \}/);
+  assert.match(fn, /textRouteSheet\('', \{ unknownBarcode: true, notInCatalogue: fresh \}\)/);
 });
 
 test('D11: the prompt says the barcode is unknown and asks for the name, in both languages', () => {
@@ -177,7 +178,7 @@ test('D18: with photo ID off the camera lines are about barcodes', () => {
   } finally {
     setPersonality(was);
   }
-  assert.match(CAMERA, /FLAGS\.photoId \? 'cam_aim_hint' : 'cam_aim_barcode'/);
+  assert.match(CAMERA, /FLAGS\.photoId \? 'cam_aim_hint' : firstRunTipPending\(\) \? 'cam_aim_barcode_first' : 'cam_aim_barcode'/);
   assert.match(CAMERA, /FLAGS\.photoId \? 'hint_escalated' : 'hint_escalated_barcode'/);
   assert.match(CAMERA, /FLAGS\.photoId \? 'reading' : 'reading_barcode'/);
 });

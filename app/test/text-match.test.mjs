@@ -278,7 +278,7 @@ test('the camera runs the ordinary barcode scan with the picked barcode', () => 
   assert.match(wire, /void onBarcode\(\{ value: code, format: 'text_match', frames: 0 \}\);/);
   // onBarcode is the barcode button's own path: it asks the shelf price, then resolveBarcode.
   const onBarcode = cam.slice(cam.indexOf('async function onBarcode(read)'), cam.indexOf('function askPriceFirst('));
-  assert.match(onBarcode, /askPriceFirst\(\{ kind: 'barcode', code: read\.value \}\);/);
+  assert.match(onBarcode, /askPriceFirst\(\{ kind: 'barcode', code: read\.value, priceMissing: preview\.missed === true \}\);/);
   // Listening only at idle, and torn down with the screen.
   assert.match(cam, /textMatch\?\.setActive\(next === 'idle'\);/);
   assert.match(cam, /textMatch\?\.stop\(\);/);

@@ -62,6 +62,7 @@ import { createAutoFire } from '../lib/auto-fire.js';
 import { assertCheckDigit, hasValidCheckDigit } from '../lib/gtin.js';
 import { packReadOn, devOn } from '../dev-mode.js';
 import { tagsOn } from '../screen-tag-badge.js';
+import { sessionMisses, readPreview, firstRunTipPending, markFirstRunTipSeen } from '../scan-notes.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
@@ -189,6 +190,8 @@ function captureThumb(video, isLive) {
  * enough that a pack with a damaged code is named before the shopper gives up.
  */
 export const MISREAD_FALLBACK_MS = 3000;
+/** How long the pad waits for the name preview (about half a second when it answers) before opening without it. */
+export const PREVIEW_WAIT_MS = 1500;
 
 /** The longest side of a frame sent to be read off the pack: legible print, a small upload. */
 const FRAME_MAX_SIDE = 1024;
@@ -2674,6 +2677,7 @@ function pricePadSheet(item, typed = '', modifier = null, thumb = null, shop = n
           ${thumbImg(thumb)}
         </div>
         <p class="itemname">${padCaptionHtml(item)}</p>
+        ${item.priceMissing ? `<p class="pad-note" data-pad-no-price>${escapeHtml(t('pad_no_price_yet'))}</p>` : ''}
         ${padNameField(!!item.observationOnly, typedLabel)}
         ${
           item.notThisQuery && !item.pendingScan
@@ -2902,16 +2906,20 @@ function workingSheet(itemLabel, step = 0, opts = {}) {
  * typed name has to hit the fixed corpus, which is what it is matched
  * against.
  */
-function textRouteSheet(value = '', { unknownBarcode = false } = {}) {
+function textRouteSheet(value = '', { unknownBarcode = false, notInCatalogue = false } = {}) {
   // The heading asks, with the mascot small beside it and no words (2026-10-10 audit row 13: its line asked the same thing).
+  /* 2026-11-14: a barcode the name preview says Pexi does not know says so before any price is asked, and
+     the field on this same sheet is the offer to type the name. */
+  const headingKey = notInCatalogue ? 'cat_unknown_one' : unknownBarcode ? 'cat_unknown_ask_name' : 'cam_name_it';
+  const placeholderKey = notInCatalogue ? 'cat_type_the_name' : 'cam_brand_model_placeholder';
   return `
-    <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1">
+    <section class="sheet textroute" data-tier="unknown" data-conf="reading" tabindex="-1"${notInCatalogue ? ' data-not-in-catalogue' : ''}>
       <span class="grabber" aria-hidden="true"></span>
       ${backButton()}
       <div class="sheet-peek">
-        ${headingWithFace('asking', `<h2 class="vword" style="font-size:20px">${escapeHtml(t(unknownBarcode ? 'cat_unknown_ask_name' : 'cam_name_it'))}</h2>`)}
+        ${headingWithFace('asking', `<h2 class="vword" style="font-size:20px">${escapeHtml(t(headingKey))}</h2>`)}
         <form class="textroute-form" data-form="textroute">
-          <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t('cam_brand_model_placeholder'))}"
+          <input type="text" inputmode="text" autocomplete="off" placeholder="${escapeHtml(t(placeholderKey))}"
                  value="${value.replace(/"/g, '&quot;')}" data-textroute-input>
           <button type="submit" class="iconbtn-inline" aria-label="${escapeHtml(t('cam_search'))}">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
@@ -4047,7 +4055,8 @@ export default {
       // to do, and the generic hint would be talking over it.
       if (coachKey) return;
       if (hintEscalated) dockSay('asking', FLAGS.photoId ? 'hint_escalated' : 'hint_escalated_barcode', {}, anim ?? 'nudge-arrive');
-      else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : 'cam_aim_barcode', {}, anim);
+      /* 2026-11-14: until a first barcode has been read the aim line also says where Pexi is strongest. */
+      else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : firstRunTipPending() ? 'cam_aim_barcode_first' : 'cam_aim_barcode', {}, anim);
     }
 
     /*
@@ -4313,6 +4322,7 @@ export default {
       // lowers it again on the way back to idle.
       barcodeInFlight = true;
       scanBarcode = read.value;
+      markFirstRunTipSeen();
       clearTimeout(hintTimer);
       clearTimeout(scanPressTimer);
       stopBarcodeLook();
@@ -4356,7 +4366,24 @@ export default {
       // hold ends this scan; the pad must not open on a screen that moved on.
       await new Promise((resolve) => { setTimeout(resolve, CAPTURE_HOLD_MS); });
       if (dead || holdGen !== gen) return;
-      askPriceFirst({ kind: 'barcode', code: read.value });
+      /* 2026-11-14 (RULINGS "The shopper learns Pexi does not know a product before typing a price"): the name
+         preview, about half a second, says what Pexi knows before the pad opens. Waited for briefly; a slow or
+         failed preview leaves the pad as it was (the digits, named in place if the answer arrives). */
+      const mineName = captureName;
+      if (mineName?.code === read.value && mineName.done) {
+        await Promise.race([mineName.done, new Promise((resolve) => { setTimeout(resolve, PREVIEW_WAIT_MS); })]);
+        if (dead || holdGen !== gen) return;
+      }
+      const preview = mineName?.code === read.value ? mineName.preview : { missed: null, unknown: false };
+      const tip = preview.missed === null ? false : sessionMisses.record(preview.missed);
+      if (tip) showScanNote(t('note_strongest'));
+      /* Not in the catalogue: said now, with the name field ready on this same sheet. A name this shopper
+         already gave the code answers by it (askNameForUnknownBarcode), so that is left to the pad route. */
+      if (preview.unknown && !scanFrame && !store.nameOfCode(read.value)) {
+        askNameForUnknownBarcode(null, read.value, { fresh: true });
+        return;
+      }
+      askPriceFirst({ kind: 'barcode', code: read.value, priceMissing: preview.missed === true });
     }
 
     /**
@@ -4379,6 +4406,8 @@ export default {
         gtin: pending.kind === 'barcode' ? pending.code : null,
         notThisQuery: label ? (pending.query ?? known?.query ?? null) : null,
         pendingScan: pending,
+        /* The preview said Pexi knows the product and holds no price for it: the pad says what a price here does. */
+        priceMissing: pending.priceMissing === true,
       });
     }
 
@@ -4396,11 +4425,34 @@ export default {
      * answers. An identity that arrives WITHOUT a name is a server fault that would
      * otherwise print digits or "undefined" as the item, so it throws.
      */
+    /**
+     * A short line over the live feed, under the top band, that goes by itself: the things said around
+     * a scan that are not part of its answer (a price saved, where Pexi is strongest). Never a sheet.
+     */
+    let scanNoteTimer = null;
+    function showScanNote(text, ms = 7000) {
+      cam.querySelector('.scan-note')?.remove();
+      const el = document.createElement('div');
+      el.className = 'scan-note';
+      el.setAttribute('role', 'status');
+      el.textContent = text;
+      cam.appendChild(el);
+      clearTimeout(scanNoteTimer);
+      scanNoteTimer = setTimeout(() => el.remove(), ms);
+    }
+    /* 2026-11-14: a shelf price typed for this scan was saved for the next shopper (`contributed`): said
+       over the feed, with this phone's running total (`pricesAdded`) so a scan with no answer still builds. */
+    function noteContribution(answer) {
+      if (answer?.contributed !== true) return;
+      const added = Number.isInteger(answer.pricesAdded) && answer.pricesAdded > 0 ? `\n${t('note_prices_added', { n: String(answer.pricesAdded) })}` : '';
+      showScanNote(`${t('note_price_saved')}${added}`);
+    }
     let captureName = null;
     function nameCapturedCode(code) {
-      const mine = { code, label: null, query: null };
+      const mine = { code, label: null, query: null, preview: { missed: null, unknown: false }, done: null };
       captureName = mine;
-      void (async () => {
+      /* `done` settles when the preview has answered or failed, so the pad can wait for it a moment (onBarcode). */
+      mine.done = (async () => {
         let id;
         try {
           id = await ctx.api.identify({ gtin: code, preview: true });
@@ -4410,6 +4462,7 @@ export default {
           return;
         }
         if (dead || captureName !== mine) return;
+        mine.preview = readPreview(id);
         let named;
         try {
           named = captureNameFrom(id, code);
@@ -4585,7 +4638,7 @@ export default {
      * on (null when skipped), the name goes through the typed route, and that
      * route ends in the bell. No "not found" screen is drawn.
      */
-    function askNameForUnknownBarcode(cents, code = null) {
+    function askNameForUnknownBarcode(cents, code = null, { fresh = false } = {}) {
       last = null;
       lastKeepable = null;
       scanShelfCents = typeof cents === 'number' && cents > 0 ? cents : null;
@@ -4600,11 +4653,13 @@ export default {
         return;
       }
       unknownCode = code;
-      typedAfterPad = { cents: scanShelfCents };
+      /* `fresh`: asked by the name preview before any price was typed, so the price is asked after the name
+         (the typed route identifies first and opens the pad), not carried in. */
+      typedAfterPad = fresh ? null : { cents: scanShelfCents };
       manualSearch = false;
       typedSearchPending = true;
       setState('texting');
-      slot.innerHTML = textRouteSheet('', { unknownBarcode: true });
+      slot.innerHTML = textRouteSheet('', { unknownBarcode: true, notInCatalogue: fresh });
       mounted('[data-textroute-input]');
     }
 
@@ -5878,6 +5933,7 @@ export default {
       scanBarcode = null;
       manualSearch = false;
       typedAfterPad = null;
+      unknownCode = null; // a name typed after a walk-away must not be filed against the old barcode
       // Drops the eye's pick AND any arming the shopper walked away from, so
       // coming back to the viewfinder is never mid-read.
       eye?.clearSelection?.();
@@ -6633,6 +6689,8 @@ export default {
         await runTypedSearch(text, cents, true);
         return;
       }
+      /* N08, and the name preview's offer (nothing typed yet, so the price follows the name): kept on this device. */
+      if (unknownCode) { store.rememberName(unknownCode, text); unknownCode = null; }
       await runTypedSearch(text, null, false);
     }, { signal: listeners.signal });
 
@@ -6911,6 +6969,7 @@ export default {
      * shopper's words when a typed name matched nothing (D-241).
      */
     function showCatalogue(answer, cents, { typed = null } = {}) {
+      noteContribution(answer);
       // The verdict bell, when the answer carries one (RULINGS.md "V1 verdict screen mechanics").
       if (usableVerdict(answer?.verdict)) {
         const id = answer.identity;

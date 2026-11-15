@@ -206,10 +206,14 @@ function runOnBarcode(flags, consentPhotos) {
     CAPTURE_HOLD_MS: 0,
     // UX build 5 (R-36): the name lookup at capture is its own function and its own tests.
     nameCapturedCode: () => {},
+    // 2026-11-14: the first-run tip is marked seen at the first read; no preview answer is waiting here.
+    markFirstRunTipSeen: () => {},
   };
   calls.haptic = [];
   const build = new Function('deps', `
-    const { cam, video, FLAGS, store, ctx, track, captureThumb, captureFrame, packReadOn, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode } = deps;
+    const { cam, video, FLAGS, store, ctx, track, captureThumb, captureFrame, packReadOn, askPriceFirst, cameraStartedAt, haptic, reportHapticFault, CAPTURE_HOLD_MS, nameCapturedCode, markFirstRunTipSeen } = deps;
+    let captureName = null;
+    const PREVIEW_WAIT_MS = 0, sessionMisses = { record: () => false };
     let dead = false, gen = 0;
     const stopBarcodeLook = () => {}; // 2026-11-10: a read ends any press still looking
     let barcodeInFlight = false, scanBarcode = null, hintTimer = null, scanPressTimer = null, torchAckTimer = null, torchAckActive = false, pendingEscalation = null, coachKey = null, scanThumb = null, scanFrame = null;
@@ -224,7 +228,7 @@ test('photoId off: a barcode read never calls beginShutter, whatever photo conse
     const { fn, calls } = runOnBarcode({ photoId: false }, consentPhotos);
     await fn({ value: '012345678905', format: 'ean13', frames: 3 });
     assert.deepEqual(calls.beginShutter, [], `photoId off, consent photos=${consentPhotos}: a barcode read sent a frame (D-147)`);
-    assert.deepEqual(calls.askPriceFirst, [{ kind: 'barcode', code: '012345678905' }], 'the barcode digits still reach the price pad');
+    assert.deepEqual(calls.askPriceFirst, [{ kind: 'barcode', code: '012345678905', priceMissing: false }], 'the barcode digits still reach the price pad');
     assert.deepEqual(calls.haptic, ['barcode-captured'], 'a barcode read fires exactly the capture haptic');
   }
 });

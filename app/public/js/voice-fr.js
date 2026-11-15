@@ -775,6 +775,11 @@ export const LINES_FR = {
     warm: () => "Pointe-moi vers un code-barres.",
     blunt: () => "Code-barres. Pointe-le.",
   },
+  cam_aim_barcode_first: {
+    deadpan: () => "Mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
+    warm: () => "Les produits emballés sont ma force: Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
+    blunt: () => "Code-barres. Mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart, Save-On-Foods.",
+  },
   cam_hold_still: {
     deadpan: () => "Code-barres. Tiens-le là.",
     warm: () => "Je vois le code-barres. Tiens-le là.",

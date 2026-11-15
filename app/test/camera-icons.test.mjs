@@ -324,5 +324,5 @@ test('the price tag hint still rides on the photo scan, and the barcode button s
   const fn = between(CAMERA, '    function submitScanPrice(cents) {', '    /** The barcode\'s identification', 'submitScanPrice');
   assert.ok(fn.includes("...(pending.kind === 'photo' ? { hint: 'price_tag' } : {}),"), 'the camera button no longer sends the price tag hint');
   assert.ok(CAMERA.includes("askPriceFirst({ kind: 'photo', crop });"), 'a shutter photo no longer asks the shelf price first');
-  assert.ok(CAMERA.includes("askPriceFirst({ kind: 'barcode', code: read.value });"), 'a barcode read no longer asks the shelf price first');
+  assert.ok(CAMERA.includes("askPriceFirst({ kind: 'barcode', code: read.value, priceMissing: preview.missed === true });"), 'a barcode read no longer asks the shelf price first');
 });

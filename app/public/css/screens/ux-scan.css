@@ -109,3 +109,33 @@
 }
 @keyframes corr-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .toast[data-corr-toast] { animation: none; } }
+
+/* 2026-11-14: the short line over the live feed, under the top band, that goes by itself (a price saved,
+   where Pexi is strongest). Above the sheet slot so it reads with a sheet up; it never takes a tap. */
+.scan-note {
+  position: absolute;
+  z-index: 7;
+  top: calc(max(14px, env(safe-area-inset-top)) + 56px);
+  left: var(--s-4);
+  right: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-line;
+  pointer-events: none;
+  animation: corr-toast-in 200ms var(--ease-land) both;
+}
+@media (prefers-reduced-motion: reduce) { .scan-note { animation: none; } }
+/* The pad's one line about a product Pexi knows with no price yet: what a price typed here is for. */
+.pad-note {
+  margin: 0 0 var(--s-2);
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  opacity: .8;
+}

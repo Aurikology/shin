@@ -1336,6 +1336,13 @@ const LINES_EN = {
     warm: () => 'Point me at a barcode.',
     blunt: () => 'Barcode. Point at it.',
   },
+  /* 2026-11-14: the aim line until a first barcode has been read on this phone. It steers early scans to where
+     Pexi is strong (measured on the live price data, 2026-11-15), in the seller's voice and never as a list of gaps. */
+  cam_aim_barcode_first: {
+    deadpan: () => 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
+    warm: () => 'Packaged groceries are my thing: Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
+    blunt: () => 'Barcode. Best on packaged groceries at Loblaws, No Frills, Metro, Walmart, Save-On-Foods.',
+  },
   /*
    * --- the four measured lines. Every one of them is produced by a number
    * taken off the live frame, never by a timer and never on arrival, and every
