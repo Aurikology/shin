@@ -25,6 +25,7 @@ import { once } from 'node:events';
 import { accessLogPath } from './access-log.ts';
 import { activeScanStore, openScanStore } from './scans.ts';
 import { currentCorrectionStore, openCorrectionStore, removeOldDeviceIds } from '../../price/src/corrections.ts';
+import { removeOldShopperDeviceIds } from '../../price/src/shopper-prices.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -95,7 +96,9 @@ export function sweepShopperPrices(path?: string, now: Date = new Date()): { rem
   try {
     const store = path === undefined ? currentCorrectionStore() : openCorrectionStore(path);
     if (!store.db) return { removed: 0, failed: store.droppedWhy };
-    return { removed: removeOldDeviceIds(store, monthsBefore(now, DEVICE_ID_MONTHS), REMOVED_PREFIX), failed: null };
+    const cutoff = monthsBefore(now, DEVICE_ID_MONTHS);
+    // The corrections' own prices, and the prices shoppers typed for products Pexi identified (decisions 2026-11-15).
+    return { removed: removeOldDeviceIds(store, cutoff, REMOVED_PREFIX) + removeOldShopperDeviceIds(store.db, cutoff, REMOVED_PREFIX), failed: null };
   } catch (err) {
     return { removed: 0, failed: err instanceof Error ? err.message : String(err) };
   }

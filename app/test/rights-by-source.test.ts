@@ -126,7 +126,8 @@ async function get(path: string): Promise<Record<string, any>> {
 }
 
 let n = 0;
-const market = () => `countryCode=CA&region=British%20Columbia&deviceId=rights-${(n += 1)}`;
+// A probe device: its typed prices are never saved for other shoppers (decisions 2026-11-15), so no scan changes the next one's answer.
+const market = () => `countryCode=CA&region=British%20Columbia&deviceId=probe-rights-${(n += 1)}`;
 const byName = (text: string) => get(`/api/identify?text=${encodeURIComponent(text)}&shelfPriceCents=299&${market()}`);
 const byBarcode = (gtin: string) => get(`/api/identify?gtin=${gtin}&shelfPriceCents=299&${market()}`);
 

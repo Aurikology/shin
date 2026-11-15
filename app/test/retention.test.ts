@@ -17,6 +17,7 @@ const { openScanStore, recordScan, getScan } = await import('../src/scans.ts');
 const { recordEvent } = await import('../src/events.ts');
 const { sweepScanData, sweepRequestLog, sweepShopperPrices, REQUEST_LOG_DAYS, USAGE_EVENT_MONTHS, DEVICE_ID_MONTHS } = await import('../src/retention.ts');
 const { openCorrectionStore, recordCorrection } = await import('../../price/src/corrections.ts');
+const { saveShopperPrice, shopperPriceCount } = await import('../../price/src/shopper-prices.ts');
 
 const store = openScanStore(process.env.SHIN_SCANS);
 const NOW = new Date('2026-11-06T12:00:00.000Z');
@@ -106,6 +107,22 @@ test('item 8: a shopper price past 24 months loses its device id, and two from o
   assert.match(ids[0].device_id, /^removed:\d+$/);
   assert.notEqual(ids[0].device_id, ids[1].device_id);
   assert.equal(ids[2].device_id, 'd-price');
+});
+
+test('shopper prices (decisions 2026-11-15): a typed price past 24 months loses its device id too, and stays as a price', () => {
+  const path = join(dir, 'corrections-shopper.db');
+  const store = openCorrectionStore(path);
+  const put = (device: string, seenOn: string) =>
+    saveShopperPrice(store.db, { deviceId: device, code: '0123456789012', priceCents: 300, region: null, store: null, seenOn, centreCents: null });
+  assert.equal(put('d-old', '2020-01-01').ok, true);
+  store.db!.prepare('UPDATE shopper_price SET recorded_at = ?').run(OLD);
+  assert.equal(put('d-new', '2026-11-01').ok, true);
+  const r = sweepShopperPrices(path, NOW);
+  assert.equal(r.failed, null);
+  assert.equal(r.removed, 1);
+  assert.equal(shopperPriceCount(store.db, 'd-old'), 0);
+  assert.equal(shopperPriceCount(store.db, 'd-new'), 1);
+  assert.equal(store.db!.prepare('SELECT COUNT(*) AS n FROM shopper_price').get()!.n, 2, 'the price itself is kept');
 });
 
 test('item 8: request-log lines go at 90 days, newer ones and unreadable ones stay', async () => {

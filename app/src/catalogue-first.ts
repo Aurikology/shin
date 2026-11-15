@@ -85,7 +85,13 @@
  *     storeIdentity: null | { name, brand, size, barcode },   // design case 2 only
  *     ms: number,
  *     scanId?: number,
+ *     contributed: boolean,           // the shelf price typed with this request was saved for other shoppers
+ *     pricesAdded: number,            // how many prices this device has saved in all, counting this one
+ *     contributedWhy?: string,        // a price was typed and not saved: not_identified | weighed_label | already_today
+ *                                     //   | typo_guard | probe_device | bad_price | store_unavailable
  *   }
+ * (`preview=1` answers `{ kind, outcome, barcode, identity, preview: true, priceKnown: boolean }`: a shop or shopper
+ * price is on file for the product. Both are the shopper-prices decision, docs/decisions.md 2026-11-15.)
  *
  * `rangeSource` (and the scan row's `range_source`) says which model answered:
  * `claude_typical` since D-231 (2026-10-10), because the range ask has been

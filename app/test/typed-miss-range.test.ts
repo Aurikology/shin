@@ -101,7 +101,8 @@ async function get(path: string): Promise<Record<string, any>> {
   return (await r.json()) as Record<string, any>;
 }
 
-const market = 'countryCode=CA&region=British%20Columbia&deviceId=typed-miss';
+// A probe device: its typed prices are never saved for other shoppers (decisions 2026-11-15), so no scan changes the next one's answer.
+const market = 'countryCode=CA&region=British%20Columbia&deviceId=probe-typed-miss';
 const byName = (text: string, cents: number) => get(`/api/identify?text=${encodeURIComponent(text)}&shelfPriceCents=${cents}&${market}`);
 const byBarcode = (gtin: string, cents: number) => get(`/api/identify?gtin=${gtin}&shelfPriceCents=${cents}&${market}`);
 

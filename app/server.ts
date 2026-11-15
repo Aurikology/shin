@@ -43,6 +43,9 @@ import {
 } from './src/scans.ts';
 import { customerDataFaults } from './src/customer-data-faults.ts';
 import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
+import { currentCorrectionStore } from '../price/src/corrections.ts';
+import { hasShopPrice, hasShopperPrice, shopperVoiceFor } from '../price/src/shopper-prices.ts';
+import { shopperContribution } from './src/shopper-contribution.ts';
 import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
   answerBarcodeFromCatalogue,
@@ -1472,6 +1475,8 @@ async function withCatalogueFirstDeps<T>(
       ...(nameElsewhere ? { nameElsewhere } : {}),
       learnedPick: learnedPickFor,
       ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
+      // Shoppers' prices, one voice per product (decisions 2026-11-15); the store is the corrections file, never prices.db.
+      shopperVoice: (key) => shopperVoiceFor(currentCorrectionStore().db, key, new Date().toISOString().slice(0, 10)),
     });
   } finally {
     try {
@@ -1618,6 +1623,8 @@ function finishCatalogueScan(s: {
   telemetry: ReturnType<typeof telemetryFrom>;
   where: ReturnType<typeof locationFor>;
   startedAt: number;
+  /** The shelf price the request carried and where it was typed: saved for other shoppers when the product is identified (decisions 2026-11-15). */
+  priced?: { cents: number | null; region: string | null; storeName: string | null };
 }): { scanId: number | null; body: Record<string, unknown> } {
   const { answer, record, where } = s;
   // A barcode the catalogue was asked about and does not hold is the most
@@ -1656,8 +1663,42 @@ function finishCatalogueScan(s: {
   logNoName(answer, s.device, scanId);
   return {
     scanId,
-    body: { ...answer, ms, ...shopperReportField(s.device, record.resolvedCode), ...(scanId === null ? {} : { scanId }) },
+    body: {
+      ...answer,
+      ms,
+      ...shopperReportField(s.device, record.resolvedCode),
+      ...shopperContribution({
+        store: currentCorrectionStore().db,
+        device: s.device,
+        answer,
+        record,
+        priced: s.priced ?? { cents: null, region: null, storeName: null },
+        today: new Date().toISOString().slice(0, 10),
+      }),
+      ...(scanId === null ? {} : { scanId }),
+    },
   };
+}
+
+/**
+ * The name preview's `priceKnown`: whether Pexi holds a shop price or a shopper price for the product. Two indexed
+ * reads, no row scan, no model, so the preview stays fast. Never throws; a file that cannot be read is "no".
+ */
+function priceKnownFor(code: string, device: string): boolean {
+  let prices: DatabaseSync | null = null;
+  try {
+    prices = openPricesReadOnly(PRICES_DB_PATH, device);
+    return hasShopPrice(prices, code) || hasShopperPrice(currentCorrectionStore().db, code);
+  } catch (err) {
+    logError({ where: 'identify.preview.price_known', deviceId: device, scanId: null, err });
+    return false;
+  } finally {
+    try {
+      prices?.close();
+    } catch {
+      /* already closed */
+    }
+  }
 }
 
 /** The shelf price and the shopper's own lines a request carries, or null when it carries no price. */
@@ -2823,10 +2864,13 @@ export const server = createServer(async (req, res) => {
        */
       if (rawGtin && pickText('preview') === '1') {
         const canonical = gtin && catalogueFirstOn() ? canonicalBarcode(rawGtin) : null;
-        if (!canonical) return json(200, { kind: 'catalogue', outcome: 'preview_unavailable', barcode: rawGtin, identity: null, preview: true });
-        // D-262: a product the catalogue knows is named from its row alone, with no price read at all.
+        if (!canonical) return json(200, { kind: 'catalogue', outcome: 'preview_unavailable', barcode: rawGtin, identity: null, preview: true, priceKnown: false });
+        // D-262: a product the catalogue knows is named from its row alone, with no price estimate run. `priceKnown` is two
+        // indexed lookups (a shop price, a shopper price) so the phone can say "No price here yet, add it" before the pad.
         const known = catalogueHitIdentity(canonical, fastLookup);
-        if (known) return json(200, { kind: 'catalogue', outcome: 'catalogue_hit', barcode: canonical.gtin, identity: known, preview: true });
+        if (known) {
+          return json(200, { kind: 'catalogue', outcome: 'catalogue_hit', barcode: canonical.gtin, identity: known, preview: true, priceKnown: priceKnownFor(known.barcode || canonical.gtin, device) });
+        }
         // Open Food Facts and a saved Claude reading name it here too, both free; no frame, so no Claude call.
         const { answer } = await catalogueFirstBarcode(
           undefined,
@@ -2843,6 +2887,7 @@ export const server = createServer(async (req, res) => {
           identity: answer.identity ?? answer.storeIdentity ?? null,
           ...(answer.identitySource ? { identitySource: answer.identitySource } : {}),
           preview: true,
+          priceKnown: priceKnownFor(answer.identity?.barcode ?? answer.storeIdentity?.barcode ?? canonical.gtin, device),
         });
       }
 
@@ -2930,7 +2975,18 @@ export const server = createServer(async (req, res) => {
           );
           // The client holds a frame and Pexi needs it: asked for, with no scan row yet. The frame's own request is the scan.
           if (answer.outcome === 'frame_wanted') return json(200, { ...answer, ms: Date.now() - identifyStarted });
-          const finished = finishCatalogueScan({ device, query: gtin, gapGtin: gtin, answer, record, telemetry, where, startedAt: identifyStarted });
+          const market = marketOfContext(contextFrom(pick));
+          const finished = finishCatalogueScan({
+            device,
+            query: gtin,
+            gapGtin: gtin,
+            answer,
+            record,
+            telemetry,
+            where,
+            startedAt: identifyStarted,
+            priced: { cents: readShelfCents(pick('shelfPriceCents')), region: market.region ?? null, storeName: where.storeName ?? pickText('storeName') ?? null },
+          });
           scanForLog = finished.scanId;
           return json(200, finished.body);
         }
@@ -3268,6 +3324,7 @@ export const server = createServer(async (req, res) => {
         telemetry,
         where,
         startedAt: packStarted,
+        priced: { cents: readShelfCents(p.shelfPriceCents), region: market.region ?? null, storeName: where.storeName ?? (typeof p.storeName === 'string' ? p.storeName : null) },
       });
       scanForLog = finished.scanId;
       // The frame, only if they said so: the same three conditions as the photo route's photograph.

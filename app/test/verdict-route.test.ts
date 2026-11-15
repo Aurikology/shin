@@ -196,7 +196,8 @@ async function get(path: string): Promise<{ status: number; body: Record<string,
   return { status: r.status, body: (await r.json()) as Record<string, any> };
 }
 
-const identify = (gtin: string, extra = '', device = 'verdict-test') =>
+// A probe device: its typed prices are never saved for other shoppers (decisions 2026-11-15), so no scan changes the next one's answer.
+const identify = (gtin: string, extra = '', device = 'probe-verdict-test') =>
   get(`/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA&region=British%20Columbia${extra}`);
 
 /** The client's zone-to-tier mapping (public/js/lib/verdict-chart.js ZONE_TIER), written out so the test reads without it. */
