@@ -7095,8 +7095,8 @@ export default {
       }
       // D11: a barcode nothing named, after every step was tried, asks the name at once. Never quietly.
       if (answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry) {
-        reviewPrompter.noteScan(true); // not in the catalogue is a miss (review-prompt.js)
         askNameForUnknownBarcode(cents, answer.barcode ?? null);
+        reviewPrompter.noteScan(true); // not in the catalogue is a miss (review-prompt.js)
         if (Array.isArray(answer.noNameReasons)) {
           track('scan_no_name', { code: answer.barcode ?? null, reasons: answer.noNameReasons });
           console.error('scan ended with no name:', { code: answer.barcode ?? null, reasons: answer.noNameReasons });
