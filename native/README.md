@@ -380,6 +380,19 @@ The web app's `app/public/js/lib/haptics.js` reaches two native plugins through
   a real vibration on any phone, and anything iOS (needs the Mac: `cd native && npm install &&
   npm run cap:sync`, then build in Xcode).
 
+## Review prompt (2026-11-14)
+
+The platform's own rating prompt, and nothing drawn by Pexi: `@capacitor-community/in-app-review`
+8.0.0 (plugin name `InAppReview`, peer dependency `@capacitor/core >=8.0.0`). iOS calls
+`AppStore.requestReview(in:)` (iOS 17+) or `SKStoreReviewController.requestReview(in:)`; Android uses
+the Play In-App Review API (`com.google.android.play:review` 2.0.2). The web side is
+`app/public/js/review-prompt.js` (when to ask) and `screens/camera.js` (the hook). The Podfile and the
+two Android gradle files were edited by hand to match what `cap sync` writes; `ios/App/Podfile.lock`
+was NOT regenerated (it needs CocoaPods), so `npm run cap:sync` on the Mac will change it. To see the
+prompt on iPhone: run a development build (Xcode Run); it always shows there and never shows in
+TestFlight. On Android the flow only runs for an app installed from Google Play (internal test track or
+internal app sharing); a sideloaded APK finishes without showing anything.
+
 ## Test matrix (plan items 3a/2g), blank until run on a real phone
 
 Cannot be filled in from this session: no phone, no store account, no signed build exists yet.

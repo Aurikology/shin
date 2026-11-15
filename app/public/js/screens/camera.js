@@ -63,6 +63,8 @@ import { hasValidCheckDigit } from '../lib/gtin.js';
 import { packReadOn, devOn } from '../dev-mode.js';
 import { tagsOn } from '../screen-tag-badge.js';
 import { sessionMisses, readPreview, firstRunTipPending, markFirstRunTipSeen } from '../scan-notes.js';
+import { createReviewPrompter, reviewBlocked } from '../review-prompt.js';
+import { APP_VERSION } from '../version.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
@@ -697,6 +699,8 @@ function dropSwapPromise(root) {
 
 /** Set once when the screen renders, so the two helpers above can reach the API. */
 let ctxApi = null;
+/** The page load is the session: the first camera screen of it counts one for the review prompt, later mounts do not. */
+let reviewSessionNoted = false;
 
 /**
  * The barcode this verdict is about, or null.
@@ -3387,6 +3391,25 @@ export default {
        shelf price. Shown on the answer as it arrived; see `priceMatchBlock`. */
     let lastPriceMatch = null;
     let dead = false;
+    /* The phone's own review prompt (review-prompt.js). It asks about a second after a good answer's sheet is
+       closed, and only if the camera is back at rest: no sheet, no price pad, no keyboard, not backgrounded. */
+    const reviewPrompter = createReviewPrompter({
+      win: window,
+      track,
+      version: APP_VERSION,
+      isBlocked: () => reviewBlocked({
+        dead,
+        hidden: document.hidden === true,
+        state: cam.dataset.state || 'idle',
+        sheetOpen: slot.querySelector('.sheet') !== null,
+        padOpen: slot.querySelector('.padsheet, [data-pad]') !== null,
+        typing: /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName ?? '') || document.activeElement?.isContentEditable === true,
+      }),
+    });
+    if (!reviewSessionNoted) {
+      reviewSessionNoted = true;
+      reviewPrompter.noteSession();
+    }
     // When the eye or the plain camera actually went live, for "ms since
     // camera start" on a barcode read (track.js). Null until one of the two
     // `attachEye(...).then` branches below sets it, and a barcode read before
@@ -5926,7 +5949,31 @@ export default {
       ctx.go('paywall', { limit: limit?.limit ?? undefined, used: limit?.used ?? undefined, resetsAt: limit?.resetsAt ?? undefined, ...(limit?.plus === true ? { plus: true } : {}) });
     }
 
+    /**
+     * The shopper closed an answer sheet (every way back to the viewfinder passes through `reset`). Read BEFORE
+     * reset clears the scan: the verdict, the price typed on the sheet, a thumbs-down on this scan and whether
+     * the correction was opened. Only a verdict (bell) sheet counts. The prompter decides and, if it says yes,
+     * asks the phone about a second later, when the camera is at rest.
+     */
+    function reviewNoteClose() {
+      try {
+        if (cam.dataset.state !== 'result' || !dist || !slot.querySelector('.sheet.dist')) return;
+        const scanId = Number.isInteger(last?.result?.scanId) ? last.result.scanId : (Number.isInteger(lastScanId) ? lastScanId : null);
+        reviewPrompter.answerClosed({
+          verdict: dist.raw,
+          typedCents: dist.typedCents,
+          thumbDown: lastThumb?.rating === 'down' && lastThumb.scanId === scanId,
+          corrected: corr !== null,
+        });
+      } catch (err) {
+        // Never in the way of closing a sheet, never silent (RULINGS.md "Errors never go unnoticed").
+        console.error('review prompt fault:', err);
+        track('review_fault', { message: String(err instanceof Error ? err.message : err).slice(0, 200) });
+      }
+    }
+
     function reset() {
+      reviewNoteClose();
       // Leaving the type-it route with nothing submitted is an abandoned typed
       // search. That it happened is kept; the words are not (Jamin's App Store
       // list, item 7: words a person deleted or never sent need consent).
@@ -6993,11 +7040,13 @@ export default {
         slot.innerHTML = geminiSheet(result, item, scanThumb, earlier);
         fillGrounded(slot, result);
         landHaptic(confidenceOf(result).level);
+        reviewPrompter.noteScan(false);
         setState('result');
         mounted();
         return;
       }
       last = null;
+      reviewPrompter.noteScan(true); // no price of Pexi's own for what was typed: a miss (review-prompt.js)
       slot.innerHTML = refusalSheet(
         {
           kind: 'refusal',
@@ -7046,6 +7095,7 @@ export default {
       }
       // D11: a barcode nothing named, after every step was tried, asks the name at once. Never quietly.
       if (answer?.outcome === 'not_in_catalogue' && answer.offerManualEntry) {
+        reviewPrompter.noteScan(true); // not in the catalogue is a miss (review-prompt.js)
         askNameForUnknownBarcode(cents, answer.barcode ?? null);
         if (Array.isArray(answer.noNameReasons)) {
           track('scan_no_name', { code: answer.barcode ?? null, reasons: answer.noNameReasons });
@@ -7074,6 +7124,7 @@ export default {
         cat = { answer, cents: cents ?? null, typed, snap, historyId };
         last = { result: snap, scenario: { text: name, category: null, ...(code ? { gtin: code } : {}) }, thumb: scanThumb, askingCents: snap.askingCents ?? undefined };
       }
+      reviewPrompter.noteScan(!cat); // a range on the sheet is an answer; no range is a miss (review-prompt.js)
       slot.innerHTML = catalogueSheet(answer, { shelfCents: cents ?? null, thumb: scanThumb, typed, saved: cat ? store.isWatched(cat.snap.id) : false });
       // The catalogue sheet with a range is drawn at data-conf "sure"; without one it is a refusal band, no haptic.
       if (answer.outcome === 'catalogue_hit' && usableRange(answer.range) && answer.range.basis !== 'fixed_prior') landHaptic('sure');
@@ -7256,6 +7307,7 @@ export default {
       paintDistribution(false);
       // An unusable bell draws no verdict, so nothing landed to buzz for.
       if (v) landHaptic(DIST_CONF[v.confidence]);
+      if (v) reviewPrompter.noteScan(false); // an answer with a bell is not a miss (review-prompt.js)
       setState('result');
       mounted();
     }
@@ -7519,6 +7571,7 @@ export default {
       // teardown so `cam.dataset.state` is still whatever it was left in.
       trackScanAbandonedIfMidScan('left_screen');
       dead = true;
+      reviewPrompter.cancel();
       listeners.abort();
       textMatch?.stop();
       unsub();

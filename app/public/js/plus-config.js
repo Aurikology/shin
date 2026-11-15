@@ -91,3 +91,18 @@ export const MANAGE_URLS = Object.freeze({
   ios: 'https://apps.apple.com/account/subscriptions',
   android: 'https://play.google.com/store/account/subscriptions',
 });
+
+/**
+ * The Android package id (the app id on both stores, native/capacitor.config.json; a test keeps them equal).
+ * An empty string would hide the Android "Rate Pexi" row.
+ */
+export const ANDROID_PACKAGE_ID = 'com.getpexi.app';
+
+/**
+ * "Rate Pexi" on the You page: each store's own review page, opened only when the shopper taps the row. Apple's
+ * is the App Store write-review link for Pexi's app id; Google's is the Play listing, built from the package id.
+ */
+export const REVIEW_URLS = Object.freeze({
+  ios: 'https://apps.apple.com/app/id6821190920?action=write-review',
+  android: ANDROID_PACKAGE_ID ? `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_ID}` : '',
+});

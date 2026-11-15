@@ -783,6 +783,9 @@ const EN = {
   you_delete_body_device: 'Device id',
   you_report: 'Report a wrong price',
   you_report_fastest: 'Fastest fix',
+  /* Two rows the shopper starts (review-prompt.js's header says why they are separate from the phone's prompt). */
+  you_rate: 'Rate Pexi',
+  you_tell_wrong: 'Tell us what\'s wrong',
   /* The Developer row at the bottom of You: the switch for the screen tag badge
      (js/screen-tag-badge.js). Chrome for the owner, so no attitude variants. */
   dev_heading: 'Developer',
@@ -1441,6 +1444,8 @@ const FR = {
   you_delete_body_device: 'Identifiant de l’appareil',
   you_report: 'Signaler un prix erroné',
   you_report_fastest: 'La correction la plus rapide',
+  you_rate: 'Évaluer Pexi',
+  you_tell_wrong: 'Dites-nous ce qui ne va pas',
   dev_heading: 'Développeur',
   dev_tags: 'Afficher les étiquettes d’écran',
   dev_tags_caption: 'Une petite étiquette comme a12 dans le coin de chaque écran, pour pouvoir nommer un écran dans un message. Désactivé pour tout le monde.',

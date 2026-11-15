@@ -48,7 +48,7 @@ import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 import { devOn, packReadOn, setPackReadOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
-import { MANAGE_URLS, LEGAL_URLS } from '../plus-config.js';
+import { MANAGE_URLS, LEGAL_URLS, REVIEW_URLS } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
 
 /**
@@ -60,6 +60,15 @@ import { platformOf } from '../purchases.js';
  */
 export function manageSubscriptionUrl(win = globalThis.window) {
   return platformOf(win) === 'android' ? MANAGE_URLS.android : '';
+}
+
+/**
+ * "Rate Pexi": the store's own review page for this phone, or '' for no row (a browser, or Android with no
+ * package id configured). A plain link the shopper taps; it is not tied to the platform review prompt.
+ */
+export function rateUrl(win = globalThis.window, urls = REVIEW_URLS) {
+  const p = platformOf(win);
+  return p === 'ios' || p === 'android' ? urls[p] || '' : '';
 }
 
 /**
@@ -158,6 +167,7 @@ export default {
     const unreadable = Boolean(store.loadFault());
     const weekKey = unreadable ? 'pastscans_failed' : weekProud ? 'you_weekly_proud' : 'you_weekly';
     const manageUrl = manageSubscriptionUrl();
+    const rate = rateUrl();
     const ratedCounts = store.ratedCounts();
     const consent = store.consent();
     const ac = new AbortController();
@@ -467,6 +477,21 @@ export default {
           </div>
         </section>
 
+        ${/* Two rows the shopper starts. "Rate Pexi" is the store's own page; neither row is shown in, or tied
+             to, the phone's own rating prompt. "Tell us what's wrong" is the report flow below. */ ''}
+        <section class="block">
+          <div class="ilist">
+            ${rate ? `<a class="ilist-row" href="${escapeHtml(rate)}" target="_blank" rel="noopener noreferrer" data-rate-pexi>
+              <span class="ilist-l">${escapeHtml(t('you_rate'))}</span>
+              ${rowChevron()}
+            </a>` : ''}
+            <button type="button" class="ilist-row" data-act="tell-wrong">
+              <span class="ilist-l">${escapeHtml(t('you_tell_wrong'))}</span>
+              ${rowChevron()}
+            </button>
+          </div>
+        </section>
+
         <section class="block">
           <div class="ilist">
             <button type="button" class="ilist-row" data-act="report">
@@ -703,6 +728,7 @@ export default {
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
+      if (e.target.closest('[data-act="tell-wrong"]')) { ctx.go('correct', {}); return; }
     }, ac.signal);
 
     return () => ac.abort();
