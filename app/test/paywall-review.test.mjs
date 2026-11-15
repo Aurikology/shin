@@ -313,12 +313,15 @@ test('the hosted privacy page and terms add subscriptions: RevenueCat and Apple,
 
 /* ------------------------------------------------------------ build number */
 
-test('the iOS project is version 1.0.0 build 6 in every configuration', () => {
+// One build number in every configuration, never below 8 (build 8 uploaded 2026-11-15). Not pinned to
+// one value: each upload raises it, and a pinned number refused every deploy after build 8's bump.
+test('the iOS project is version 1.0.0 with one build number, at least 8, in every configuration', () => {
   const pbx = read('../../native/ios/App/App.xcodeproj/project.pbxproj');
   const builds = [...pbx.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)].map((m) => m[1]);
   const marketing = [...pbx.matchAll(/MARKETING_VERSION = ([\d.]+);/g)].map((m) => m[1]);
   assert.ok(builds.length >= 2);
-  assert.deepEqual([...new Set(builds)], ['6']);
+  assert.equal(new Set(builds).size, 1, `build numbers differ between configurations: ${builds.join(', ')}`);
+  assert.ok(Number(builds[0]) >= 8, `build number ${builds[0]} is below the last upload (8)`);
   assert.deepEqual([...new Set(marketing)], ['1.0.0']);
 });
 
