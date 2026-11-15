@@ -17,6 +17,31 @@ then loop steps 2 to 8 once per item, one commit each.
 - `git pull --ff-only origin main`; `git config user.email` must be aurikdisler@gmail.com on Aurik's PC.
 - Read `NOW.md`, then `docs/launch-gaps-2026-11-06.md` (the live to-do), then `comms/messages/`
   addressed to you. Jamin pushes whole stacks to main mid-session: pull again before each commit.
+- **Delete every `jamin-to-aurik` message as soon as it is read** (Aurik, 2026-11-15: *"going
+  forward we will delete when read jamins messages"*), with its attachments, in the next commit.
+  Carry any ask still open into `comms/claims/aurik.md` or `DEFECTS.md` first; git history keeps
+  the text.
+
+## 0b. Session mode: continuously pushing to Jamin
+
+Aurik, 2026-11-15: *"generate a workflow for todays session continuously pushing to jamin"*. When a
+session runs several items, this is the rhythm. Jamin's sessions read GitLab, nothing else, so an
+item counts only once it is on `origin`.
+
+1. **Open:** pull, read and delete Jamin's messages (above), write one claim line in
+   `comms/claims/aurik.md` naming every item and file for the session, commit `[comms]`, push both
+   remotes. Start the watcher in the background:
+   `WATCH_AUTHOR='jamin|xu826' node scripts/comms-watch.mjs`.
+2. **Per item:** steps 1 to 7 below, one commit, pushed to both remotes the moment the gate passes.
+   Never batch two fixes into one push; never sit on a green fix.
+3. **On every push:** refresh `updated` on the claim line (same commit or a `[comms]` one after).
+4. **When the watcher prints a Jamin push:** pull before the next commit, re-run the gate if his
+   commits touch a file you changed, and read and delete any new message to you.
+5. **Tell Jamin only what he must act on:** a server field the screen now needs, a ruling, or his
+   file you had to touch. One short `aurik-to-jamin` note per need, pushed at once. Everything
+   else is the commit message; do not narrate the session in notes.
+6. **Close:** DEFECTS rows, one Mac build ask for the batch, a "Read by" line in
+   `notes/catch-up.md`, delete the claim line, push, `ls-remote` both hosts.
 
 ## 1. Triage: is it a fix, a ruling, or someone else's?
 

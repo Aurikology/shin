@@ -1,0 +1,1 @@
+aurik · Aurik's PC · phone retry queue for scan ratings and events, so a deploy restart's 502 never drops a post (D-268 A3, Jamin's 2026-11-12 ask) · app/public/js/api.js, a new app/public/js/lib/ outbox, their tests · started 2026-11-15 · updated 2026-11-15

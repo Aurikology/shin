@@ -196,7 +196,9 @@ working"*):
    status file's meaning, anything with a secret.
 10. **Keep it short.** A claim is one line, a message's first line is the ask; the long version goes
    in `notes/catch-up.md`, `DEFECTS.md` or `docs/` and the message points to it. The reader deletes
-   a message once it is settled. `node scripts/comms-watch.mjs` prints a line when the other side
+   a message once it is settled. **Aurik's sessions delete a message from Jamin as soon as it is
+   read** (Aurik, 2026-11-15), carrying any open ask into a claim or DEFECTS first; the session
+   rhythm for pushing to Jamin is `.claude/skills/fix-loop/SKILL.md` section 0b. `node scripts/comms-watch.mjs` prints a line when the other side
    pushes, at no model cost.
 
 **Not yet moved:** the Mac's deploy checker still reads its requests from the Notion page

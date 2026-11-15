@@ -51,10 +51,16 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 - **2026-11-11 bug sweep, screen half (Aurik's PC):** 20 screen fixes pushed (ef44c26 to abe6fea),
   each with a test seen red first; listed in DEFECTS D-259, D-260, D-265, D-268. The server, data and
   search halves went to Jamin in `comms/messages/2026-11-11-aurik-to-jamin-server-halves-of-the-bug-sweep.md`.
-  Open for Aurik with a decision or a phone: "Bad price" at full strength on a weak estimate (D-270
-  A2, screen half), the Shaded caption clipped under the button (B6, needs a look at phone size),
-  no undo on removing a past scan (D21). Waiting on Jamin: D-264's price-first order. Mac asked for
-  build 7 from abe6fea. None of it seen on a phone.
+  Closed since (checked 2026-11-15): B6 caption 18a859b, D21 past-scan undo 8a81e26, D-264 order
+  (Jamin ruled preview first, built 0a44202). D-270 A2 screen half needs no change: a low-confidence
+  verdict is already drawn hollow with the plain face (RULINGS "The top of the verdict is for useful
+  information only"; AVATAR.md row 25), and Jamin's ba2820d/f60a700 fixed the word and the confidence.
+  Open for Aurik: the phone retry queue for ratings and events (D-268 A3; the 502s are deploy
+  restarts). Build 8 is on TestFlight (e39310c); none of it seen on a phone.
+- **2026-11-14/15, Jamin's side built every screen ask** from his two 11-14 notes (tap to scan, price
+  pad default, hidden dead features, answer sheet layout, connection message, "Pexi doesn't know this
+  one yet", "No price here yet", saved-price count, first-run tip, miss-run line, produce amounts).
+  Only 27% of 176 real scans had a shop price.
 
 What stands between the MVP and 10-20 testers is one list: `QUEUE.md` bands 7 (launch) and 7B (the
 cheaper lookup, `docs/cheap-lookup-logistics-2026-09-23.md`). Settled in code: a typed name
