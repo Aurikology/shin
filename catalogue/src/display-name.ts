@@ -194,3 +194,53 @@ function dropLeadingWords(text: string, n: number): string {
   }
   return m ? text.slice(m.index + m[0].length).replace(LEADING, '') : text;
 }
+
+/** A shopper-facing name past this many characters is read as an advert and shortened (adShortName). */
+export const AD_NAME_LIMIT = 40;
+
+/** Where an advert-style title turns from the product into its sales copy. */
+const AD_BREAK = /\s*[,;(]\s*|\s+(?:with|filled|stuffed|containing|made|pack of|pk of|case of|box of|for)\s+/i;
+
+const SIZE_GLOBAL = new RegExp(SIZE_IN_TEXT.source, 'giu');
+
+/** Each word the source shouted (three letters or more, a vowel) in title case; mixed casing is left alone. */
+function unshoutWords(s: string): string {
+  return s.replace(/[\p{L}'’]+/gu, (w) =>
+    w.length >= 3 && w === w.toUpperCase() && /[AEIOUYÀ-ÖØ-Ý]/u.test(w) ? w[0] + w.slice(1).toLowerCase() : w,
+  );
+}
+
+/**
+ * The name a shopper reads when the catalogue's name is an advert ("Nutella BISCUITS, Golden Cookies Filled
+ * with Rich Hazelnut Spread, Pack of 20 Cookies 276g" for a 276 g box of biscuits): brand, product, size.
+ *
+ * DISPLAY ONLY. Matching and pricing keep reading the catalogue's own name; this is applied where a name is
+ * shown. A name of AD_NAME_LIMIT characters or fewer comes back exactly as given, and so does a long one with
+ * nothing to cut at (or whose first clause is itself still long): a name is never guessed at.
+ *
+ * The product is the first clause up to the first comma, bracket or sales word ("with", "filled", "pack of"),
+ * with any size taken off and shouted words put in title case. The brand leads unless the clause carries it; a
+ * first clause that is only the brand takes the next one. The size is the row's own `size`, else the one the
+ * name states, and is written last unless the clause already says it.
+ */
+export function adShortName(name: string, brand: string | null, size: string | null): string {
+  const full = String(name ?? '').trim();
+  if (full.length <= AD_NAME_LIMIT) return full;
+  const clauses = full.split(AD_BREAK).map((c) => c.trim()).filter((c) => c !== '');
+  if (clauses.length < 2) return full;
+  const brandText = cleanSourceText((brand ?? '').split(',')[0]);
+  const brandWords = words(brandText);
+  const productOf = (c: string) => c.replace(SIZE_GLOBAL, ' ').replace(/\s+/g, ' ').trim();
+  let product = productOf(clauses[0]!);
+  if (brandWords.length > 0 && words(product).join(' ') === brandWords.join(' ') && clauses[1]) {
+    product = `${product} ${productOf(clauses[1])}`.trim();
+  }
+  product = unshoutWords(product);
+  if (product === '' || product.length > AD_NAME_LIMIT) return full;
+  let line = product;
+  if (brandWords.length > 0 && !containsWords(words(line), brandWords)) line = `${brandText} ${line}`;
+  const stated = full.match(SIZE_IN_TEXT);
+  const sizeText = (size ?? '').trim() || (stated ? stated[0].replace(/^[^\p{L}\p{N}]+/u, '') : '');
+  if (sizeText !== '' && !carriesSize(line, sizeText)) line = `${line} ${sizeText}`;
+  return line.length < full.length ? line : full;
+}

@@ -99,3 +99,30 @@ test('a search result answers with the shopper name and keeps the raw one', asyn
   assert.equal(r.candidates[0]?.nameEn, 'Pinot Gris - Villa Maria Private Bin Marlborough');
   assert.equal(r.candidates[0]?.rawName, 'PINOT GRIS - VILLA MARIA PRIVATE BIN MARLBOROUGH');
 });
+
+// A name that reads like an advert is shortened for display (live scan log 2026-11-15, the Nutella case).
+import { adShortName } from '../src/display-name.ts';
+
+const NUTELLA_AD = 'Nutella BISCUITS, Golden Cookies Filled with Rich Hazelnut Spread, Pack of 20 Cookies 276g';
+
+test('an advert-style name past 40 characters is brand, product and size', () => {
+  assert.equal(adShortName(NUTELLA_AD, 'Nutella', '276 g'), 'Nutella Biscuits 276 g');
+});
+
+test('a name of 40 characters or fewer is left exactly as it is', () => {
+  assert.equal(adShortName('Lynx Deodorant Spray 150ml', 'Lynx', '150 ml'), 'Lynx Deodorant Spray 150ml');
+  assert.equal(adShortName('SHOUTED BUT SHORT NAME', 'Brand', null), 'SHOUTED BUT SHORT NAME');
+});
+
+test('a long name with nothing to cut at is left as it is', () => {
+  const plain = 'Dove Men Care Antiperspirant Deodorant Stick Extra Fresh 48h Protection';
+  assert.equal(adShortName(plain, 'Dove', '76 g'), plain);
+});
+
+test('the brand is added when the short product name does not carry it, and the size comes from the name when the row has none', () => {
+  assert.equal(adShortName('GOLDEN COOKIES filled with rich hazelnut spread, pack of 20 cookies 276g', 'Nutella', null), 'Nutella Golden Cookies 276g');
+});
+
+test('a clause that is only the brand takes the next clause with it', () => {
+  assert.equal(adShortName('Nutella, Hazelnut Spread with Cocoa, Family Size Jar for Breakfast 750g', 'Nutella', '750 g'), 'Nutella Hazelnut Spread 750 g');
+});

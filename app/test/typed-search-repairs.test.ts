@@ -179,3 +179,22 @@ test('a misspelt typed name finds the product and is never sure', async () => {
   assert.notEqual(a.identity?.grade, 'sure');
   assert.equal(a.found, false, 'a tolerant match must not be answered as the product');
 });
+
+// 3. A name that reads like an advert is shortened for display, never for matching.
+
+test('a scanned advert-named product is shown as brand, product and size', async () => {
+  const a = await get(`/api/identify?gtin=${NUTELLA}&shelfPriceCents=499&${market}`);
+  assert.equal(a.identity?.name, 'Nutella Biscuits 276 g');
+});
+
+test('the pick list and a typed answer show the short name too', async () => {
+  const a = await byName('nutella biscuits');
+  assert.equal(a.pickCandidates?.[0]?.barcode, NUTELLA);
+  assert.equal(a.pickCandidates?.[0]?.name, 'Nutella Biscuits 276 g');
+  if (a.ownMatch) assert.equal(a.ownMatch.name, 'Nutella Biscuits 276 g');
+});
+
+test('matching still reads the full catalogue name: words only the long name holds still find the product', async () => {
+  const a = await byName('golden cookies hazelnut');
+  assert.equal(a.pickCandidates?.[0]?.barcode, NUTELLA);
+});

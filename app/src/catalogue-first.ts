@@ -135,6 +135,7 @@ import {
   type Verdict,
 } from '../../price/src/estimate.ts';
 import { isNeverSentToAModel } from '../../catalogue/src/source-rights.ts';
+import { adShortName } from '../../catalogue/src/display-name.ts';
 import { onceAsk, shownRange, type RangeAskOutcome } from './distribution.ts';
 import { positionalParent, type CategoryFaultKind, type CategoryGuard } from './category-guard.ts';
 
@@ -698,6 +699,21 @@ function identityOf(row: CatalogueRow): CatalogueIdentity {
   return { name: (row.nameEn ?? row.name).trim(), brand, size, barcode: row.code, category: categoryRef(leaf, row.categoryPath) };
 }
 
+/**
+ * An identity as the shopper reads it: a name that reads like an advert is shortened to brand, product and
+ * size (catalogue/src/display-name.ts adShortName). DISPLAY ONLY: pricing and matching read the identity
+ * `identityOf` built, never this one.
+ */
+export function shownIdentity<T extends { name: string; brand: string | null; size: string | null }>(id: T): T {
+  const name = adShortName(id.name, id.brand, id.size);
+  return name === id.name ? id : { ...id, name };
+}
+
+/** The same for the bare name a typed answer prints (`ownMatch`, the grounded block). */
+export function shownName(name: string, brand: string | null, size: string | null): string {
+  return adShortName(name, brand, size);
+}
+
 function labelOf(id: CatalogueIdentity): string {
   const withBrand = id.brand && !id.name.toLowerCase().includes(id.brand.toLowerCase()) ? `${id.brand} ${id.name}` : id.name;
   return [withBrand, id.size].filter(Boolean).join(' ');
@@ -738,7 +754,7 @@ export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeD
     console.error('catalogue preview lookup failed:', err);
     return null;
   }
-  return isRow(hit) ? identityOf(normaliseRow(hit)) : null;
+  return isRow(hit) ? shownIdentity(identityOf(normaliseRow(hit))) : null;
 }
 
 /**
@@ -1236,7 +1252,7 @@ async function priceIdentity(
       offerManualEntry: false,
       catalogueUp: true,
       barcode: answerBarcode,
-      identity,
+      identity: shownIdentity(identity),
       range,
       rangeSource,
       rangeAskedAt,
@@ -1489,6 +1505,11 @@ function brandlessRival(text: string, rows: readonly TypedRow[], top: TypedRow):
       coversTyped(typed, r) &&
       Math.abs(nameWordsOf(r).length - topLen) <= 1,
   );
+}
+
+/** One pick-list row as the shopper reads it: `pickCandidate` with an advert-style name shortened. */
+export function shownCandidate(row: TypedRow): ReturnType<typeof pickCandidate> {
+  return shownIdentity(pickCandidate(row));
 }
 
 /** What the client's pick list needs of one row. */

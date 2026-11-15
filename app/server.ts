@@ -56,6 +56,8 @@ import {
   matchText,
   packReadSettings,
   pickCandidate,
+  shownCandidate,
+  shownName,
   pluIdentity,
   rangeAskSettings,
   readMatchTextBody,
@@ -1239,7 +1241,7 @@ async function typedFromOwnData(
       : await typedCatalogueSearch(text, device, pickedGtin ?? typedCode?.gtin ?? null)
     : null;
   const resolution = searched ? resolveTypedName(text, searched.rows, searched.band) : null;
-  const pickCandidates = searched ? searched.rows.slice(0, 3).map(pickCandidate) : [];
+  const pickCandidates = searched ? searched.rows.slice(0, 3).map(shownCandidate) : [];
 
   let match: OwnMatch | null = null;
   /** The catalogue product the typed words named, even when no store prices it. */
@@ -1370,7 +1372,7 @@ async function typedFromOwnData(
   if (!match) {
     return {
       ...common,
-      ...((resolution?.row || pluId) && named ? { ownMatch: { name: named.name, brand: named.brand, size: named.size, code: named.code, score: 1 } } : {}),
+      ...((resolution?.row || pluId) && named ? { ownMatch: { name: shownName(named.name, named.brand, named.size), brand: named.brand, size: named.size, code: named.code, score: 1 } } : {}),
       found: false,
       reason: 'no_own_price',
       lowConfidence: true,
@@ -1403,7 +1405,7 @@ async function typedFromOwnData(
     reason: 'own_data',
     lowConfidence: false,
     confidenceReasons: [],
-    ownMatch: { name: match.name, brand: match.brand, size: match.size, code: match.code, score: match.score },
+    ownMatch: { name: shownName(match.name, match.brand, match.size), brand: match.brand, size: match.size, code: match.code, score: match.score },
     grounded: {
       kind: 'grounded',
       forDevice: device,
@@ -1413,7 +1415,7 @@ async function typedFromOwnData(
         kind: 'prices',
         source: OWN_DATA_SOURCE,
         checked: false,
-        name: match.name,
+        name: shownName(match.name, match.brand, match.size),
         brand: match.brand,
         size: match.size,
         facts: [],
