@@ -3144,7 +3144,7 @@ export const server = createServer(async (req, res) => {
         // the bars. A name, a short number or digits with a wrong check digit
         // carry no gtin and search as words, as before.
         const typedGtin = typedBarcode(text);
-        const query = { text, limit, vectors: vectorsOn, ...(typedGtin ? { gtin: typedGtin } : {}) };
+        const query = { text, limit: Math.max(limit, GROCERY_SEARCH_WINDOW), vectors: vectorsOn, ...(typedGtin ? { gtin: typedGtin } : {}) };
         /*
          * Routed by the same history `/api/identify` used, and the matching
          * matters here more than the narrowing does.
@@ -3180,10 +3180,18 @@ export const server = createServer(async (req, res) => {
          * `confident` -- a safety rule holding on an invariant nothing
          * asserted. Now it holds on a line.
          */
-        const result =
+        const downgraded =
           routed.restricted && !routed.fellBack && raw.band === 'confident'
             ? { ...raw, band: 'ambiguous' as const }
             : raw;
+        // Pexi is a grocery price checker: the list offers grocery rows only (grocery-scope.ts), the first `limit` of them. A barcode hit is what it is.
+        const result = (() => {
+          if (downgraded.matchedBy === 'gtin') return downgraded;
+          const all = downgraded.candidates as Parameters<typeof isGroceryRow>[0][];
+          const kept = all.filter(isGroceryRow).slice(0, limit);
+          const band = kept.length === 0 ? ('miss' as const) : kept[0] !== all[0] && downgraded.band === 'confident' ? ('ambiguous' as const) : downgraded.band;
+          return { ...downgraded, candidates: kept, band };
+        })();
         /*
          * The category safeguard for the ring (category-guard.ts, A2). A parent
          * ring is one step wider than the leaf, and the tag it was drawn at must

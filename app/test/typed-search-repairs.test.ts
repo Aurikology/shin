@@ -233,3 +233,23 @@ test('a scanned barcode is what it is: the laptop still answers by its barcode',
   const a = await get(`/api/identify?gtin=${LAPTOP}&shelfPriceCents=49900&${market}`);
   assert.equal(a.identity?.barcode, LAPTOP);
 });
+
+// 5. The list the shopper sees while typing (/api/search) has the same grocery scope.
+
+test('the typing list offers grocery only, and still fills its limit past the rows it drops', async () => {
+  const { setSearchServiceForTests } = await import('../server.ts');
+  setSearchServiceForTests(catalogue as never);
+  try {
+    const a = await get('/api/search?q=latitude%203110&limit=2');
+    const codes: string[] = a.candidates.map((c: { code: string }) => c.code);
+    assert.deepEqual([...codes].sort(), [SOAP_ICECAT, TEA_OFF].sort(), 'two grocery rows expected, no laptop, dictaphone or toy');
+    const none = await get('/api/search?q=dell%20laptop');
+    assert.deepEqual(none.candidates, []);
+    assert.equal(none.band, 'miss');
+    // A barcode typed into the box is still looked up as itself.
+    const bar = await get(`/api/search?q=${LAPTOP}`);
+    assert.equal(bar.candidates[0]?.code, LAPTOP);
+  } finally {
+    setSearchServiceForTests(null);
+  }
+});
