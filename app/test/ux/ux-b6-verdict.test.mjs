@@ -94,9 +94,10 @@ test('R-40 order: verdict word, asking price, typical-price line, bell, item nam
   assertOrder(flow, [
     ['verdict word', ZONE_WORD],
     ['asking price $4.69', priceRe(469)],
-    ["Pexi's estimate line", /Pexi's estimate/],
-    ['the bell', /BELL/],
+    // 2026-11-14 (Jamin's store walk): the name comes right under the price, then the one plain range line, then the bell.
     ['item name', new RegExp(NAME)],
+    ['the usual range line', /Usually \$[\d.,]+ to \$[\d.,]+/],
+    ['the bell', /BELL/],
     ['the one button', /Save it/],
   ], 'R-40 high confidence');
   assert.doesNotMatch(flow, /Certain|Fairly sure|Not fully confident/, 'a confidence label is on the first position');
@@ -110,9 +111,9 @@ test('R-40 order, low confidence: the same first position, and no not-fully-conf
   assertOrder(flow, [
     ['verdict word', ZONE_WORD],
     ['asking price $15.99', priceRe(1599)],
-    ["Pexi's estimate line", /Pexi's estimate/],
-    ['the bell', /BELL/],
     ['item name', new RegExp(NAME)],
+    ['the usual range line', /Usually \$[\d.,]+ to \$[\d.,]+/],
+    ['the bell', /BELL/],
     ['the one button', /Save it/],
   ], 'R-40 low confidence');
   assert.doesNotMatch(flow, /Not fully confident/);
@@ -181,7 +182,7 @@ test('R-42 pass 5 cents / 10 cents / $1: the typical price is rounded, on the sh
     const rounded = roundEstimateCents(centre);
     const html = render(verdictWith({ centreCents: centre, sigmaLog: 0.2, confidence: 'high', n: 4, dots: FX.HIGH.dots, shopperCents: Math.round(centre * 0.9) }));
     const flow = peekFlow(html);
-    assert.match(flow, priceRe(rounded), `${why}: ${centre} should read ${usd(rounded)} in the estimate line. Line: ${flow}`);
+    // 2026-11-14: the typical price itself is on the chart (below); the first position's one range line is the band's ends.
     assert.doesNotMatch(flow, priceRe(centre), `${why}: the unrounded ${usd(centre)} is still in the estimate line`);
     const chartCentre = svgTexts(html).find((t) => t.cls.includes('vb-lbl-centre'))?.text;
     assert.match(chartCentre, priceRe(rounded), `${why}: the chart's typical-price label reads ${chartCentre}`);
@@ -191,7 +192,7 @@ test('R-42 pass 5 cents / 10 cents / $1: the typical price is rounded, on the sh
 
 test('R-42 (keep) label: the typical price is worded as an estimate', () => {
   for (const [name, v] of Object.entries({ HIGH: FX.HIGH, LOW: FX.LOW, NO_PRICE: FX.NO_PRICE })) {
-    assert.match(peekFlow(render(v)), /Pexi's estimate/, `${name}: the estimate label is gone`);
+    assert.match(peekFlow(render(v)), /Pexi.s estimate/, `${name}: the estimate label is gone`);
   }
 });
 
@@ -217,23 +218,29 @@ test('R-42 pass: the percent shown is worked out from the rounded estimate, as a
 
 /* =============================================================== R-43 */
 
-test('R-43 (keep) pass 8 in 10: the caption keeps "8 in 10" and "to", under the bell', () => {
-  for (const [name, v] of Object.entries({ HIGH: FX.HIGH, LOW: FX.LOW, NO_PRICE: FX.NO_PRICE })) {
-    const cap = plain(/<figcaption[\s\S]*?<\/figcaption>/.exec(render(v))?.[0] ?? '');
-    assert.match(cap, /^Shaded: Pexi's estimate of 8 in 10 prices, \$[\d.,]+ to \$[\d.,]+$/, `${name}: caption is "${cap}"`);
+// 2026-11-14 (Jamin's store walk): the "Shaded: Pexi's estimate of 8 in 10 prices" caption under the bell and
+// the separate typical-price line became one plain line, "Usually $7.95 to $9.05"; the going-rate card keeps
+// its range as the big number. The chart description for a screen reader still says the 8 in 10 sentence (below).
+const rangeLine = (html) => plain(/data-dist-typical>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? /data-dist-range>([\s\S]*?)<\/p>/.exec(html)?.[1] ?? '');
+
+test('R-43 (changed 2026-11-14) pass: one plain range line, no caption under the bell', () => {
+  for (const [name, v] of Object.entries({ HIGH: FX.HIGH, LOW: FX.LOW })) {
+    const html = render(v);
+    assert.match(rangeLine(html), /^Usually \$[\d.,]+ to \$[\d.,]+$/, `${name}: line is "${rangeLine(html)}"`);
+    assert.doesNotMatch(html, /<figcaption/, `${name}: the report-like caption is back`);
   }
+  assert.match(rangeLine(render(FX.NO_PRICE)), /^\$[\d.,]+ to \$[\d.,]+$/, 'the going-rate card keeps its range as the big number');
 });
 
 test('R-43 pass: both ends of the range are rounded the way the typical price is', () => {
   for (const v of [FX.HIGH, FX.LOW, FX.NO_PRICE, verdictWith({ centreCents: 437, sigmaLog: 0.2, dots: FX.HIGH.dots, shopperCents: 400 })]) {
     const lo = roundEstimateCents(v.p10Cents);
     const hi = roundEstimateCents(v.p90Cents);
-    const cap = plain(/<figcaption[\s\S]*?<\/figcaption>/.exec(render(v))[0]);
-    assert.equal(cap, `Shaded: Pexi's estimate of 8 in 10 prices, ${usd(lo)} to ${usd(hi)}`, `centre ${v.centreCents}: the ends should be ${usd(lo)} and ${usd(hi)}`);
     const html = render(v);
-    const labels = Object.fromEntries(['p10', 'p90'].map((k) => [k, svgTexts(html).find((t) => t.open.includes(`data-vb-${k}`))?.text]));
-    assert.equal(labels.p10, usd(lo), 'the chart label for the low end');
-    assert.equal(labels.p90, usd(hi), 'the chart label for the high end');
+    const line = rangeLine(html);
+    assert.ok(line.endsWith(`${usd(lo)} to ${usd(hi)}`), `centre ${v.centreCents}: the ends should be ${usd(lo)} and ${usd(hi)}, the line is "${line}"`);
+    // The ends are said once, in the line; the axis carries only the typical price.
+    for (const k of ['p10', 'p90']) assert.equal(svgTexts(html).find((t) => t.open.includes(`data-vb-${k}`)), undefined, `the chart still labels ${k}`);
   }
 });
 
@@ -342,12 +349,13 @@ test('R-45 pass: on low confidence the reason is in plain words with the count (
 
 /* =============================================================== R-52 */
 
-test('R-52 pass: the comparison caption names the market: "Typical price in Canada, Pexi\'s estimate"', () => {
+test('R-52 (changed 2026-11-14) pass: with a market known the first position is still one plain "Usually" line', () => {
   store.pinMarket('CA');
   try {
     assert.equal(store.market().country, 'Canada', 'fixture: the market is Canada');
     const flow = peekFlow(render(FX.HIGH));
-    assert.match(flow, /Typical price in Canada, Pexi's estimate/, `the line reads: ${flow}`);
+    assert.match(flow, /Usually \$[\d.,]+ to \$[\d.,]+/, `the line reads: ${flow}`);
+    assert.doesNotMatch(flow, /Typical price in Canada, Pexi's estimate/, 'the report-like market caption is back');
   } finally {
     store.pinMarket(null);
   }

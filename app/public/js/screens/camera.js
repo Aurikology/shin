@@ -1710,10 +1710,20 @@ function middleEllipsis(text, max) {
 }
 
 /** The label a dot wears on the bell: "Sale" first on a sale dot, the store shortened, the quantity whole. */
-function dotLabelText(d) {
-  const qty = d.quantity ?? '';
+function dotLabelText(d, { showSize = true } = {}) {
+  const qty = showSize ? (d.quantity ?? '') : '';
   const room = Math.max(6, 22 - qty.length);
   return [d.kind === 'sale' ? t('vd_sale') : null, middleEllipsis(d.store ?? '', room), qty || null].filter(Boolean).join(' ');
+}
+
+/**
+ * Whether the chart's dot labels carry a size. When every priced row is the same
+ * size (or none says one), the size is the product's own and the name above the
+ * chart already says it; repeating "276g" under every shop only crowds the labels
+ * (Jamin, 2026-11-14). Rows of different sizes keep theirs, to tell them apart.
+ */
+function dotsDifferInSize(dots) {
+  return new Set(dots.map((d) => d.quantity ?? '')).size > 1;
 }
 
 /** A per-unit label off the wire, in the reader's language when this build knows it. */
@@ -1760,10 +1770,14 @@ function distBell(v, { labels = null, report = null } = {}) {
     formatEstimate: est,
     // R-43: the description says the band's own sentence too.
     alt: `${alt} ${t('vd_band_alt', facts)}`,
-    band: t('vd_band', facts),
+    // 2026-11-14: no caption under the chart and no range-end numbers on the axis; the range is
+    // the one plain line above ("Usually $7.95 to $9.05"), so the chart carries only the typical
+    // price, the shopper's mark and the shop names. No lone "Sale" either: a sale shop says it itself.
+    ends: false,
+    saleLane: false,
     saleWord: t('vd_sale'),
     multiple: shopper?.beyond ? t('vd_multiple', { m: localNumber(multipleOf(shopper.cents, v.centreCents)) }) : '',
-    dotLabel: dotLabelText,
+    dotLabel: (d) => dotLabelText(d, { showSize: dotsDifferInSize(v.dots) }),
     labels,
     report: rep,
     reportWord: t('vd_report_word'),
@@ -1855,26 +1869,34 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
   // The face sits beside the price, not in a row of its own: R-40's first position has to fit 60% of
   // the screen with the one button on it, and a row for the face alone cost 108 px of it (2026-10-13,
   // measured at 390 x 844: 680 px of content against a 507 px cap).
-  const faceRow = (left) => `<div class="sheet-head">${left}${shinFace(face, { size: 'face-verdict', tier })}${thumbImg(thumb)}</div>`;
+  const faceRow = (left, { withThumb = false } = {}) => `<div class="sheet-head">${left}${shinFace(face, { size: 'face-verdict', tier })}${withThumb ? thumbImg(thumb) : ''}</div>`;
+  /* 2026-11-14 (Jamin's store walk): the name sits right under the price, so the shopper reads the verdict
+     knowing what was scanned, and the pack photo is its neighbour, not a 40 px square in the price row's
+     corner under the close button where the top of the sheet clipped it. */
+  const nameRow = name
+    ? `<div class="vd-name-row">${thumbImg(thumb)}<p class="itemname" role="button" tabindex="0" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</p></div>`
+    : thumb ? `<div class="vd-name-row">${thumbImg(thumb)}</div>` : '';
+  // One plain line for the usual range; it replaces the "Typical price in Canada, Pexi's estimate" line and the chart's caption.
+  const usualLine = t('vd_band', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) });
   const peek = s
     ? `${/* D-268 B8 (2026-11-11 walk): the label sat between the word and "$6.99 On the tag" and read
            as a label on the shopper's own price; it labels the verdict word, so it goes above it. */ ''}
         ${zone ? `<div class="vd-estimate vd-estimate-kicker" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
         <h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
         ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>`)}
+        ${nameRow}
         <div class="vd-lines">
           <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
-          <p class="sub vd-typ" data-dist-typical>${escapeHtml(typicalLine(centre))}</p>
+          <p class="sub vd-typ" data-dist-typical>${escapeHtml(usualLine)}</p>
         </div>
         ${s.suspect ? `<button type="button" class="pill ghost vd-suspect" data-act="dist-suspect" data-cents="${s.suspect.suggestCents}">${escapeHtml(t('vd_suspect', { price: fmt(s.suspect.suggestCents) }))}</button>` : ''}
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
-        ${name ? `<p class="itemname" role="button" tabindex="0" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</p>` : ''}
         <div class="actions actions-primary">
           <button type="button" class="pill solid wide" data-act="dist-save">${saveLabel}</button>
         </div>`
     : `<h2 class="vword small" data-dist-headline>${escapeHtml(headline)}</h2>
-        ${faceRow(`<div class="vd-ask"><p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>${sellers}</div>`)}
+        ${faceRow(`<div class="vd-ask"><p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>${sellers}</div>`, { withThumb: true })}
         <p class="sub vd-line vd-typ" data-dist-line>${escapeHtml(typicalLine(centre))}</p>
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}

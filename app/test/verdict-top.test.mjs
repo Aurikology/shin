@@ -43,7 +43,8 @@ const peekLines = (html) => [...peekOf(html).slice(peekOf(html).indexOf('data-di
 // the typical price, rounded, the market named (R-42, R-52): "22% under Typical price in Canada, Pexi's estimate: $6.00".
 const USEFUL = /^\d+% (under|over) the typical price$/;
 // The market is named once the boot pins it (flags-boot.js); this file never pins one, so the line has none.
-const TYPICAL = /^Typical price(?: in Canada)?, Pexi's estimate: \$[\d.]+$/;
+// Changed 2026-11-14 (build 7 store walk, section 2): one plain "Usually $a to $b" line replaces the estimate caption.
+const TYPICAL = /^Usually \$[\d.]+ to \$[\d.]+$/;
 const sheet = (v, opts, locale = 'en') => inLocale(locale, () => distributionSheet(v, opts));
 
 test('the peek of a low-confidence verdict carries no confidence line, in either language', () => {

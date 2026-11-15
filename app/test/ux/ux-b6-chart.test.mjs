@@ -292,7 +292,7 @@ test('R-47 (keep) pass: a sale price never moves the estimate', () => {
 
 /* =============================================================== R-64 */
 
-test('R-64 (keep) pass: no axis numerals; the only dollar labels are the band ends, the typical price and the shopper\'s price', () => {
+test('R-64 (keep) pass: no axis numerals; the only dollar labels are the typical price and the shopper\'s price', () => {
   for (const [name, v] of Object.entries(FX)) {
     const html = render(v);
     const texts = svgTexts(html);
@@ -301,9 +301,10 @@ test('R-64 (keep) pass: no axis numerals; the only dollar labels are the band en
       assert.doesNotMatch(t.cls, /tick|axis/, `${name}: a tick or axis label (${t.cls})`);
     }
     const money = texts.filter((t) => /\$\d/.test(t.text));
-    const allowed = money.filter((t) => /data-vb-(?:p10|p90|centre)/.test(t.open) || t.cls.includes('vb-youlbl'));
+    // 2026-11-14: the band ends are in the plain "Usually $a to $b" line, not on the axis; the axis keeps the typical price.
+    const allowed = money.filter((t) => /data-vb-centre/.test(t.open) || t.cls.includes('vb-youlbl'));
     assert.deepEqual(money.map((t) => t.text), allowed.map((t) => t.text), `${name}: dollar labels beyond the marks: ${money.map((t) => t.text).join(', ')}`);
-    assert.ok(money.length === (v.shopper ? 4 : 3), `${name}: ${money.length} dollar labels, want ${v.shopper ? 4 : 3}`);
+    assert.ok(money.length === (v.shopper ? 2 : 1), `${name}: ${money.length} dollar labels, want ${v.shopper ? 2 : 1}`);
   }
 });
 
@@ -343,8 +344,8 @@ test('R-65 (keep) pass: at low confidence the face is plain and the band is wide
   assert.doesNotMatch(low, /data-state="(?:delighted|angry)"/);
   const ratioOf = (v) => v.p90Cents / v.p10Cents;
   assert.ok(ratioOf(FX.LOW) > 1.5 * ratioOf(FX.HIGH), 'fixture: the low-confidence bell is wider in dollars');
-  const caption = plain(/<figcaption[\s\S]*?<\/figcaption>/.exec(low)[0]);
-  assert.match(caption, /\$[\d.,]+ to \$[\d.,]+/, 'both dollar ends are written under the bell');
+  // 2026-11-14: both dollar ends are said once, in the plain "Usually $a to $b" line above the bell (no caption under it).
+  assert.match(plain(/data-dist-typical>([\s\S]*?)<\/p>/.exec(low)[1]), /Usually \$[\d.,]+ to \$[\d.,]+/, 'both dollar ends are written on the first position');
 });
 
 /* =============================================================== R-68 */

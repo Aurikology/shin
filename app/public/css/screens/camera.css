@@ -2505,6 +2505,10 @@
 .vd-sale-note { margin: 4px 0 0; font: 500 12px/1.4 var(--f-ui); color: var(--ink-muted); }
 /* R-48: the name is two lines; a tap opens the whole of it. */
 .sheet.dist .itemname { cursor: pointer; }
+/* 2026-11-14 (Jamin's store walk): the name sits under the price with the pack photo beside it. */
+.vd-name-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vd-name-row .scan-thumb { margin-left: 0; width: 44px; height: 44px; }
+.vd-name-row .itemname { flex: 1 1 auto; min-width: 0; }
 .sheet.dist .vd-half-actions { margin-bottom: 2px; }
 /* R-40: the first position fits 60% with its one button showing: tighter steps, the word clear of the
    close button, the price and Pexi's face on one row, the two estimate lines as one block. */

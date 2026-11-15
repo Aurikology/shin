@@ -234,7 +234,8 @@ test('good, reasonable, bad, great: his word, the tier, one face per tier, the r
 test('the line beside the answer: how far off, against Pexi\'s estimate of the typical price', async (t_) => {
   const line = (html) => html.match(/data-dist-line>([\s\S]*?)<\/p>/)[1].replace(/<[^>]+>/g, '').replace(/[ \t\r\n]+/g, ' ').trim().replace(/&#39;/g, "'");
   const typ = (html) => html.match(/data-dist-typical>([\s\S]*?)<\/p>/)[1].replace(/&#39;/g, "'");
-  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), "Typical price, Pexi's estimate: $6.00", 'no market known: the line names none');
+  // Changed 2026-11-14 (build 7 store walk, section 2): one plain "Usually $a to $b" line, no market named, no "Pexi's estimate" caption.
+  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), 'Usually $4.75 to $7.55');
   // The boot pins the market to Canada (flags-boot.js); pinned here the same way, and unpinned after.
   const store = await import('../public/js/store.js');
   store.pinMarket('CA');
@@ -242,9 +243,9 @@ test('the line beside the answer: how far off, against Pexi\'s estimate of the t
   assert.equal(line(inLocale('en', () => distributionSheet(F.GOOD))), '22% under the typical price');
   assert.equal(line(inLocale('en', () => distributionSheet(F.BAD))), '25% over the typical price');
   assert.equal(line(inLocale('en', () => distributionSheet(F.FLOOR))), 'about the typical price');
-  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), "Typical price in Canada, Pexi's estimate: $6.00");
+  assert.equal(typ(inLocale('en', () => distributionSheet(F.GOOD))), 'Usually $4.75 to $7.55');
   assert.equal(line(inLocale('fr', () => distributionSheet(F.GOOD))), `22${NB}% sous le prix habituel`);
-  assert.equal(typ(inLocale('fr', () => distributionSheet(F.GOOD))), `Prix habituel au Canada, estimation de Pexi${NB}: 6,00${NB}$`);
+  assert.equal(typ(inLocale('fr', () => distributionSheet(F.GOOD))), `En général de 4,75${NB}$ à 7,55${NB}$`);
 });
 
 test('case 23, no price yet: the bell, no dot, a price field; a typed price drops the dot in and places it', () => {
@@ -320,7 +321,9 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
   const html = inLocale('en', () => distributionSheet(F.MEDIUM_SALE_BULK, { name: 'Gin 750 ml' }));
   const half = html.slice(html.indexOf('<div class="sheet-half">'), html.indexOf('<div class="sheet-full">'));
   assert.match(html, /class="vb-dot vb-dot-sale/);
-  assert.match(html, /class="vb-lane"[^>]*>Sale</);
+  // Changed 2026-11-14 (build 7 store walk, section 2): no lone "Sale" at the chart's edge; the sale shop says it in its own label.
+  assert.doesNotMatch(html, /class="vb-lane"/);
+  assert.match(html, /class="vb-dotlbl[^"]*"[^>]*>Sale /);
   assert.equal(between(half, 'data-vd-bigger'), 'A bigger pack, 1.75 L at BC Liquor, works out to $1.31 per 100 ml.');
   assert.deepEqual([...half.matchAll(/data-vd-note="([^"]+)"/g)].map((m) => m[1]), ['old_prices', 'other_region', 'few_prices']);
   // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56, the provenance row in plain words.
@@ -331,7 +334,7 @@ test('sale dots, the bigger pack, notes and where the estimate came from, in the
   assert.equal((peek.match(/class="pill solid/g) ?? []).length, 1, 'the peek has one primary action');
   const fr = inLocale('fr', () => distributionSheet(F.MEDIUM_SALE_BULK));
   assert.match(fr, new RegExp(`Un plus grand format, 1\\.75 L chez BC Liquor, revient à 1,31${NB}\\$ les 100${NB}ml\\.`));
-  assert.match(fr, /class="vb-lane"[^>]*>Solde</);
+  assert.match(fr, /class="vb-dotlbl[^"]*"[^>]*>Solde /);
 });
 
 test('the accessible name says in words where the price falls, English and French', () => {

@@ -584,7 +584,7 @@ export function spreadLabels(xs, { minGap = 66, width = 340, edge = 30 } = {}) {
  * drops onto its own place; it never slides along the axis through prices it
  * never had (DESIGN.md section 6).
  */
-export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = null, alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null, report = null, reportWord = 'Your report', reportTitle = '' } = {}) {
+export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = null, alt = '', band = '', saleWord = 'Sale', multiple = '', dotLabel = (d) => d.quantity ?? d.store ?? '', geometry = {}, labels: labelsFrom = null, report = null, reportWord = 'Your report', reportTitle = '', ends = true, saleLane = true } = {}) {
   // R-42/R-43: the typical price and the band ends are the rounded estimate; the shopper's own price is never rounded (R-41).
   const est = formatEstimate ?? format;
   const g = bellGeometry(verdict, { ...geometry, report });
@@ -600,7 +600,7 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
   p.push(`<line class="vb-axis" x1="${g.side}" y1="${g.baseY}" x2="${W - g.side}" y2="${g.baseY}"/>`);
   for (const k of g.cutTicks) p.push(`<line class="vb-cut" x1="${k.x}" y1="${k.y}" x2="${k.x}" y2="${g.baseY}"/>`);
   p.push(`<line class="vb-centre" x1="${g.centreX}" y1="${g.top - 4}" x2="${g.centreX}" y2="${g.baseY}"/>`);
-  if (g.hasSale) p.push(`<text class="vb-lane" x="${g.side}" y="${g.saleY + 3.5}" text-anchor="start">${esc(saleWord)}</text>`);
+  if (g.hasSale && saleLane) p.push(`<text class="vb-lane" x="${g.side}" y="${g.saleY + 3.5}" text-anchor="start">${esc(saleWord)}</text>`);
   const lblY = g.baseY + 30 + (g.hasSale ? 14 : 0) + (g.report ? 14 : 0);
   // The shopper's own pending report: a diamond on its own lane, outlined and
   // labelled in words, unlike a store's small solid circle, and drawn outside
@@ -616,9 +616,9 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     );
   }
   const [lx, cx, hx] = spreadLabels([g.p10X, g.centreX, g.p90X], { width: W });
-  p.push(`<text class="vb-lbl" x="${lx}" y="${lblY}" text-anchor="middle" data-vb-p10>${esc(est(L.p10Cents))}</text>`);
+  if (ends) p.push(`<text class="vb-lbl" x="${lx}"y="${lblY}" text-anchor="middle" data-vb-p10>${esc(est(L.p10Cents))}</text>`);
   p.push(`<text class="vb-lbl vb-lbl-centre" x="${cx}" y="${lblY}" text-anchor="middle" data-vb-centre>${esc(est(L.centreCents))}</text>`);
-  p.push(`<text class="vb-lbl" x="${hx}" y="${lblY}" text-anchor="middle" data-vb-p90>${esc(est(L.p90Cents))}</text>`);
+  if (ends) p.push(`<text class="vb-lbl" x="${hx}"y="${lblY}" text-anchor="middle" data-vb-p90>${esc(est(L.p90Cents))}</text>`);
 
   // Store dots: a regular price is a circle; a sale price is a diamond on its own lane (R-47), never the same shape.
   g.dots.forEach((d, i) => {
@@ -639,7 +639,9 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
     g.dots
       .map((d, i) => ({ i, x: d.x, text: chosen.has(i) ? dotLabel(d) : '' }))
       .filter((l) => l.text && !seenText.has(l.text) && seenText.add(l.text)),
-    { rows: 2, width: W, size: LABEL_SIZE },
+    // Three rows: with the size gone from the words, a third shop's name (a sale shop, often the one worth
+    // knowing about) now fits under two close neighbours instead of being left off the chart.
+    { rows: 3, width: W, size: LABEL_SIZE },
   );
   // D-260: 13px labels need more than 16 units under the 13px $ row, or they touch it.
   const DOT_ROW0 = 20;

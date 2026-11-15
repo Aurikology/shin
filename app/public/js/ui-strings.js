@@ -351,7 +351,7 @@ const EN = {
   vd_report_word: 'Your report',
   vd_suspect: (f) => `Did you mean ${f.price}?`,
   vd_multiple: (f) => `${f.m}x the typical price`,
-  vd_band: (f) => `Shaded: Pexi's estimate of 8 in 10 prices, ${f.low} to ${f.high}`,
+  vd_band: (f) => `Usually ${f.low} to ${f.high}`, // 2026-11-14: the one plain line under the verdict; was the report-like "Shaded: Pexi's estimate of 8 in 10 prices" caption under the chart
   vd_alt_marked: (f) => `${f.verdict}. Your price, ${f.asking}, is ${f.where}. Pexi estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
   vd_alt_bare: (f) => `Pexi estimates the typical price at ${f.centre}, with 8 in 10 prices between ${f.low} and ${f.high}.`,
   vd_sale: 'Sale',
@@ -1074,7 +1074,7 @@ const FR = {
   vd_report_word: 'Votre signalement',
   vd_suspect: (f) => `Voulais-tu dire ${f.price}?`,
   vd_multiple: (f) => `${f.m} fois le prix habituel`,
-  vd_band: (f) => `En couleur : l’estimation de Pexi pour 8 prix sur 10, de ${f.low} à ${f.high}`,
+  vd_band: (f) => `En général de ${f.low} à ${f.high}`,
   vd_alt_marked: (f) => `${f.verdict}. Ton prix, ${f.asking}, est ${f.where}. Pexi estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
   vd_alt_bare: (f) => `Pexi estime le prix habituel à ${f.centre}, avec 8 prix sur 10 entre ${f.low} et ${f.high}.`,
   vd_sale: 'Solde',
