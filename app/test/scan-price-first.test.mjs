@@ -125,10 +125,15 @@ test('the price call carries the thresholds and lets the caller win', async () =
 
 const SCREEN = read('../public/js/screens/camera.js');
 
-test('a barcode press opens the pad BEFORE anything is identified', () => {
+/* Reversed premise, 2026-11-14 (RULINGS.md "The shopper learns Pexi does not know a product before typing a
+   price"): the name preview (about half a second) runs before the pad, so an unknown barcode says so and
+   offers typing instead of asking for a price first. What still holds: the scan itself (the priced lookup
+   and the answer) never goes out before the price is asked; it waits on the pad. */
+test('a barcode press asks the price BEFORE the scan is priced or answered (the name preview comes first)', () => {
   const fn = between(SCREEN, '    async function onBarcode(read) {', '    /**\n     * The pad, opened at scan time', 'onBarcode');
-  assert.ok(fn.includes("askPriceFirst({ kind: 'barcode', code: read.value })"), 'the barcode read no longer opens the pad first');
-  assert.ok(!/catalogueLookup|api\.identify|proceed\(/.test(fn), 'onBarcode identifies or prices before the price is asked');
+  assert.ok(fn.includes("askPriceFirst({ kind: 'barcode', code: read.value, priceMissing: preview.missed === true })"), 'the barcode read no longer opens the pad');
+  assert.ok(fn.includes('nameCapturedCode(read.value)'), 'the name preview no longer starts at the scan');
+  assert.ok(!/catalogueLookup|api\.identify|proceed\(|resolveBarcode/.test(fn), 'onBarcode prices or answers the scan before the price is asked');
 });
 
 test('a photo capture opens the pad BEFORE the crop is sent', () => {

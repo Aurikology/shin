@@ -41,7 +41,8 @@ function rig({ state = 'idle', canInterrupt = true } = {}) {
   };
   const body = `
     let hintTimer = null, torchAckTimer = null, hintEscalated = false, coachKey = null, torchOn = false, dead = false;
-    let torchAckActive = false, pendingEscalation = null;
+    let torchAckActive = false, pendingEscalation = null, codesInView = 0, firstTipShown = true;
+    const firstRunTipPending = () => false, showScanNote = () => {}, t = (k) => k;
     const camShinEl = { querySelector: () => ({ dataset: {} }) };
     const FLAGS = { photoId: false };
     const root = { querySelector: () => null };

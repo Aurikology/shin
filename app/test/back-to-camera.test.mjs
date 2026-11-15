@@ -140,10 +140,12 @@ test('going back to the camera still lands on idle, with no re-read workaround l
 });
 
 test('the eye handler no longer filters unsolicited reads, because there are none', () => {
-  const handler = between(src, 'onBarcode: (read) => {', 'onTorch:', "the eye's onBarcode handler");
-  assert.match(handler, /cam\.dataset\.state !== 'idle'/, 'the eye handler no longer gates on idle');
-  assert.doesNotMatch(handler, /leftBarcode/, 'the leftBarcode workaround survived the button');
-  assert.doesNotMatch(handler, /REREAD_QUIET_MS/, 'the 10-second quiet window survived the button');
+  // Tap to scan (2026-11-14): the eye's onBarcode hands the read to takeRead, which holds the idle gate.
+  const handler = between(src, 'onBarcode: (read) => takeRead(read),', 'onTorch:', "the eye's onBarcode handler");
+  const take = between(src, '    function takeRead(read) {', '    async function onBarcode(read) {', 'takeRead');
+  assert.match(take, /cam\.dataset\.state !== 'idle'/, 'the read no longer gates on idle');
+  assert.doesNotMatch(handler + take, /leftBarcode/, 'the leftBarcode workaround survived the button');
+  assert.doesNotMatch(handler + take, /REREAD_QUIET_MS/, 'the 10-second quiet window survived the button');
 });
 
 test('neither the quiet window nor the code it suppressed exists anywhere in the screen', () => {

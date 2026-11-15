@@ -43,8 +43,11 @@ function packRoute() {
 }
 
 /** The server's answer for a barcode nothing names: frame_wanted when the client may send one, typing otherwise. */
-function missRoute(seen) {
+function missRoute(seen, { previewDown = false } = {}) {
   return async (call) => {
+    // previewDown: the quick preview before the pad fails, so the pad opens and the priced lookup is what reaches the server.
+    // With a working preview an unknown barcode shows "Pexi doesn't know this one yet" and typing, never the pad.
+    if (call.query.preview === '1' && previewDown) throw new Error('preview unavailable');
     if (call.query.preview === '1') return { kind: 'catalogue', outcome: 'not_in_catalogue', barcode: call.query.gtin, identity: null, preview: true };
     seen.push(call);
     if (call.query.canSendFrame === '1') {
@@ -72,7 +75,7 @@ const PRICE = (app) => (app.has('[data-pad="."]') ? ['4', '.', '9', '9'] : ['4',
 
 test('a shopper (switch never touched): the scan never says it holds a frame and no frame is ever sent', async () => {
   const seen = [];
-  const app = await launchReturning({ server: { '/api/identify': missRoute(seen), '/api/identify/pack': packRoute() } });
+  const app = await launchReturning({ server: { '/api/identify': missRoute(seen, { previewDown: true }), '/api/identify/pack': packRoute() } });
   await pressScan(app, CODE);
   await typePrice(app, PRICE(app));
   assert.ok(seen.length >= 1, 'setup: the priced barcode lookup never reached the server');
@@ -112,7 +115,7 @@ test('a developer with the switch on: the scan says it holds a frame, and the fr
 
 test('a developer device with the switch off sends no frame, from a scan or from a misread', async () => {
   const seen = [];
-  const app = await launchReturning({ seed: DEV_SWITCH_OFF, server: { '/api/identify': missRoute(seen), '/api/identify/pack': packRoute() } });
+  const app = await launchReturning({ seed: DEV_SWITCH_OFF, server: { '/api/identify': missRoute(seen, { previewDown: true }), '/api/identify/pack': packRoute() } });
   await pressScan(app, CODE);
   await typePrice(app, PRICE(app));
   assert.equal(seen.some((c) => c.query.canSendFrame === '1'), false, 'the developer row is showing but its switch is off, and the scan still offered the frame');
