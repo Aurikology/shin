@@ -225,6 +225,15 @@ export function looseRowsFor(p: HammerProduct, l: LatestPrice): ObservationRow |
   return m === null ? null : looseObservation(p, l, m, SELLER, VENDOR_NAMES[p.vendor]);
 }
 
+/**
+ * Every earlier loose-produce row this importer wrote (unit label `$/lb`, which no barcoded Hammer row has).
+ * A reload drops them first and rewrites the current set, so a row a newer rule would not write (the $11.59
+ * "regular" price of 2026-11-15) cannot linger beside it. The delete is in the observation log.
+ */
+export function dropLooseRows(db: ReturnType<typeof openPrices>): number {
+  return Number(db.prepare("DELETE FROM observation WHERE seller = ? AND unit_label = '$/lb'").run(SELLER).changes);
+}
+
 export function ensureRegistered(db: ReturnType<typeof openPrices>): void {
   if (currentRegistry(db).some((e) => e.seller === SELLER && e.access === 'automated')) return;
   registerSource(db, {
@@ -339,6 +348,7 @@ async function main(): Promise<void> {
   const looseByVendor: Record<string, number> = {};
   db.exec('BEGIN');
   try {
+    console.log(`hammer: dropped ${dropLooseRows(db)} earlier loose-produce rows before rewriting them`);
     for (const [id, l] of latest) {
       const p = products.get(id)!;
       if (looseIds.has(id)) {

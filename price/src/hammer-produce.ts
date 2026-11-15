@@ -148,7 +148,7 @@ function nameFitsList(productName: string, listName: string): boolean {
 
 /** The PLU and per-lb price a loose-produce row stands for, or null. */
 export function matchLoose(p: LooseProduct, l: LooseLatest): LooseMatch | null {
-  if (!looseCandidate(p)) return null;
+  if (!looseCandidate(p) || isPackage(p, l)) return null;
   const { organic } = nameWords(p.name, true);
   if (p.vendor === 'Metro' || p.vendor === 'SaveOnFoods') {
     const plu = pluByCode(p.sku.trim());
@@ -157,7 +157,7 @@ export function matchLoose(p: LooseProduct, l: LooseLatest): LooseMatch | null {
     if (organic !== plu.organic) return null;
     const perLb = perLbCentsOf(l.perUnit);
     // Metro prints a per-piece price for items sold singly: not a weight price, so nothing is stored.
-    if (perLb === null) return null;
+    if (perLb === null || !plausiblePerLb(perLb)) return null;
     return { plu, perLbCents: perLb, via: 'sku' };
   }
   const found = uniquePluForName(p.name);
@@ -174,8 +174,25 @@ export function matchLoose(p: LooseProduct, l: LooseLatest): LooseMatch | null {
   } else {
     perLb = perLbCentsOf(l.perUnit);
   }
-  if (perLb === null) return null;
+  if (perLb === null || !plausiblePerLb(perLb)) return null;
   return { plu, perLbCents: perLb, via: 'name' };
+}
+
+/** Produce sells for between 15 cents and 50 dollars a pound; outside that a conversion went wrong, so the row is dropped. */
+function plausiblePerLb(cents: number): boolean {
+  return cents >= 15 && cents <= 5000;
+}
+
+/**
+ * A row for a package, not loose weight: a bag, box or tray by name, or a units text of a 2 lb-or-more pack
+ * ("3 lb") on a price that is not itself a weight price. Its price is for the whole package, so it is never read
+ * as a per-lb price. A units text of kilos is left alone: for weighed items it is the average weight ("a bag
+ * contains on average 1kg" on a $13.21/kg grape), and the price beside it is the per-weight price.
+ */
+export function isPackage(p: LooseProduct, l: LooseLatest): boolean {
+  if (/\b(?:bag|bagged|pack|packs|box|tray|case|pail|bundle|mesh|clamshell|pouch|net|jar|can)\b/i.test(p.name)) return true;
+  const lb = /(\d+(?:\.\d+)?)\s*(?:lb|lbs|pound|pounds)\b/i.exec(p.units);
+  return lb !== null && Number(lb[1]) >= 2 && perLbCentsOf(l.current) === null;
 }
 
 /** A store's product name with the pack and shelf words taken off ("Beets - Bulk, Fresh, 170 Gram" -> "Beets"). */
@@ -248,15 +265,23 @@ function leadingNumber(text: string): number | null {
 }
 
 /**
- * The per-lb price the old (crossed-out) price stands for: the per-lb price scaled by old over current, which
- * are the same kind of price on the row ("1.32 avg/ea" and "1.76 avg/ea"). Null when there is no old price or
- * it is not above the current one (a price that rose is not a sale).
+ * The per-lb price the old (crossed-out) price stands for, or null. Two shapes of old price:
+ *  - a weight price ("8.80/kg", Metro 3110): read as one, per lb. It is NOT compared with current_price, which
+ *    is the price of one piece ($3.03): that ratio was 2.9 and made a $11.59 "regular" price (live 2026-11-15);
+ *  - the same kind of price as current_price ("1.32 avg/ea" and "1.76 avg/ea"): the per-lb price scaled by old over current.
+ * Null when there is no old price, it is not above the current one (a price that rose is no sale), or it is more
+ * than 2.5 times the shelf's own per-weight price (no real discount is that deep, so something is misread).
  */
 function regularPerLb(l: LooseLatest, m: LooseMatch): number | null {
-  const was = leadingNumber(l.old);
-  const cur = leadingNumber(l.current);
-  if (was === null || cur === null || was <= cur) return null;
-  return Math.round((m.perLbCents * was) / cur);
+  let regular: number | null = perLbCentsOf(l.old);
+  if (regular === null) {
+    const was = leadingNumber(l.old);
+    const cur = leadingNumber(l.current);
+    if (was === null || cur === null || perLbCentsOf(l.current) !== null) return null;
+    regular = Math.round((m.perLbCents * was) / cur);
+  }
+  if (regular <= m.perLbCents || regular > m.perLbCents * 2.5) return null;
+  return regular;
 }
 
 /** The observations a loose-produce match turns into: the per-lb price, and on a sale the regular per-lb price beside it. */
