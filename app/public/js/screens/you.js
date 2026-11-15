@@ -477,18 +477,14 @@ export default {
           </div>
         </section>
 
-        ${/* Two rows the shopper starts. "Rate Pexi" is the store's own page; neither row is shown in, or tied
-             to, the phone's own rating prompt. "Tell us what's wrong" is the report flow below. */ ''}
+        ${/* "Rate Pexi" is the store's own page, started by the shopper; it is not shown in, or tied to, the
+             phone's own rating prompt. Reporting a wrong price is the "Report a wrong price" row below. */ ''}
         <section class="block">
           <div class="ilist">
             ${rate ? `<a class="ilist-row" href="${escapeHtml(rate)}" target="_blank" rel="noopener noreferrer" data-rate-pexi>
               <span class="ilist-l">${escapeHtml(t('you_rate'))}</span>
               ${rowChevron()}
             </a>` : ''}
-            <button type="button" class="ilist-row" data-act="tell-wrong">
-              <span class="ilist-l">${escapeHtml(t('you_tell_wrong'))}</span>
-              ${rowChevron()}
-            </button>
           </div>
         </section>
 
@@ -728,7 +724,6 @@ export default {
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
-      if (e.target.closest('[data-act="tell-wrong"]')) { ctx.go('correct', {}); return; }
     }, ac.signal);
 
     return () => ac.abort();

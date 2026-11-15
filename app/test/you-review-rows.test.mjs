@@ -1,7 +1,7 @@
 /**
- * The two user-started rows on the You page: "Rate Pexi" (the store's own review page) and "Tell us what's
- * wrong" (the report flow the app already has). Neither is shown in, or tied to, the platform review prompt
- * (app/public/js/review-prompt.js), and Rate Pexi is a plain link the shopper taps, never a question.
+ * The user-started "Rate Pexi" row on the You page (the store's own review page). It is not shown in, or
+ * tied to, the platform review prompt (app/public/js/review-prompt.js), and it is a plain link the shopper
+ * taps, never a question. Reporting a wrong price stays the one existing "Report a wrong price" row.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -67,31 +67,30 @@ test('in a browser there is no Rate Pexi row', () => {
   assert.doesNotMatch(renderOn('web'), /data-rate-pexi|Rate Pexi/);
 });
 
-test('"Tell us what\'s wrong" is there on every platform and opens the report flow', () => {
+test('there is no second "Tell us what\'s wrong" row: the one report row is "Report a wrong price"', () => {
   for (const p of ['ios', 'android', 'web']) {
     const html = renderOn(p);
-    assert.match(html, /data-act="tell-wrong"/, p);
-    assert.match(html, /Tell us what&#39;s wrong|Tell us what's wrong/, p);
+    assert.doesNotMatch(html, /tell-wrong|Tell us what/, p);
+    assert.match(html, /Report a wrong price/, p);
   }
-  assert.match(read('../public/js/screens/you.js'), /data-act="tell-wrong"\]'\)\) \{ ctx\.go\('correct'/);
+  assert.doesNotMatch(read('../public/js/screens/you.js'), /tell-wrong|you_tell_wrong/);
+  assert.doesNotMatch(read('../public/js/ui-strings.js'), /you_tell_wrong/);
 });
 
-test('the rows are French in French, and the key set matches', () => {
+test('the Rate Pexi row is French in French', () => {
   assert.equal(t('you_rate'), 'Rate Pexi');
-  assert.equal(t('you_tell_wrong'), 'Tell us what\'s wrong');
   setLocale('fr');
   try {
     assert.equal(t('you_rate'), 'Évaluer Pexi');
-    assert.equal(t('you_tell_wrong'), 'Dites-nous ce qui ne va pas');
   } finally {
     setLocale('en');
   }
 });
 
-test('the rows ask nothing and are not part of the prompt', () => {
+test('the row asks nothing and is not part of the prompt', () => {
   const src = read('../public/js/screens/you.js');
-  const block = src.slice(src.indexOf('data-rate-pexi') - 400, src.indexOf('data-act="tell-wrong"') + 400);
+  const block = src.slice(src.indexOf('data-rate-pexi') - 400, src.indexOf('data-rate-pexi') + 600);
   assert.doesNotMatch(block, /requestReview|InAppReview|review-prompt|like Pexi|enjoy/i, 'the rows never touch the platform prompt or ask a question');
   const prompt = read('../public/js/review-prompt.js').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  assert.doesNotMatch(prompt, /you\.js|data-rate-pexi|tell-wrong|REVIEW_URLS/, 'the prompt code never points at the rows');
+  assert.doesNotMatch(prompt, /you\.js|data-rate-pexi|REVIEW_URLS/, 'the prompt code never points at the rows');
 });

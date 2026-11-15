@@ -21,7 +21,7 @@ const WIN = { basis: 'own_prices', zone: 'good' };
 function readyState(over = {}) {
   return { ...emptyState(), sessions: 2, wins: 3, winDays: ['2026-11-12', '2026-11-14'], recent: [false, false], ...over };
 }
-const facts = (over = {}) => ({ state: readyState(), win: WIN, thumbDown: false, corrected: false, version: '2026-11-14.1', now: NOW, ...over });
+const facts = (over = {}) => ({ state: readyState(), win: WIN, thumbDown: false, corrected: false, now: NOW, ...over });
 
 test('the decision says yes when every condition holds', () => {
   assert.deepEqual(shouldAskForReview(facts()), { ask: true, blockedBy: null });
@@ -73,9 +73,12 @@ test('the last two scans must not be misses', () => {
   assert.equal(shouldAskForReview(facts({ state: readyState({ recent: [false, false] }) })).ask, true);
 });
 
-test('never twice for one app version', () => {
-  assert.equal(shouldAskForReview(facts({ state: readyState({ askedVersions: ['2026-11-14.1'] }) })).blockedBy, 'asked_this_version');
-  assert.equal(shouldAskForReview(facts({ state: readyState({ askedVersions: ['2026-09-19.1'], lastAskedAt: NOW - 200 * DAY }) })).ask, true);
+test('the app version plays no part: only the 120-day gap spaces the asks', () => {
+  // The version constant can sit unchanged for months, so it must never block a later ask.
+  assert.equal(shouldAskForReview(facts({ state: readyState({ lastAskedAt: NOW - 200 * DAY }) })).ask, true);
+  assert.equal(shouldAskForReview(facts({ state: readyState({ lastAskedAt: NOW - 200 * DAY }), version: '2026-09-19.1' })).ask, true);
+  const src = readFileSync(new URL('../public/js/review-prompt.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /askedVersions|asked_this_version/, 'no per-version record is kept or read');
 });
 
 test('at least 120 days between asks', () => {
@@ -101,7 +104,7 @@ test('the record survives a round trip, and garbage reads as empty', () => {
   const read = (k, f) => (store.has(k) ? store.get(k) : f);
   const write = (k, v) => { store.set(k, v); return true; };
   assert.deepEqual(readState(read), emptyState());
-  const s = readyState({ askedVersions: ['a'], lastAskedAt: 5 });
+  const s = readyState({ lastAskedAt: 5 });
   writeState(s, write);
   assert.deepEqual(readState(read), s);
   store.set(REVIEW_KEY, '{not json');
@@ -186,7 +189,6 @@ for (const [name, blocked] of [
     r.timers[0].fn();
     assert.deepEqual(r.win.calls, []);
     assert.deepEqual(r.events, []);
-    assert.deepEqual(r.saved().askedVersions, []);
     assert.equal(r.saved().lastAskedAt, null);
   });
 }
@@ -196,16 +198,15 @@ test('a camera at rest is not blocked', () => {
   assert.equal(reviewBlocked({ state: 'idle' }), false);
 });
 
-test('asking records the version and the day, and logs one review_asked with no personal data', () => {
+test('asking records the day, and logs one review_asked with no personal data', () => {
   const r = rig({ state: twoWins });
   r.prompter.answerClosed(closing);
   r.timers[0].fn();
   assert.deepEqual(r.events, [{ type: 'review_asked', payload: { platform: 'ios', appVersion: '2026-11-14.1' } }]);
-  assert.deepEqual(r.saved().askedVersions, ['2026-11-14.1']);
   assert.equal(r.saved().lastAskedAt, NOW);
-  // The next win in this version asks for nothing.
+  // The next win asks for nothing until the gap has passed.
   const again = r.prompter.answerClosed(closing);
-  assert.equal(again.blockedBy, 'asked_this_version');
+  assert.equal(again.blockedBy, 'too_soon');
 });
 
 test('Android asks through the same plugin and says so in the event', () => {
@@ -287,7 +288,7 @@ test('a wrapper built without the plugin asks for nothing and does not use up th
   r.prompter.answerClosed(closing);
   r.timers[0].fn();
   assert.deepEqual(r.events, []);
-  assert.deepEqual(r.saved().askedVersions, []);
+  assert.equal(r.saved().lastAskedAt, null);
 });
 
 /* -------------------------------------------------- the platform's prompt only */

@@ -8,8 +8,8 @@
  * "do you like Pexi?" question before it or tied to it, and nothing is given for rating. Each of
  * those is a named cost, not a taste: Apple can remove the app and close the developer account,
  * Google Play policy forbids the same, and Canada's Competition Bureau treats steered or paid
- * reviews as deceptive. The two user-started rows on the You page ("Rate Pexi", "Tell us what's
- * wrong") are separate, are never shown in or tied to the prompt, and live in screens/you.js.
+ * reviews as deceptive. The user-started "Rate Pexi" row on the You page is separate, is never shown
+ * in or tied to the prompt, and lives in screens/you.js.
  *
  * WHEN IT ASKS (every line must hold; `shouldAskForReview` is the one place that says so):
  *   - the answer's basis is own_prices (real shop prices) and its zone is great or good;
@@ -17,7 +17,7 @@
  *   - at least the third such win, on at least two different local days;
  *   - not the first session;
  *   - the last two scans were not misses (no price, or not in the catalogue);
- *   - not asked yet for this app version, and at least 120 days since the last ask.
+ *   - at least 120 days since the last ask (the app version plays no part: it can sit unchanged for months).
  * The ask goes about a second AFTER the shopper closes that answer sheet, and only if the camera is
  * back at rest: never over the camera mid-scan, the price pad, a sheet or the keyboard.
  *
@@ -56,7 +56,7 @@ export function localDay(ms) {
 }
 
 export function emptyState() {
-  return { v: 1, sessions: 0, wins: 0, winDays: [], recent: [], askedVersions: [], lastAskedAt: null };
+  return { v: 1, sessions: 0, wins: 0, winDays: [], recent: [], lastAskedAt: null };
 }
 
 /** The saved record, cleaned. Anything unreadable is an empty record. */
@@ -72,7 +72,6 @@ export function readState(read = readSetting) {
     wins: n(raw.wins),
     winDays: strings(raw.winDays).slice(-KEEP_DAYS),
     recent: (Array.isArray(raw.recent) ? raw.recent.filter((x) => typeof x === 'boolean') : []).slice(-2),
-    askedVersions: strings(raw.askedVersions),
     lastAskedAt: Number.isFinite(raw.lastAskedAt) ? raw.lastAskedAt : null,
   };
 }
@@ -104,10 +103,9 @@ export function winOf(rawVerdict, typedCents = null) {
  *   state    the record, as `readState` returns it
  *   win      `winOf`'s result for the answer just closed (null when it was not a win)
  *   thumbDown / corrected   the shopper marked this scan wrong, or opened the correction on it
- *   version  this build's app version
  *   now      ms
  */
-export function shouldAskForReview({ state, win, thumbDown = false, corrected = false, version, now }) {
+export function shouldAskForReview({ state, win, thumbDown = false, corrected = false, now }) {
   const blocked = (blockedBy) => ({ ask: false, blockedBy });
   if (!win || win.basis !== WIN_BASIS) return blocked('not_own_prices');
   if (!WIN_ZONES.includes(win.zone)) return blocked('zone');
@@ -117,7 +115,6 @@ export function shouldAskForReview({ state, win, thumbDown = false, corrected = 
   if (new Set(state.winDays).size < MIN_WIN_DAYS) return blocked('one_day');
   if (state.sessions < 2) return blocked('first_session');
   if (state.recent.length < 2 || state.recent.some((missed) => missed !== false)) return blocked('recent_miss');
-  if (state.askedVersions.includes(version)) return blocked('asked_this_version');
   if (state.lastAskedAt !== null && now - state.lastAskedAt < MIN_DAYS_BETWEEN_ASKS * DAY_MS) return blocked('too_soon');
   return { ask: true, blockedBy: null };
 }
@@ -225,7 +222,7 @@ export function createReviewPrompter({
         if (!state.winDays.includes(today)) state.winDays = [...state.winDays, today].slice(-KEEP_DAYS);
         save(state);
       }
-      const decision = shouldAskForReview({ state, win: win_, thumbDown, corrected, version, now: now() });
+      const decision = shouldAskForReview({ state, win: win_, thumbDown, corrected, now: now() });
       if (!decision.ask) return decision;
       if (timer !== null) clearTimer(timer);
       timer = setTimer(() => {
@@ -238,7 +235,6 @@ export function createReviewPrompter({
         });
         if (result !== 'asked') return;
         const after = load();
-        after.askedVersions = [...after.askedVersions, version];
         after.lastAskedAt = now();
         save(after);
         track('review_asked', { platform: platformOf(win), appVersion: version });
