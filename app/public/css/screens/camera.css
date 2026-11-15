@@ -2509,6 +2509,16 @@
 .vd-name-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .vd-name-row .scan-thumb { margin-left: 0; width: 44px; height: 44px; }
 .vd-name-row .itemname { flex: 1 1 auto; min-width: 0; }
+/* 2026-11-14 (produce sold by weight): one 44 px row under the name: less / amount / more, the lb-kg switch,
+   and the total for that amount on the right. The price per pound above it stays the verdict. */
+.vd-amount { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.vd-amt-step { display: flex; align-items: center; flex: none; }
+.vd-amt-btn { appearance: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid currentColor; background: transparent; color: inherit; font: 700 22px/1 var(--f-ui); display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.vd-amt-qty { min-width: 62px; text-align: center; font: 700 16px var(--f-ui); font-variant-numeric: tabular-nums; }
+.vd-amt-units { display: flex; flex: none; border: 1.5px solid currentColor; border-radius: 22px; overflow: hidden; }
+.vd-amt-u { appearance: none; min-width: 44px; height: 44px; border: 0; background: transparent; color: inherit; font: 700 14px var(--f-ui); padding: 0 8px; cursor: pointer; }
+.vd-amt-u[aria-checked="true"] { background: var(--tier-on, #fff); color: var(--tier, #000); }
+.vd-amt-total { margin-left: auto; flex: none; font: 800 20px var(--f-display); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .sheet.dist .vd-half-actions { margin-bottom: 2px; }
 /* R-40: the first position fits 60% with its one button showing: tighter steps, the word clear of the
    close button, the price and Pexi's face on one row, the two estimate lines as one block. */

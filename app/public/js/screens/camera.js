@@ -37,6 +37,7 @@ import * as shops from '../shops.js';
 import { countryLabel, countryIn } from './market.js';
 import { locale, localeTag } from '../lib/locale.js';
 import { usableRange, placeShelf, shelfCentsOf, provenanceOf, noRangeKey, poolCents } from '../lib/catalogue-range.js';
+import { AMOUNT_DEFAULT, AMOUNT_UNITS, cleanAmount, soldByWeight, stepAmount, switchUnit, totalCents } from '../lib/weight-amount.js';
 import { usableVerdict, shopperOf, shopperFor, multipleOf, bellSvg, tweenVerdict, ZONE_TIER, checkVerdict, asShown, roundEstimateCents } from '../lib/verdict-chart.js';
 import { mountTextMatch } from '../text-match.js';
 import { priorPrices, historyChartHtml } from '../lib/price-history.js';
@@ -1823,7 +1824,27 @@ function typicalLine(centre) {
  *                         without its entry motion (a repaint of a sheet
  *                         already on screen: only the new dot moves)
  */
-function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false, shopperReport = null } = {}) {
+/**
+ * The amount a shopper sets on produce sold by weight (2026-11-14): less / more, a lb-kg switch and the total
+ * for that amount at the price per pound on the tag. The verdict above it stays per pound.
+ */
+function amountBlock(perLbCents, amount, currency) {
+  const a = cleanAmount(amount);
+  const qtyText = `${localNumber(a.qty)} ${t(`vd_unit_${a.unit}`)}`;
+  const cents = totalCents(perLbCents, a);
+  const unitBtn = (u) => `<button type="button" role="radio" class="vd-amt-u" data-act="amount-unit" data-unit="${u}" aria-checked="${a.unit === u ? 'true' : 'false'}">${escapeHtml(t(`vd_unit_${u}`))}</button>`;
+  return `<div class="vd-amount" data-vd-amount>
+          <div class="vd-amt-step">
+            <button type="button" class="vd-amt-btn" data-act="amount-step" data-dir="-1" aria-label="${escapeHtml(t('vd_amount_less'))}">−</button>
+            <span class="vd-amt-qty" data-amount-qty>${escapeHtml(qtyText)}</span>
+            <button type="button" class="vd-amt-btn" data-act="amount-step" data-dir="1" aria-label="${escapeHtml(t('vd_amount_more'))}">+</button>
+          </div>
+          <div class="vd-amt-units" role="radiogroup" aria-label="${escapeHtml(t('vd_amount_group'))}">${AMOUNT_UNITS.map(unitBtn).join('')}</div>
+          <b class="vd-amt-total" data-amount-total aria-live="polite" aria-label="${escapeHtml(t('vd_amount_total', { amount: qtyText }))}">${escapeHtml(money(cents ?? 0, currency))}</b>
+        </div>`;
+}
+
+function distributionSheet(raw, { name = '', thumb = null, saved = false, typedCents = null, still = false, shopperReport = null, sold = null, amount = null } = {}) {
   checkVerdict(raw);
   if (typedCents !== null && typedCents !== undefined && !(typeof typedCents === 'number' && Number.isFinite(typedCents) && typedCents > 0)) {
     throw new Error(`distributionSheet: the typed price (typedCents ${JSON.stringify(typedCents) ?? String(typedCents)}) is not a price`);
@@ -1880,14 +1901,16 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
     ? `<div class="vd-name-row">${thumbImg(thumb)}<p class="itemname" role="button" tabindex="0" data-act="name-open" aria-expanded="false" data-dist-name>${escapeHtml(name)}</p></div>`
     : thumb ? `<div class="vd-name-row">${thumbImg(thumb)}</div>` : '';
   // One plain line for the usual range; it replaces the "Typical price in Canada, Pexi's estimate" line and the chart's caption.
+  const byWeight = Boolean(s) && soldByWeight(sold);
   const usualLine = t('vd_band', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) });
   const peek = s
     ? `${/* D-268 B8 (2026-11-11 walk): the label sat between the word and "$6.99 On the tag" and read
            as a label on the shopper's own price; it labels the verdict word, so it goes above it. */ ''}
         ${zone ? `<div class="vd-estimate vd-estimate-kicker" data-vd-estimate>${escapeHtml(t('vd_estimate'))}</div>` : ''}
         <h2 class="vword" data-dist-headline>${escapeHtml(headline)}</h2>
-        ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t('vd_on_tag'))}</span></p>`)}
+        ${faceRow(`<p class="vd-ask"><span class="price">${escapeHtml(fmt(s.cents))}</span><span class="vd-ask-cap">${escapeHtml(t(byWeight ? 'vd_on_tag_per_lb' : 'vd_on_tag'))}</span></p>`)}
         ${nameRow}
+        ${byWeight ? amountBlock(s.cents, amount, v.currency) : ''}
         <div class="vd-lines">
           <p class="sub vd-line" data-dist-line>${escapeHtml(distWhere(s, v))}</p>
           <p class="sub vd-typ" data-dist-typical>${escapeHtml(usualLine)}</p>
@@ -6364,6 +6387,21 @@ export default {
         openPad({ text: dist.name, category: null, distPrice: true }, { force: true });
         return;
       }
+      /* Produce sold by weight: less / more, or lb / kg. Only the amount block is redrawn, so the sheet does not
+         jump and the tapped control keeps its focus. The price per pound above it is never touched. */
+      if ((act === 'amount-step' || act === 'amount-unit') && dist) {
+        dist.amount = act === 'amount-step' ? stepAmount(dist.amount, Number(btn.dataset.dir)) : switchUnit(dist.amount, btn.dataset.unit);
+        const block = slot.querySelector('[data-vd-amount]');
+        const shopper = dist.typedCents ?? usableVerdict(dist.raw)?.shopper?.cents ?? null;
+        if (block && shopper) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = amountBlock(shopper, dist.amount, usableVerdict(dist.raw).currency).trim();
+          block.replaceWith(tpl.content.firstElementChild);
+          const again = act === 'amount-step' ? `[data-act="amount-step"][data-dir="${btn.dataset.dir}"]` : `[data-act="amount-unit"][data-unit="${btn.dataset.unit}"]`;
+          slot.querySelector(`[data-vd-amount] ${again}`)?.focus();
+        }
+        return;
+      }
       if (act === 'dist-suspect' && dist) {
         const cents = Number(btn.dataset.cents);
         if (Number.isInteger(cents) && cents > 0) {
@@ -6900,6 +6938,7 @@ export default {
           key: m?.code ?? (text ? `name:${text}` : null),
           cents,
           shopperReport: id.shopperReport ?? null,
+          sold: id.identity?.unit ?? null,
         });
         return;
       }
@@ -6983,6 +7022,7 @@ export default {
           key: id?.barcode ?? answer.barcode ?? null,
           cents,
           shopperReport: answer.shopperReport ?? null,
+          sold: id?.unit ?? answer.unit ?? null,
         });
         return;
       }
@@ -7169,9 +7209,9 @@ export default {
 
     /* The barcode and shelf price of the last lookup that got no answer, for Retry. */
     let lastLookup = null;
-    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null, historyId = null } = {}) {
+    function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null, historyId = null, sold = null } = {}) {
       const v = usableVerdict(raw);
-      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport, historyId, ownRow: false };
+      dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport, historyId, ownRow: false, sold, amount: { ...AMOUNT_DEFAULT } };
       /* D07: every answer is written to Past scans, the catalogue-first and
          typed-name ones as much as a Gemini one. A Gemini scan already wrote
          its own row (`historyId`), which gets the answer attached instead of
@@ -7222,6 +7262,8 @@ export default {
           typedCents: dist.typedCents,
           still: inPlace,
           shopperReport: dist.shopperReport ?? null,
+          sold: dist.sold ?? null,
+          amount: dist.amount ?? null,
         });
       } catch (err) {
         // Fails loudly (RULINGS.md "Errors never go unnoticed"): said on the console, sent with the scan's

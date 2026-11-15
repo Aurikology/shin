@@ -310,6 +310,14 @@ const EN = {
   vd_typical_in: (f) => `Typical price ${f.where}, Pexi's estimate: ${f.centre}`,
   /* R-41: the caption under the price the shopper read off the tag. */
   vd_on_tag: 'On the tag',
+  /* Produce sold by weight (2026-11-14): the verdict stays per pound; the shopper sets an amount and reads the total. */
+  vd_on_tag_per_lb: 'On the tag, per lb',
+  vd_amount_group: 'Unit',
+  vd_amount_less: 'Less',
+  vd_amount_more: 'More',
+  vd_amount_total: (f) => `Total for ${f.amount}`,
+  vd_unit_lb: 'lb',
+  vd_unit_kg: 'kg',
   /* R-43: the chart's description carries the band's own sentence. */
   vd_band_alt: (f) => `Pexi's estimate of 8 in 10 prices, ${f.low} to ${f.high}.`,
   /* R-45: the confidence in a word, beside three dots, in the half position (RULINGS 2026-10-10). */
@@ -1051,6 +1059,13 @@ const FR = {
   vd_typical: (f) => `Prix habituel, estimation de Pexi : ${f.centre}`,
   vd_typical_in: (f) => `Prix habituel ${f.where}, estimation de Pexi : ${f.centre}`,
   vd_on_tag: 'Sur l’étiquette',
+  vd_on_tag_per_lb: 'Sur l’étiquette, la livre',
+  vd_amount_group: 'Unité',
+  vd_amount_less: 'Moins',
+  vd_amount_more: 'Plus',
+  vd_amount_total: (f) => `Total pour ${f.amount}`,
+  vd_unit_lb: 'lb',
+  vd_unit_kg: 'kg',
   vd_band_alt: (f) => `L’estimation de Pexi pour 8 prix sur 10, de ${f.low} à ${f.high}.`,
   vd_conf_high: 'Certain',
   vd_conf_medium: 'Assez sûr',
