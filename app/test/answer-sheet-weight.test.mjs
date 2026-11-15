@@ -118,3 +118,25 @@ test('the controls are real, named buttons at least 44 px (the sheet css sizes t
   }
   assert.match(peek, /role="radiogroup"/);
 });
+
+/* The real live answers for a PLU (fetched from the relay 2026-11-14 with a probe device): produce carries its
+   name in identity.name and its unit in identity.unit, and the sheet shows the name, not the typed digits. */
+import { readFileSync } from 'node:fs';
+import { cam } from './ux/ux-b6-support.mjs';
+
+const live = (f) => JSON.parse(readFileSync(new URL(`./fixtures/${f}`, import.meta.url), 'utf8'));
+
+for (const [file, name, plu] of [['live-identify-4011-bananas.json', 'Bananas', '4011'], ['live-identify-3110-cara-cara.json', 'Cara Cara Orange', '3110']]) {
+  test(`live ${name}: the sheet is named "${name}", never the typed digits, and weighs by the pound`, () => {
+    const a = live(file);
+    assert.equal(a.identity.plu, plu);
+    // A typed PLU: the answer carries no ownMatch, only identity.
+    assert.equal(cam.answerName(a, plu), name);
+    assert.equal(cam.answerName({ ownMatch: { name: 'Banana', brand: null, size: null } }, plu), 'Banana');
+    assert.equal(cam.answerName({}, 'oat milk'), 'oat milk');
+    const html = distributionSheet(a.verdict, { name: cam.answerName(a, plu), sold: a.identity.unit });
+    assert.match(html, new RegExp(`data-dist-name>${name}<`));
+    assert.doesNotMatch(html, new RegExp(`data-dist-name>${plu}<`));
+    assert.match(html, /data-vd-amount/);
+  });
+}

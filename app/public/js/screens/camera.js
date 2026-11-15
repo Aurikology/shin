@@ -3101,6 +3101,15 @@ function candidateRow({ brand, name, size, category } = {}) {
   };
 }
 
+/**
+ * What an answer is called on its sheet: the matched item's name (`ownMatch`), else the identity the answer carries
+ * (produce by PLU answers with `identity.name`, "Bananas", and no ownMatch), else what the shopper typed.
+ */
+function answerName(answer, typedText = '') {
+  const m = answer?.ownMatch ?? answer?.identity ?? null;
+  return m && cleanName(m.name) ? candidateRow({ brand: m.brand, name: m.name, size: m.size }).label : typedText;
+}
+
 /** Brand, name and size off a photo-route candidate row (`{ brand, name, size }`), through the same rule `candidateRow` uses everywhere else. */
 function photoCandidateLabel(c) {
   return candidateRow({ brand: c?.brand, name: c?.name, size: c?.size }).label;
@@ -3119,7 +3128,7 @@ export { geminiSheet, geminiFailureSheet, geminiFailed };
 // The catalogue-first answer (SHIN_CATALOGUE_FIRST on), for test/catalogue-answer.test.mjs.
 export { catalogueSheet, rangeAnswerSnapshot };
 // The verdict bell (RULINGS.md "V1 verdict screen mechanics"), for the tests and the fixture walk.
-export { distributionSheet, morphBell, distFace };
+export { distributionSheet, morphBell, distFace, answerName };
 
 /* The shop shortlist joins them 2026-09-13, same reason: `padShopRow` and
    `storePickerSheet` are pure string builders, so app/test/shops.test.mjs can
@@ -6934,8 +6943,8 @@ export default {
       if (usableVerdict(id?.verdict)) {
         const m = id.ownMatch;
         showDistribution(id.verdict, {
-          name: m ? candidateRow({ brand: m.brand, name: m.name, size: m.size }).label : text,
-          key: m?.code ?? (text ? `name:${text}` : null),
+          name: answerName(id, text),
+          key: m?.code ?? id.identity?.barcode ?? (text ? `name:${text}` : null),
           cents,
           shopperReport: id.shopperReport ?? null,
           sold: id.identity?.unit ?? null,
