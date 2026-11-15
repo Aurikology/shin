@@ -46,6 +46,11 @@ const NUTELLA = withCheck('006202018220'); // the ad-style name
 const DEO_A = withCheck('062699002010');
 const DEO_B = withCheck('062699002011');
 const DEO_C = withCheck('062699002012');
+const LAPTOP = withCheck('088411641342'); // a Dell laptop, as Open Icecat holds it
+const DICTAPHONE = withCheck('401811180900');
+const SOAP_ICECAT = withCheck('062699002030');
+const TEA_OFF = withCheck('062699002031');
+const TOY_OPF = withCheck('062699002032');
 const FRIES_PATH = '["en:spreads","en:sweet-spreads"]';
 
 const { openCatalogue, rebuildFts } = await import('../../catalogue/src/schema.ts');
@@ -73,6 +78,15 @@ const catDb = openCatalogue(':memory:');
   insert.run(DEO_A, 'Antiperspirant Deodorant Fresh', 'Antiperspirant Deodorant Fresh', 'Lynx', '150 ml', 150, 'ml', '["en:deodorants"]', 'en:deodorants');
   insert.run(DEO_B, 'Deodorant Sport', 'Deodorant Sport', 'Dove', '150 ml', 150, 'ml', '["en:deodorants"]', 'en:deodorants');
   insert.run(DEO_C, 'Deodorant Stick Original', 'Deodorant Stick Original', 'Old Spice', '85 g', 85, 'g', '["en:deodorants"]', 'en:deodorants');
+  const insertFrom = catDb.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,NULL,?,NULL,NULL,NULL,?,?,'[]',1,?)`);
+  insertFrom.run(LAPTOP, 'Dell Latitude 3110 Laptop', 'Dell Latitude 3110 Laptop', 'Dell', '["en:computers-peripherals","en:laptops"]', 'en:laptops', 'icecat');
+  insertFrom.run(DICTAPHONE, 'Grundig Digta 3110 Dictaphone', 'Grundig Digta 3110 Dictaphone', 'Grundig', '["en:pro-consumer-av-photo","en:dictaphones"]', 'en:dictaphones', 'icecat');
+  insertFrom.run(SOAP_ICECAT, 'Latitude 3110 Hand Soap', 'Latitude 3110 Hand Soap', 'Pure', '["en:health-beauty-personal-care","en:soaps"]', 'en:soaps', 'icecat');
+  insertFrom.run(TEA_OFF, 'Latitude 3110 Lemon Tea', 'Latitude 3110 Lemon Tea', 'Tea Co', '["en:beverages","en:teas"]', 'en:teas', 'openfoodfacts');
+  insertFrom.run(TOY_OPF, 'Latitude 3110 Toy Truck', 'Latitude 3110 Toy Truck', 'Toyco', '["en:toys"]', 'en:toys', 'openproductsfacts');
   rebuildFts(catDb);
   rebuildCategories(catDb);
 }
@@ -197,4 +211,25 @@ test('the pick list and a typed answer show the short name too', async () => {
 test('matching still reads the full catalogue name: words only the long name holds still find the product', async () => {
   const a = await byName('golden cookies hazelnut');
   assert.equal(a.pickCandidates?.[0]?.barcode, NUTELLA);
+});
+
+// 4. Pexi is a grocery price checker: a typed name never offers a laptop, a dictaphone or a toy.
+
+test('a typed name offers only grocery, household, personal care, baby and pet rows', async () => {
+  const a = await byName('latitude 3110');
+  const codes: string[] = (a.pickCandidates ?? []).map((c: { barcode: string }) => c.barcode);
+  assert.ok(codes.includes(TEA_OFF), 'grocery row missing');
+  assert.ok(codes.includes(SOAP_ICECAT), 'a personal-care row from the electronics source was dropped');
+  for (const bad of [LAPTOP, DICTAPHONE, TOY_OPF]) assert.ok(!codes.includes(bad), `${bad} is not grocery`);
+});
+
+test('a typed name that only electronics match finds nothing, never a laptop', async () => {
+  const a = await byName('dell laptop');
+  assert.deepEqual(a.pickCandidates ?? [], []);
+  assert.equal(a.resolvedBy ?? null, null);
+});
+
+test('a scanned barcode is what it is: the laptop still answers by its barcode', async () => {
+  const a = await get(`/api/identify?gtin=${LAPTOP}&shelfPriceCents=49900&${market}`);
+  assert.equal(a.identity?.barcode, LAPTOP);
 });

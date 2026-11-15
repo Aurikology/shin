@@ -43,6 +43,7 @@ import {
 } from './src/scans.ts';
 import { customerDataFaults } from './src/customer-data-faults.ts';
 import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
+import { isGroceryRow } from './src/grocery-scope.ts';
 import { currentCorrectionStore } from '../price/src/corrections.ts';
 import { hasShopPrice, hasShopperPrice, shopperVoiceFor } from '../price/src/shopper-prices.ts';
 import { shopperContribution } from './src/shopper-contribution.ts';
@@ -1175,12 +1176,16 @@ function typedCatalogueAttached(): boolean {
   return seam !== undefined ? seam !== null : !!searchService;
 }
 
+/** Rows a typed search asks the catalogue for, before the grocery filter keeps the first five. */
+const GROCERY_SEARCH_WINDOW = 30;
+
 async function typedCatalogueSearch(text: string, device: string, pickedGtin: string | null = null): Promise<{ rows: TypedRow[]; band: string }> {
   const seam = catalogueFirstTest?.searcher;
   // A barcode that rides with the words is the shopper's pick ("Not this", then a price): the barcode branch answers it, and the words search only when the catalogue does not know that barcode.
-  const q = { text, limit: 5, vectors: vectorsOn, ...(pickedGtin ? { gtin: pickedGtin } : {}) };
+  // A words-only search is narrowed to grocery (grocery-scope.ts) after the fact, so it asks for a wider list to still end with five.
+  const q = { text, limit: GROCERY_SEARCH_WINDOW, vectors: vectorsOn, ...(pickedGtin ? { gtin: pickedGtin } : {}) };
   try {
-    let raw: { band?: string; candidates?: unknown[] };
+    let raw: { band?: string; matchedBy?: string; candidates?: unknown[] };
     let downgrade = false;
     if (seam !== undefined) {
       if (seam === null) return { rows: [], band: 'miss' };
@@ -1191,10 +1196,16 @@ async function typedCatalogueSearch(text: string, device: string, pickedGtin: st
       raw = out.result as typeof raw;
       downgrade = out.restricted && !out.fellBack;
     }
-    const rows = (raw.candidates ?? []).filter(
+    const all = (raw.candidates ?? []).filter(
       (c): c is TypedRow => !!c && typeof c === 'object' && typeof (c as TypedRow).code === 'string' && typeof (c as TypedRow).name === 'string',
     );
-    return { rows, band: downgrade && raw.band === 'confident' ? 'ambiguous' : (raw.band ?? 'ambiguous') };
+    let band = downgrade && raw.band === 'confident' ? 'ambiguous' : (raw.band ?? 'ambiguous');
+    if (raw.matchedBy === 'gtin') return { rows: all, band };
+    const rows = all.filter(isGroceryRow).slice(0, 5);
+    // The leader the search banded was not grocery, so that band was never about this list's leader.
+    if (rows.length === 0) band = 'miss';
+    else if (rows[0] !== all[0] && band === 'confident') band = 'ambiguous';
+    return { rows, band };
   } catch (err) {
     logError({ where: 'identify.typed_search', deviceId: device, scanId: null, err });
     return { rows: [], band: 'miss' };
