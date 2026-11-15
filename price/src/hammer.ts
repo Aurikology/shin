@@ -18,7 +18,10 @@
  * prices still has this product. A product with no barcode is skipped, EXCEPT
  * loose produce sold by weight: those rows that join a PLU (price/src/plu.ts)
  * are written per lb under the PLU's key, so a shopper who scans or types
- * 3110 or 94011 gets a per-lb answer (rules and precision in hammer-produce.ts).
+ * 3110 or 94011 gets a per-lb answer (rules and precision in hammer-produce.ts). The other no-barcode
+ * products (about 112,000) get the barcode of their one unambiguous twin at another chain when there is
+ * one (hammer-match.ts: same size, same brand, same name words, no rival barcode); the row is a name join
+ * flagged `hammer_matched`, and `--undo-matched` removes them all. Hold-out check: price/scripts/hammer-match-eval.ts.
  *
  * JOIN METHOD. Project Hammer says UPCs came straight from the vendor for
  * Metro, Galleria and Save-On-Foods (joined `gtin`); Walmart's were matched
@@ -36,6 +39,7 @@ import { registerSource, requireSourceUse, currentRegistry } from './registry.ts
 import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
 import { looseCandidate, matchLoose, looseObservation, looseObservations, pluDisplayNames } from './hammer-produce.ts';
+import { HammerMatcher, type MatchResult } from './hammer-match.ts';
 
 export const SELLER = 'hammer';
 
@@ -226,6 +230,48 @@ export function looseRowsFor(p: HammerProduct, l: LatestPrice): ObservationRow |
 }
 
 /**
+ * MATCHED ROWS. A product with no barcode whose unambiguous twin at another chain has one (hammer-match.ts)
+ * is stored under that barcode. The row is a name join (the lowest weight the price engine gives), keeps its
+ * own sku and name, and carries this flag plus `twin:<the product the barcode came from>` in `flags`, so the
+ * whole set can be listed or removed: `node price/src/hammer.ts --undo-matched`.
+ */
+export const MATCHED_FLAG = 'hammer_matched';
+
+/** The observations a no-barcode product's latest row turns into under its twin's barcode. */
+export function matchedRowsFor(p: HammerProduct, l: LatestPrice, m: Pick<MatchResult, 'code' | 'twin'>): ObservationRow[] {
+  const flags = JSON.stringify([MATCHED_FLAG, `twin:${m.twin.id}`]);
+  return observationsFor({ ...p, code: m.code }, l).map((o) => ({ ...o, joinMethod: 'name' as const, flags }));
+}
+
+/** Removes every matched row (the way back from a bad match rule). The delete is in the observation log. */
+export function dropMatchedRows(db: ReturnType<typeof openPrices>): number {
+  return Number(db.prepare("DELETE FROM observation WHERE seller = ? AND flags LIKE '%\"hammer_matched\"%'").run(SELLER).changes);
+}
+
+export interface MatchPlan {
+  readonly matches: Map<string, MatchResult>;
+  readonly triedByVendor: Record<string, number>;
+  readonly matchedByVendor: Record<string, number>;
+}
+
+/** Which no-barcode products get a twin's barcode. `skip` holds the ones handled elsewhere (loose produce). */
+export function planMatches(products: Map<string, HammerProduct>, skip: ReadonlySet<string>): MatchPlan {
+  const matcher = new HammerMatcher([...products.values()]);
+  const matches = new Map<string, MatchResult>();
+  const triedByVendor: Record<string, number> = {};
+  const matchedByVendor: Record<string, number> = {};
+  for (const p of products.values()) {
+    if (p.code !== null || skip.has(p.id)) continue;
+    triedByVendor[p.vendor] = (triedByVendor[p.vendor] ?? 0) + 1;
+    const r = matcher.match(p);
+    if (!r.ok) continue;
+    matches.set(p.id, r.result);
+    matchedByVendor[p.vendor] = (matchedByVendor[p.vendor] ?? 0) + 1;
+  }
+  return { matches, triedByVendor, matchedByVendor };
+}
+
+/**
  * Every earlier loose-produce row this importer wrote (unit label `$/lb`, which no barcoded Hammer row has).
  * A reload drops them first and rewrites the current set, so a row a newer rule would not write (the $11.59
  * "regular" price of 2026-11-15) cannot linger beside it. The delete is in the observation log.
@@ -315,6 +361,12 @@ async function main(): Promise<void> {
     db.close();
     return;
   }
+  if (process.argv[2] === '--undo-matched') {
+    const db = openPrices(undefined);
+    console.log(`hammer: removed ${dropMatchedRows(db)} matched rows`);
+    db.close();
+    return;
+  }
   const dir = process.argv[2];
   if (!dir) {
     console.error('usage: SHIN_PRICES=<prices.db> node price/src/hammer.ts <dir with hammer-4-product.csv and hammer-4-raw.csv>');
@@ -332,7 +384,12 @@ async function main(): Promise<void> {
   const withCode = new Set([...products.values()].filter((p) => p.code !== null).map((p) => p.id));
   const looseIds = new Set([...products.values()].filter(looseCandidate).map((p) => p.id));
   console.log(`hammer: ${products.size} products, ${withCode.size} with a usable barcode, ${looseIds.size} loose-produce candidates`);
-  const wanted = new Set([...withCode, ...looseIds]);
+  // No-barcode packaged goods that have an unambiguous twin with a barcode at another chain (--no-match skips this).
+  const plan: MatchPlan = process.argv.includes('--no-match')
+    ? { matches: new Map(), triedByVendor: {}, matchedByVendor: {} }
+    : planMatches(products, looseIds);
+  console.log(`hammer: matched ${plan.matches.size} no-barcode products to a twin's barcode; tried ${JSON.stringify(plan.triedByVendor)}; matched ${JSON.stringify(plan.matchedByVendor)}`);
+  const wanted = new Set([...withCode, ...looseIds, ...plan.matches.keys()]);
   const { latest, rows, minDay, maxDay } = await readLatest(join(dir, 'hammer-4-raw.csv'), wanted);
   console.log(`hammer: ${rows} price rows from ${minDay} to ${maxDay}; ${latest.size} products have a price`);
 
@@ -346,11 +403,22 @@ async function main(): Promise<void> {
   let looseSkipped = 0;
   const nameRows: Array<{ base: string; name: string }> = [];
   const looseByVendor: Record<string, number> = {};
+  const matchedWritten: Record<string, number> = {};
+  let matchedSkipped = 0;
   db.exec('BEGIN');
   try {
     console.log(`hammer: dropped ${dropLooseRows(db)} earlier loose-produce rows before rewriting them`);
+    console.log(`hammer: dropped ${dropMatchedRows(db)} earlier matched rows before rewriting them`);
     for (const [id, l] of latest) {
       const p = products.get(id)!;
+      const twin = plan.matches.get(id);
+      if (twin) {
+        const rows = matchedRowsFor(p, l, twin);
+        if (rows.length === 0) { matchedSkipped++; continue; }
+        for (const o of rows) recordObservation(db, o);
+        matchedWritten[p.vendor] = (matchedWritten[p.vendor] ?? 0) + 1;
+        continue;
+      }
       if (looseIds.has(id)) {
         const m = matchLoose(p, l);
         if (m === null) { looseSkipped++; continue; }
@@ -375,6 +443,8 @@ async function main(): Promise<void> {
   console.log(`hammer: wrote ${written} observations; ${skippedPrice} products skipped for an unusable price; ${distinct.n} distinct barcodes held`);
   console.log(`hammer: products priced by vendor ${JSON.stringify(byVendor)}`);
   console.log(`hammer: loose produce ${looseIds.size} candidates, ${looseWritten} matched a PLU and stored per lb, ${looseSkipped} skipped; matched by vendor ${JSON.stringify(looseByVendor)}`);
+  const matchedTotal = Object.values(matchedWritten).reduce((a, b) => a + b, 0);
+  console.log(`hammer: matched no-barcode products stored under a twin's barcode ${matchedTotal} (${matchedSkipped} had no usable price); by vendor ${JSON.stringify(matchedWritten)}`);
   const namesAt = process.argv.indexOf('--plu-names');
   if (namesAt !== -1) {
     const out = process.argv[namesAt + 1];
