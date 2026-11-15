@@ -60,7 +60,8 @@ import { FLAGS } from '../flags.js';
 import { haptic, verdictHaptic, reportHapticFault, CAPTURE_HOLD_MS } from '../lib/haptics.js';
 import { createAutoFire } from '../lib/auto-fire.js';
 import { assertCheckDigit, hasValidCheckDigit } from '../lib/gtin.js';
-import { packReadOn } from '../dev-mode.js';
+import { packReadOn, devOn } from '../dev-mode.js';
+import { tagsOn } from '../screen-tag-badge.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 
 /**
@@ -2572,12 +2573,18 @@ function padNameField(on, typedLabel) {
         </div>`;
 }
 
+/** "Find a better buy" (switching) does not answer yet (D-256, asked 2026-11-12): false hides the choice. */
+const SWITCHING_ON = false;
+
 /**
  * Row 25: the two-way choice on the price pad, validation or switching, made by
  * the user. `mode` is the one showing as chosen. Only the scan-time pad carries
  * it: a pad opened for anything else has no scan to send the choice with.
  */
 function padAltChoice(mode) {
+  /* 2026-11-12 (D-256): "Find a better buy" is off until it gives a shopper a result, and one button
+     is no choice, so the whole group is not drawn. The pad's mode stays `validation`. */
+  if (!SWITCHING_ON) return '';
   if (mode !== 'validation' && mode !== 'switching') return '';
   const btn = (m) => `<button type="button" class="modbtn" data-alt-mode="${m}" aria-pressed="${mode === m}">${escapeHtml(t(`cam_alt_${m}`))}</button>`;
   return `
@@ -7355,6 +7362,10 @@ export default {
         track('text_match_pick', { code });
         void onBarcode({ value: code, format: 'text_match', frames: 0 });
       },
+      /* 2026-11-14 (owner: the text scanning feature "still appears and does nothing"): the pick-of-3
+         is a developer's tool until it gives a shopper a result. `native: null` means no reader, so
+         nothing mounts and nothing is drawn; the Developer switch (or ?dev=1) brings it back. */
+      native: devOn({ tagsOn: tagsOn() }) ? undefined : null,
     });
     if (textMatch) {
       cam.insertBefore(tmHost, slot);

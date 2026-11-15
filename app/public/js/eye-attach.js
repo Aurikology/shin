@@ -153,7 +153,9 @@ export async function attachEye(video, surfaces, handlers = {}) {
    */
   const paintAlts = (boxes, fw, fh) => {
     if (!marks || dead.value) return;
-    const alts = boxes.slice(1);
+    /* Tapping another object means a photo scan, and FLAGS.photoId is off: a mark that cannot
+       give a result is not drawn (2026-11-14). */
+    const alts = FLAGS.photoId ? boxes.slice(1) : [];
     const pool = marks.querySelectorAll('.alt-box');
     for (let i = 0; i < Math.max(alts.length, altCount); i += 1) {
       let el = pool[i];
