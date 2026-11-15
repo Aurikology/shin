@@ -1650,7 +1650,9 @@ export class Catalogue {
         ),
       );
 
-    const band = this.#band(candidates, textResult.wordsMatched);
+    // A corrected spelling is a guess at what was meant: never banded confident, whatever else agrees.
+    const exactBand = this.#band(candidates, textResult.wordsMatched);
+    const band = correction !== null && exactBand === 'confident' ? 'ambiguous' : exactBand;
 
     // A ring is attached whenever the leader is not good enough to stand alone,
     // so the screen never has to make a second round trip to have something to

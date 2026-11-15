@@ -168,3 +168,14 @@ test('digits that are not a barcode stay a name search', async () => {
     assert.equal(a.resolvedBy ?? null, null, `typed "${typed}"`);
   }
 });
+
+// 2. A misspelling is retried, and the retry is a guess.
+
+test('a misspelt typed name finds the product and is never sure', async () => {
+  const a = await byName('dedorant');
+  assert.ok(a.pickCandidates?.length >= 1, 'the misspelling found nothing');
+  assert.match(String(a.pickCandidates[0].name), /deodorant/i);
+  assert.notEqual(a.resolvedBy, 'search_confident');
+  assert.notEqual(a.identity?.grade, 'sure');
+  assert.equal(a.found, false, 'a tolerant match must not be answered as the product');
+});

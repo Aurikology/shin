@@ -5,7 +5,7 @@
  * match, and one wrong letter found nothing: "dedorant", "cheerois", "ketchp"
  * all came back empty on the live server. This corrects a word the catalogue
  * has never indexed to the most frequent word it HAS indexed within one edit
- * (two for a word of seven letters or more), where an edit is one letter
+ * (two for a word of eight letters or more), where an edit is one letter
  * added, dropped, changed, or two neighbours swapped.
  *
  * NO REINDEX AND NO WRITE TO THE CATALOGUE. The vocabulary is read from the
@@ -47,7 +47,7 @@ const MAX_LEN = 24;
 /** Shorter than this, one edit away is too many real words to guess between ("oj", "tp", "pb"). */
 const MIN_CORRECTABLE = 4;
 /** From this length on, two edits are allowed. */
-const TWO_EDITS_FROM = 7;
+const TWO_EDITS_FROM = 8;
 
 const PLAIN = /^[a-z]+$/;
 

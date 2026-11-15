@@ -4,7 +4,7 @@
  * Meaning search (vectors) is off live, so only exact words match and typed
  * "dedorant" found nothing. The fallback corrects a word the catalogue has
  * never indexed to the most frequent indexed word one edit away (two for a
- * word of seven letters or more), and runs the corrected search only when the
+ * word of eight letters or more), and runs the corrected search only when the
  * exact one missed or matched only some of the words.
  *
  * The catalogue here is a temp file opened READ-ONLY, the way the live worker
@@ -147,4 +147,37 @@ test('the vocabulary reports its own size and memory cost once built', async () 
   assert.equal(s.ready, true);
   assert.ok(s.words > 0, `only ${s.words} words held`);
   assert.ok(s.bytes > 0 && s.bytes < 1_000_000, `memory estimate ${s.bytes}`);
+});
+
+test('a word of seven letters or fewer takes one edit; eight or more takes two', async () => {
+  const cat = catalogue();
+  await cat.startSpelling();
+  // "ketchop" is "ketchup" with one letter changed: seven letters, one edit.
+  assert.equal(cat.spellingFix('ketchop'), 'ketchup');
+  // "ketchop" with a second slip ("kitchop") is two edits at seven letters: not guessed at.
+  assert.equal(cat.spellingFix('kitchop'), null);
+  // "deoderent" is nine letters and two edits: guessed at.
+  assert.equal(cat.spellingFix('deoderent'), 'deodorant');
+});
+
+test('a corrected search is never banded confident, even with the brand and size pinned', async () => {
+  const path = join(mkdtempSync(join(tmpdir(), 'shin-spell-band-')), 'catalogue.db');
+  const w = openCatalogue(path);
+  const insert = w.prepare(`
+    INSERT INTO product (code, name, name_en, brands, quantity, size_value, size_unit, category_path, allergens, sold_in_canada, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, '[]', '[]', 1, 'test')`);
+  insert.run('1000000000007', 'Tomato Ketchup', 'Tomato Ketchup', 'Heinz', '750 ml', 750, 'ml');
+  insert.run('1000000000008', 'Ketchup', 'Ketchup', "French's", '1 l', 1000, 'ml');
+  rebuildFts(w);
+  w.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  w.close();
+  const cat = new Catalogue(openCatalogueReadOnly(path), NO_EMBEDDER, null);
+  await cat.startSpelling();
+  const pinned = { brand: 'Heinz', sizeValue: 750, sizeUnit: 'ml', vectors: false, recordMiss: false };
+  const exact = await cat.search({ text: 'ketchup', ...pinned });
+  const typo = await cat.search({ text: 'ketchp', ...pinned });
+  assert.equal(exact.band, 'confident', 'the control: the right spelling with a pinned brand and size is confident');
+  assert.equal(typo.correctedTo, 'ketchup');
+  assert.equal(typo.candidates[0]?.code, exact.candidates[0]?.code);
+  assert.equal(typo.band, 'ambiguous');
 });
