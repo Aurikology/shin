@@ -15,8 +15,10 @@
  * current price is a sale: it is written as `promotional` with `wasCents` set
  * to the old price, and the old price is also written as the `regular` row for
  * the same day under the sku suffix `#regular`, so a range built from regular
- * prices still has this product. A product with no barcode is counted and
- * skipped: Pexi answers by barcode.
+ * prices still has this product. A product with no barcode is skipped, EXCEPT
+ * loose produce sold by weight: those rows that join a PLU (price/src/plu.ts)
+ * are written per lb under the PLU's key, so a shopper who scans or types
+ * 3110 or 94011 gets a per-lb answer (rules and precision in hammer-produce.ts).
  *
  * JOIN METHOD. Project Hammer says UPCs came straight from the vendor for
  * Metro, Galleria and Save-On-Foods (joined `gtin`); Walmart's were matched
@@ -33,6 +35,7 @@ import { openPrices, recordObservation, type ObservationRow } from './store.ts';
 import { registerSource, requireSourceUse, currentRegistry } from './registry.ts';
 import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
+import { looseCandidate, matchLoose, looseObservation } from './hammer-produce.ts';
 
 export const SELLER = 'hammer';
 
@@ -216,6 +219,12 @@ export function observationsFor(p: HammerProduct, l: LatestPrice): ObservationRo
   return rows;
 }
 
+/** The per-lb observation a loose-produce product (no barcode) stands for, or null (hammer-produce.ts). */
+export function looseRowsFor(p: HammerProduct, l: LatestPrice): ObservationRow | null {
+  const m = matchLoose(p, l);
+  return m === null ? null : looseObservation(p, l, m, SELLER, VENDOR_NAMES[p.vendor]);
+}
+
 export function ensureRegistered(db: ReturnType<typeof openPrices>): void {
   if (currentRegistry(db).some((e) => e.seller === SELLER && e.access === 'automated')) return;
   registerSource(db, {
@@ -312,9 +321,11 @@ async function main(): Promise<void> {
     return;
   }
   const withCode = new Set([...products.values()].filter((p) => p.code !== null).map((p) => p.id));
-  console.log(`hammer: ${products.size} products, ${withCode.size} with a usable barcode`);
-  const { latest, rows, minDay, maxDay } = await readLatest(join(dir, 'hammer-4-raw.csv'), withCode);
-  console.log(`hammer: ${rows} price rows from ${minDay} to ${maxDay}; ${latest.size} barcoded products have a price`);
+  const looseIds = new Set([...products.values()].filter(looseCandidate).map((p) => p.id));
+  console.log(`hammer: ${products.size} products, ${withCode.size} with a usable barcode, ${looseIds.size} loose-produce candidates`);
+  const wanted = new Set([...withCode, ...looseIds]);
+  const { latest, rows, minDay, maxDay } = await readLatest(join(dir, 'hammer-4-raw.csv'), wanted);
+  console.log(`hammer: ${rows} price rows from ${minDay} to ${maxDay}; ${latest.size} products have a price`);
 
   const db = openPrices(undefined, { enforceSources: true });
   ensureRegistered(db);
@@ -322,10 +333,21 @@ async function main(): Promise<void> {
   let written = 0;
   let skippedPrice = 0;
   const byVendor: Record<string, number> = {};
+  let looseWritten = 0;
+  let looseSkipped = 0;
+  const looseByVendor: Record<string, number> = {};
   db.exec('BEGIN');
   try {
     for (const [id, l] of latest) {
       const p = products.get(id)!;
+      if (looseIds.has(id)) {
+        const row = looseRowsFor(p, l);
+        if (row === null) { looseSkipped++; continue; }
+        recordObservation(db, row);
+        looseWritten++;
+        looseByVendor[p.vendor] = (looseByVendor[p.vendor] ?? 0) + 1;
+        continue;
+      }
       const obs = observationsFor(p, l);
       if (obs.length === 0) { skippedPrice++; continue; }
       for (const o of obs) recordObservation(db, o);
@@ -340,6 +362,7 @@ async function main(): Promise<void> {
   const distinct = db.prepare('SELECT COUNT(DISTINCT code) AS n FROM observation WHERE seller = ?').get(SELLER) as { n: number };
   console.log(`hammer: wrote ${written} observations; ${skippedPrice} products skipped for an unusable price; ${distinct.n} distinct barcodes held`);
   console.log(`hammer: products priced by vendor ${JSON.stringify(byVendor)}`);
+  console.log(`hammer: loose produce ${looseIds.size} candidates, ${looseWritten} matched a PLU and stored per lb, ${looseSkipped} skipped; matched by vendor ${JSON.stringify(looseByVendor)}`);
   db.close();
 }
 
