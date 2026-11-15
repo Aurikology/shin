@@ -35,7 +35,7 @@ import { openPrices, recordObservation, type ObservationRow } from './store.ts';
 import { registerSource, requireSourceUse, currentRegistry } from './registry.ts';
 import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
-import { looseCandidate, matchLoose, looseObservation } from './hammer-produce.ts';
+import { looseCandidate, matchLoose, looseObservation, pluDisplayNames } from './hammer-produce.ts';
 
 export const SELLER = 'hammer';
 
@@ -335,15 +335,17 @@ async function main(): Promise<void> {
   const byVendor: Record<string, number> = {};
   let looseWritten = 0;
   let looseSkipped = 0;
+  const nameRows: Array<{ base: string; name: string }> = [];
   const looseByVendor: Record<string, number> = {};
   db.exec('BEGIN');
   try {
     for (const [id, l] of latest) {
       const p = products.get(id)!;
       if (looseIds.has(id)) {
-        const row = looseRowsFor(p, l);
-        if (row === null) { looseSkipped++; continue; }
-        recordObservation(db, row);
+        const m = matchLoose(p, l);
+        if (m === null) { looseSkipped++; continue; }
+        recordObservation(db, looseObservation(p, l, m, SELLER, VENDOR_NAMES[p.vendor]));
+        nameRows.push({ base: m.plu.base, name: p.name });
         looseWritten++;
         looseByVendor[p.vendor] = (looseByVendor[p.vendor] ?? 0) + 1;
         continue;
@@ -363,6 +365,14 @@ async function main(): Promise<void> {
   console.log(`hammer: wrote ${written} observations; ${skippedPrice} products skipped for an unusable price; ${distinct.n} distinct barcodes held`);
   console.log(`hammer: products priced by vendor ${JSON.stringify(byVendor)}`);
   console.log(`hammer: loose produce ${looseIds.size} candidates, ${looseWritten} matched a PLU and stored per lb, ${looseSkipped} skipped; matched by vendor ${JSON.stringify(looseByVendor)}`);
+  const namesAt = process.argv.indexOf('--plu-names');
+  if (namesAt !== -1) {
+    const out = process.argv[namesAt + 1];
+    if (!out) { console.error('--plu-names needs an output path'); process.exit(2); }
+    const names = pluDisplayNames(nameRows);
+    writeFileSync(out, `${JSON.stringify(names, null, 1)}\n`);
+    console.log(`hammer: wrote ${Object.keys(names).length} PLU display names to ${out} (commit it as price/src/plu-display.json)`);
+  }
   db.close();
 }
 

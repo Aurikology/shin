@@ -35,10 +35,45 @@ export interface PluRef {
   readonly organic: boolean;
   /** The list's name for the base code, as written there ("Navel, Cara Cara (Red) Oranges"). */
   readonly listName: string;
-  /** The name a shopper reads: the list's name, with "Organic " in front for the organic code. */
+  /** The name a shopper reads: the store-derived name (plu-display.json) or the cleaned list text, with "Organic " in front for the organic code. */
   readonly name: string;
   /** The one key (12 digits, see the file header). */
   readonly key: string;
+}
+
+let display: Readonly<Record<string, string>> | null = null;
+/** Base code to the name stores print for it, written by the Hammer importer (hammer-produce.ts pluDisplayNames). */
+function displayNames(): Readonly<Record<string, string>> {
+  if (display === null) {
+    try {
+      display = JSON.parse(readFileSync(fileURLToPath(new URL('./plu-display.json', import.meta.url)), 'utf8')) as Record<string, string>;
+    } catch {
+      display = {};
+    }
+  }
+  return display;
+}
+
+/**
+ * The list's own text made readable: parentheses dropped, and a two-part comma name ("Navel, Cara Cara
+ * (Red) Oranges") put variety first ("Cara Cara Navel Oranges"). Other comma names just lose the comma.
+ */
+export function cleanListName(raw: string): string {
+  const parts = raw
+    .replace(/\([^)]*\)/g, ' ')
+    .split(',')
+    .map((x) => x.replace(/\s+/g, ' ').trim())
+    .filter((x) => x !== '');
+  let out = parts.join(' ');
+  if (parts.length === 2) {
+    const [first, rest] = parts;
+    const words = rest.split(' ');
+    const noun = words[words.length - 1];
+    if (first.split(' ').length <= 2 && words.length >= 2 && !rest.includes(' - ') && /^[A-Z]/.test(noun)) {
+      out = `${words.slice(0, -1).join(' ')} ${first} ${noun}`;
+    }
+  }
+  return out.replace(/\s+/g, ' ').trim();
 }
 
 let list: Readonly<Record<string, string>> | null = null;
@@ -80,13 +115,14 @@ function refOf(code: string): PluRef | null {
   } else return null;
   const listName = l[base];
   if (!listName) return null;
+  const shown = displayNames()[base] ?? cleanListName(listName);
   return {
     code,
     base,
     variant,
     organic: variant === 'organic',
     listName,
-    name: variant === 'organic' ? `Organic ${listName}` : listName,
+    name: variant === 'organic' ? `Organic ${shown}` : shown,
     key: pluKey(code),
   };
 }

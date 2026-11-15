@@ -178,6 +178,69 @@ export function matchLoose(p: LooseProduct, l: LooseLatest): LooseMatch | null {
   return { plu, perLbCents: perLb, via: 'name' };
 }
 
+/** A store's product name with the pack and shelf words taken off ("Beets - Bulk, Fresh, 170 Gram" -> "Beets"). */
+export function cleanStoreName(name: string): string {
+  const strip = (t: string): string =>
+    t
+      .replace(/\([^)]*\)/g, ' ')
+      .replace(/\b\d+(?:\.\d+)?\s*(?:grams?|g|kg|lbs?|counts?|ct|un|ea)\b/gi, ' ')
+      .replace(/\b(?:organic|fresh|bulk|bunch|loose|each|sold individually)\b/gi, ' ')
+      .replace(/[,;]/g, ' ')
+      .replace(/^[\s-]+|[\s-]+$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  // Save-On-Foods writes "Category - Variety, Size" ("Pears - Asian, Yellow"): variety first, category last.
+  const parts = name.split(/\s+-\s+/);
+  let s: string;
+  if (parts.length === 2) {
+    const head = strip(parts[0]);
+    const tail = strip(parts[1]);
+    if (tail === '') s = head;
+    else if (head === '') s = tail;
+    else {
+      const tailWords = nameWords(tail, false).words;
+      s = nameWords(head, false).words.every((w) => tailWords.includes(w)) ? tail : `${tail} ${head}`;
+    }
+  } else {
+    s = strip(parts.join(' '));
+  }
+  const letters = s.replace(/[^A-Za-z]/g, '');
+  if (letters.length > 1 && letters === letters.toUpperCase()) {
+    return s.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, sp: string, c: string) => sp + c.toUpperCase());
+  }
+  return s;
+}
+
+/**
+ * The name a shopper reads for each PLU base code: the most common cleaned store name among its matched
+ * rows (ties go to the longer name, then the first alphabetically). A store name that covers fewer than
+ * half the words of the list name ("Squash" for "Yellow Zucchini/Gold Bar/Yellow Courgette Squash") is
+ * ignored: it names the family, not the item. Written to price/src/plu-display.json by hammer.ts.
+ */
+export function pluDisplayNames(rows: ReadonlyArray<{ base: string; name: string }>): Record<string, string> {
+  const votes = new Map<string, Map<string, { text: string; n: number }>>();
+  for (const r of rows) {
+    const text = cleanStoreName(r.name);
+    if (text === '') continue;
+    const listWords = nameWords(pluList()[r.base] ?? '', true).words;
+    const mine = nameWords(text, true).words;
+    if (listWords.length === 0 || mine.length === 0) continue;
+    const covered = mine.filter((w) => listWords.includes(w)).length;
+    if (covered < mine.length || mine.length * 2 < listWords.length) continue;
+    const byText = votes.get(r.base) ?? new Map();
+    const key = text.toLowerCase();
+    const prev = byText.get(key);
+    byText.set(key, { text: prev?.text ?? text, n: (prev?.n ?? 0) + 1 });
+    votes.set(r.base, byText);
+  }
+  const out: Record<string, string> = {};
+  for (const base of [...votes.keys()].sort()) {
+    const best = [...votes.get(base)!.values()].sort((a, b) => b.n - a.n || b.text.length - a.text.length || a.text.localeCompare(b.text))[0];
+    out[base] = best.text;
+  }
+  return out;
+}
+
 /** The observations a loose-produce match turns into: one per-lb price under the PLU's key. */
 export function looseObservation(p: LooseProduct, l: LooseLatest, m: LooseMatch, seller: string, vendorName: string): ObservationRow {
   const sale = l.old.trim() !== '' || /sale/i.test(l.other);
