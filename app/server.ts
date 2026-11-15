@@ -56,6 +56,7 @@ import {
   matchText,
   packReadSettings,
   pickCandidate,
+  pluIdentity,
   rangeAskSettings,
   readMatchTextBody,
   resolveTypedName,
@@ -217,6 +218,19 @@ function typedBarcode(text: string): string | null {
   const digits = text.replace(/\D/g, '');
   if (digits.length < 7 || digits.length > 14) return null;
   return canonicalGtin(digits);
+}
+
+/**
+ * A typed name box that holds a barcode or a produce code (live scan log, 2026-11-15: a 13-digit
+ * barcode typed as digits found nothing). Only digits, spaces and dashes, and only the lengths a barcode or a
+ * PLU has (4 or 5, 8, 12, 13, 14): a 9, 10 or 11 digit number is a number, never zero-padded into a product.
+ * The reading is the scan path's own (`canonicalBarcode`), so a typed code and a scanned one are one key.
+ */
+const TYPED_CODE_LENGTHS = new Set([4, 5, 8, 12, 13, 14]);
+function typedCodeOf(text: string) {
+  if (!/^[\d\s-]+$/.test(text)) return null;
+  if (!TYPED_CODE_LENGTHS.has(text.replace(/\D/g, '').length)) return null;
+  return canonicalBarcode(text);
 }
 
 export function setSearchServiceForTests(fake: SearchService | null): void {
@@ -1216,7 +1230,14 @@ async function typedFromOwnData(
    * function, `catalogueFirstBarcode`, so the two cannot diverge. The top three
    * ride along so the shopper can change the pick.
    */
-  const searched = first ? await typedCatalogueSearch(text, device, pickedGtin) : null;
+  // A barcode or produce code typed as digits is looked up as that code, before any name search.
+  const typedCode = first && !pickedGtin ? typedCodeOf(text) : null;
+  const pluId = typedCode?.how === 'plu' && typedCode.plu ? pluIdentity(typedCode.plu) : null;
+  const searched = first
+    ? pluId
+      ? { rows: [] as TypedRow[], band: 'miss' }
+      : await typedCatalogueSearch(text, device, pickedGtin ?? typedCode?.gtin ?? null)
+    : null;
   const resolution = searched ? resolveTypedName(text, searched.rows, searched.band) : null;
   const pickCandidates = searched ? searched.rows.slice(0, 3).map(pickCandidate) : [];
 
@@ -1224,8 +1245,8 @@ async function typedFromOwnData(
   /** The catalogue product the typed words named, even when no store prices it. */
   let named: { name: string; brand: string | null; size: string | null; code: string } | null = null;
   try {
-    if (resolution?.row) {
-      const id = pickCandidate(resolution.row);
+    if (resolution?.row || pluId) {
+      const id = pluId ?? pickCandidate(resolution!.row!);
       named = { name: id.name, brand: id.brand, size: id.size, code: id.barcode };
       const own = lookupOwnPricesByBarcode(id.barcode, {
         pricesDbPath: defaultPricesPath(),
@@ -1252,10 +1273,10 @@ async function typedFromOwnData(
   /** The typed estimate's range when no barcode answer brought one (D-241, requirement 3.1). */
   let typedRange: Awaited<ReturnType<typeof typedVerdict>> | null = null;
   /* D-270: sure only for a product the catalogue resolved to one item of one size, or an own-price text match that covers the product's whole name with the size settled; anything else is a guess. */
-  const typedId = typedIdentity(text, searched?.rows ?? [], resolution, resolution?.row ? null : match);
+  const typedId: Identity = pluId ? { grade: 'sure' } : typedIdentity(text, searched?.rows ?? [], resolution, resolution?.row ? null : match);
   if (first && verdictCtx) {
     const code = resolution?.row?.code ?? match?.code ?? null;
-    const canonical = code ? canonicalBarcode(code) : null;
+    const canonical = pluId ? typedCode : code ? canonicalBarcode(code) : null;
     // A guessed product never takes the barcode route: its range card would be the guessed product's
     // (live 2026-11-11, "milk" showed a coconut milk's $2.29 to $3.49). The words are priced instead.
     if (canonical && typedId.grade === 'sure') {
@@ -1349,7 +1370,7 @@ async function typedFromOwnData(
   if (!match) {
     return {
       ...common,
-      ...(resolution?.row && named ? { ownMatch: { name: named.name, brand: named.brand, size: named.size, code: named.code, score: 1 } } : {}),
+      ...((resolution?.row || pluId) && named ? { ownMatch: { name: named.name, brand: named.brand, size: named.size, code: named.code, score: 1 } } : {}),
       found: false,
       reason: 'no_own_price',
       lowConfidence: true,
