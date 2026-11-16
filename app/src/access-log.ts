@@ -18,6 +18,7 @@ import { appendFile } from 'node:fs';
 import { join } from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { inviteWho } from './invite.ts';
+import { isLoopbackSocket } from './rate-limit.ts';
 import { notePerson } from './admin.ts';
 import { POSITION_KEYS } from './migrations.ts';
 import { parseCell } from './stores.ts';
@@ -90,7 +91,8 @@ export function recordAccess(req: IncomingMessage, res: ServerResponse, env: Nod
         // Requirement 5.6: no exact position in the log either (`scrubUrlPosition`).
         url: scrubUrlPosition(req.url ?? '').replace(/(invite=)[^&]*/gi, '$1…'),
         status: res.statusCode,
-        ip: h['cf-connecting-ip'] ?? req.socket.remoteAddress ?? null,
+        // The tunnel's header is believed only on a connection from this machine (rate-limit.ts, clientAddress).
+        ip: (isLoopbackSocket(req.socket.remoteAddress) ? h['cf-connecting-ip'] : undefined) ?? req.socket.remoteAddress ?? null,
         country: h['cf-ipcountry'] ?? null,
         ua: h['user-agent'] ?? null,
         invite: Boolean(h['x-shin-invite']),

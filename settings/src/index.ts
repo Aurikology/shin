@@ -88,6 +88,7 @@ export const SETTINGS: readonly SettingKey[] = [
 
   // -- Operational: plumbing with no product ruling ------------------------
   { env: 'PORT', default: '4173', ruling: 'operational' },
+  { env: 'SHIN_BIND_HOST', default: "unset -> loopback only (127.0.0.1 and ::1); '0.0.0.0' or '::' opens the LAN on purpose", ruling: 'operational' },
   { env: 'SHIN_CATALOGUE', default: 'data/catalogue.db (repo-relative)', ruling: 'operational' },
   { env: 'SHIN_VECTORS', default: 'unset -> decided from embedded row count', ruling: 'operational' },
   { env: 'SHIN_USER_CATALOGUE', default: 'derived from SHIN_SCANS, or data/user-catalogue.db', ruling: 'operational' },
@@ -201,6 +202,10 @@ export function SHIN_DEVELOPER_DEVICES(env: NodeJS.ProcessEnv = process.env): st
 }
 export function PORT(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'PORT');
+}
+/** The address the server listens on. Unset, loopback only: the Cloudflare tunnel runs on this machine. */
+export function SHIN_BIND_HOST(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_BIND_HOST');
 }
 export function SHIN_CATALOGUE(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CATALOGUE');

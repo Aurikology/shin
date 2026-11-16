@@ -154,9 +154,12 @@ test('with a RevenueCat key the header is ignored and RevenueCat decides, cached
     const expires = active ? new Date(Date.now() + 86400000).toISOString() : new Date(Date.now() - 1000).toISOString();
     return { ok: true, status: 200, json: async () => ({ subscriber: { entitlements: { plus: { expires_date: expires } } } }) };
   });
-  assert.equal((await identify('q-rc')).status, 200);
-  assert.equal((await identify('q-rc', { 'x-shin-plus': '1' })).status, 402, 'the client header was trusted over RevenueCat');
-  assert.match(asked[0], /\/v1\/subscribers\/q-rc$/);
+  // RevenueCat is asked only about a device that proves who it is, and only for an id of a real shape (security check A7).
+  const rc = 'q-rc-device-01';
+  const keyed = { 'x-shin-device': rc, 'x-shin-device-key': 'rcKey0123456789abcdef' };
+  assert.equal((await identify(rc, keyed)).status, 200);
+  assert.equal((await identify(rc, { ...keyed, 'x-shin-plus': '1' })).status, 402, 'the client header was trusted over RevenueCat');
+  assert.match(asked[0], /\/v1\/subscribers\/q-rc-device-01$/);
   setEntitlementFetchForTests(async (url) => {
     asked.push(url);
     return {
@@ -167,8 +170,8 @@ test('with a RevenueCat key the header is ignored and RevenueCat decides, cached
   });
   active = true;
   const n = asked.length;
-  assert.equal((await identify('q-rc')).status, 200);
-  assert.equal((await identify('q-rc')).status, 200);
+  assert.equal((await identify(rc, keyed)).status, 200);
+  assert.equal((await identify(rc, keyed)).status, 200);
   assert.equal(asked.length, n + 1, 'RevenueCat was asked again inside the ten-minute cache');
 });
 
@@ -177,7 +180,9 @@ test('with a RevenueCat key the header is ignored and RevenueCat decides, cached
 test('GET /api/quota reports limit, used, remaining, resetsAt and plus', async () => {
   process.env.SHIN_FREE_SCANS_PER_WEEK = '3';
   await identify('q-quota');
-  const res = await fetch(`${base()}/api/quota?deviceId=q-quota`);
+  // The quota carries the Plus answer, so it takes the device's secret as well as its id (security check A4).
+  const keyed = { 'x-shin-device': 'q-quota', 'x-shin-device-key': 'quotaKey0123456789abc' };
+  const res = await fetch(`${base()}/api/quota?deviceId=q-quota`, { headers: keyed });
   assert.equal(res.status, 200);
   const q = (await res.json()) as Record<string, unknown>;
   assert.equal(q.limit, 3);
@@ -185,7 +190,7 @@ test('GET /api/quota reports limit, used, remaining, resetsAt and plus', async (
   assert.equal(q.remaining, 2);
   assert.equal(typeof q.resetsAt, 'string');
   assert.equal(q.plus, false);
-  const off = (await (await fetch(`${base()}/api/quota`, { headers: { 'x-shin-device': 'q-quota', 'x-shin-plus': '1' } })).json()) as Record<string, unknown>;
+  const off = (await (await fetch(`${base()}/api/quota`, { headers: { ...keyed, 'x-shin-plus': '1' } })).json()) as Record<string, unknown>;
   assert.equal(off.plus, true);
   assert.equal(off.limit, null);
   assert.equal(off.remaining, null);
@@ -212,5 +217,6 @@ test('POST /api/scan/:id/outcome stores the outcome with the scan', async () => 
   await post('not_bought');
   assert.equal(outcomeFor(id)?.outcome, 'not_bought', 'a second tap did not replace the first');
   assert.equal((await post('stole_it')).status, 400);
-  assert.equal((await post('bought_here', 999999)).status, 404);
+  // A scan that does not exist answers like a scan that is somebody else's, so ids cannot be probed (security check A4).
+  assert.equal((await post('bought_here', 999999)).status, 403);
 });

@@ -618,7 +618,10 @@ test('the uptime ping answers, and says whether the scan log and the catalogue a
 
 test('the latency reader reports a p95 per day and per kind', async () => {
   await scanOnce('d-39c');
-  const seen = (await (await get('/api/latency?days=1')).json()) as {
+  // The latency reader is the operator's: it answers only to the admin token (security check A6).
+  assert.equal((await get('/api/latency?days=1')).status, 404);
+  process.env.SHIN_ADMIN_TOKEN = 'latency-test-token-0123456789';
+  const seen = (await (await get('/api/latency?days=1', { 'x-shin-admin': 'latency-test-token-0123456789' })).json()) as {
     days: number;
     latency: { day: string; kind: string; count: number; p95Ms: number }[];
   };
@@ -630,6 +633,7 @@ test('the latency reader reports a p95 per day and per kind', async () => {
   // The combined row exists beside the per-kind ones, so one number is
   // available without anybody having to add them up wrongly.
   assert.ok(seen.latency.some((r) => r.kind === 'all'));
+  delete process.env.SHIN_ADMIN_TOKEN;
 });
 
 /* ------------------------------ 39a, error log --------------------------- */

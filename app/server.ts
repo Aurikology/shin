@@ -41,7 +41,7 @@ import {
   recordShopperCall,
   updateScan,
 } from './src/scans.ts';
-import { customerDataFaults } from './src/customer-data-faults.ts';
+import { customerDataFault, customerDataFaults } from './src/customer-data-faults.ts';
 import { canonicalBarcode, canonicalGtin } from './src/barcode.ts';
 import { isGroceryRow } from './src/grocery-scope.ts';
 import { currentCorrectionStore } from '../price/src/corrections.ts';
@@ -86,13 +86,13 @@ import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
-import { deviceFromHeaders, entitlementStartupWarning, freeScanLimit, isPlus, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
+import { deviceFromHeaders, entitlementStartupWarning, freeScanLimit, isPlus, plusScanLimit, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
 import { recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
-import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorWindows, freeScanAddressWindows, isLocalRequest } from './src/rate-limit.ts';
+import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorWindows, freeScanAddressWindows, isLocalRequest, networkOf } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
@@ -484,7 +484,6 @@ async function catalogue() {
   const canAnswer = await answerable(items);
   return {
     recordedAt: recorded.recordedAt,
-    provenance: recorded.provenance,
     // The honest headline. `items.length` is the shelf; this is the answer rate.
     answerableCount: [...canAnswer.values()].filter(Boolean).length,
     items: items.map((i) => ({ ...i, answerable: canAnswer.get(i.id) === true })),
@@ -526,7 +525,6 @@ function scenarios() {
       // "observed" means a person read it off a real tag or page. Anything else
       // is a stand-in and the screen has to say so.
       observed: (i.askingProvenance ?? '').startsWith('observed'),
-      provenance: i.askingProvenance ?? null,
     })),
   };
 }
@@ -908,7 +906,40 @@ let codeLimiter = new KeyedLimiter(codeWindows());
 let addressLimiter = new KeyedLimiter(addressWindows());
 let doorLimiter = new KeyedLimiter(doorWindows());
 let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows());
+
+/*
+ * WRONG GUESSES AT A SECRET (security check A5). The invite code ships inside the app and the admin
+ * token is the key to every table, so a wrong one is slowed hard: a handful per address, and a
+ * lower ceiling on all addresses together (the address can be rotated, the secret cannot). Only
+ * WRONG guesses count and only wrong guesses are ever refused: the right secret always gets in, so
+ * nobody who holds it can be locked out by somebody who does not. Missing is not a guess for the
+ * invite (a first visit has no code yet); for the admin token every miss counts, since nothing
+ * legitimate calls those paths without it.
+ */
+const GUESS_WINDOWS_PER_ADDRESS = [{ ms: 10 * 60_000, limit: 10 }, { ms: 24 * 60 * 60_000, limit: 60 }] as const;
+const GUESS_WINDOWS_ALL = [{ ms: 10 * 60_000, limit: 60 }, { ms: 24 * 60 * 60_000, limit: 300 }] as const;
+let storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
+let guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
+let guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
+function wrongGuessRefusal(req: IncomingMessage, what: 'invite' | 'admin'): { retryAfterSeconds: number } | null {
+  // A caller on this machine itself (no tunnel header) is the operator or a test, like every other limiter here.
+  if (isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
+  const mine = guessAddressLimiter.check(`${what}:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  if (!mine.allowed) return { retryAfterSeconds: mine.retryAfterSeconds };
+  const all = guessAllLimiter.check(what);
+  if (!all.allowed) {
+    console.warn(`[secret-guess-limit] wrong ${what} guesses are over the all-addresses ceiling; refusing wrong guesses until it eases`);
+    return { retryAfterSeconds: all.retryAfterSeconds };
+  }
+  return null;
+}
 export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
+  claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }]);
+  claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }]);
+  claudeWeeklyLimiters.clear();
+  storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
+  guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
+  guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
   codeLimiter = new KeyedLimiter(codeWindows(env));
   addressLimiter = new KeyedLimiter(addressWindows(env));
   doorLimiter = new KeyedLimiter(doorWindows(env));
@@ -965,10 +996,12 @@ async function freeScanAddressRefusal(req: IncomingMessage, device: string): Pro
   return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
 }
 
-function paidCallRefusal(req: IncomingMessage): { retryAfterSeconds: number } | null {
+function paidCallRefusal(req: IncomingMessage, sharedOpenBucket = true): { retryAfterSeconds: number } | null {
   // When no code is required (a laptop, the suite) every caller is the one bucket "open".
   const who = inviteWho(req.headers[INVITE_HEADER]) ?? 'open';
-  const byCode = codeLimiter.check(`code:${who}`);
+  // A Claude ask does not count against that shared bucket (A2): there it is one pool for strangers,
+  // and one caller could empty it for everybody. The device and network limits and the monthly cap guard those asks.
+  const byCode = who === 'open' && !sharedOpenBucket ? { allowed: true as const } : codeLimiter.check(`code:${who}`);
   if (!byCode.allowed) return { retryAfterSeconds: byCode.retryAfterSeconds };
   const byAddress = addressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
   if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
@@ -1530,20 +1563,106 @@ async function withCatalogueFirstDeps<T>(
  * Undefined without the shopper's yes (Jamin's App Store list, item 9; screens/agree.js): the
  * product name stays here and the answer is the broad-guess range every unpriced item can get.
  */
-function claudeRangeAsk(req: IncomingMessage): RangeAsk | undefined {
+function claudeRangeAsk(req: IncomingMessage, device: string | null = null): RangeAsk | undefined {
   if (!claudeAllowed(req)) return undefined;
-  return async (identity) => {
+  return async (rawIdentity) => {
     // Checked here, not at the top of the route: only this call can cost money.
-    if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' as const };
+    if (await claudeAskRefusal(req, device)) return { ok: false, reason: 'rate_limited' as const };
+    // A typed name is a product name, not a paragraph: past this length nothing is sent to Claude (security check A7).
+    if (rawIdentity.name.length > MAX_NAME_CHARS_TO_CLAUDE) return { ok: false, reason: 'no_name' as const };
+    const identity = {
+      ...rawIdentity,
+      ...(typeof rawIdentity.brand === 'string' ? { brand: rawIdentity.brand.slice(0, 80) } : {}),
+      ...(typeof rawIdentity.size === 'string' ? { size: rawIdentity.size.slice(0, 60) } : {}),
+    };
     const { askTypicalRange } = await import('../identify/src/range-ask.ts');
     const s = rangeAskSettings();
-    return askTypicalRange(identity, {
+    const asked = await askTypicalRange(identity, {
       monthlyCap: s.monthlyCap,
       ceilingCents: s.ceilingCents,
       ...(s.storePath ? { storePath: s.storePath } : {}),
       ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
     });
+    if (!asked.ok) noteClaudeCapIfReached('range ask', asked.reason);
+    return asked;
   };
+}
+
+/**
+ * The health page is open to anyone who can reach the server, so no sentence on it may name a folder
+ * on this machine (security check A6). A fault message that carries a path keeps its words and loses
+ * the path: the full text stays in the error log, which only the operator reads.
+ */
+const FILE_PATH_IN_TEXT = /(?:[A-Za-z]:[\\/]|\/(?:Users|home|var|opt|srv|tmp|mnt|root|etc)\/)[^\s'",;)]*/g;
+function withoutFilePaths<T>(value: T): T {
+  if (typeof value === 'string') return value.replace(FILE_PATH_IN_TEXT, '<path>') as unknown as T;
+  if (Array.isArray(value)) return value.map(withoutFilePaths) as unknown as T;
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, withoutFilePaths(v)])) as T;
+  }
+  return value;
+}
+
+/** The longest typed or read product name that is sent to Claude. A product name is far shorter than this. */
+const MAX_NAME_CHARS_TO_CLAUDE = 160;
+
+/*
+ * WHO MAY SPEND THE SHARED CLAUDE ALLOWANCE (security check A2).
+ *
+ * The monthly cap is one number for everybody, so one caller could use all of it in an hour and every
+ * honest shopper after that got no estimate. Each ask now has to pass, before it counts against any
+ * shared bucket: the device's own allowance (a few asks in ten minutes and a day; the weekly allowance
+ * when the weekly limit is on and the device is not Plus, so typing names cannot get past it), and the
+ * caller's network (an IPv4 /24 or IPv6 /64, so renting a street of addresses does not multiply it).
+ * Then the address and invite-code buckets as before. Not a security boundary and in memory, like the
+ * rest of rate-limit.ts: the monthly cap is what the bill follows.
+ */
+let claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }]);
+let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }]);
+const claudeWeeklyLimiters = new Map<number, KeyedLimiter>();
+async function claudeAskRefusal(req: IncomingMessage, device: string | null): Promise<boolean> {
+  if (device !== null && device !== UNATTRIBUTED) {
+    // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
+    if (!isLocalRequest(req.headers, req.socket.remoteAddress) && !claudeDeviceLimiter.check(`device:${device}`).allowed) return true;
+    // The weekly allowance applies to asks as it does to scans, for a device that proves it is who it says.
+    const plus = await isPlus(device, req.headers);
+    const weekly = plus ? plusScanLimit() : freeScanLimit();
+    if (weekly !== null) {
+      let limiter = claudeWeeklyLimiters.get(weekly);
+      if (!limiter) {
+        limiter = new KeyedLimiter([{ ms: 7 * 24 * 60 * 60_000, limit: weekly }]);
+        claudeWeeklyLimiters.set(weekly, limiter);
+      }
+      if (!limiter.check(`device:${device}`).allowed) return true;
+    }
+  }
+  if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
+    if (!claudeNetworkLimiter.check(`net:${networkOf(clientAddress(req.headers, req.socket.remoteAddress))}`).allowed) return true;
+  }
+  return paidCallRefusal(req, false) !== null;
+}
+
+/**
+ * When the monthly cap on Claude is hit, say so where somebody will see it (security check A2, the
+ * fail-loudly rule): a counted customer-data fault, an error-log line, and `/api/health`. Counted on
+ * every refused ask; the log line is written at most once an hour so a busy day is one line, not thousands.
+ */
+let claudeCapRefused = 0;
+let claudeCapFirstAt: string | null = null;
+let claudeCapLoggedAt = 0;
+function noteClaudeCapIfReached(what: string, reason: string): void {
+  if (reason !== 'monthly_cap_reached') return;
+  claudeCapRefused += 1;
+  claudeCapFirstAt ??= new Date().toISOString();
+  const now = Date.now();
+  if (now - claudeCapLoggedAt < 60 * 60_000) return;
+  claudeCapLoggedAt = now;
+  customerDataFault('claude_monthly_cap_reached', `the monthly cap on Claude (${what}) is reached; no more Claude calls are made until the month turns over`);
+  logError({ where: 'claude.monthly_cap', err: new Error(`the monthly Claude cap (${what}) is reached: Pexi stopped calling Claude and answers from its own data until the month turns over`) });
+}
+/** What `/api/health` says about the monthly Claude cap. */
+function claudeCapHealth(): { claudeMonthlyCap: { reached: boolean; refusedAsks: number; since: string | null } } {
+  return { claudeMonthlyCap: { reached: claudeCapRefused > 0, refusedAsks: claudeCapRefused, since: claudeCapFirstAt } };
 }
 
 /**
@@ -1552,10 +1671,10 @@ function claudeRangeAsk(req: IncomingMessage): RangeAsk | undefined {
  * ask. RULINGS.md "A scan never ends with no result": only after the catalogue
  * and Open Food Facts both missed, and the frame goes to Claude, never Gemini.
  */
-function claudePackRead(req: IncomingMessage): (frame: Buffer, gtin: string | null) => Promise<{ ok: true; named: NamedElsewhere } | { ok: false; reason: string }> {
+function claudePackRead(req: IncomingMessage, device: string | null = null): (frame: Buffer, gtin: string | null) => Promise<{ ok: true; named: NamedElsewhere } | { ok: false; reason: string }> {
   return async (frame, gtin) => {
     if (!claudeAllowed(req)) return { ok: false, reason: 'no_claude_consent' };
-    if (paidCallRefusal(req)) return { ok: false, reason: 'rate_limited' };
+    if (await claudeAskRefusal(req, device)) return { ok: false, reason: 'rate_limited' };
     const { readPack } = await import('../identify/src/pack-read.ts');
     const s = packReadSettings();
     const r = await readPack({ bytes: new Uint8Array(frame), mediaType: imageKind(frame) === 'png' ? 'image/png' : 'image/jpeg' }, gtin, {
@@ -1563,7 +1682,10 @@ function claudePackRead(req: IncomingMessage): (frame: Buffer, gtin: string | nu
       ...(s.storePath ? { storePath: s.storePath } : {}),
       ...(catalogueFirstTest?.packReadProvider ? { provider: catalogueFirstTest.packReadProvider } : {}),
     });
-    if (!r.ok) return { ok: false, reason: r.reason };
+    if (!r.ok) {
+      noteClaudeCapIfReached('pack read', r.reason);
+      return { ok: false, reason: r.reason };
+    }
     return { ok: true, named: { name: r.reading.name, brand: r.reading.brand, size: r.reading.size, source: 'claude_reading' } };
   };
 }
@@ -2395,6 +2517,8 @@ export const server = createServer(async (req, res) => {
    * that runs the camera can never be loaded inside someone else's frame.
    */
   res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Content-Security-Policy', CONTENT_SECURITY_POLICY);
 
   /*
@@ -2610,10 +2734,23 @@ export const server = createServer(async (req, res) => {
      * which is why it can sit in front of every route from today.
      */
     // Read-only data for the team, behind its own token (src/admin.ts).
-    if (url.pathname.startsWith('/api/admin/')) return handleAdmin(req, res, url);
+    if (url.pathname.startsWith('/api/admin/')) {
+      // A wrong admin token is slowed after a handful (A5); the right one is never refused here.
+      if ((settings.SHIN_ADMIN_TOKEN()?.trim() ?? '') !== '' && !adminAllows(req.headers[ADMIN_HEADER])) {
+        const slowed = wrongGuessRefusal(req, 'admin');
+        if (slowed) return tooManyCalls(slowed.retryAfterSeconds);
+      }
+      return handleAdmin(req, res, url);
+    }
 
     if (url.pathname.startsWith('/api/') && !INVITE_EXEMPT.includes(url.pathname)) {
       if (!inviteAllows(req.headers[INVITE_HEADER])) {
+        const sent = req.headers[INVITE_HEADER];
+        // Only a code that was actually tried counts as a guess (A5); a visit with no code is just refused.
+        if (typeof sent === 'string' && sent.trim() !== '') {
+          const slowed = wrongGuessRefusal(req, 'invite');
+          if (slowed) return tooManyCalls(slowed.retryAfterSeconds);
+        }
         return json(401, { error: INVITE_REFUSAL });
       }
     }
@@ -2734,6 +2871,8 @@ export const server = createServer(async (req, res) => {
         (posted && typeof posted.deviceId === 'string' && posted.deviceId.trim()) ||
         url.searchParams.get('deviceId')?.trim() ||
         UNATTRIBUTED;
+      // A demo row is written into a device's history, so only that device (or an id nobody has bound) may ask for one.
+      if (!owns(deviceId)) return notYours();
       deviceForLog = deviceId;
       const demoScanId = recordScan({
         deviceId,
@@ -2783,7 +2922,8 @@ export const server = createServer(async (req, res) => {
       if (req.method !== 'GET') return json(405, { error: 'GET only' });
       const quotaDevice = url.searchParams.get('deviceId')?.trim() || deviceFromHeaders(req.headers) || '';
       if (quotaDevice === '') return json(400, { error: 'deviceId is required' });
-      if (!owns(quotaDevice)) return notYours();
+      // The quota carries the Plus answer, so it takes proof (a bound secret), not just an id nobody has claimed yet.
+      if (!owns(quotaDevice) || !provesDevice(quotaDevice, req.headers)) return notYours();
       deviceForLog = quotaDevice;
       return json(200, await quotaFor(quotaDevice, req.headers));
     }
@@ -2795,14 +2935,15 @@ export const server = createServer(async (req, res) => {
       if (body === null || typeof body !== 'object') return json(400, { error: 'body did not parse as JSON' });
       const o = body as Record<string, unknown>;
       const outcomeScan = Number(outcomePath[1]);
-      if (!scanExists(outcomeScan)) return json(404, { error: 'no scan with that id' });
+      // A scan that does not exist and a scan that is not yours answer the same 403, so scan ids cannot be probed.
+      const outcomeDevice = (typeof o.deviceId === 'string' ? o.deviceId.trim() : '') || deviceFromHeaders(req.headers);
+      // Item 3: only the device that made this scan says what happened after it. Asked before the
+      // outcome is read, so a bad outcome cannot tell a caller which scan ids exist.
+      if (!scanExists(outcomeScan) || !outcomeDevice || outcomeDevice !== getScan(outcomeScan)?.device_id || !owns(outcomeDevice)) return notYours();
       scanForLog = outcomeScan;
       if (!isScanOutcome(o.outcome)) {
         return json(400, { error: "outcome must be 'bought_elsewhere', 'price_matched', 'bought_here' or 'not_bought'" });
       }
-      const outcomeDevice = (typeof o.deviceId === 'string' ? o.deviceId.trim() : '') || deviceFromHeaders(req.headers);
-      // Item 3: only the device that made this scan says what happened after it.
-      if (!outcomeDevice || outcomeDevice !== getScan(outcomeScan)?.device_id || !owns(outcomeDevice)) return notYours();
       deviceForLog = outcomeDevice;
       const kept = recordScanOutcome(outcomeScan, outcomeDevice, o.outcome);
       return json(200, kept ? { stored: true } : { stored: false, why: 'that outcome could not be written down' });
@@ -2968,7 +3109,7 @@ export const server = createServer(async (req, res) => {
         const typedAnswer = await typedFromOwnData(text, device, telemetry, where, identifyStarted, null, {
           shopper: shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
           market: marketOfContext(contextFrom(pick)),
-          askRange: claudeRangeAsk(req),
+          askRange: claudeRangeAsk(req, device),
         });
         if (typeof typedAnswer.scanId === 'number') scanForLog = typedAnswer.scanId;
         return json(200, typedAnswer);
@@ -2994,7 +3135,7 @@ export const server = createServer(async (req, res) => {
           // The pack read is developer-only: a shopper's `canSendFrame` is ignored and the miss goes to typing, with the reason.
           const packRefused = packReadRefusal(req, device);
           const { answer, record } = await catalogueFirstBarcode(
-            claudeRangeAsk(req),
+            claudeRangeAsk(req, device),
             canonical,
             marketOfContext(contextFrom(pick)),
             device,
@@ -3003,7 +3144,7 @@ export const server = createServer(async (req, res) => {
             nameElsewhereFor({
               frame: null,
               canSendFrame: !packRefused && pickText('canSendFrame') === '1',
-              readFrame: packRefused ? null : claudePackRead(req),
+              readFrame: packRefused ? null : claudePackRead(req, device),
               refusedWhy: packRefused,
             }),
           );
@@ -3307,12 +3448,12 @@ export const server = createServer(async (req, res) => {
       const canonical = rawGtin ? canonicalBarcode(rawGtin) : null;
       const market = marketOfContext(contextFrom((key) => p[key]));
       const shopper = shopperFrom(p.shelfPriceCents, p.thresholds);
-      const readFrame = claudePackRead(req);
+      const readFrame = claudePackRead(req, device);
 
       let result: Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>;
       if (canonical) {
         result = await catalogueFirstBarcode(
-          claudeRangeAsk(req),
+          claudeRangeAsk(req, device),
           canonical,
           market,
           device,
@@ -3322,7 +3463,7 @@ export const server = createServer(async (req, res) => {
       } else {
         // A misread: no code to look up or save under. The frame is the only thing that can name it.
         const read = await readFrame(frame, null);
-        result = await withCatalogueFirstDeps(claudeRangeAsk(req), market, device, shopper, undefined, async (deps) => {
+        result = await withCatalogueFirstDeps(claudeRangeAsk(req, device), market, device, shopper, undefined, async (deps) => {
           if (read.ok) return answerNamedItem(read.named, rawGtin, null, deps);
           const reasons = ['misread', `claude_${read.reason}`];
           return {
@@ -3474,7 +3615,7 @@ export const server = createServer(async (req, res) => {
           {
             shopper: shopperFrom(q.askingCents ?? q.shelfPriceCents, q.thresholds),
             market: marketOfContext(contextFrom((key) => q[key])),
-            askRange: claudeRangeAsk(req),
+            askRange: claudeRangeAsk(req, pricedDevice),
           },
           searchGtin ?? null,
         );
@@ -3993,6 +4134,11 @@ export const server = createServer(async (req, res) => {
       if (!cell) {
         return json(400, { error: 'cell is required, as "lat,lon" rounded to two decimal places' });
       }
+      // Each new square can cost an outbound OpenStreetMap lookup; one address gets a bounded number (A7).
+      if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
+        const lookups = storesAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+        if (!lookups.allowed) return tooManyCalls(lookups.retryAfterSeconds);
+      }
       const stores = await storesNear(cell, storeFetcherDouble ? { fetch: storeFetcherDouble } : {});
       return json(200, { stores });
     }
@@ -4118,7 +4264,7 @@ export const server = createServer(async (req, res) => {
      */
     if (url.pathname === '/api/health') {
       const scans = openScanStore();
-      return json(200, {
+      return json(200, withoutFilePaths({
         ok: true,
         uptimeSeconds: Math.round((Date.now() - STARTED_AT) / 1000),
         startedAt: new Date(STARTED_AT).toISOString(),
@@ -4130,7 +4276,9 @@ export const server = createServer(async (req, res) => {
         ...faultHealth(),
         // D-231: whether Pexi's own prices can answer at all, and how many scans a broken prices file touched.
         ...pricesHealth(),
-      });
+        // A2: the monthly Claude cap, said out loud when it is hit.
+        ...claudeCapHealth(),
+      }));
     }
 
     /*
@@ -4144,6 +4292,8 @@ export const server = createServer(async (req, res) => {
      * a barcode read and a vision call describing no scan anybody performed.
      */
     if (url.pathname === '/api/latency') {
+      // Operator detail, not shopper data: the admin token opens it, nothing else does (A6). The app never calls it.
+      if (!adminAllows(req.headers[ADMIN_HEADER])) return json(404, { error: 'no such endpoint' });
       const daysRaw = Number(url.searchParams.get('days') ?? '7');
       const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.min(Math.floor(daysRaw), 90) : 7;
       return json(200, { days, latency: dailyLatency(days) });
@@ -4295,7 +4445,39 @@ server.on('error', (err) => {
   process.exit(1);
 });
 
-server.listen(PORT, () => {
+/*
+ * LOOPBACK ONLY, UNLESS SOMEONE ASKS OTHERWISE (security check A1, 2026-11-16).
+ *
+ * Every per-address limit believes the `cf-connecting-ip` header, which only the Cloudflare tunnel
+ * can be trusted to set. The tunnel runs on this machine, so the port has no business answering on
+ * the Wi-Fi or Tailscale address: anyone who could reach it there could forge the header and skip
+ * every limit. `localhost` resolves to 127.0.0.1 or ::1 depending on the machine, so both are
+ * opened (two listeners, one handler). `SHIN_BIND_HOST` is the deliberate way back to a LAN address
+ * (a phone on the same Wi-Fi during development); a socket that is not loopback never has the
+ * header believed (`clientAddress`).
+ */
+const BIND_HOST = (settings.SHIN_BIND_HOST() ?? '').trim();
+function listenOnLoopback6(port: number): void {
+  const server6 = createServer();
+  for (const handler of server.listeners('request')) server6.on('request', handler as (...a: unknown[]) => void);
+  server6.on('error', (err) => {
+    const code = (err as NodeJS.ErrnoException).code;
+    // No IPv6 on this machine is fine: 127.0.0.1 is open. Anything else is said, once, loudly.
+    if (code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') return;
+    console.error(`Pexi could not open ::1 port ${port} (127.0.0.1 is open): ${err instanceof Error ? err.message : String(err)}`);
+    logError({ where: 'server.listen.ipv6', err, detail: { port } });
+  });
+  server.once('close', () => server6.close());
+  server6.listen(port, '::1');
+}
+
+server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
+  if (BIND_HOST === '') {
+    const bound = server.address();
+    if (bound !== null && typeof bound === 'object') listenOnLoopback6(bound.port);
+  } else {
+    console.warn(`SHIN_BIND_HOST=${BIND_HOST}: the server is listening beyond this machine. The tunnel's address header is believed only on loopback connections.`);
+  }
   console.log(`Pexi is running.  http://localhost:${PORT}`);
   console.log('The engine behind it knows 7 products, because 7 is what has been priced by hand.');
   const scans = openScanStore(SCAN_DB);

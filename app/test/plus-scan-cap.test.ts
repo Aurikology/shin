@@ -155,7 +155,10 @@ test('only the Plus cap set: Plus is capped, a free device is not', async () => 
 test('GET /api/quota tells a Plus device its cap and what is left', async () => {
   process.env.SHIN_PLUS_SCANS_PER_WEEK = '100';
   seed('quota-plus', 40);
-  const res = await fetch(`${base()}/api/quota?deviceId=quota-plus`, { headers: PLUS });
+  // The quota carries the Plus answer, so it takes the device's secret as well as its id (security check A4).
+  const res = await fetch(`${base()}/api/quota?deviceId=quota-plus`, {
+    headers: { ...PLUS, 'x-shin-device': 'quota-plus', 'x-shin-device-key': 'quotaPlusKey0123456789' },
+  });
   const q = (await res.json()) as Record<string, unknown>;
   assert.equal(q.plus, true);
   assert.equal(q.limit, 100);

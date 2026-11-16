@@ -57,14 +57,27 @@ export class KeyedLimiter {
     }
     times.push(now);
     this.#calls.set(key, times);
-    if (this.#calls.size > MAX_KEYS) this.#sweep(now, longest);
+    if (this.#calls.size > MAX_KEYS) this.#shrink(now, longest);
     return { allowed: true, retryAfterSeconds: 0 };
   }
 
-  /** Keys that have gone quiet are dropped, so the map cannot grow without bound. */
-  #sweep(now: number, longest: number): void {
-    for (const [key, times] of this.#calls) {
-      if (times.every((t) => now - t >= longest)) this.#calls.delete(key);
+  /**
+   * Keeps the map bounded, and cheap however many keys a caller invents (security check A7, f6). Quiet
+   * keys are swept at most once a minute; if the map is still over the ceiling, the oldest-entered
+   * keys go, one per call, so a flood of made-up addresses costs O(1) a request, not a scan of all of them.
+   */
+  #lastSweep = 0;
+  #shrink(now: number, longest: number): void {
+    if (now - this.#lastSweep >= 60_000) {
+      this.#lastSweep = now;
+      for (const [key, times] of this.#calls) {
+        if (times.every((t) => now - t >= longest)) this.#calls.delete(key);
+      }
+    }
+    while (this.#calls.size > MAX_KEYS) {
+      const oldest = this.#calls.keys().next();
+      if (oldest.done) break;
+      this.#calls.delete(oldest.value);
     }
   }
 }
@@ -121,7 +134,23 @@ export function freeScanAddressWindows(env: NodeJS.ProcessEnv = process.env): Wi
  */
 export function isLocalRequest(headers: Record<string, string | string[] | undefined>, socketAddress: string | undefined): boolean {
   if (headers['cf-connecting-ip']) return false;
+  return isLoopbackSocket(socketAddress);
+}
+
+/** True when the connection itself came from this machine: the tunnel's end of the pipe, or a laptop's own browser. */
+export function isLoopbackSocket(socketAddress: string | undefined): boolean {
   return socketAddress === '127.0.0.1' || socketAddress === '::1' || socketAddress === '::ffff:127.0.0.1';
+}
+
+/**
+ * The network an address sits in: an IPv4 /24 or an IPv6 /64. One bot can rent many addresses next
+ * door to each other; the Claude limits count them together (security check A2).
+ */
+export function networkOf(address: string): string {
+  const v4 = /^(?:::ffff:)?(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/i.exec(address);
+  if (v4) return `${v4[1]}.0/24`;
+  if (address.includes(':')) return `${address.toLowerCase().split(':').slice(0, 4).join(':')}::/64`;
+  return address;
 }
 
 /**
@@ -134,6 +163,9 @@ export function isLocalRequest(headers: Record<string, string | string[] | undef
  * except through the tunnel, and why the code limit exists as well.
  */
 export function clientAddress(headers: Record<string, string | string[] | undefined>, socketAddress: string | undefined): string {
+  // The header is believed only on a connection from this machine (the tunnel). From any other
+  // socket it is whatever the caller typed, so the socket address is the only honest answer.
+  if (!isLoopbackSocket(socketAddress)) return socketAddress ?? 'unknown';
   const cf = headers['cf-connecting-ip'];
   const forwarded = Array.isArray(cf) ? cf[0] : cf;
   const trimmed = typeof forwarded === 'string' ? forwarded.trim() : '';

@@ -34,7 +34,8 @@ export type CustomerDataFaultKind =
   | 'shown_answer_edit_refused'
   | 'later_answer_not_stored'
   | 'scan_write_failed'
-  | 'typed_price_unmarked';
+  | 'typed_price_unmarked'
+  | 'claude_monthly_cap_reached';
 
 export function customerDataFault(kind: CustomerDataFaultKind, detail: string): void {
   counts[kind] = (counts[kind] ?? 0) + 1;

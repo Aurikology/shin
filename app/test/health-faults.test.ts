@@ -88,7 +88,9 @@ test('health reports the misses the gap log could not take, with the reason, fro
   assert.equal(log.dropped, 2);
   let h = await health();
   assert.equal(h.gapsDropped, 2);
-  assert.equal(h.gapsDroppedWhy, log.droppedWhy);
+  // The reason is kept, but the health page is open and shows no folder of this machine (security check A6).
+  assert.equal(h.gapsDroppedWhy, log.droppedWhy.replace(/[A-Za-z]:[\\/][^\s'",;)]*/g, '<path>'));
+  assert.match(h.gapsDroppedWhy, /^ENOTDIR/);
   assert.equal(h.ok, true, 'the shopper is served: health stays ok');
   // The search runs in a worker thread, whose own count the service carries back with each reply.
   setSearchServiceForTests({ search: async () => ({}), gaps: () => ({ dropped: 3, why: 'attempt to write a readonly database' }) });

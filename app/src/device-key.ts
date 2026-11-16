@@ -122,7 +122,22 @@ export function ownsDevice(deviceId: string, headers: IncomingHttpHeaders): bool
     const row = db().prepare('SELECT key_hash FROM device_key WHERE device_id = ?').get(id) as
       | { key_hash: Uint8Array }
       | undefined;
-    if (!row) return true;
+    if (!row) {
+      /*
+       * THE LEGACY WINDOW, NARROWED (security check A4, 2026-11-16). An id nobody has bound is still
+       * answered for a caller that says nothing about being another device, because a tester's phone
+       * from before the secrets has an id and no key. But a request that CLAIMS to be a different
+       * device (its `x-shin-device` header names another id, which is how every current phone speaks)
+       * cannot act for this one, and a request carrying a secret with no matching header cannot either:
+       * naming somebody else's unbound id from your own phone gets a 403 like a bound one does.
+       * What stays open: a caller that sends no device header and no key at all, and knows the id.
+       * Ids are random per phone and unlisted, and the Plus check below no longer believes them.
+       */
+      const claimed = deviceHeaderOf(headers);
+      if (claimed !== null && claimed !== id) return false;
+      if (claimed === null && deviceKeyOf(headers) !== null) return false;
+      return true;
+    }
     const key = deviceKeyOf(headers);
     if (!key) return false;
     const want = Buffer.from(row.key_hash);

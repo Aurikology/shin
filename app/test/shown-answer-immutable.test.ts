@@ -130,7 +130,10 @@ test('3.9 known-bad: markScan on a scan that already showed a zone stores the ne
 
 test('3.9 route: /api/price naming a typed scan that already showed a verdict does not edit it', async () => {
   const device = 'shown-route';
-  const first = await h.get(`/api/identify?text=${encodeURIComponent(TATERS_TEXT)}&shelfPriceCents=299&countryCode=CA&region=British%20Columbia&deviceId=${device}`);
+  // The function-level cases above point the scan log at throwaway stores. The route cases use the server's
+  // own, so point the log back at it (the server used to open it late enough to win that race by luck).
+  (await import('../src/scans.ts')).openScanStore(h.scansPath);
+  const first =await h.get(`/api/identify?text=${encodeURIComponent(TATERS_TEXT)}&shelfPriceCents=299&countryCode=CA&region=British%20Columbia&deviceId=${device}`);
   const scanId = first.scanId as number;
   assert.equal(typeof scanId, 'number', `the typed answer carried no scan id: ${JSON.stringify(first).slice(0, 300)}`);
   assert.ok(first.verdict, 'the fixture gave no verdict, so this case tests nothing');

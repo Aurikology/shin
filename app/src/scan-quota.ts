@@ -38,6 +38,8 @@
 import * as settings from '../../settings/src/index.ts';
 import type { IncomingHttpHeaders } from 'node:http';
 import { activeScanStore, openScanStore } from './scans.ts';
+import { provesDevice } from './device-key.ts';
+import { KeyedLimiter } from './rate-limit.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WINDOW_MS = 7 * DAY_MS;
@@ -47,6 +49,10 @@ const PLUS_ENTITLEMENT = 'plus';
 const ENTITLEMENT_CACHE_MS = 10 * 60 * 1000;
 /** A failed RevenueCat call is retried after a minute, not after ten. */
 const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
+/** A device id RevenueCat may be asked about: letters, digits, underscore and hyphen, 8 to 64 long. */
+const PLUS_ID_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
+const lookupLimiter = new KeyedLimiter([{ ms: 60_000, limit: 120 }]);
+let lookupAlarmAt = 0;
 
 /** A cap setting's value: a positive whole number, else null (no cap). */
 function positiveWhole(rawValue: string | undefined): number | null {
@@ -177,8 +183,25 @@ export async function isPlus(
   now: Date = new Date(),
 ): Promise<boolean> {
   if (entitlementMode(env) === 'client_trusted') return trustsClientPlus(env) && headerText(headers, PLUS_HEADER) === '1';
+  /*
+   * RevenueCat is asked only about an id a phone made (a UUID or the like, never dots or slashes,
+   * which would change which record the URL names) and only for a request that PROVES that id with
+   * its secret. An id nobody has bound is a name anybody can type; asking about it would let a
+   * stranger borrow a subscriber's Plus by naming it, and every made-up id would cost a lookup
+   * with the secret key (security check A4, A7).
+   */
+  if (!PLUS_ID_SHAPE.test(deviceId) || !provesDevice(deviceId, headers)) return false;
   const cached = entitlementCache.get(deviceId);
   if (cached && cached.until > now.getTime()) return cached.plus;
+  // A safety valve on the lookups themselves: one process-wide ceiling, so a flood of freshly minted
+  // ids cannot turn into a flood of calls to RevenueCat. Over it, the answer is the last known one.
+  if (!lookupLimiter.check('revenuecat', now.getTime()).allowed) {
+    if (!lookupAlarmAt || now.getTime() - lookupAlarmAt > 60_000) {
+      lookupAlarmAt = now.getTime();
+      console.warn('[plus-lookup-limit] RevenueCat lookups are over 120 a minute; answering from the last known entitlement until it eases');
+    }
+    return cached?.plus ?? false;
+  }
   const key = (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim();
   const doFetch: FetchLike = fetchForEntitlement ?? (globalThis.fetch as unknown as FetchLike);
   try {
