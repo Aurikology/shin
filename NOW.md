@@ -55,7 +55,7 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
   (Jamin ruled preview first, built 0a44202). D-270 A2 screen half needs no change: a low-confidence
   verdict is already drawn hollow with the plain face (RULINGS "The top of the verdict is for useful
   information only"; AVATAR.md row 25), and Jamin's ba2820d/f60a700 fixed the word and the confidence.
-  D-268 A3's phone half (the retry outbox) pushed b106208. Build 8 is on TestFlight (e39310c);
+  D-268 A3's phone half (the retry outbox) pushed b106208. Build 8 is on TestFlight (e39310c); build 9 from 7aa7138 asked of the Mac 2026-11-16;
   none of it seen on a phone.
 - **2026-11-15, early access (Aurik's ask):** the camera shows "Pexi is in early access" on the first
   visit and an Early access badge after (18db691, tag a113), so a shopper hears before a miss that
