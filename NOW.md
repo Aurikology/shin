@@ -55,8 +55,11 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
   (Jamin ruled preview first, built 0a44202). D-270 A2 screen half needs no change: a low-confidence
   verdict is already drawn hollow with the plain face (RULINGS "The top of the verdict is for useful
   information only"; AVATAR.md row 25), and Jamin's ba2820d/f60a700 fixed the word and the confidence.
-  Open for Aurik: the phone retry queue for ratings and events (D-268 A3; the 502s are deploy
-  restarts). Build 8 is on TestFlight (e39310c); none of it seen on a phone.
+  D-268 A3's phone half (the retry outbox) pushed b106208. Build 8 is on TestFlight (e39310c);
+  none of it seen on a phone.
+- **2026-11-15, early access (Aurik's ask):** the camera shows "Pexi is in early access" on the first
+  visit and an Early access badge after (18db691, tag a113), so a shopper hears before a miss that
+  Pexi knows everyday groceries best for now.
 - **2026-11-14/15, Jamin's side built every screen ask** from his two 11-14 notes (tap to scan, price
   pad default, hidden dead features, answer sheet layout, connection message, "Pexi doesn't know this
   one yet", "No price here yet", saved-price count, first-run tip, miss-run line, produce amounts).
