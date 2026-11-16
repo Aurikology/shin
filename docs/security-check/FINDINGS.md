@@ -79,5 +79,5 @@ from when, the Ontario fee, and who is the "merchant" for an Apple in-app purcha
 
 ## What happens next
 
-- **A1 to A7 and E1, E2:** the fix loop now (red test from the attack suite, smallest fix, gate, push).
+- **A1, A2, A4 to A7, E1, E2: fixed 2026-11-16** (fix log in this folder; 71 of 71 attack tests, suite 2,288 pass 0 fail). A3 narrowed only (a phone can still mint a new id for a fresh free allowance, options in the fix log); A4 legacy window narrowed, not closed. Mac, on Jamin's word: point the tunnel origin at 127.0.0.1.
 - **B1 to B3, C1, D1 to D5, F1 to F7:** Jamin's calls, listed in the chat reply of 2026-11-16.
