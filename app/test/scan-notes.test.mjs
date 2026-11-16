@@ -104,5 +104,5 @@ test('a saved price is said with the running count', () => {
 test('the first-run tip is one line over the feed, in English and French, shown once per visit until a barcode is read', () => {
   assert.equal(t('note_first_tip'), 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart and Save-On-Foods');
   assert.match(TABLES.fr.note_first_tip, /Loblaws, No Frills, Metro, Walmart/);
-  assert.match(CAMERA, /if \(!firstTipShown && firstRunTipPending\(\)\) \{\s+firstTipShown = true;\s+showScanNote\(t\('note_first_tip'\), 9000\);/);
+  assert.match(CAMERA, /if \(!firstTipShown && firstRunTipPending\(\) && !earlyAccessOpen\(\)\) \{\s+firstTipShown = true;\s+showScanNote\(t\('note_first_tip'\), 9000\);/);
 });

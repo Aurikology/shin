@@ -139,3 +139,59 @@
   color: var(--ink);
   opacity: .8;
 }
+
+/* 2026-11-15, Aurik: early access. The badge sits centred under the wordmark, out of the top band's
+   flex row so the torch, wordmark and keyboard keep their places; the banner takes the scan note's
+   spot under the band and, unlike a note, takes taps (its Got it button). */
+.ea-badge {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translateX(-50%);
+  min-height: 44px; /* R-13: the tap area; the pill inside is what shows */
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ea-badge > span {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  font: 600 11px/1.6 var(--f-body, inherit);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ea-banner {
+  position: absolute;
+  z-index: 8;
+  top: calc(max(14px, env(safe-area-inset-top)) + 56px);
+  left: var(--s-4);
+  right: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  font-size: 14px;
+  line-height: 1.4;
+  animation: corr-toast-in 200ms var(--ease-land) both;
+}
+.ea-title { margin: 0 0 4px; font-weight: 700; font-size: 15px; }
+.ea-body { margin: 0 0 var(--s-3); }
+.ea-ok {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--ink);
+  color: var(--surface);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) { .ea-banner { animation: none; } }

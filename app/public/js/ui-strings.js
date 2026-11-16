@@ -266,6 +266,12 @@ const EN = {
   note_strongest: "Pexi's strongest on packaged groceries. Try a box or can.",
   /* First-run tip, over the feed until a first barcode has been read on this phone (where Pexi is strong, measured 2026-11-15). */
   note_first_tip: 'Works best on packaged groceries at Loblaws, No Frills, Metro, Walmart and Save-On-Foods',
+  /* 2026-11-15, Aurik: the app says it is in early access and knows everyday groceries for now (early-access.js).
+     "Every week" is the weekly price refresh (mac/hammer-refresh.sh); more products is the stated plan. */
+  ea_badge: 'Early access',
+  ea_title: 'Pexi is in early access',
+  ea_body: 'For now Pexi knows everyday groceries best. New prices come in every week, and more products are on the way.',
+  ea_ok: 'Got it',
   cam_typed_pick_which: (f) => `Which one is "${f.query}"?`,
   cam_typed_pick_none: 'None of these',
   cam_typed_pick_none_meta: 'Search with the words as typed',
@@ -1026,6 +1032,10 @@ const FR = {
   note_prices_added: (f) => `Tu as ajouté ${f.n} prix`,
   note_strongest: 'Pexi est le plus fort sur les produits emballés. Essaie une boîte ou une conserve.',
   note_first_tip: 'Fonctionne mieux sur les produits emballés chez Loblaws, No Frills, Metro, Walmart et Save-On-Foods',
+  ea_badge: 'Accès anticipé',
+  ea_title: 'Pexi est en accès anticipé',
+  ea_body: 'Pour l’instant, Pexi connaît surtout l’épicerie de tous les jours. De nouveaux prix arrivent chaque semaine, et d’autres produits s’en viennent.',
+  ea_ok: 'Compris',
   cam_typed_pick_which: (f) => `Lequel est « ${f.query} » ?`,
   cam_typed_pick_none: 'Aucun de ceux-ci',
   cam_typed_pick_none_meta: 'Chercher avec les mots tapés',

@@ -63,6 +63,7 @@ import { hasValidCheckDigit } from '../lib/gtin.js';
 import { packReadOn, devOn } from '../dev-mode.js';
 import { tagsOn } from '../screen-tag-badge.js';
 import { sessionMisses, readPreview, firstRunTipPending, markFirstRunTipSeen } from '../scan-notes.js';
+import { earlyAccessPending, dismissEarlyAccess } from '../early-access.js';
 import { createReviewPrompter, reviewBlocked } from '../review-prompt.js';
 import { APP_VERSION } from '../version.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
@@ -3243,6 +3244,8 @@ export default {
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
           <span class="wordmark">pexi<i>.</i></span>
+          <!-- 2026-11-15, Aurik: always says the app is in early access; a tap opens the banner below again (early-access.js). -->
+          <button type="button" class="ea-badge" data-act="early-access"><span>${escapeHtml(t('ea_badge'))}</span></button>
           <!-- W30's Manual Search, a small keyboard button: it opens the same typed-name
                field the type-it route uses. Build 7 R-98: it lives in the top band, where the
                balancing spacer was, so the bottom bar keeps three items. -->
@@ -3318,6 +3321,8 @@ export default {
     const video = root.querySelector('.feed-video');
     const badge = root.querySelector('.nav-badge');
     const camShin = root.querySelector('.cam-shin');
+    /* 2026-11-15: the early access banner on a first visit (early-access.js; Aurik's ask). */
+    if (earlyAccessPending()) showEarlyAccess();
 
     let stream = null;
     let eye = null;
@@ -4098,7 +4103,7 @@ export default {
       if (hintEscalated) dockSay('asking', FLAGS.photoId ? 'hint_escalated' : 'hint_escalated_barcode', {}, anim ?? 'nudge-arrive');
       else dockSay('idle', FLAGS.photoId ? 'cam_aim_hint' : 'cam_aim_barcode', {}, anim);
       /* 2026-11-14: until a first barcode has been read on this phone, one line over the feed says where Pexi is strongest. */
-      if (!firstTipShown && firstRunTipPending()) {
+      if (!firstTipShown && firstRunTipPending() && !earlyAccessOpen()) {
         firstTipShown = true;
         showScanNote(t('note_first_tip'), 9000);
       }
@@ -4494,6 +4499,21 @@ export default {
      * A short line over the live feed, under the top band, that goes by itself: the things said around
      * a scan that are not part of its answer (a price saved, where Pexi is strongest). Never a sheet.
      */
+    /* 2026-11-15, Aurik: the early access banner, under the top band until Got it (early-access.js).
+       The first-run tip waits while it is open, since both sit in the same place. */
+    function earlyAccessOpen() { return !!cam.querySelector('.ea-banner'); }
+    function showEarlyAccess() {
+      if (earlyAccessOpen()) return;
+      cam.querySelector('.scan-note')?.remove();
+      const el = document.createElement('div');
+      el.className = 'ea-banner';
+      el.setAttribute('role', 'status');
+      el.innerHTML = `<p class="ea-title">${escapeHtml(t('ea_title'))}</p>
+        <p class="ea-body">${escapeHtml(t('ea_body'))}</p>
+        <button type="button" class="ea-ok" data-act="early-access-ok">${escapeHtml(t('ea_ok'))}</button>`;
+      cam.appendChild(el);
+    }
+    function hideEarlyAccess() { cam.querySelector('.ea-banner')?.remove(); }
     function showScanNote(text, ms = 7000) {
       cam.querySelector('.scan-note')?.remove();
       const el = document.createElement('div');
@@ -6278,6 +6298,8 @@ export default {
        * button and opens the name field.
        */
       if (act === 'manual-search') { openManualSearch(); return; }
+      if (act === 'early-access') { showEarlyAccess(); return; }
+      if (act === 'early-access-ok') { dismissEarlyAccess(); hideEarlyAccess(); return; }
       if (act === 'scan-barcode') {
         if (cam.dataset.state !== 'idle') return;
         if (!captureAllowed(Date.now(), lastCaptureAt)) return;

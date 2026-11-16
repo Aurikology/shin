@@ -75,7 +75,8 @@ test('the barcode, camera and keyboard icon buttons are all on the camera, in th
   /* Build 7 R-98 (the bar keeps three items, as the pages do): the keyboard button moved to the top band,
      beside the torch, so the bar is Saved, the scan control, the shutter (only while the photo flag is on), You. */
   assert.deepEqual(order, ['watchlist', 'scan-barcode', 'shoot', 'you']);
-  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['torch', 'manual-search']);
+  // Amended 2026-11-15: the Early access badge sits under the wordmark (early-access.js).
+  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['torch', 'early-access', 'manual-search']);
 });
 
 test('each is an inline SVG with an aria-label, no text, no image and none hidden', () => {
