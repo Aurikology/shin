@@ -5374,7 +5374,8 @@ export default {
       }
       if (dead || token !== thumbToken || !toastSlot?.isConnected) return;
       clearTimeout(toastSlot._timer);
-      if (res?.stored === true) {
+      // D-268 A3: a rating kept in the outbox (server restarting, no signal) is thanked too; it is sent when the server is back.
+      if (res?.stored === true || res?.queued === true) {
         store.recordRating({ scanId, rating });
         toastSlot.innerHTML = feedbackToast({ askReason: rating === 'down' && !reason });
         /* N04: the toast and its reason chips open under the thumbs, which sit at the foot of a scrolling sheet; bring them into view. */

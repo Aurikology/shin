@@ -285,7 +285,8 @@ test('D09: a thumb is sent for every answer kind and "Noted" waits for the serve
   const at = CAMERA.indexOf('async function sendThumb(');
   const block = CAMERA.slice(at, at + 1700);
   assert.match(block, /await ctx\.api\.postScanRating/);
-  assert.match(block, /if \(res\?\.stored === true\) \{[\s\S]*?feedbackToast\(/, '"Noted" is painted outside the stored branch');
+  // Amended 2026-11-15 (D-268 A3): a rating kept in the outbox is thanked too; it is sent when the server is back.
+  assert.match(block, /if \(res\?\.stored === true \|\| res\?\.queued === true\) \{[\s\S]*?feedbackToast\(/, '"Noted" is painted outside the stored-or-queued branch');
   assert.match(block, /feedbackFailedToast\(\)/);
   // The four-second undo is kept.
   assert.match(block, /setTimeout\(\(\) => \{ toastSlot\.innerHTML = ''; \}, 4000\)/);

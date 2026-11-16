@@ -14,6 +14,7 @@ import { consent, get as storeState, market as storeMarket } from './store.js';
 import { plusActive } from './purchases.js';
 import { locale, localeTag } from './lib/locale.js';
 import { thresholdsFrom, shelfPriceOf, scanContextFrom } from './lib/scan-body.js';
+import { createOutbox } from './lib/outbox.js';
 
 /**
  * The shop the user has picked, held by shops.js. It registers a getter here at
@@ -297,6 +298,37 @@ async function postSoft(path, body, fallback) {
   } catch {
     return fallback; // Offline, or the route is not there yet. Same outcome either way.
   }
+}
+
+/*
+ * D-268 A3 (Jamin, 2026-11-12): ratings, their undo and single events go through the outbox
+ * (lib/outbox.js), so a post made while the server restarts on a deploy, or with no signal in an
+ * aisle, is kept and retried instead of dropped. Drained on a timer, when the network comes back and
+ * when the app is shown again.
+ */
+const outbox = createOutbox({
+  post: async (path, body) => {
+    const res = await fetch(`${BASE}${path}`, {
+      method: 'POST',
+      headers: headers({ 'content-type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+    const ra = Number(res.headers?.get?.('retry-after'));
+    return { ok: res.ok, status: res.status, retryAfter: Number.isFinite(ra) ? ra : undefined, json: () => res.json() };
+  },
+  storage: globalThis.localStorage,
+});
+setInterval(() => { void outbox.drain(); }, 5_000)?.unref?.();
+globalThis.window?.addEventListener?.('online', () => { void outbox.drain(); });
+globalThis.document?.addEventListener?.('visibilitychange', () => {
+  if (globalThis.document.visibilityState === 'visible') void outbox.drain();
+});
+
+/** The outbox's answer in the shape the old soft posts gave: `{ ...json }` when sent, `{ [flag]: false, queued: true }` when kept. */
+async function postKept(path, body, flag) {
+  const r = await outbox.send(path, body);
+  if (r.sent) return r.json ?? { [flag]: true };
+  return r.queued ? { [flag]: false, queued: true } : { [flag]: false };
 }
 
 async function getSoft(path, fallback) {
@@ -868,12 +900,12 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPric
 export function postScanRating({ deviceId, scanId, rating, reason }) {
   const body = { deviceId, scanId, rating };
   if (reason) body.reason = reason;
-  return postSoft('/api/scan-rating', body, { stored: false });
+  return postKept('/api/scan-rating', body, 'stored');
 }
 
 /** The undo: deletes the rating just posted. Same quiet-failure rule as the post. */
 export function deleteScanRating({ deviceId, scanId }) {
-  return postSoft('/api/scan-rating/delete', { deviceId, scanId }, { deleted: false });
+  return postKept('/api/scan-rating/delete', { deviceId, scanId }, 'deleted');
 }
 
 /* ------------------------------------------------------------ item 6: consent */
@@ -905,7 +937,7 @@ export function postConsent({ deviceId, photos, location }) {
  * throws, and every call site here is `void`.
  */
 export function postEvent({ deviceId, type, payload }) {
-  return postSoft('/api/event', { deviceId, type, payload: payload ?? {} }, { stored: false });
+  return postKept('/api/event', { deviceId, type, payload: payload ?? {} }, 'stored');
 }
 
 /**
