@@ -40,7 +40,7 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <li>Product names go to Anthropic's Claude AI only if you said yes when you first opened Pexi. If you said no, Pexi answers with a broad-guess range instead.</li>
 <li>Pexi deletes what it records on a stated schedule. See "How long Pexi keeps it" below.</li>
 <li>If you subscribe to Pexi Plus, Apple processes the payment and RevenueCat, a subscription service, records the purchase against the same random identifier. Pexi never sees your card or Apple ID details.</li>
-<li>Pexi does not show ads, does not use advertising or analytics companies (RevenueCat is used only to process subscription purchases), and does not track you across other companies' apps or websites.</li>
+<li>Pexi does not show ads, does not use advertising or analytics companies (RevenueCat is used only to manage subscriptions), and does not track you across other companies' apps or websites.</li>
 </ul>
 
 <h2>What Pexi collects</h2>
@@ -50,7 +50,7 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <p><strong>How you use the app.</strong> Pexi records when the app is opened, which screens you visit, buttons you tap, errors the app hits, and text you send, such as a search. Text you delete or leave unsent is not recorded; Pexi records only that a search was left unfinished. This is recorded whether or not you have turned location on.</p>
 <p><strong>Your first-run answers.</strong> Pexi records that you agreed to the Terms and this policy, your choice about Claude, and when you made or changed them.</p>
 <p><strong>Technical details of each request.</strong> The app version, the platform, how long an answer took, and your language and market setting. Pexi's server also logs, for every request, the time, the web address requested, the response status, your IP address, the country the request came from, and your phone's user agent text.</p>
-<p><strong>Purchase history, only if you subscribe.</strong> Pexi Plus is sold through Apple's in-app purchase system. The purchase is made with Apple, and RevenueCat records which plan you bought, when it renews and whether it is active, under your random device identifier as the app user identifier. Your phone also tells Pexi's server whether Pexi Plus is active, so the weekly scan limit can be lifted. Opening the Pexi Plus screen or tapping Restore Purchases contacts RevenueCat and Apple.</p>
+<p><strong>Purchase history, only if you subscribe.</strong> Pexi Plus is sold through Apple's in-app purchase system. The purchase is made with Apple, and RevenueCat records which plan you bought, when it renews and whether it is active, under your random device identifier as the app user identifier. The app checks your subscription with RevenueCat each time it opens, and Pexi's server asks RevenueCat whether Pexi Plus is active for your device identifier, so the weekly scan limit can be lifted. Tapping Restore Purchases contacts RevenueCat and Apple.</p>
 <p><strong>Rough location, only if you turn it on.</strong> Location is off by default. If you turn it on, your phone works out your position and rounds it on the phone to a grid square about one kilometre wide. Only the grid square is sent. Pexi's server stores the grid square, not your exact position, and discards any exact coordinates a request might carry. Pexi uses the grid square to suggest nearby shops, and the shop you pick is stored with the scan.</p>
 
 <h2>What Pexi does not collect in this version</h2>
@@ -70,15 +70,15 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 </ul>
 
 <h2>Who else receives data</h2>
-<p>Pexi's server sends limited information to these outside services to answer a scan. None of them receives your device identifier. The only one that receives anything about where you are is the shop-finding service described below, and only when location is on.</p>
+<p>Pexi's server sends limited information to these outside services to answer a scan. Open Food Facts, Anthropic and OpenStreetMap's Overpass service do not receive your device identifier. Cloudflare, which carries your requests, and RevenueCat, described below, do. The only one that receives anything about where you are is the shop-finding service described below, and only when location is on.</p>
 <ul>
 <li><strong>Open Food Facts</strong> (world.openfoodfacts.org) receives a barcode number when Pexi's own catalogue does not know the product, to look up the product's name, brand and size.</li>
 <li><strong>Anthropic</strong> (the maker of the Claude AI model), only if you said yes, receives a product's name, brand, size, category and country when Pexi has no price for it, so the model can estimate a typical price range. If you typed the name and Pexi did not recognise it, your typed words are the name it receives. It does not receive images, your device identifier or your location. The estimate is generated by an AI model and is saved by Pexi. You can change your answer at any time on the You screen; saying no stops new requests.</li>
 <li><strong>OpenStreetMap's Overpass service</strong> receives the centre point of your rough grid square, only when location is on, to find shops nearby.</li>
-<li><strong>Cloudflare</strong> carries traffic between the app and Pexi's server, so it handles your requests in transit.</li>
+<li><strong>Cloudflare</strong> carries traffic between the app and Pexi's server, so it handles your requests in transit, including the device identifier they carry.</li>
 <li><strong>Apple</strong> provides the App Store, handles downloads, and processes Pexi Plus payments. Pexi receives no card or Apple ID details from Apple.</li>
 </ul>
-<p>RevenueCat (revenuecat.com) is different from the list above: it is contacted by the app itself, not by Pexi's server, and only for Pexi Plus. It receives your random device identifier as the app user identifier, together with the purchase information from Apple described under purchase history.</p>
+<p>RevenueCat (revenuecat.com) is different from the list above: the app contacts it each time it opens, and Pexi's server contacts it to check whether Pexi Plus is active. It receives your random device identifier as the app user identifier, together with the purchase information from Apple described under purchase history.</p>
 <p>Pexi does not sell your data and does not share it with advertisers or data brokers.</p>
 <p><strong>Outside your province.</strong> Pexi's server and most of these services are outside Quebec, and some are outside Canada, including in the United States and the European Union, where privacy law differs. Pexi limits what each one receives to what is listed above.</p>
 
