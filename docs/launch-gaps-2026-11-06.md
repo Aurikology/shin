@@ -125,8 +125,10 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
 9b. **[Aurik] Barcode button looked dead on build 6 (D-252).** Fixed in f9f5dd2 (a press keeps
    looking for 2.5 s with a turning ring); seen working in Chromium with a fake camera. Check on
    build 7. Build 7 asked of the Mac from f9f5dd2 or later (comms 2026-11-11).
-9c. **[Jamin] Aurik asks for the 18+ checkbox back** (2026-11-10), which reverses "Pexi is for all
-   ages". Nothing built; Jamin's yes or no asked in comms 2026-11-11-aurik-to-jamin-bring-back-18-plus.
+9c. **ANSWERED 2026-11-16: no 18+ checkbox.** Jamin: *"this app is for all ages"* (RULINGS, "Pexi
+   is for all ages"). Was: Aurik asks for the 18+ checkbox back (2026-11-10), asked in comms
+   2026-11-11-aurik-to-jamin-bring-back-18-plus. The checks that all ages calls for are in
+   `docs/security-legal-check-plan-2026-11-16.md`, section L2.
 10. **CLOSED, stale entry (checked 2026-11-07):** DEFECTS shows D-036 "Closed 2026-09-13, with the
     founder's rule" (leaf category first, parent only if the leaf is empty, never the grandparent);
     the "open, gates showing" words below are its original state, quoted. Left from it: D-097

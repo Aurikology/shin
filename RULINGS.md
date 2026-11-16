@@ -98,7 +98,8 @@ asks only for the Terms and Privacy Policy. A minor uses Pexi with a parent's or
 permission (Terms section 2). Replaces "Age gate is a Terms-of-Service checkbox" (kept verbatim in
 docs/decisions.md). · 2026-11-07 · asked whether to set the age rating to 18+: *"don't say 18+, it
 should be good for all ages"* · 2026-11-08, asked whether the terms keep 18+: *"the app should be
-all ages"* · log: docs/decisions.md#Pexi is for all ages
+all ages"* · 2026-11-16, after Aurik asked for the 18+ checkbox back (launch gaps 9c): *"this app
+is for all ages"* · log: docs/decisions.md#Pexi is for all ages
 Retired wording: `I am 18 or older and I agree`, `You must be 18 or older`
 Governs: App Store Connect age rating, docs/store/listing.md, docs/store/terms*.html, docs/store/privacy*.html, app/public/js/ui-strings.js (agree_terms_line), app/public/js/screens/agree.js
 ### Barcode plumbing: digits only, through Shin's server
