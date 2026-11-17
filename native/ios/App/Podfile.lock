@@ -22,6 +22,8 @@ PODS:
     - GoogleMLKit/TextRecognitionDevanagari (~> 8.0.0)
     - GoogleMLKit/TextRecognitionJapanese (~> 8.0.0)
     - GoogleMLKit/TextRecognitionKorean (~> 8.0.0)
+  - CapacitorSecureStoragePlugin (0.14.2):
+    - Capacitor
   - CapacitorTextZoom (8.0.1):
     - Capacitor
   - GoogleDataTransport (10.1.1):
@@ -126,6 +128,7 @@ DEPENDENCIES:
   - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorMlkitBarcodeScanning (from `../../node_modules/@capacitor-mlkit/barcode-scanning`)"
   - "CapacitorMlkitTextRecognition (from `../../node_modules/@capacitor-mlkit/text-recognition`)"
+  - CapacitorSecureStoragePlugin (from `../../node_modules/capacitor-secure-storage-plugin`)
   - "CapacitorTextZoom (from `../../node_modules/@capacitor/text-zoom`)"
   - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
 
@@ -170,6 +173,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-mlkit/barcode-scanning"
   CapacitorMlkitTextRecognition:
     :path: "../../node_modules/@capacitor-mlkit/text-recognition"
+  CapacitorSecureStoragePlugin:
+    :path: "../../node_modules/capacitor-secure-storage-plugin"
   CapacitorTextZoom:
     :path: "../../node_modules/@capacitor/text-zoom"
   RevenuecatPurchasesCapacitor:
@@ -184,6 +189,7 @@ SPEC CHECKSUMS:
   CapacitorHaptics: 296f771ecd89c7a1bd92a7b6826a7d268e2e70f5
   CapacitorMlkitBarcodeScanning: 1070a9d56dd84c08a7354d12354293daeee28100
   CapacitorMlkitTextRecognition: 6780cef16e36d1e8400554926bd897c68ee10b7f
+  CapacitorSecureStoragePlugin: 2906a5fe9d33fdf2cb8dd5313bde457851020c0c
   CapacitorTextZoom: b3c80b09abef831245bc3434b1c03aa898ad4762
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
   GoogleMLKit: ddd51d7dff36ff28defa69afedd9cdce684fd857
@@ -208,6 +214,6 @@ SPEC CHECKSUMS:
   RevenueCat: 5e390c204dafb3ceeff76ade29bf295b952e6681
   RevenuecatPurchasesCapacitor: 50efeea38d9b2574333563d96235cea7c736add3
 
-PODFILE CHECKSUM: 72d5a987eadf07ea6f2f80a1d187f9e7f36e10a1
+PODFILE CHECKSUM: 04ef7b04b89633019a8f2fc1ce7ffb87e518c358
 
 COCOAPODS: 1.17.0
