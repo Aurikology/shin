@@ -50,3 +50,8 @@ jobs:
           echo "First probe failed; retrying once in 90 seconds."
           sleep 90
           node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"
+      # Prices still being refreshed: the weekly Project Hammer refresh's last good run is at most
+      # 8 days old (scripts/data-freshness.mjs). Runs even when the probe failed, so both are said.
+      - name: Prices still refreshed weekly
+        if: always()
+        run: node scripts/data-freshness.mjs
