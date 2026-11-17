@@ -103,6 +103,8 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_DOOR_IP_PER_10MIN', default: '1200', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_DOOR_IP_PER_DAY', default: '15000', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_FREE_SCANS_PER_IP_DAY', default: '30, only while the free scan limit is on', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_SHOPPER_VOICE', default: "unset -> on; 'off' stops typed prices and learned picks from changing any shown answer (they are still stored)", ruling: 'operational' },
+  { env: 'SHIN_NETWORK_SALT', default: 'unset -> a random salt made once and kept in <SHIN_DATA_DIR>/network-salt', ruling: 'operational', secret: true },
   { env: 'SHIN_ADMIN_TOKEN', default: 'unset -> every /api/admin/* path answers 404', ruling: 'operational', secret: true },
   { env: 'SHIN_DATA_DIR', default: 'process.cwd()/data', ruling: 'operational' },
   { env: 'SHIN_PHOTOS', default: '<repo>/app/data/photos/', ruling: 'operational' },
@@ -248,6 +250,14 @@ export function SHIN_RATE_DOOR_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env):
 
 export function SHIN_FREE_SCANS_PER_IP_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_FREE_SCANS_PER_IP_DAY');
+}
+
+export function SHIN_SHOPPER_VOICE(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_SHOPPER_VOICE');
+}
+
+export function SHIN_NETWORK_SALT(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_NETWORK_SALT');
 }
 
 export function REVENUECAT_SECRET_KEY(env: NodeJS.ProcessEnv = process.env): string | undefined {

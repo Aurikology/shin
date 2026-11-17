@@ -37,6 +37,7 @@ import {
   recentCategories,
   recordScan,
   recordPick,
+  recordOffer,
   learnedPickFor,
   recordShopperCall,
   updateScan,
@@ -47,6 +48,8 @@ import { isGroceryRow } from './src/grocery-scope.ts';
 import { currentCorrectionStore } from '../price/src/corrections.ts';
 import { hasShopPrice, hasShopperPrice, shopperVoiceFor } from '../price/src/shopper-prices.ts';
 import { shopperContribution } from './src/shopper-contribution.ts';
+import { requestNetworkHash } from './src/network-hash.ts';
+import { shopperVoiceOff } from './src/shopper-voice.ts';
 import { createCategoryGuard, defaultFaultsFile, ringLeaf, type CategoryGuard } from './src/category-guard.ts';
 import {
   answerBarcodeFromCatalogue,
@@ -1543,7 +1546,8 @@ async function withCatalogueFirstDeps<T>(
       learnedPick: learnedPickFor,
       ...(market.knowsNationalAverage ? { nationalAverage: statcanRung } : {}),
       // Shoppers' prices, one voice per product (decisions 2026-11-15); the store is the corrections file, never prices.db.
-      shopperVoice: (key) => shopperVoiceFor(currentCorrectionStore().db, key, new Date().toISOString().slice(0, 10)),
+      // SHIN_SHOPPER_VOICE=off answers no voice at all (security finding F9).
+      shopperVoice: (key) => (shopperVoiceOff() ? null : shopperVoiceFor(currentCorrectionStore().db, key, new Date().toISOString().slice(0, 10))),
     });
   } finally {
     try {
@@ -1781,6 +1785,8 @@ function finishCatalogueScan(s: {
   startedAt: number;
   /** The shelf price the request carried and where it was typed: saved for other shoppers when the product is identified (decisions 2026-11-15). */
   priced?: { cents: number | null; region: string | null; storeName: string | null };
+  /** `requestNetworkHash` of this request: kept with a typed price so the voice can ask for two networks (F1). */
+  networkHash?: string | null;
 }): { scanId: number | null; body: Record<string, unknown> } {
   const { answer, record, where } = s;
   // A barcode the catalogue was asked about and does not hold is the most
@@ -1829,6 +1835,7 @@ function finishCatalogueScan(s: {
         answer,
         record,
         priced: s.priced ?? { cents: null, region: null, storeName: null },
+        networkHash: s.networkHash ?? null,
         today: new Date().toISOString().slice(0, 10),
       }),
       ...(scanId === null ? {} : { scanId }),
@@ -3161,6 +3168,7 @@ export const server = createServer(async (req, res) => {
             where,
             startedAt: identifyStarted,
             priced: { cents: readShelfCents(pick('shelfPriceCents')), region: market.region ?? null, storeName: where.storeName ?? pickText('storeName') ?? null },
+            networkHash: requestNetworkHash(req.headers, req.socket.remoteAddress),
           });
           scanForLog = finished.scanId;
           return json(200, finished.body);
@@ -3243,6 +3251,7 @@ export const server = createServer(async (req, res) => {
         exactAt: where.exactAt,
       });
       scanForLog = matchScanId;
+      recordOffer(device, matched.candidates.map((c) => (c as { code?: unknown })?.code));
       return json(200, { ...matched, verdict: textVerdict, ms, ...(matchScanId === null ? {} : { scanId: matchScanId }) });
     }
 
@@ -3350,6 +3359,8 @@ export const server = createServer(async (req, res) => {
             parent: ringSeen.tag,
           });
         }
+        // What this device was just offered to pick from: a pick counts only for one of these (security finding F3).
+        recordOffer(url.searchParams.get('deviceId')?.trim() ?? '', (result.candidates as { code?: unknown }[]).map((c) => c?.code));
         return json(200, {
           catalogueUp: true,
           vectorsOn,
@@ -3508,6 +3519,7 @@ export const server = createServer(async (req, res) => {
         where,
         startedAt: packStarted,
         priced: { cents: readShelfCents(p.shelfPriceCents), region: market.region ?? null, storeName: where.storeName ?? (typeof p.storeName === 'string' ? p.storeName : null) },
+        networkHash: requestNetworkHash(req.headers, req.socket.remoteAddress),
       });
       scanForLog = finished.scanId;
       // The frame, only if they said so: the same three conditions as the photo route's photograph.
@@ -4245,7 +4257,7 @@ export const server = createServer(async (req, res) => {
       const pickScan = Number(p.scanId);
       if (!Number.isInteger(pickScan) || pickScan <= 0) return json(200, { stored: false, why: 'that scan is not one this server recorded' });
       scanForLog = pickScan;
-      return json(200, recordPick(deviceId, pickScan, p.code, p.source));
+      return json(200, recordPick(deviceId, pickScan, p.code, p.source, { networkHash: requestNetworkHash(req.headers, req.socket.remoteAddress) }));
     }
 
     /*

@@ -54,6 +54,8 @@ export function shopperContribution(s: {
   record: CatalogueRecord;
   priced: { cents: number | null; region: string | null; storeName: string | null };
   today: string;
+  /** The network this request came from, hashed (network-hash.ts). Null when it could not be made. */
+  networkHash?: string | null;
 }): ShopperContribution {
   try {
     const count = () => shopperPriceCount(s.store, s.device);
@@ -68,6 +70,7 @@ export function shopperContribution(s: {
       store: s.priced.storeName,
       seenOn: s.today,
       centreCents: productCentre(s.answer, s.record),
+      networkHash: s.networkHash ?? null,
     });
     if (saved.ok) return { contributed: true, pricesAdded: count() };
     return { contributed: false, pricesAdded: count(), contributedWhy: saved.why };

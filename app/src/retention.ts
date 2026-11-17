@@ -43,11 +43,12 @@ function monthsBefore(now: Date, months: number): string {
 }
 
 /** Every table with a device id on a row about a scan, and the time column that dates the row. */
-const DEVICE_TABLES: readonly { table: string; key: string; at: string }[] = [
+const DEVICE_TABLES: readonly { table: string; key: string; at: string; also?: string }[] = [
   { table: 'scan', key: 'id', at: 'scanned_at' },
   { table: 'scan_rating', key: 'scan_id', at: 'rated_at' },
   { table: 'scan_rating_history', key: 'id', at: 'rated_at' },
-  { table: 'scan_pick', key: 'id', at: 'picked_at' },
+  { table: 'scan_pick', key: 'id', at: 'picked_at', also: 'net_hash = NULL' },
+  { table: 'scan_offer', key: 'id', at: 'offered_at' },
   { table: 'scan_later_answer', key: 'id', at: 'recorded_at' },
   { table: 'scan_act_outcome', key: 'scan_id', at: 'updated_at' },
   { table: 'gemini_call', key: 'id', at: 'requested_at' },
@@ -73,13 +74,13 @@ export function sweepScanData(now: Date = new Date()): ScanRetentionResult {
     failed.push(`event: ${err instanceof Error ? err.message : String(err)}`);
   }
   const cutoff = monthsBefore(now, DEVICE_ID_MONTHS);
-  for (const { table, key, at } of DEVICE_TABLES) {
+  for (const { table, key, at, also } of DEVICE_TABLES) {
     try {
       const exists = store.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table);
       if (!exists) continue;
       const r = store.db
         .prepare(
-          `UPDATE ${table} SET device_id = '${REMOVED_PREFIX}' || ${key}
+          `UPDATE ${table} SET device_id = '${REMOVED_PREFIX}' || ${key}${also ? ', ' + also : ''}
             WHERE ${at} < ? AND device_id IS NOT NULL AND device_id NOT LIKE '${REMOVED_PREFIX}%'`,
         )
         .run(cutoff);

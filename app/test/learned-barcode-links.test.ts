@@ -22,11 +22,16 @@ const LEMON = '0000000094053';
 
 scans.openScanStore(join(mkdtempSync(join(tmpdir(), 'shin-learned-')), 'scans.db'));
 
-/** One device scans the sticker, then picks `code` from the typed-name list. */
-function devicePicks(device: string, code: string, sticker = STICKER): void {
+/*
+ * 2026-11-16 (security finding F3): a link needs 3 devices from 2 networks, each pick of a code the server had
+ * offered that device. The attacks that bar refuses are in pick-poison.test.ts.
+ */
+/** One device on a network scans the sticker, is offered `code`, then picks it from the typed-name list. */
+function devicePicks(device: string, code: string, net = 'net-a', sticker = STICKER): void {
   const id = scans.recordScan({ deviceId: device, kind: 'barcode', query: sticker, outcome: 'refused', failureClass: 'not_in_catalogue' });
   assert.ok(id, 'the scan row was written');
-  assert.equal(scans.recordPick(device, id!, code, 'typed_pick').stored, true);
+  scans.recordOffer(device, [code]);
+  assert.equal(scans.recordPick(device, id!, code, 'typed_pick', { networkHash: net }).stored, true);
 }
 
 test('no picks: no link', () => {
@@ -40,8 +45,10 @@ test('one device is not enough, however often it picks', () => {
   assert.equal(scans.learnedPickFor(STICKER), null);
 });
 
-test('two different devices picking the same product make the link', () => {
-  devicePicks('lbl-b', ORANGE);
+test('three different devices from two networks picking the same product make the link', () => {
+  devicePicks('lbl-b', ORANGE, 'net-b');
+  assert.equal(scans.learnedPickFor(STICKER), null, 'two devices are not enough');
+  devicePicks('lbl-b2', ORANGE, 'net-a');
   assert.equal(scans.learnedPickFor(STICKER), ORANGE);
   // the same sticker read with a different zero padding is the same canonical barcode
   assert.equal(scans.learnedPickFor('9354765000036'), ORANGE);
@@ -52,19 +59,21 @@ test('another sticker has no link', () => {
 });
 
 test('a different product picked by as many devices, or more, breaks the link', () => {
-  devicePicks('lbl-c', LEMON);
-  assert.equal(scans.learnedPickFor(STICKER), ORANGE, 'one device for lemon, two for orange: orange stands');
-  devicePicks('lbl-d', LEMON);
-  assert.equal(scans.learnedPickFor(STICKER), null, 'two and two: nothing is learned');
-  devicePicks('lbl-e', LEMON);
-  assert.equal(scans.learnedPickFor(STICKER), LEMON, 'three for lemon beat two for orange');
+  devicePicks('lbl-c', LEMON, 'net-a');
+  devicePicks('lbl-c2', LEMON, 'net-b');
+  assert.equal(scans.learnedPickFor(STICKER), ORANGE, 'two devices for lemon, three for orange: orange stands');
+  devicePicks('lbl-d', LEMON, 'net-a');
+  assert.equal(scans.learnedPickFor(STICKER), null, 'three and three: nothing is learned');
+  devicePicks('lbl-e', LEMON, 'net-b');
+  assert.equal(scans.learnedPickFor(STICKER), LEMON, 'four for lemon beat three for orange');
 });
 
 test('a pick made on a text scan, not a barcode scan, is no link', () => {
-  const id = scans.recordScan({ deviceId: 'lbl-t1', kind: 'text', query: '0068100084245', outcome: 'answered' });
-  scans.recordPick('lbl-t1', id!, ORANGE, 'typed_pick');
-  const id2 = scans.recordScan({ deviceId: 'lbl-t2', kind: 'text', query: '0068100084245', outcome: 'answered' });
-  scans.recordPick('lbl-t2', id2!, ORANGE, 'typed_pick');
+  for (const [d, n] of [['lbl-t1', 'net-a'], ['lbl-t2', 'net-b'], ['lbl-t3', 'net-a']] as const) {
+    const id = scans.recordScan({ deviceId: d, kind: 'text', query: '0068100084245', outcome: 'answered' });
+    scans.recordOffer(d, [ORANGE]);
+    scans.recordPick(d, id!, ORANGE, 'typed_pick', { networkHash: n });
+  }
   assert.equal(scans.learnedPickFor('0068100084245'), null);
 });
 

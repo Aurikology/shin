@@ -917,6 +917,33 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       }
     },
   },
+  {
+    version: 22,
+    name: 'a pick records whether the product was offered and the network it came from, and an offer table says what a device was offered',
+    apply(db) {
+      /*
+       * Security finding F3 (2026-11-16): two free phones could rename an unknown barcode by posting a pick for
+       * any catalogue code. A pick now counts toward a learned link only when the code was one of the matches
+       * the server offered that device (`scan_offer`, written by /api/search and /api/match-text), and the link
+       * needs 3 devices from 2 networks (`net_hash`: a salted hash of the IPv4 /24 or IPv6 /48, never the
+       * address). Both columns are NULL on a pick made before this, and such a pick counts for nothing.
+       * Neither column is in migration 21's append-only list; the retention sweep sets `net_hash` to NULL with
+       * the device id.
+       */
+      addColumnIfMissing(db, 'scan_pick', 'offered', 'INTEGER');
+      addColumnIfMissing(db, 'scan_pick', 'net_hash', 'TEXT');
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_offer (
+          id         INTEGER PRIMARY KEY,
+          device_id  TEXT NOT NULL,
+          code_key   TEXT NOT NULL,
+          offered_at TEXT NOT NULL
+        ) STRICT;
+        CREATE INDEX IF NOT EXISTS scan_offer_device ON scan_offer(device_id, code_key);
+        CREATE INDEX IF NOT EXISTS scan_offer_at ON scan_offer(offered_at);
+      `);
+    },
+  },
 ];
 
 /**

@@ -67,6 +67,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { runMigrations } from './migrations.ts';
 import { customerDataFault } from './customer-data-faults.ts';
+import { shopperVoiceOff } from './shopper-voice.ts';
 import type { VerifyResult } from '../../identify/src/providers/price-verifier.ts';
 
 const DDL = `
@@ -642,13 +643,46 @@ export function recordShopperCall(
  * A pick from a list a scan offered (requirement 5.1, "picks"). Append-only:
  * every pick is a row, and only the scan's own device may add one.
  */
+/** A barcode as the offers and picks key it: digits without their zero padding. */
+function pickKey(code: string): string {
+  const d = code.replace(/\D/g, '');
+  return d === '' ? code.trim() : d.replace(/^0+/, '') || d;
+}
+
+/** A match list is good for a pick for this long after it was offered. */
+export const OFFER_WINDOW_MS = 6 * 60 * 60 * 1000;
+/** Offers older than this are deleted when new ones are written. */
+const OFFER_KEEP_MS = 2 * 24 * 60 * 60 * 1000;
+
+/**
+ * The matches the server just offered a device to pick from ("typed pick", "not this?"). A pick counts toward a
+ * learned barcode link only when its code is on a list offered to that device (security finding F3). Never throws.
+ */
+export function recordOffer(deviceId: string, codes: readonly unknown[], now: Date = new Date()): void {
+  const device = deviceId.trim().slice(0, 128);
+  if (device === '') return;
+  const keys = [...new Set(codes.filter((c): c is string => typeof c === 'string' && c.trim() !== '').map((c) => pickKey(c.slice(0, 64))))].slice(0, 20);
+  if (keys.length === 0) return;
+  const store = active ?? openScanStore();
+  try {
+    if (!store.db) return;
+    const at = now.toISOString();
+    const insert = store.db.prepare('INSERT INTO scan_offer (device_id, code_key, offered_at) VALUES (?, ?, ?)');
+    for (const k of keys) insert.run(device, k, at);
+    store.db.prepare('DELETE FROM scan_offer WHERE offered_at < ?').run(new Date(now.getTime() - OFFER_KEEP_MS).toISOString());
+  } catch (err) {
+    reportScanFault('recordOffer', 0, err);
+  }
+}
+
 export function recordPick(
   deviceId: string,
   scanId: number,
   code: unknown,
   source: unknown,
-  now: Date = new Date(),
+  ctx: { readonly networkHash?: string | null; readonly now?: Date } = {},
 ): ScanInputResult {
+  const now = ctx.now ?? new Date();
   const picked = typeof code === 'string' ? code.trim().slice(0, 64) : '';
   if (picked === '') return { stored: false, why: 'a pick needs the code that was picked' };
   const store = active ?? openScanStore();
@@ -658,9 +692,13 @@ export function recordPick(
     if (!row) return { stored: false, why: 'that scan is not one this server recorded' };
     if (row.device_id !== deviceId) return { stored: false, why: 'that scan belongs to another device' };
     const from = typeof source === 'string' ? source.trim().slice(0, 32) || null : null;
+    // Was this code on a list the server offered this device in the last few hours? (F3)
+    const offered = store.db
+      .prepare('SELECT 1 FROM scan_offer WHERE device_id = ? AND code_key = ? AND offered_at >= ? AND offered_at <= ? LIMIT 1')
+      .get(deviceId, pickKey(picked), new Date(now.getTime() - OFFER_WINDOW_MS).toISOString(), now.toISOString());
     store.db
-      .prepare('INSERT INTO scan_pick (scan_id, device_id, picked_code, source, picked_at) VALUES (?, ?, ?, ?, ?)')
-      .run(scanId, deviceId, picked, from, now.toISOString());
+      .prepare('INSERT INTO scan_pick (scan_id, device_id, picked_code, source, picked_at, offered, net_hash) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(scanId, deviceId, picked, from, now.toISOString(), offered ? 1 : 0, ctx.networkHash?.trim().slice(0, 64) || null);
     return { stored: true };
   } catch (err) {
     store.dropped += 1;
@@ -673,11 +711,18 @@ export function recordPick(
 /**
  * LEARNED BARCODE LINKS (decided 2026-11-15, docs/decisions.md). The product shoppers named for a barcode the
  * catalogue does not know: the code picked after scanning it, from `scan_pick` rows on barcode scans whose
- * `query_text` is that barcode. A link counts only when 2 or more DIFFERENT devices picked the same product and
- * no other product was picked by as many different devices; a tie teaches nothing. Null otherwise, and
- * never a throw. The caller decides the rest (a barcode the catalogue knows never asks).
+ * `query_text` is that barcode. A link counts only when 3 or more DIFFERENT devices from 2 or more different
+ * networks picked the same product, each pick being of a code the server had offered that device (security
+ * finding F3, 2026-11-16: two free fake phones used to be enough), and no other product was picked by as many
+ * different devices; a tie teaches nothing. Picks stored before the offer and network were kept count for
+ * nothing. `SHIN_SHOPPER_VOICE=off` answers null (F9). Null otherwise, and never a throw. The caller decides the
+ * rest (a barcode the catalogue knows never asks).
  */
-export function learnedPickFor(gtin: string): string | null {
+export const LEARNED_MIN_DEVICES = 3;
+export const LEARNED_MIN_NETWORKS = 2;
+
+export function learnedPickFor(gtin: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  if (shopperVoiceOff(env)) return null;
   const bare = (s: string) => s.replace(/\D/g, '').replace(/^0+/, '');
   const key = bare(gtin);
   if (key === '') return null;
@@ -689,26 +734,28 @@ export function learnedPickFor(gtin: string): string | null {
     const list = [...forms];
     const rows = store.db
       .prepare(
-        `SELECT p.picked_code AS code, p.device_id AS device, s.query_text AS scanned
+        `SELECT p.picked_code AS code, p.device_id AS device, p.net_hash AS net, s.query_text AS scanned
            FROM scan_pick p JOIN scan s ON s.id = p.scan_id
           WHERE s.kind = 'barcode' AND s.query_text IN (${list.map(() => '?').join(',')})
+            AND p.offered = 1 AND p.net_hash IS NOT NULL
           ORDER BY p.id`,
       )
-      .all(...list) as { code: string; device: string; scanned: string }[];
-    const by = new Map<string, { code: string; devices: Set<string>; picks: number }>();
+      .all(...list) as { code: string; device: string; net: string; scanned: string }[];
+    const by = new Map<string, { code: string; devices: Set<string>; nets: Set<string>; picks: number }>();
     for (const r of rows) {
       if (bare(r.scanned) !== key) continue;
       const k = bare(r.code);
       if (k === '' || k === key) continue;
-      const got = by.get(k) ?? { code: r.code, devices: new Set<string>(), picks: 0 };
+      const got = by.get(k) ?? { code: r.code, devices: new Set<string>(), nets: new Set<string>(), picks: 0 };
       got.code = r.code;
       got.devices.add(r.device);
+      got.nets.add(r.net);
       got.picks += 1;
       by.set(k, got);
     }
     const ranked = [...by.values()].sort((a, b) => b.devices.size - a.devices.size || b.picks - a.picks);
     const top = ranked[0];
-    if (!top || top.devices.size < 2) return null;
+    if (!top || top.devices.size < LEARNED_MIN_DEVICES || top.nets.size < LEARNED_MIN_NETWORKS) return null;
     const next = ranked[1];
     if (next && next.devices.size >= top.devices.size) return null;
     return top.code;

@@ -107,7 +107,7 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
   prices.close();
 }
 
-const { server, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
+const { server, setCatalogueForTests, setCatalogueFirstForTests, setSearchServiceForTests } = await import('../server.ts');
 
 let base = '';
 before(async () => {
@@ -115,11 +115,13 @@ before(async () => {
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   setCatalogueForTests(catalogue);
   setCatalogueFirstForTests({ searcher: catalogue, db: catDb });
+  setSearchServiceForTests(catalogue as never);
 });
 
 after(async () => {
   setCatalogueForTests(null);
   setCatalogueFirstForTests(null);
+  setSearchServiceForTests(null);
   await new Promise<void>((r) => server.close(() => r()));
   try {
     catDb.close();
@@ -129,8 +131,11 @@ after(async () => {
   }
 });
 
-async function identify(gtin: string, device: string, extra = ''): Promise<Record<string, unknown>> {
-  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA&region=Ontario${extra}`);
+/** `from` is the client address the tunnel would name (cf-connecting-ip is believed on this loopback connection). */
+async function identify(gtin: string, device: string, extra = '', from: string | null = null): Promise<Record<string, unknown>> {
+  const r = await fetch(`${base}/api/identify?gtin=${gtin}&deviceId=${device}&countryCode=CA&region=Ontario${extra}`, {
+    headers: from ? { 'cf-connecting-ip': from } : {},
+  });
   assert.equal(r.status, 200);
   return (await r.json()) as Record<string, unknown>;
 }
@@ -193,17 +198,48 @@ test('the same device, product and day again: not saved twice, the count stays 1
   assert.equal(savedRows().length, 1);
 });
 
-test('the next shopper benefits: a different device scanning with no price gets a verdict from it, low confidence; preview now says priceKnown', async () => {
+test('the network is kept as a hash, never as the address', () => {
+  const rows = savedRows();
+  const net = String(rows[0]!.net_hash);
+  assert.match(net, /^[0-9a-f]{24}$/);
+  assert.equal(JSON.stringify(rows).includes('127.0.0'), false);
+});
+
+test('SIM: one fake phone typing a price does not set the next shopper\'s answer; preview still says Pexi has a price', async () => {
   const body = await identify(NEW_HIT, 'sp-dev-2');
-  const verdict = body.verdict as Record<string, unknown>;
-  assert.equal(verdict.basis, 'own_prices');
-  assert.equal(verdict.centreCents, 649);
-  assert.equal(verdict.confidence, 'low');
+  const verdict = body.verdict as Record<string, unknown> | null;
+  assert.notEqual(verdict?.basis, 'own_prices', 'one phone is not a price');
+  assert.notEqual(verdict?.centreCents, 649);
   assert.equal(body.contributed, false);
   assert.equal(body.contributedWhy, undefined, 'no price typed: nothing to explain');
   assert.equal(body.pricesAdded, 0);
   const p = await preview(NEW_HIT);
   assert.equal(p.priceKnown, true);
+});
+
+test('the next shopper benefits once 3 phones from 2 networks agree: a verdict from them, low confidence', async () => {
+  assert.equal((await identify(NEW_HIT, 'sp-dev-7', '&shelfPriceCents=659', '198.51.100.5')).contributed, true);
+  const two = await identify(NEW_HIT, 'sp-dev-2');
+  assert.notEqual((two.verdict as Record<string, unknown> | null)?.basis, 'own_prices', 'two phones are not enough');
+  assert.equal((await identify(NEW_HIT, 'sp-dev-8', '&shelfPriceCents=639', '198.51.100.77')).contributed, true);
+  const three = await identify(NEW_HIT, 'sp-dev-2');
+  const verdict = three.verdict as Record<string, unknown>;
+  assert.equal(verdict.basis, 'own_prices');
+  assert.equal(verdict.centreCents, 649, 'phones 1 and 8 are on different networks: the median of 639, 649, 659');
+  assert.equal(verdict.confidence, 'low');
+});
+
+test('SHIN_SHOPPER_VOICE=off: the same three phones no longer move the answer, and nothing is lost', async () => {
+  process.env.SHIN_SHOPPER_VOICE = 'off';
+  try {
+    const off = await identify(NEW_HIT, 'sp-dev-2');
+    assert.notEqual((off.verdict as Record<string, unknown> | null)?.basis, 'own_prices');
+    assert.equal(savedRows().length >= 3, true, 'the typed prices are still stored');
+  } finally {
+    delete process.env.SHIN_SHOPPER_VOICE;
+  }
+  const on = await identify(NEW_HIT, 'sp-dev-2');
+  assert.equal((on.verdict as Record<string, unknown>).basis, 'own_prices');
 });
 
 test('typo guard: a price under a third or over three times the product\'s centre is not saved', async () => {
@@ -246,4 +282,22 @@ test('no price typed: contributed false, no reason, and the count is still there
   assert.equal(body.contributed, false);
   assert.equal(body.contributedWhy, undefined);
   assert.equal(body.pricesAdded, 1);
+});
+
+test('the matches /api/search offers a device are remembered for its picks (F3), and a search with no device remembers nothing', async () => {
+  const r = await fetch(`${base}/api/search?q=${encodeURIComponent('peanut butter')}&limit=3&deviceId=sp-offer-dev`);
+  assert.equal(r.status, 200);
+  const body = (await r.json()) as { candidates: { code: string }[] };
+  assert.ok(body.candidates.length > 0, 'the fixture catalogue offered something: ' + JSON.stringify(body).slice(0, 300));
+  await fetch(`${base}/api/search?q=${encodeURIComponent('peanut butter')}&limit=3`);
+  const db = new DatabaseSync(process.env.SHIN_SCANS!, { readOnly: true });
+  try {
+    const rows = db.prepare('SELECT device_id, code_key FROM scan_offer').all() as { device_id: string; code_key: string }[];
+    assert.equal(rows.length, body.candidates.length);
+    assert.equal(rows.every((x) => x.device_id === 'sp-offer-dev'), true);
+    const offered = new Set(body.candidates.map((c) => c.code.replace(/^0+/, '')));
+    assert.equal(rows.every((x) => offered.has(x.code_key)), true);
+  } finally {
+    db.close();
+  }
 });
