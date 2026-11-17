@@ -59,6 +59,7 @@ function shoppers(gtin: string, name: string, reports: readonly Report[]): void 
         market: MARKET,
         observedAt: r.at,
         ...(r.device ? { deviceId: r.device } : {}),
+        networkHash: r.device ? (r.device.endsWith('a') || r.device.endsWith('c') || r.device.endsWith('e') ? 'net-1' : 'net-2') : null,
       },
       { log: uc },
     );

@@ -40,6 +40,7 @@ import { parseQuantity, toComparison, type ComparisonQuantity } from '../../cata
 import { canonicalCode } from '../../catalogue/src/barcode.ts';
 import { upcAOf, upcEOf } from '../../catalogue/src/upc.ts';
 import { isValidGtin } from './barcode.ts';
+import { shopperVoiceOff } from './shopper-voice.ts';
 
 export const OWN_DATA_SOURCE = 'shin_own_data' as const;
 
@@ -106,17 +107,24 @@ export interface OwnPrice {
  */
 export const MIN_POOLED_SHOPPERS = 5;
 export const POOLED_STORE = 'Pexi shoppers';
+/** F10: the shoppers pooled must come from at least this many networks (salted hashes, never addresses). */
+export const MIN_POOLED_NETWORKS = 2;
+/** F10: a pooled price outside this band of the shop price is dropped, not shown. */
+export const POOLED_VS_SHOP_MIN = 0.33;
+export const POOLED_VS_SHOP_MAX = 3;
 
 interface ShopperPriceRow {
   readonly price_cents: unknown;
   readonly currency: unknown;
   readonly observed_at: unknown;
   readonly device_key: unknown;
+  readonly net_hash?: unknown;
 }
 
 function poolShopperPrices(rows: readonly ShopperPriceRow[]): OwnPrice[] {
+  if (shopperVoiceOff()) return [];
   // Each shopper's latest price, per currency (two currencies are never one median).
-  const byCurrency = new Map<string, Map<string, { cents: number; at: string }>>();
+  const byCurrency = new Map<string, Map<string, { cents: number; at: string; net: string | null }>>();
   for (const r of rows) {
     const cents = money(r.price_cents);
     const currency = text(r.currency);
@@ -126,11 +134,12 @@ function poolShopperPrices(rows: readonly ShopperPriceRow[]): OwnPrice[] {
     let shoppers = byCurrency.get(currency);
     if (!shoppers) byCurrency.set(currency, (shoppers = new Map()));
     const have = shoppers.get(shopper);
-    if (!have || at > have.at) shoppers.set(shopper, { cents, at });
+    if (!have || at > have.at) shoppers.set(shopper, { cents, at, net: text(r.net_hash) });
   }
   const out: OwnPrice[] = [];
   for (const [currency, shoppers] of byCurrency) {
     if (shoppers.size < MIN_POOLED_SHOPPERS) continue;
+    if (new Set([...shoppers.values()].map((x) => x.net).filter((n) => n !== null)).size < MIN_POOLED_NETWORKS) continue;
     const sorted = [...shoppers.values()].map((s) => s.cents).sort((a, b) => a - b);
     const mid = Math.floor(sorted.length / 2);
     const median = sorted.length % 2 === 1 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
@@ -148,6 +157,35 @@ function poolShopperPrices(rows: readonly ShopperPriceRow[]): OwnPrice[] {
     });
   }
   return out;
+}
+
+/**
+ * F10: where a shop price exists for the currency, a pooled shoppers' row more than 3x above or under 0.33x of the
+ * shop median is dropped. With no shop price there is nothing to hold it against, and it stays.
+ */
+function dropWildPooled(all: readonly OwnPrice[]): OwnPrice[] {
+  const shopByCurrency = new Map<string, number[]>();
+  for (const p of all) {
+    if (p.from === 'user_shelf_price') continue;
+    const list = shopByCurrency.get(p.currency) ?? [];
+    list.push(p.amount);
+    shopByCurrency.set(p.currency, list);
+  }
+  return all.filter((p) => {
+    if (p.from !== 'user_shelf_price') return true;
+    const shop = shopByCurrency.get(p.currency);
+    if (!shop || shop.length === 0) return true;
+    const sorted = [...shop].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    const centre = sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+    return p.amount >= centre * POOLED_VS_SHOP_MIN && p.amount <= centre * POOLED_VS_SHOP_MAX;
+  });
+}
+
+/** The net_hash column, or NULL where an older file has none (read-only opens do not add columns). */
+function netCol(db: DatabaseSync): string {
+  const cols = db.prepare('PRAGMA table_info(user_observation)').all() as { name: string }[];
+  return cols.some((c) => c.name === 'net_hash') ? 'net_hash' : 'NULL AS net_hash';
 }
 
 export interface OwnMatch {
@@ -351,7 +389,7 @@ function userRows(db: DatabaseSync, ref: string, productId: number | null, code:
   // Requirement 5.9: shoppers' typed prices only as a pool of 5+ shoppers (`poolShopperPrices`).
   const shelf = db
     .prepare(
-      `SELECT currency, price_cents, observed_at, device_key
+      `SELECT currency, price_cents, observed_at, device_key, ${netCol(db)}
          FROM user_observation
         WHERE ${productId !== null ? 'product_id = ?' : 'catalogue_code = ?'}
           AND price_cents IS NOT NULL AND currency IS NOT NULL`,
@@ -556,7 +594,7 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
     const best = candidates.find((c) => pricesFor(c).length > 0);
     if (!best) return { match: null, searched, unavailable };
     const all = candidates.filter((c) => c.identity === best.identity).flatMap((c) => pricesFor(c));
-    const list = latestPerStore(all);
+    const list = latestPerStore(dropWildPooled(all));
     if (list.length === 0) return { match: null, searched, unavailable };
     /*
      * Whether the words single out this product (answer key on the real catalogue, 2026-11-12: "Coconut
@@ -729,7 +767,7 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
       // 2a. The scan that typed this shelf price joined to the big catalogue.
       const byCode = user
         .prepare(
-          `SELECT currency, price_cents, observed_at, device_key
+          `SELECT currency, price_cents, observed_at, device_key, ${netCol(user)}
              FROM user_observation
             WHERE catalogue_code IN (${placeholders})
               AND price_cents IS NOT NULL AND currency IS NOT NULL`,
@@ -746,7 +784,7 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
         const idPlaceholders = products.map(() => '?').join(',');
         byProduct = user
           .prepare(
-            `SELECT currency, price_cents, observed_at, device_key
+            `SELECT currency, price_cents, observed_at, device_key, ${netCol(user)}
                FROM user_observation
               WHERE product_id IN (${idPlaceholders})
                 AND price_cents IS NOT NULL AND currency IS NOT NULL`,
@@ -770,7 +808,7 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
     }
 
     if (all.length === 0) return { match: null, searched, unavailable };
-    const list = latestPerStoreRegion(all);
+    const list = latestPerStoreRegion(dropWildPooled(all));
     if (list.length === 0) return { match: null, searched, unavailable };
     return {
       match: {

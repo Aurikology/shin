@@ -193,6 +193,8 @@ ${IMPLIED_REFERENCE_DDL}
 /** Columns added after the first release; a file made before them gets them at open. */
 const LATE_COLUMNS: readonly { table: string; column: string; decl: string }[] = [
   { table: 'user_observation', column: 'device_key', decl: 'TEXT' },
+  // A salted hash of the network the price came from (app/src/network-hash.ts); the pool needs two networks.
+  { table: 'user_observation', column: 'net_hash', decl: 'TEXT' },
   // Legacy, no longer written or read: these held Gemini's zone read back as a "verdict",
   // which made the implied reference circular. Kept only so an old file still opens.
   { table: 'user_observation', column: 'verdict', decl: 'TEXT' },
@@ -365,6 +367,8 @@ export interface UserScanInput {
   readonly bare?: boolean;
   /** Who scanned. Stored only as a one-way key, so devices can be counted and never named. */
   readonly deviceId?: string | null;
+  /** Salted hash of the network the scan came from; never the address. Lets the pooled price ask for two networks. */
+  readonly networkHash?: string | null;
   /** The offers Gemini returned with this scan. Kept untrusted with the scan id (audit row 39). */
   readonly offers?: readonly UserOfferInput[];
   /** The reviews Gemini returned with this scan. Kept untrusted with the scan id. */
@@ -717,8 +721,8 @@ function recordObservation(
   db.prepare(
     `INSERT INTO user_observation (product_id, catalogue_code, store_type, store_name, country, region, currency,
        price_cents, orig_value, orig_unit, base_value, base_unit, unit_price_cents, unit_label, observed_at, scan_id, trusted,
-       device_key, capture)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?)`,
+       device_key, capture, net_hash)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?,?,?)`,
   ).run(
     target.productId, target.code, o.storeType, o.scan.storeName ?? null, o.market.country, o.market.region,
     o.market.currency, price, o.qty?.original.value ?? null, o.qty?.original.unit ?? null,
@@ -727,6 +731,7 @@ function recordObservation(
     deviceKeyOf(o.scan.deviceId),
     // 5.2: the writer marks the price; nothing on the scan input can set or change this.
     price !== null ? USER_PRICE_CAPTURE : null,
+    o.scan.networkHash ?? null,
   );
   // Audit row 39: the offers and reviews Gemini returned ride along, untrusted, with the scan id.
   for (const offer of (o.scan.offers ?? []).slice(0, MAX_OFFERS_PER_SCAN)) {

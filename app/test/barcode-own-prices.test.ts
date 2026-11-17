@@ -221,6 +221,7 @@ FIVE.forEach((deviceId, i) => {
       market: { country: 'CA', region: 'ON', currency: 'CAD', derivedFrom: 'user_location' },
       observedAt: `2026-09-2${i}T10:00:00.000Z`,
       deviceId,
+      networkHash: i % 2 === 0 ? 'net-1' : 'net-2',
     },
     { log: uc },
   );
@@ -235,6 +236,7 @@ FIVE.forEach((deviceId, i) => {
       market: { country: 'CA', region: 'ON', currency: 'CAD', derivedFrom: 'user_location' },
       observedAt: `2026-09-2${i}T10:00:00.000Z`,
       deviceId,
+      networkHash: i % 2 === 0 ? 'net-1' : 'net-2',
     },
     {
       log: uc,
@@ -251,6 +253,7 @@ FIVE.forEach((deviceId, i) => {
       market: { country: null, region: null, currency: null, derivedFrom: 'unknown' },
       observedAt: '2026-09-19T10:00:00.000Z',
       deviceId,
+      networkHash: i % 2 === 0 ? 'net-1' : 'net-2',
     },
     { log: uc },
   );
