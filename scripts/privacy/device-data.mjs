@@ -96,6 +96,36 @@ function tablesWith(db, column) {
     .filter((name) => db.prepare(`PRAGMA table_info(${q(name)})`).all().some((c) => c.name === column));
 }
 
+function hasColumn(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${q(table)})`).all().some((c) => c.name === column);
+}
+
+/**
+ * Every table in a scan database that holds this phone's rows: by its own device_id column and, for a
+ * table that also (or only) points at a scan, by the phone's scan ids. A table whose device_id may be
+ * null (scan_act_outcome) is therefore still reached through its scan.
+ */
+function scanTables(db) {
+  const names = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((r) => r.name);
+  return names
+    .filter((n) => hasColumn(db, n, 'device_id') || (n !== 'scan' && hasColumn(db, n, 'scan_id')))
+    .map((name) => ({ name, byDevice: hasColumn(db, name, 'device_id'), byScan: name !== 'scan' && hasColumn(db, name, 'scan_id') }));
+}
+
+function whereFor(t) {
+  const parts = [];
+  if (t.byDevice) parts.push('device_id = ?');
+  if (t.byScan) parts.push('scan_id IN (SELECT value FROM json_each(?))');
+  return parts.join(' OR ');
+}
+
+function paramsFor(t, deviceId, scanIdNumbers) {
+  const params = [];
+  if (t.byDevice) params.push(deviceId);
+  if (t.byScan) params.push(JSON.stringify(scanIdNumbers));
+  return params;
+}
+
 function inChunks(values, fn) {
   for (let i = 0; i < values.length; i += CHUNK) fn(values.slice(i, i + CHUNK));
 }
@@ -153,10 +183,26 @@ export function gather(deviceId, loc) {
     return entry;
   };
 
-  const scans = byDevice('scans', loc.scans);
-  if (scans?.tables.scan) {
-    result.scanIds = scans.tables.scan.map((r) => String(r.id));
-    result.photoPaths = scans.tables.scan.map((r) => r.photo_path).filter((p) => typeof p === 'string' && p !== '');
+  const scans = { path: loc.scans, found: existsSync(loc.scans), tables: {} };
+  result.databases.scans = scans;
+  if (scans.found) {
+    try {
+      const db = open(loc.scans, true);
+      // The scan table first: its ids reach the tables that carry no device id of their own.
+      const mine = hasColumn(db, 'scan', 'device_id') ? db.prepare('SELECT * FROM scan WHERE device_id = ?').all(deviceId) : [];
+      const ids = mine.map((r) => Number(r.id));
+      for (const t of scanTables(db)) {
+        scans.tables[t.name] =
+          t.name === 'scan'
+            ? mine.map(plainRow)
+            : db.prepare(`SELECT * FROM ${q(t.name)} WHERE ${whereFor(t)}`).all(...paramsFor(t, deviceId, ids)).map(plainRow);
+      }
+      result.scanIds = ids.map(String);
+      result.photoPaths = mine.map((r) => r.photo_path).filter((p) => typeof p === 'string' && p !== '');
+      db.close();
+    } catch (err) {
+      result.errors.push(`scans: ${err.message}`);
+    }
   }
   byDevice('corrections', loc.corrections);
   byDevice('people', loc.people);
@@ -312,6 +358,33 @@ function deleteDeviceRows(path, deviceId, order) {
   return done;
 }
 
+function deleteScanRows(path, deviceId) {
+  const db = open(path, false);
+  try {
+    db.exec('PRAGMA secure_delete = ON');
+    db.exec('BEGIN IMMEDIATE');
+    const ids = db.prepare('SELECT id FROM scan WHERE device_id = ?').all(deviceId).map((r) => Number(r.id));
+    const tables = scanTables(db);
+    // The scan table last: other tables point at its rows.
+    for (const t of [...tables.filter((x) => x.name !== 'scan'), ...tables.filter((x) => x.name === 'scan')]) {
+      const where = t.name === 'scan' ? 'device_id = ?' : whereFor(t);
+      const params = t.name === 'scan' ? [deviceId] : paramsFor(t, deviceId, ids);
+      db.prepare(`DELETE FROM ${q(t.name)} WHERE ${where}`).run(...params);
+    }
+    db.exec('COMMIT');
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  } catch (err) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      /* nothing open */
+    }
+    throw err;
+  } finally {
+    db.close();
+  }
+}
+
 /** Erases the phone. `yes` false counts and changes nothing. Returns what it did and what is left. */
 export function deleteDevice(deviceId, loc, yes) {
   const before = gather(deviceId, loc);
@@ -368,7 +441,7 @@ export function deleteDevice(deviceId, loc, yes) {
   for (const f of Object.keys(before.logs.files)) attempt(f, () => rewriteWithout(join(loc.logs, f), deviceId));
 
   // The scan database last, so a failure above leaves the scan ids in place for a re-run.
-  if (before.databases.scans.found) attempt('scans', () => deleteDeviceRows(loc.scans, deviceId));
+  if (before.databases.scans.found) attempt('scans', () => deleteScanRows(loc.scans, deviceId));
 
   const after = gather(deviceId, loc);
   const remaining = countsOf(after).filter((r) => r.n);

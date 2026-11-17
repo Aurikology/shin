@@ -119,6 +119,9 @@ for (const id of [ME, OTHER]) {
 scanStore.db.exec('CREATE TABLE IF NOT EXISTS future_thing (device_id TEXT, note TEXT)');
 scanStore.db.prepare('INSERT INTO future_thing VALUES (?, ?)').run(ME, 'mine');
 scanStore.db.prepare('INSERT INTO future_thing VALUES (?, ?)').run(OTHER, 'theirs');
+// A row about a scan that carries no device id of its own (the outcome table allows null): it is found through the scan.
+scanStore.db.exec('CREATE TABLE IF NOT EXISTS scan_act_outcome (scan_id INTEGER PRIMARY KEY, device_id TEXT, outcome TEXT NOT NULL, updated_at TEXT NOT NULL)');
+for (const scanId of [1, 3]) scanStore.db.prepare('INSERT INTO scan_act_outcome VALUES (?, NULL, ?, ?)').run(scanId, 'bought', NOW);
 scanStore.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
 
 const corr = openCorrectionStore(paths.corrections);
@@ -181,6 +184,7 @@ test('export: everything held about the phone is in the JSON, and nothing about 
     assert.ok(tables[t] && tables[t].length >= 1, `${t} missing from the export`);
   }
   assert.equal(tables.scan.length, 2);
+  assert.equal(tables.scan_act_outcome.length, 1, 'an outcome row with no device id is not found through its scan');
   assert.equal(doc.databases.corrections.tables.correction.length, 1);
   assert.equal(doc.databases.corrections.tables.shopper_price.length, 1);
   assert.equal(doc.databases.userCatalogue.tables.user_observation.length, 1);
@@ -216,6 +220,8 @@ test('delete --yes removes the phone from every store and leaves the other phone
     assert.equal(count(paths.scans, t, 'device_id', ME), 0, `${t}: the phone's rows are still there`);
     assert.equal(count(paths.scans, t, 'device_id', OTHER), t === 'scan' ? 2 : 1, `${t}: the other phone's rows changed`);
   }
+  assert.equal(sql(paths.scans, 'SELECT COUNT(*) AS n FROM scan_act_outcome WHERE scan_id = 1')[0].n, 0, 'the outcome row of the phone\x27s scan is still there');
+  assert.equal(sql(paths.scans, 'SELECT COUNT(*) AS n FROM scan_act_outcome WHERE scan_id = 3')[0].n, 1, 'the other phone\x27s outcome row went');
   assert.equal(count(paths.corrections, 'correction', 'device_id', ME), 0);
   assert.equal(count(paths.corrections, 'shopper_price', 'device_id', ME), 0);
   assert.equal(count(paths.corrections, 'correction', 'device_id', OTHER), 1);
