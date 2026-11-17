@@ -96,14 +96,7 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 9a1a9c1, not live yet). Older blockers: `docs/archive/now-history-2026-11-05.md`.
 
 ## Waiting on Jamin or Aurik
-- **Aurik: does build 3 still crash?** (D-250, D-249.) TestFlight build 3 went up 2026-11-04
-  17:17:19 local from 18cb7b1, which contains 42fe730, the D-249 fix; Apple reports it VALID and
-  IN_BETA_TESTING, and it is in the "Family and team" group where his install sits, so his app
-  updates on its own. Until then D-249 is unproven on a real phone and D-250's cause is inference.
-  The build he reported on (2026-11-01) was build 2, from before the fix: the app has had only
-  those two builds, read from the App Store Connect API. No crash has ever come through TestFlight
-  feedback (`betaFeedbackCrashSubmissions` is empty), so there is no log on Apple's side and the
-  answer has to come from him.
+- **D-250 closed 2026-11-17:** Aurik, *"the app does not crash, and the phone screen looks good"*, on the build his phone holds (8 or 9). Paywall purchase (launch gaps 7) still not run.
 - **Aurik:** the range ask on Claude with no web search (his claim, 2026-09-28 17:00 UTC). The
   server makes no range ask until it is wired back in.
 

@@ -100,7 +100,7 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    of logs.** Reported 11-07. One configured database (repeat cache) was never created.
 
 ### App and build
-4. **[Aurik] TestFlight crashes, cause unknown (D-250, major, open).** From notes (NOW.md): never
+4. **[Aurik] TestFlight crashes (D-250). CLOSED 2026-11-17, Aurik: "the app does not crash".** From notes (NOW.md): never
    reproduced, and Apple holds no crash log (TestFlight crash feedback is empty), so the answer is
    on Aurik's phone. He reported on build 2; build 3 (18cb7b1) carries the D-249 fix and has not
    been reported on. May be item 0. Check on build 4.
@@ -114,7 +114,7 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
    only run in desktop browsers). Aurik's report.
 7. **[Aurik] Paywall never run against real RevenueCat.** Code built, tests pass (checked). One
    sandbox purchase and one restore on build 4.
-8. **[Aurik] Today's 13 fixes never seen on a phone:** the first screen (18+ and Claude consent),
+8. **[Aurik] Today's 13 fixes never seen on a phone. 2026-11-17, Aurik: "the phone screen looks good" (screens seen; paywall purchase, item 7, still not run):** the first screen (18+ and Claude consent),
    "Pexi's estimate", the You screen switch, and a real scan, search and paywall. Also the three
    vibrations (lib/haptics.js: barcode captured, a confident verdict, saved), never felt on a
    phone; the verdict one cannot have fired, since no verdict ever reached a phone (item 0).
