@@ -80,10 +80,10 @@ test('no store handle: nothing saved, said plainly', () => {
 
 test('the voice is one price: the median of each device\'s newest price, with its device count', () => {
   const db = new DatabaseSync(':memory:');
-  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 500, seenOn: '2026-11-01' });
-  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 600, seenOn: '2026-11-10' }); // dev-a's newest
-  saveShopperPrice(db, { ...base, deviceId: 'dev-b', priceCents: 700, seenOn: '2026-11-12' });
-  saveShopperPrice(db, { ...base, deviceId: 'dev-c', priceCents: 650, seenOn: '2026-11-14', region: 'BC' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 500, seenOn: '2026-11-01', networkHash: 'net-a' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 600, seenOn: '2026-11-10', networkHash: 'net-a' }); // dev-a's newest
+  saveShopperPrice(db, { ...base, deviceId: 'dev-b', priceCents: 700, seenOn: '2026-11-12', networkHash: 'net-b' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-c', priceCents: 650, seenOn: '2026-11-14', region: 'BC', networkHash: 'net-b' });
   const v = shopperVoiceFor(db, CODE, '2026-11-15')!;
   assert.equal(v.devices, 3);
   assert.equal(v.cents, 650); // median of 600, 650, 700
@@ -92,14 +92,12 @@ test('the voice is one price: the median of each device\'s newest price, with it
   assert.equal(shopperVoiceFor(db, '999', '2026-11-15'), null);
 });
 
-test('one device is one voice with devices = 1; two devices average their middle pair', () => {
+test('four devices average their middle pair (the bar for a voice at all is in shopper-voice-agreement.test.ts)', () => {
   const db = new DatabaseSync(':memory:');
-  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 599 });
-  assert.deepEqual(
-    (({ cents, devices }) => ({ cents, devices }))(shopperVoiceFor(db, CODE, '2026-11-15')!),
-    { cents: 599, devices: 1 },
-  );
-  saveShopperPrice(db, { ...base, deviceId: 'dev-b', priceCents: 649 });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-a', priceCents: 599, networkHash: 'net-a' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-b', priceCents: 649, networkHash: 'net-b' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-c', priceCents: 599, networkHash: 'net-a' });
+  saveShopperPrice(db, { ...base, deviceId: 'dev-d', priceCents: 649, networkHash: 'net-b' });
   assert.equal(shopperVoiceFor(db, CODE, '2026-11-15')!.cents, 624);
 });
 
@@ -132,6 +130,6 @@ test('retention takes the device id off old prices and keeps the price', () => {
   const removed = removeOldShopperDeviceIds(db, '2999-01-01T00:00:00.000Z', 'removed:');
   assert.equal(removed, 2);
   assert.equal(shopperPriceCount(db, 'dev-a'), 0);
-  assert.equal(shopperVoiceFor(db, CODE, '2026-11-15')!.devices, 2, 'the prices stay as separate voices');
+  assert.equal((db.prepare('SELECT COUNT(*) AS n FROM shopper_price').get() as { n: number }).n, 2, 'the prices stay as separate rows');
   assert.equal(removeOldShopperDeviceIds(db, '2999-01-01T00:00:00.000Z', 'removed:'), 0, 'idempotent');
 });

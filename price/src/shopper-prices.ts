@@ -18,9 +18,17 @@
  *      the product has fewer than 2 shop prices. So a shopper price never weighs more than one shop's price,
  *      and never lifts a verdict above low confidence: one shop plus one voice is 2 prices, and the estimate
  *      marks fewer than 3 prices low confidence. Shopper prices alone (one device or many) are low too.
+ *   5. (security finding F1, 2026-11-16) THE VOICE NEEDS AGREEMENT. Making a device id costs nothing, so one
+ *      fake phone could set a price. The voice exists only when at least 3 different devices from at least 2
+ *      different networks have prices within x1.5 of the median of all of them; its price is the median of
+ *      those agreeing prices. Below that bar `shopperVoiceFor` answers null and the shown price does not
+ *      move. A device whose network is unknown (a price saved before the network was kept) is not evidence.
+ *      A network is a salted hash of the IPv4 /24 or IPv6 /48 (never the address), kept on the row and taken
+ *      off by the same retention sweep that takes the device id off.
  *
  * Never throws: a missing or broken store is a price not saved, said in `why`.
  */
+import { createHmac } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 
 export const SHOPPER_MIN_RATIO = 0.33;
@@ -29,6 +37,16 @@ export const SHOPPER_MAX_RATIO = 3;
 export const SHOPPER_VOICE_DAYS = 180;
 /** The estimate takes the voice only while the product has fewer shop prices than this. */
 export const SHOPPER_VOICE_BELOW_SHOPS = 2;
+/** Security finding F2: a shop price younger than this many days puts a floor under the typed voice... */
+export const SHOPPER_VOICE_FLOOR_FRESH_DAYS = 90;
+/** ...at this fraction of that shop price. */
+export const SHOPPER_VOICE_FLOOR_RATIO = 0.8;
+/** The voice needs this many agreeing devices... */
+export const SHOPPER_VOICE_MIN_DEVICES = 3;
+/** ...from at least this many different networks... */
+export const SHOPPER_VOICE_MIN_NETWORKS = 2;
+/** ...each within this ratio of the median of all the devices' prices. */
+export const SHOPPER_VOICE_AGREE_RATIO = 1.5;
 
 const DDL = `
 CREATE TABLE IF NOT EXISTS shopper_price (
@@ -40,7 +58,8 @@ CREATE TABLE IF NOT EXISTS shopper_price (
   store       TEXT,
   seen_on     TEXT NOT NULL,
   recorded_at TEXT NOT NULL,
-  centre_cents INTEGER
+  centre_cents INTEGER,
+  net_hash    TEXT
 ) STRICT;
 CREATE UNIQUE INDEX IF NOT EXISTS shopper_price_one_per_day ON shopper_price(device_id, code, seen_on);
 CREATE INDEX IF NOT EXISTS shopper_price_code ON shopper_price(code, seen_on);
@@ -52,7 +71,44 @@ const made = new WeakSet<DatabaseSync>();
 function ensure(db: DatabaseSync): void {
   if (made.has(db)) return;
   db.exec(DDL);
+  // A table made before the network was kept gains the column.
+  const have = db.prepare('PRAGMA table_info(shopper_price)').all() as unknown as { name: string }[];
+  if (!have.some((c) => c.name === 'net_hash')) db.exec('ALTER TABLE shopper_price ADD COLUMN net_hash TEXT');
   made.add(db);
+}
+
+/**
+ * The network a client address sits in, as text: an IPv4 /24 ("203.0.113.0/24") or an IPv6 /48
+ * ("2001:db8:1::/48"). Null for anything that is not an address. An IPv4-mapped IPv6 address is read as IPv4.
+ */
+export function networkPrefix(address: string | null | undefined): string | null {
+  const a = (address ?? '').trim().toLowerCase();
+  const v4 = /^(?:::ffff:)?(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(a);
+  if (v4) {
+    const parts = [v4[1]!, v4[2]!, v4[3]!, v4[4]!].map(Number);
+    if (parts.some((n) => n > 255)) return null;
+    return `${parts[0]}.${parts[1]}.${parts[2]}.0/24`;
+  }
+  if (!/^[0-9a-f:]+$/.test(a) || !a.includes(':')) return null;
+  const halves = a.split('::');
+  if (halves.length > 2) return null;
+  const head = halves[0] === '' ? [] : halves[0]!.split(':');
+  const tail = halves.length === 2 && halves[1] !== '' ? halves[1]!.split(':') : [];
+  if (halves.length === 1 && head.length !== 8) return null;
+  const groups = halves.length === 2 ? [...head, ...Array(Math.max(0, 8 - head.length - tail.length)).fill('0'), ...tail] : head;
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return null;
+  return `${groups.slice(0, 3).map((g) => g.replace(/^0+(?=.)/, '')).join(':')}::/48`;
+}
+
+/**
+ * A salted hash of the client's network (see `networkPrefix`), never the address. The salt is a server-side
+ * secret: without it the 16 million IPv4 networks could be hashed back. Null when the address is not one or
+ * there is no salt, which counts as no evidence of a network.
+ */
+export function networkHash(address: string | null | undefined, salt: string | null | undefined): string | null {
+  const net = networkPrefix(address);
+  if (net === null || !salt) return null;
+  return createHmac('sha256', salt).update(net).digest('hex').slice(0, 24);
 }
 
 /** The code as the estimate keys it: digits without their zero padding. */
@@ -77,6 +133,8 @@ export interface ShopperPriceInput {
   readonly seenOn: string;
   /** The product's centre in the answer the shopper saw, or null when it had none. The typo guard's reference. */
   readonly centreCents: number | null;
+  /** `networkHash` of the request's client address, or null/absent when it could not be made. Never the address. */
+  readonly networkHash?: string | null;
 }
 
 export type SaveResult =
@@ -97,8 +155,8 @@ export function saveShopperPrice(db: DatabaseSync | null, input: ShopperPriceInp
     ensure(db);
     const r = db
       .prepare(
-        `INSERT OR IGNORE INTO shopper_price (device_id, code, price_cents, region, store, seen_on, recorded_at, centre_cents)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT OR IGNORE INTO shopper_price (device_id, code, price_cents, region, store, seen_on, recorded_at, centre_cents, net_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         input.deviceId,
@@ -109,6 +167,7 @@ export function saveShopperPrice(db: DatabaseSync | null, input: ShopperPriceInp
         input.seenOn,
         now.toISOString(),
         typeof centre === 'number' && centre > 0 ? Math.round(centre) : null,
+        input.networkHash?.trim().slice(0, 64) || null,
       );
     if (Number(r.changes) === 0) return { ok: false, why: 'already_today' };
     return { ok: true, id: Number(r.lastInsertRowid) };
@@ -136,11 +195,13 @@ export interface ShopperVoice {
   readonly seenOn: string;
   /** The region of the newest reading, or null. */
   readonly region: string | null;
-  /** How many devices stand behind the price. */
+  /** How many agreeing devices stand behind the price (at least 3). */
   readonly devices: number;
+  /** How many different networks those devices come from (at least 2). */
+  readonly networks: number;
 }
 
-/** The one voice for a product: see rule 4 above. Null when no price is in the window. */
+/** The one voice for a product: see rules 4 and 5 above. Null when no price is in the window or too few agree. */
 export function shopperVoiceFor(db: DatabaseSync | null, code: string, asOf: string): ShopperVoice | null {
   if (!db) return null;
   try {
@@ -148,20 +209,31 @@ export function shopperVoiceFor(db: DatabaseSync | null, code: string, asOf: str
     const since = new Date(Date.parse(`${asOf}T00:00:00Z`) - SHOPPER_VOICE_DAYS * 86_400_000).toISOString().slice(0, 10);
     const rows = db
       .prepare(
-        `SELECT device_id, price_cents, region, seen_on FROM shopper_price
+        `SELECT device_id, price_cents, region, seen_on, net_hash FROM shopper_price
           WHERE code = ? AND seen_on >= ? AND seen_on <= ?
           ORDER BY seen_on DESC, id DESC`,
       )
-      .all(shopperCodeKey(code), since, asOf) as { device_id: string; price_cents: number; region: string | null; seen_on: string }[];
+      .all(shopperCodeKey(code), since, asOf) as { device_id: string; price_cents: number; region: string | null; seen_on: string; net_hash: string | null }[];
     if (rows.length === 0) return null;
     const newestPerDevice = new Map<string, (typeof rows)[number]>();
     for (const r of rows) if (!newestPerDevice.has(r.device_id)) newestPerDevice.set(r.device_id, r);
-    const picked = [...newestPerDevice.values()];
-    const sorted = picked.map((r) => r.price_cents).sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    const cents = sorted.length % 2 === 1 ? sorted[mid]! : Math.round((sorted[mid - 1]! + sorted[mid]!) / 2);
-    const newest = rows[0]!;
-    return { cents, seenOn: newest.seen_on, region: newest.region, devices: picked.length };
+    // A device whose network is not known is not evidence (rule 5).
+    const known = [...newestPerDevice.values()].filter((r) => r.net_hash !== null);
+    if (known.length < SHOPPER_VOICE_MIN_DEVICES) return null;
+    const median = (list: number[]) => {
+      const sorted = [...list].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+    };
+    const centre = median(known.map((r) => r.price_cents));
+    const agreeing = known.filter(
+      (r) => r.price_cents <= centre * SHOPPER_VOICE_AGREE_RATIO && r.price_cents * SHOPPER_VOICE_AGREE_RATIO >= centre,
+    );
+    const networks = new Set(agreeing.map((r) => r.net_hash));
+    if (agreeing.length < SHOPPER_VOICE_MIN_DEVICES || networks.size < SHOPPER_VOICE_MIN_NETWORKS) return null;
+    const cents = Math.round(median(agreeing.map((r) => r.price_cents)));
+    const newest = agreeing.reduce((a, r) => (r.seen_on > a.seen_on ? r : a), agreeing[0]!);
+    return { cents, seenOn: newest.seen_on, region: newest.region, devices: agreeing.length, networks: networks.size };
   } catch (err) {
     console.error(`[shopper-price-fault] voice_failed ${err instanceof Error ? err.message : String(err)}`);
     return null;
@@ -212,12 +284,27 @@ export function hasShopPrice(prices: DatabaseSync | null, code: string): boolean
   }
 }
 
-/** Takes the device id off every price recorded before `cutoffIso` (the retention sweep). The price stays. Returns the count. */
+/**
+ * Takes the device id off every price recorded before `cutoffIso` (the retention sweep), and the network hash with
+ * it. The price stays. Returns the count.
+ */
 export function removeOldShopperDeviceIds(db: DatabaseSync | null, cutoffIso: string, prefix: string): number {
   if (!db) return 0;
   ensure(db);
   const r = db
-    .prepare(`UPDATE shopper_price SET device_id = ? || id WHERE recorded_at < ? AND device_id NOT LIKE ? || '%'`)
+    .prepare(`UPDATE shopper_price SET device_id = ? || id, net_hash = NULL WHERE recorded_at < ? AND device_id NOT LIKE ? || '%'`)
     .run(prefix, cutoffIso, prefix);
   return Number(r.changes);
+}
+
+/**
+ * Takes one product's typed prices out (the owner's tool for a poisoned price, scripts/security/remove-shopper-input.mjs).
+ * `dryRun` only counts. Returns how many rows matched.
+ */
+export function removeShopperPricesFor(db: DatabaseSync | null, code: string, dryRun: boolean): number {
+  if (!db) return 0;
+  ensure(db);
+  const key = shopperCodeKey(code);
+  if (dryRun) return (db.prepare('SELECT COUNT(*) AS n FROM shopper_price WHERE code = ?').get(key) as { n: number }).n;
+  return Number(db.prepare('DELETE FROM shopper_price WHERE code = ?').run(key).changes);
 }

@@ -67,7 +67,7 @@ import { flagWide, TARGET_WIDTH } from './width-flag.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
-import { SHOPPER_VOICE_BELOW_SHOPS } from './shopper-prices.ts';
+import { SHOPPER_VOICE_BELOW_SHOPS, SHOPPER_VOICE_FLOOR_FRESH_DAYS, SHOPPER_VOICE_FLOOR_RATIO } from './shopper-prices.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
 // extension, and every server path that imports this file would pay for that at startup.
 type FillFromName = (typeof import('../../catalogue/src/size-fill.ts'))['fillFromName'];
@@ -1152,7 +1152,13 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   if (selfKey && deps.shopperVoice) {
     try {
       const shopsHere = new Set(rows.filter((r) => r.key === selfKey && !r.printout).map((r) => r.shop));
-      const v = shopsHere.size < SHOPPER_VOICE_BELOW_SHOPS ? deps.shopperVoice(selfKey) : null;
+      const v0 = shopsHere.size < SHOPPER_VOICE_BELOW_SHOPS ? deps.shopperVoice(selfKey) : null;
+      // Security finding F2: where a shop price under 90 days old exists, the typed voice never pulls the
+      // answer below x0.8 of the lowest such price. Older shop prices get no floor (they weigh less than a
+      // typed price today, and the floor only guards a fresh price).
+      const fresh = rows.filter((r) => r.key === selfKey && !r.printout && r.age < SHOPPER_VOICE_FLOOR_FRESH_DAYS).map((r) => r.cents);
+      const floor = fresh.length > 0 ? Math.ceil(Math.min(...fresh) * SHOPPER_VOICE_FLOOR_RATIO) : 0;
+      const v = v0 && Number.isInteger(v0.cents) ? { ...v0, cents: Math.max(v0.cents, floor) } : v0;
       if (v && Number.isInteger(v.cents) && v.cents > 0 && !isFutureDated(v.seenOn, item.asOf)) {
         rows = [
           ...rows,
