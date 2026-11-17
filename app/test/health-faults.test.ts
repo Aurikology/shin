@@ -89,7 +89,10 @@ test('health reports the misses the gap log could not take, with the reason, fro
   let h = await health();
   assert.equal(h.gapsDropped, 2);
   // The reason is kept, but the health page is open and shows no folder of this machine (security check A6).
-  assert.equal(h.gapsDroppedWhy, log.droppedWhy.replace(/[A-Za-z]:[\\/][^\s'",;)]*/g, '<path>'));
+  // Same pattern as server.ts FILE_PATH_IN_TEXT: Windows drives AND macOS/Linux roots (the Mac's temp
+  // folder is /var/folders/...; a Windows-only pattern here passed on the PC and failed the Mac deploy).
+  assert.equal(h.gapsDroppedWhy, log.droppedWhy.replace(/(?:[A-Za-z]:[\\/]|\/(?:Users|home|var|opt|srv|tmp|mnt|root|etc)\/)[^\s'",;)]*/g, '<path>'));
+  assert.ok(!h.gapsDroppedWhy.includes(tmpdir()), 'no folder of this machine on the open health page');
   assert.match(h.gapsDroppedWhy, /^ENOTDIR/);
   assert.equal(h.ok, true, 'the shopper is served: health stays ok');
   // The search runs in a worker thread, whose own count the service carries back with each reply.
