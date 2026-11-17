@@ -59,7 +59,8 @@ test('2.4 the scan store shape read here is the one the app writes (scan.query_t
   const scans = readFileSync(fileURLToPath(new URL('../../app/src/scans.ts', import.meta.url)), 'utf8');
   for (const col of ['scan_id', 'device_id', 'picked_code', 'source', 'picked_at']) assert.match(migrations, new RegExp(`scan_pick[\\s\\S]*${col}`));
   assert.match(scans, /query_text\s+TEXT/);
-  assert.match(scans, /INSERT INTO scan_pick \(scan_id, device_id, picked_code, source, picked_at\)/);
+  // The app may write more columns after these five (offered, net_hash since security F3, 2026-11-17).
+  assert.match(scans, /INSERT INTO scan_pick \(scan_id, device_id, picked_code, source, picked_at[,)]/);
 });
 
 test('2.4 picks are ingested as confirmations once each, with the scan\'s text; a code outside the catalogue is counted, not dropped', () => {
