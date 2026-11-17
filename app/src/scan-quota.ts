@@ -23,10 +23,10 @@
  * ROLLING 7 DAYS, counted from the scan table itself, so it lives in
  * scans.db beside everything else and survives a reinstall of the SERVER.
  * The device id is the key. That id is random and lives in the phone's local
- * storage (public/js/device.js): reinstalling the APP, clearing site data, or
- * a private window mints a new id and a fresh week. That is the limitation,
- * and closing it needs an id the store holds (RevenueCat's app user id, or a
- * Keychain-backed one), which is the client lane's side.
+ * storage (public/js/device.js) and, on the iPhone, in the Keychain too (since
+ * 2026-11-16, security finding A3): reinstalling the APP keeps the id and the
+ * week. Clearing site data on the web or a private window still mints a new id
+ * and a fresh week.
  *
  * PLUS. With `REVENUECAT_SECRET_KEY` set, the server asks RevenueCat whether
  * this device's app user id holds the `plus` entitlement, and remembers the

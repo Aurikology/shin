@@ -53,6 +53,7 @@ import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
 import { refreshPlus } from './purchases.js';
+import { hydrateDeviceIdentity } from './device.js';
 import { applyFlags } from './flags-boot.js';
 
 /* The MVP switches (flags.js), before anything paints: English only and
@@ -113,6 +114,9 @@ const first = firstScreen(store.get());
    not start it again. First-run behaviour above is untouched. */
 const replayUrl = replayUrlFor(location.search, store.get());
 if (replayUrl) history.replaceState({}, '', replayUrl);
+/* The phone's id and secret live in the Keychain as well as localStorage (device.js), so a reinstall keeps the
+   free-scan count. Waited for, but at most 1.5 s and never failing: on the web it returns at once. */
+await hydrateDeviceIdentity();
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
 
 /* Item 11a: if location consent already carries over from an earlier

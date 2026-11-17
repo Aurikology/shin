@@ -21,6 +21,7 @@
     "@capacitor/haptics": "^8.0.2",
     "@capacitor/ios": "^8.5.2",
     "@capacitor/text-zoom": "^8.0.1",
-    "@revenuecat/purchases-capacitor": "^13.6.0"
+    "@revenuecat/purchases-capacitor": "^13.6.0",
+    "capacitor-secure-storage-plugin": "^0.14.2"
   }
 }

@@ -74,3 +74,86 @@ export function getDeviceSecret() {
     return memorySecret;
   }
 }
+
+/*
+ * THE KEYCHAIN (security finding A3, 2026-11-16).
+ *
+ * The free scans are counted per device id, and localStorage is wiped when the app is deleted, so a reinstall was a
+ * fresh allowance. On the iPhone the Keychain survives a reinstall, so the id and the secret are kept there too.
+ *
+ * getDeviceId and getDeviceSecret above stay synchronous (a dozen callers). The Keychain is asynchronous, so
+ * `hydrateDeviceIdentity` runs once at boot (main.js) and brings the two stores into line:
+ *   - the Keychain has an id: it wins, and is copied into localStorage (this is the reinstall case);
+ *   - it has none: the id and secret this phone already has are copied into it (the migration, or a new phone).
+ * On the web, in a wrapper built without the plugin, or when the plugin fails or stalls, nothing changes: the id
+ * stays in localStorage exactly as before. It never throws, and the boot waits at most `timeoutMs` for it.
+ *
+ * The plugin is capacitor-secure-storage-plugin ('SecureStoragePlugin'), found the way the other native plugins are
+ * (lib/haptics.js): through window.Capacitor.registerPlugin, no bundler.
+ */
+const PLUGIN = 'SecureStoragePlugin';
+const HYDRATE_TIMEOUT_MS = 1500;
+
+function secureStorageOf(win) {
+  try {
+    const cap = win?.Capacitor;
+    if (!cap || typeof cap.getPlatform !== 'function') return null;
+    const platform = cap.getPlatform();
+    if (platform !== 'ios' && platform !== 'android') return null;
+    if (typeof cap.isPluginAvailable === 'function' && !cap.isPluginAvailable(PLUGIN)) return null;
+    if (cap.Plugins?.[PLUGIN]) return cap.Plugins[PLUGIN];
+    if (typeof cap.registerPlugin === 'function') return cap.registerPlugin(PLUGIN);
+  } catch {
+    /* no plugin */
+  }
+  return null;
+}
+
+/** The value under `key`, or null when absent (the plugin rejects an absent key). */
+async function keychainGet(plugin, key) {
+  try {
+    const r = await plugin.get({ key });
+    const v = r?.value;
+    return typeof v === 'string' && v !== '' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+function adopt(key, value, setMemory) {
+  setMemory(value);
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage disabled: the in-memory copy carries this session */
+  }
+}
+
+async function reconcile(plugin) {
+  const keychainId = await keychainGet(plugin, KEY);
+  const keychainSecret = await keychainGet(plugin, SECRET_KEY);
+  let source = keychainId || keychainSecret ? 'keychain' : 'migrated';
+  if (keychainId) adopt(KEY, keychainId, (v) => (memoryId = v));
+  if (keychainSecret) adopt(SECRET_KEY, keychainSecret, (v) => (memorySecret = v));
+  // Whatever the Keychain lacks, this phone's own value goes in (its id and secret exist by now: getters make them).
+  if (!keychainId) await plugin.set({ key: KEY, value: getDeviceId().id });
+  if (!keychainSecret) await plugin.set({ key: SECRET_KEY, value: getDeviceSecret() });
+  return source;
+}
+
+/** Resolves `{ source: 'keychain' | 'migrated' | 'localStorage' }`; never rejects. */
+export async function hydrateDeviceIdentity({ win = globalThis.window, timeoutMs = HYDRATE_TIMEOUT_MS } = {}) {
+  const plugin = secureStorageOf(win);
+  if (!plugin) return { source: 'localStorage' };
+  try {
+    let timer;
+    const timedOut = new Promise((resolve) => {
+      timer = setTimeout(() => resolve(null), timeoutMs);
+    });
+    const source = await Promise.race([reconcile(plugin).catch(() => null), timedOut]);
+    clearTimeout(timer);
+    return { source: source ?? 'localStorage' };
+  } catch {
+    return { source: 'localStorage' };
+  }
+}
