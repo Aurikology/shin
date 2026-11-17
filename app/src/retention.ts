@@ -133,7 +133,9 @@ export async function sweepRequestLog(
     const firstInput = createReadStream(path);
     const first = createInterface({ input: firstInput, crlfDelay: Infinity });
     let oldest: number | null = null;
+    let sawLine = false;
     for await (const line of first) {
+      sawLine = true;
       oldest = lineTime(line);
       break;
     }
@@ -142,7 +144,10 @@ export async function sweepRequestLog(
       firstInput.destroy();
       await once(firstInput, 'close');
     }
-    if (oldest === null || oldest >= cutoff) return { deleted: 0, failed: null };
+    // An empty file has nothing to sweep. A first line with no readable time proves nothing about the
+    // lines behind it (privacy procedures, 2026-11-16): fall through to the full pass, which keeps
+    // unreadable lines and drops the old ones, instead of stopping the sweep for good.
+    if (!sawLine || (oldest !== null && oldest >= cutoff)) return { deleted: 0, failed: null };
 
     let deleted = 0;
     const out = createWriteStream(temp);

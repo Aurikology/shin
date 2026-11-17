@@ -141,6 +141,22 @@ test('item 8: request-log lines go at 90 days, newer ones and unreadable ones st
   assert.deepEqual(await sweepRequestLog(NOW), { deleted: 0, failed: null }, 'a log inside the window was rewritten');
 });
 
+test('privacy procedures: an old line is still swept when the log starts with an unreadable line', async () => {
+  // The fast path trusted the first line's time. One damaged first line made the sweep stop for good.
+  const lines = [
+    'not json at the very top',
+    JSON.stringify({ at: OLD, url: '/old-behind-a-bad-first-line' }),
+    JSON.stringify({ at: '2026-11-01T00:00:00.000Z', url: '/new' }),
+  ];
+  writeFileSync(process.env.SHIN_ACCESS_LOG!, `${lines.join('\n')}\n`);
+  const r = await sweepRequestLog(NOW);
+  assert.deepEqual(r, { deleted: 1, failed: null });
+  const kept = readFileSync(process.env.SHIN_ACCESS_LOG!, 'utf8');
+  assert.doesNotMatch(kept, /old-behind-a-bad-first-line/);
+  assert.match(kept, /\/new/);
+  assert.match(kept, /not json at the very top/, 'an unreadable line is kept, as before');
+});
+
 test('item 8: the published policy states the periods this file enforces', () => {
   const en = readFileSync(new URL('../../docs/store/privacy.html', import.meta.url), 'utf8');
   assert.ok(en.includes(`${REQUEST_LOG_DAYS} days`));
