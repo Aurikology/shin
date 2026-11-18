@@ -78,8 +78,8 @@ Claude, with no web search, is the capped price-range fallback").** The catalogu
 price range, and when Shin has no price, Claude is asked for a typical range with no web search,
 capped per month. No shopper answer comes from Gemini (Jamin, 2026-09-28: *"We are not using gemini
 at all for the client side answers"*). The setting is on by default in code; the Claude range ask
-is not built yet, so an item with no Shin price shows no range. The Mac serves it once it pulls
-main and restarts the server. The old
+is built (identify/src/range-ask.ts, 2026-10-13) and wired into the barcode and typed paths
+(typed path fixed a551c4a, D-274). The old
 single-row photo matcher removed in `d3e4f0b` (2026-09-19) stays removed: the new search returns
 three for the shopper to pick, never one row forced out of millions.
 
@@ -98,8 +98,9 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 ## Waiting on Jamin or Aurik
 - **Paywall go-live, 2026-11-17:** `docs/paywall-go-live-2026-11-17.md`. 10 a week free kept. Stage 1 (seller line, cancel row on the iPhone) pushed 4c561dd; build 10 asked of the Mac; Stage 3 with Jamin (trial, store text); next is Aurik's sandbox purchase on build 10, then the limit goes on.
 - **D-250 closed 2026-11-17:** Aurik, *"the app does not crash, and the phone screen looks good"*, on the build his phone holds (8 or 9). Paywall purchase (launch gaps 7) still not run.
-- **Aurik:** the range ask on Claude with no web search (his claim, 2026-09-28 17:00 UTC). The
-  server makes no range ask until it is wired back in.
+- **Claude range ask, 2026-11-18 (D-274):** built and wired; live it made no ask for a typed grill
+  (fixed broad guess, no model). a551c4a makes the typed answer say why (`noRangeReason`); the Mac
+  is asked to pull, restart and check ANTHROPIC_API_KEY. Then re-type an unpriced item from outside.
 
 ## Next steps
 
