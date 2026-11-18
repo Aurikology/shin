@@ -281,7 +281,8 @@ backend verdict rows are tested once after it is live, not twice.
   D-250 (crashes, item 4).
   **Re-read 2026-11-11:** all but D-151, D-237 and D-250 already say Closed or fixed in their state
   column (the triage matched on the first word, "Open", of a column that ends in "Closed"). Open for
-  Aurik: D-151 (medium confidence), D-237 (item 9), D-250 (item 4), D-254 (text size).
+  Aurik: D-151 (medium confidence), D-237 (item 9), D-250 (item 4). D-254 (text size) fixed
+  624ac89 2026-11-11, in builds since 7; only the phone pass at the largest sizes is left.
 
 34. **[Jamin] Project Hammer prices and names (2026-11-07/08):** importer built (f400ac3, 2ad8994),
     weekly refresh script (89e018d), credits entry live. PC trial: 98,918 prices on 47,404 barcodes;
