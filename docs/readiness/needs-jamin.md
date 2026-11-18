@@ -183,3 +183,75 @@ than 25 percent, or over 1 percent of prices are under 5 cents or over 3,000 dol
 has no earlier baseline, so only the absolute checks apply. If a real change (a publisher unit change you have looked at)
 trips it, clear the stored baseline with `sqlite3 "$SHIN_PRICES" "DELETE FROM store_meta WHERE key='hammer_last_import'"`
 and run the refresh again.
+
+## fix-mac
+
+Everything the Mac scripts cannot do alone: passwords, sign-ups, dashboards, decisions. The scripts and the ordered procedure
+are in `mac/README.md` ("Surviving a restart, encrypted, backed up, hardened"). Rough order is the order below.
+
+### 1. Run the install scripts that need `sudo` (R04, R08, D5, R55)
+
+A Claude session on the Mac cannot type your password. At the Mac, in Terminal as `worker`, from `~/shin`:
+`sh mac/10-boot-survival.sh --dry-run`, then `sudo sh mac/10-boot-survival.sh`, then `sudo sh mac/10-boot-survival.sh --verify`.
+Later `sudo sh mac/11-planned-restart.sh` (macOS 27.2.1) and `sudo sh mac/12-harden.sh`. Each has a `--dry-run` and an undo.
+
+### 2. Turn FileVault on and keep the recovery key (R08, D1)
+
+System Settings > Privacy and Security > FileVault > Turn On. Pick "create a recovery key" (not iCloud), write it on paper or
+in your password manager, NOT on this Mac. Your password is needed. Decision attached: with FileVault on, a power cut stops the
+Mac at the unlock screen until someone unlocks it (crashes and planned restarts come back by themselves). If nobody can ever
+unlock it and uptime matters more than the encrypted disk, leave FileVault off and say so; the plain statement is in
+`mac/README.md` ("What still needs a person").
+
+### 3. Leave Remote Login (SSH) on
+
+It is the only way to unlock the Mac from another room after a power cut (reported for macOS 26 and later, home network only,
+UNVERIFIED on this Mac). Do not switch it off. `--ssh-keys-only` is optional and not default.
+
+### 4. Choose where the encrypted off-site backup goes (R07, R52)
+
+Pick one: an external disk kept in another place (`/Volumes/NAME/shin-restic`), a cloud bucket (for example Backblaze B2, `b2:bucket:shin`;
+price not checked here, the nightly copy is small), or a second computer over SSH
+(`sftp:user@host:/path`). Then: `brew install restic`; create the password file `/Users/worker/.shin-restic-password` (mode 600,
+one long random line); keep a SECOND copy of that password in your password manager (without it the backup is unreadable by
+design); put the destination and password path in `mac/config.env`; run `sh mac/14-offsite-backup.sh --init` once. For a bucket
+you create the account and the key.
+
+### 5. Screen Sharing: decide (D3)
+
+It is on and reachable from the home network and Tailscale. Keep it if you use it to look at the Mac; otherwise
+`sudo sh mac/12-harden.sh --screen-sharing-off`. Nothing turns it off by default.
+
+### 6. Create the standard account `shinsvc` (D4), when you have an hour
+
+System Settings > Users and Groups > Add Account, type Standard, name `shinsvc`. The move plan is in `mac/README.md` ("Moving
+the server off the admin account"). It needs a read-only deploy key added to GitLab by you. Until then the server stays on
+`worker` (an admin) and D4 stays open.
+
+### 7. Check the unknown program on port 8787 (D3)
+
+Run `sh mac/12-harden.sh --audit` and read the UNKNOWN line (command and folder). If you do not know what it is, tell the Mac
+session; the script never stops anything by itself.
+
+### 8. Check that the health mail reads the new failure flags (R72)
+
+`~/bin/worker-heartbeat.sh` is not in the repo, so nobody here has seen it. The new jobs leave
+`~/.worker-state/shin-<job>-failed` (jobs: backup, offsite, restore-test, integrity, disk, certs, checker, logrotate), the same
+pattern as the existing `shin-checker-stopped`. Open the script and confirm it mails when any `shin-*-failed` file exists. If it
+does not, say so and a Mac session adds the line.
+
+### 9. App Store Connect key id and issuer (R66, R69)
+
+For the monthly expiry check: App Store Connect > Users and Access > Integrations > App Store Connect API. Copy the Key ID and the
+Issuer ID into `mac/config.env` as `SHIN_ASC_KEY_ID` and `SHIN_ASC_ISSUER_ID`; put the downloaded `AuthKey_<id>.p8` in
+`~/.appstoreconnect/private_keys/` (or set `SHIN_ASC_KEY_FILE`). Apple shows no expiry date for this key, so the check asks Apple
+whether it still works. Do not paste the key itself into chat.
+
+### 10. Tailscale: turn key expiry off for the Mac (R69)
+
+Tailscale admin console > Machines > this Mac > the three dots > Disable key expiry. Otherwise the Mac silently drops off the
+tailnet at the key's expiry date (the monthly check prints the days left either way).
+
+### 11. The router: is port 22 or 5900 forwarded to the Mac? (D3)
+
+Not knowable from the Mac. Open the router's port forwarding page and check; if either is forwarded to the Mac, delete it.
