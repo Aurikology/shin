@@ -93,7 +93,7 @@ import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-s
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
 import { deviceFromHeaders, entitlementStartupWarning, freeScanLimit, isPlus, plusScanLimit, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
-import { recordEvent, serialisePayload } from './src/events.ts';
+import { inEventTransaction, recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
@@ -114,7 +114,7 @@ import {
   sweepGrounded,
 } from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
-import { defaultPricesPath, lookupOwnPrices, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
+import { defaultPricesPath, lookupOwnPricesAsync, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
 import { claudeOutcomes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
 import * as scanQuotaForWatch from './src/scan-quota.ts';
@@ -1340,12 +1340,13 @@ async function typedFromOwnData(
       }).match;
       if (own) match = { name: id.name, brand: id.brand, size: id.size, code: id.barcode, score: 1, prices: own.prices };
     } else {
-      match = lookupOwnPrices(text, {
+      match = (await lookupOwnPricesAsync(text, {
         pricesDbPath: defaultPricesPath(),
         userCatalogueDb: userCatalogue?.db ?? null,
         userCataloguePath: USER_CATALOGUE_PATH,
         catalogueProbe: catalogueDb ? probeCatalogue(catalogueDb) : null,
-      }).match;
+        onFault: (err) => logError({ where: 'identify.own_data_worker', deviceId: device, scanId: null, err }),
+      })).match;
       if (match) named = { name: match.name, brand: match.brand, size: match.size, code: match.code ?? '' };
     }
   } catch (err) {
@@ -4167,6 +4168,8 @@ export const server = createServer(async (req, res) => {
       const batch = events.slice(0, MAX_EVENTS_PER_BATCH);
       let stored = 0;
       let dropped = 0;
+      /* R93: one transaction for the whole batch, so it is one disk sync and not up to 200. */
+      inEventTransaction(() => {
       for (const raw of batch) {
         if (!raw || typeof raw !== 'object') { dropped += 1; continue; }
         const e = raw as Record<string, unknown>;
@@ -4187,6 +4190,7 @@ export const server = createServer(async (req, res) => {
         if (id === null) dropped += 1;
         else stored += 1;
       }
+      });
       return json(200, { stored, dropped, received: events.length });
     }
 

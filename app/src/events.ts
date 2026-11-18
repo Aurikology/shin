@@ -164,6 +164,30 @@ export function serialisePayload(payload: unknown): { json: string | null } | { 
 }
 
 /**
+ * R93. Runs `work` (any number of `recordEvent` calls) inside ONE transaction on the scan store.
+ *
+ * Each `recordEvent` outside a transaction is its own commit, and every commit is a disk sync. The
+ * batch route used to write up to 200 events that way on the one server thread, so a slow disk held
+ * every other request for seconds. One transaction is one sync. Nested calls join the outer one; a
+ * throw rolls the whole batch back and is rethrown; a store that is not open just runs `work`, where
+ * `recordEvent` counts each event as a drop exactly as before.
+ */
+export function inEventTransaction<T>(work: () => T): T {
+  const store = activeScanStore() ?? openScanStore();
+  const db = store.db;
+  if (!db || db.isTransaction) return work();
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const out = work();
+    db.exec('COMMIT');
+    return out;
+  } catch (err) {
+    try { db.exec('ROLLBACK'); } catch { /* already rolled back by SQLite */ }
+    throw err;
+  }
+}
+
+/**
  * Writes one event. Returns its id, or null when it could not be written.
  *
  * A null is a counted drop on the scan store, never an exception, and the

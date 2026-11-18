@@ -41,6 +41,8 @@ import { canonicalCode } from '../../catalogue/src/barcode.ts';
 import { upcAOf, upcEOf } from '../../catalogue/src/upc.ts';
 import { isValidGtin } from './barcode.ts';
 import { shopperVoiceOff } from './shopper-voice.ts';
+import { notPrintout, scanPriceNames, type PriceNameRow } from './own-prices-scan.ts';
+import { Worker } from 'node:worker_threads';
 
 export const OWN_DATA_SOURCE = 'shin_own_data' as const;
 
@@ -211,6 +213,10 @@ export interface OwnLookupSources {
   readonly userCataloguePath?: string | null;
   /** Names catalogue products from the typed words. Optional; the catalogue has no prices of its own. */
   readonly catalogueProbe?: CatalogueProbe | null;
+  /** R15: the prices-file name scan, already done on another thread (see `lookupOwnPricesAsync`). */
+  readonly preloadedPriceNames?: readonly PriceNameRow[];
+  /** R15: told when the other thread failed and the scan fell back to the main thread. */
+  readonly onFault?: (err: unknown) => void;
 }
 
 export interface OwnLookup {
@@ -336,10 +342,7 @@ function padForms(code: string): string[] {
  * into an answer by name and size. Audit 2026-09-28: a printout Rollback at
  * $2.97 became a barcoded Loblaws product's cheapest price that way.
  */
-function notPrintout(db: DatabaseSync): string {
-  const cols = db.prepare('PRAGMA table_info(observation)').all() as { name: string }[];
-  return cols.some((c) => c.name === 'capture_tile_id') ? ' AND capture_tile_id IS NULL' : '';
-}
+/* `notPrintout` now lives in own-prices-scan.ts, beside the scan that shares it (R15). */
 
 function pricesRows(db: DatabaseSync, where: string, args: string[]): OwnPrice[] {
   const rows = db
@@ -464,6 +467,97 @@ function likeWord(q: readonly string[]): string | null {
   return plain.length ? `%${plain[0]}%` : null;
 }
 
+/* ------------------------------------------------ R15: the scan, off the server's thread */
+
+const SCAN_TIMEOUT_MS = 20_000;
+let scanWorker: Worker | null = null;
+let scanSeq = 0;
+const scanWaiting = new Map<number, { resolve: (rows: PriceNameRow[]) => void; reject: (err: Error) => void; timer: NodeJS.Timeout }>();
+
+function failAllScans(err: Error): void {
+  for (const [id, w] of scanWaiting) {
+    clearTimeout(w.timer);
+    scanWaiting.delete(id);
+    w.reject(err);
+  }
+}
+
+/** Keeps the process waiting for the worker only while a scan is out; Node re-refs a worker on its message traffic. */
+function holdWorker(w: Worker): void {
+  if (scanWaiting.size > 0) w.ref();
+  else w.unref();
+}
+
+function startScanWorker(): Worker {
+  const w = new Worker(new URL('./own-prices-worker.ts', import.meta.url));
+  /* ref only while a scan is out (see `holdWorker`); an idle worker must never keep the server or a test run alive */
+  w.on('message', (msg: { id: number; rows?: PriceNameRow[]; error?: string }) => {
+    const waiting = scanWaiting.get(msg.id);
+    if (!waiting) return;
+    clearTimeout(waiting.timer);
+    scanWaiting.delete(msg.id);
+    holdWorker(w);
+    if (msg.error !== undefined) waiting.reject(new Error(msg.error));
+    else waiting.resolve(msg.rows ?? []);
+  });
+  w.on('error', (err) => {
+    if (scanWorker === w) scanWorker = null;
+    failAllScans(err);
+  });
+  w.on('exit', () => {
+    if (scanWorker === w) scanWorker = null;
+    failAllScans(new Error('the price scan thread stopped'));
+  });
+  return w;
+}
+
+/** Runs `scanPriceNames` on a worker thread. Rejects on a worker fault or after SCAN_TIMEOUT_MS. */
+export function scanPriceNamesOffThread(path: string, like: string | null): Promise<PriceNameRow[]> {
+  return new Promise((resolve, reject) => {
+    try {
+      scanWorker ??= startScanWorker();
+      const id = (scanSeq += 1);
+      const timer = setTimeout(() => {
+        scanWaiting.delete(id);
+        // A scan this slow is stuck or the table is far past what this was built for: stop the thread.
+        const stuck = scanWorker;
+        scanWorker = null;
+        void stuck?.terminate();
+        const slow = new Error(`the price scan did not finish in ${SCAN_TIMEOUT_MS / 1000} s`);
+        slow.name = 'ScanTimeout';
+        reject(slow);
+      }, SCAN_TIMEOUT_MS);
+      timer.unref();
+      scanWaiting.set(id, { resolve, reject, timer });
+      scanWorker.postMessage({ id, path, like });
+      holdWorker(scanWorker);
+    } catch (err) {
+      reject(err instanceof Error ? err : new Error(String(err)));
+    }
+  });
+}
+
+/**
+ * `lookupOwnPrices` with the one scan that grows with the table done on another thread (R15). The
+ * answer is the same; the difference is that the server can answer other requests while it waits.
+ * A worker fault is reported to `sources.onFault` and the scan then runs on this thread, which is
+ * slower but correct, so a broken worker never turns into "no prices".
+ */
+export async function lookupOwnPricesAsync(typed: string, sources: OwnLookupSources = {}): Promise<OwnLookup> {
+  const q = tokensOf(typed);
+  const path = sources.pricesDbPath ?? defaultPricesPath();
+  if (!q.some((t) => t.length >= 3) || !existsSync(path) || sources.preloadedPriceNames) return lookupOwnPrices(typed, sources);
+  let rows: PriceNameRow[] | undefined;
+  try {
+    rows = await scanPriceNamesOffThread(path, likeWord(q));
+  } catch (err) {
+    try { sources.onFault?.(err); } catch { /* a faulty reporter must not break a lookup */ }
+    // A scan that already ran out of time is not run again on this thread: that would block it for as long again.
+    if (err instanceof Error && err.name === 'ScanTimeout') rows = [];
+  }
+  return lookupOwnPrices(typed, rows ? { ...sources, preloadedPriceNames: rows } : sources);
+}
+
 export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): OwnLookup {
   const searched: string[] = [];
   const unavailable: string[] = [];
@@ -493,12 +587,8 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
     try {
       prices = openReadOnly(sources.pricesDbPath ?? defaultPricesPath());
       if (!prices) throw new Error('missing');
-      const rows = prices
-        .prepare(
-          `SELECT DISTINCT code, seller, seller_sku, seller_name, seller_brand FROM observation
-            WHERE seller_name <> '(unnamed)'${notPrintout(prices)}${like ? " AND lower(seller_name || ' ' || coalesce(seller_brand, '')) LIKE ?" : ''}`,
-        )
-        .all(...(like ? [like] : [])) as Record<string, unknown>[];
+      // R15: `lookupOwnPricesAsync` hands in the rows its worker thread already scanned; otherwise scan here.
+      const rows = (sources.preloadedPriceNames ?? scanPriceNames(prices, like)) as unknown as Record<string, unknown>[];
       const db = prices;
       for (const r of rows) {
         const code = text(r.code);
