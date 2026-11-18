@@ -187,11 +187,11 @@ test('item 4: free barcode scans are capped per address, and a new device id doe
   try {
     const ip = { 'cf-connecting-ip': '203.0.113.50' };
     const scan = (n: number) => fetch(`${base()}/api/identify?gtin=0064100238022&deviceId=fresh-id-${n}&countryCode=CA`, { headers: ip });
-    assert.notEqual((await scan(1)).status, 429);
-    assert.notEqual((await scan(2)).status, 429);
-    assert.equal((await scan(3)).status, 429, 'a third new id got a third free scan from one address');
+    assert.notEqual((await scan(1)).status, 402);
+    assert.notEqual((await scan(2)).status, 402);
+    assert.equal((await scan(3)).status, 402, 'a third new id got a third free scan from one address (R36: it meets the Plus screen body, not the flood text)');
     const elsewhere = await fetch(`${base()}/api/identify?gtin=0064100238022&deviceId=fresh-id-4&countryCode=CA`, { headers: { 'cf-connecting-ip': '203.0.113.51' } });
-    assert.notEqual(elsewhere.status, 429, 'another address was caught by the cap');
+    assert.notEqual(elsewhere.status, 402, 'another address was caught by the cap');
   } finally {
     delete process.env.SHIN_FREE_SCANS_PER_WEEK;
   }

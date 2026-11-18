@@ -30,14 +30,44 @@ export interface LimiterDecision {
   readonly retryAfterSeconds: number;
 }
 
-const MAX_KEYS = 5_000;
+/**
+ * How many different callers one limiter remembers (R81). It was 5,000, so a day with more phones or
+ * addresses than that made the limiter forget the oldest ones and their limits weakened. 100,000 keys
+ * is a few tens of MB at worst and far above any day Pexi can have.
+ */
+const MAX_KEYS = 100_000;
+
+/*
+ * REFUSALS, COUNTED (R36). A 429 was invisible: nobody was told a shopper had been turned away. Every
+ * refusal a NAMED limiter makes adds to today's count, for the health body to show and an alarm to read.
+ * In memory, by UTC day; a restart starts the day's count again.
+ */
+const refusals = { day: '', total: 0, byName: {} as Record<string, number> };
+
+function countRefusal(name: string, now: number): void {
+  const day = new Date(now).toISOString().slice(0, 10);
+  if (refusals.day !== day) {
+    refusals.day = day;
+    refusals.total = 0;
+    refusals.byName = {};
+  }
+  refusals.total += 1;
+  refusals.byName[name] = (refusals.byName[name] ?? 0) + 1;
+}
+
+/** Today's refusals (UTC day) across every limiter, total and by limiter name. For /api/health. */
+export function limiterRefusals(): { day: string; total: number; byName: Record<string, number> } {
+  return { day: refusals.day || new Date().toISOString().slice(0, 10), total: refusals.total, byName: { ...refusals.byName } };
+}
 
 export class KeyedLimiter {
   readonly #windows: readonly Window[];
+  readonly #name: string;
   readonly #calls = new Map<string, number[]>();
 
-  constructor(windows: readonly Window[]) {
+  constructor(windows: readonly Window[], name = 'unnamed') {
     this.#windows = windows;
+    this.#name = name;
   }
 
   /**
@@ -52,6 +82,7 @@ export class KeyedLimiter {
       if (inside.length >= w.limit) {
         this.#calls.set(key, times);
         const oldest = inside[0] ?? now;
+        countRefusal(this.#name, now);
         return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil((oldest + w.ms - now) / 1000)) };
       }
     }
@@ -108,23 +139,45 @@ export function addressWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
 }
 
 /**
- * Every API request from one address (Jamin's App Store list, item 4). Far above a phone: the usage
- * queue alone sends a batch every five seconds, and a household or a carrier can share one address.
- * This stops a flood; the paid-call windows above stop spending.
+ * Every API request from one address (Jamin's App Store list, item 4): the HIGH ABUSE CEILING, since
+ * 2026-11-18 (R36). A campus, a store's Wi-Fi or a carrier is many honest phones behind one address, so
+ * this is five times the old number and no longer the limit a phone meets; the per-phone window
+ * (`doorDeviceWindows`) is. The ceiling still stops a script that rotates device ids.
  */
 export function doorWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
   return [
-    { ms: TEN_MINUTES, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_10MIN(env), 1_200) },
-    { ms: ONE_DAY, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_DAY(env), 15_000) },
+    { ms: TEN_MINUTES, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_10MIN(env), 6_000) },
+    { ms: ONE_DAY, limit: envCount(settings.SHIN_RATE_DOOR_IP_PER_DAY(env), 75_000) },
   ];
 }
 
 /**
- * Free barcode scans from one address in a day. The free limit is keyed on a device id the phone
- * makes up, so a new id is a new week; this is what a new id cannot reset.
+ * Every API request from one phone (its x-shin-device id), the number a single phone meets. Far above
+ * a phone: the usage queue alone sends a batch every five seconds. Not a security boundary on its own,
+ * since a script can send a new id per request; the address ceiling above catches that.
+ */
+export function doorDeviceWindows(): Window[] {
+  return [
+    { ms: TEN_MINUTES, limit: 1_200 },
+    { ms: ONE_DAY, limit: 15_000 },
+  ];
+}
+
+/**
+ * Free barcode scans from one address in a day: the high abuse ceiling under the per-phone weekly
+ * limit (30 became 150 on 2026-11-18, R36: fifteen first-time phones on one campus address used to hit
+ * it). The free limit is keyed on a device id the phone makes up, so a new id is a new week; this is
+ * what a new id cannot reset.
  */
 export function freeScanAddressWindows(env: NodeJS.ProcessEnv = process.env): Window[] {
-  return [{ ms: ONE_DAY, limit: envCount(settings.SHIN_FREE_SCANS_PER_IP_DAY(env), 30) }];
+  return [{ ms: ONE_DAY, limit: envCount(settings.SHIN_FREE_SCANS_PER_IP_DAY(env), 150) }];
+}
+
+/** The phone id a request names, if it has the shape a phone makes (8 to 64 letters, digits, _ or -), else null. */
+export function phoneIdOf(headers: Record<string, string | string[] | undefined>): string | null {
+  const raw = headers['x-shin-device'];
+  const v = (Array.isArray(raw) ? raw[0] : raw)?.trim() ?? '';
+  return /^[A-Za-z0-9_-]{8,64}$/.test(v) ? v : null;
 }
 
 /**

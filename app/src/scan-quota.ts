@@ -30,7 +30,10 @@
  *
  * PLUS. With `REVENUECAT_SECRET_KEY` set, the server asks RevenueCat whether
  * this device's app user id holds the `plus` entitlement, and remembers the
- * answer for ten minutes. Without it nobody is Plus, and the server says so once
+ * answer for ten minutes (R19: sooner when the phone's x-shin-plus hint says
+ * the cache is stale, at most once a minute per device; R27: a 3-second
+ * timeout, failures counted for /api/health, a subscriber confirmed within a
+ * day stays Plus through an outage). Without it nobody is Plus, and the server says so once
  * at startup (Jamin's App Store list, item 1: anyone could claim Plus with
  * `x-shin-plus: 1` while the key was unset). `SHIN_PLUS_TRUST_CLIENT=1` puts the
  * old beta seam back, believing that header, for a machine with no key on purpose.
@@ -52,6 +55,14 @@ const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
 /** A device id RevenueCat may be asked about: letters, digits, underscore and hyphen, 8 to 64 long. */
 const PLUS_ID_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
 const lookupLimiter = new KeyedLimiter([{ ms: 60_000, limit: 120 }]);
+/** A RevenueCat call that has not answered in this long is a failure (R27); the shopper must not wait on it. */
+const ENTITLEMENT_TIMEOUT_MS = 3_000;
+/** A phone that says it is Plus while the cache says not may force a re-check, once a minute per device (R19). */
+const HINT_RECHECK_MS = 60_000;
+/** A subscriber RevenueCat confirmed within this long stays Plus through a RevenueCat outage (R27). */
+const PLUS_GRACE_MS = 24 * 60 * 60 * 1000;
+/** The on-disk memory of "RevenueCat said yes" is refreshed at most this often per device. */
+const PLUS_SEEN_WRITE_MS = 60 * 60 * 1000;
 let lookupAlarmAt = 0;
 
 /** A cap setting's value: a positive whole number, else null (no cap). */
@@ -128,19 +139,131 @@ export function usageFor(deviceId: string, limit: number | null, now: Date = new
 
 /* ----------------------------------------------------------- entitlement */
 
-type FetchLike = (url: string, init: { headers: Record<string, string> }) => Promise<{
+type FetchLike = (url: string, init: { headers: Record<string, string>; signal?: AbortSignal }) => Promise<{
   ok: boolean;
   status: number;
   json(): Promise<unknown>;
 }>;
 
 let fetchForEntitlement: FetchLike | null = null;
+let entitlementTimeoutMs = ENTITLEMENT_TIMEOUT_MS;
 const entitlementCache = new Map<string, { plus: boolean; until: number }>();
+/** When a phone's "I am Plus" hint last forced a re-check. */
+const hintRecheckAt = new Map<string, number>();
+/** When this process last wrote or saw "RevenueCat said plus" for a device. */
+const plusSeenAt = new Map<string, number>();
 
-/** Tests hand in a fake RevenueCat. Null puts the real fetch back. Clears the cache either way. */
+/** Tests hand in a fake RevenueCat. Null puts the real fetch back. Clears the memory (as a restart does) but not the disk. */
 export function setEntitlementFetchForTests(f: FetchLike | null): void {
   fetchForEntitlement = f;
   entitlementCache.clear();
+  hintRecheckAt.clear();
+  plusSeenAt.clear();
+}
+
+/** Tests shorten the RevenueCat timeout. Null puts the real one back. */
+export function setEntitlementTimeoutForTests(ms: number | null): void {
+  entitlementTimeoutMs = ms ?? ENTITLEMENT_TIMEOUT_MS;
+}
+
+/*
+ * HOW RevenueCat IS DOING, for the health body (R27). Counted since this process started: a restart
+ * resets it, and the consecutive-failure streak is what an alarm should read, not the total.
+ */
+const lookupHealth = {
+  lookups: 0,
+  failures: 0,
+  consecutiveFailures: 0,
+  lastFailureAt: null as string | null,
+  lastFailure: null as string | null,
+  lastSuccessAt: null as string | null,
+  limiterRefusals: 0,
+};
+
+export interface EntitlementLookupHealth {
+  readonly lookups: number;
+  readonly failures: number;
+  /** Failed lookups in a row since the last success; 0 when the last one worked. */
+  readonly consecutiveFailures: number;
+  readonly lastFailureAt: string | null;
+  readonly lastFailure: string | null;
+  readonly lastSuccessAt: string | null;
+  /** Lookups skipped because the 120-a-minute ceiling was hit. */
+  readonly limiterRefusals: number;
+}
+
+/** What /api/health reads: a copy of the RevenueCat lookup counters. */
+export function entitlementLookupHealth(): EntitlementLookupHealth {
+  return { ...lookupHealth };
+}
+
+/** The scan store's own small table of devices RevenueCat confirmed as Plus, so a restart in an outage forgets nobody. */
+const PLUS_SEEN_DDL = `CREATE TABLE IF NOT EXISTS plus_seen (
+  device_id TEXT PRIMARY KEY,
+  seen_at   TEXT NOT NULL
+)`;
+
+function rememberPlus(deviceId: string, nowMs: number): void {
+  const last = plusSeenAt.get(deviceId);
+  if (last !== undefined && nowMs - last < PLUS_SEEN_WRITE_MS) return;
+  plusSeenAt.set(deviceId, nowMs);
+  const store = activeScanStore() ?? openScanStore();
+  try {
+    if (!store.db) return;
+    store.db.exec(PLUS_SEEN_DDL);
+    store.db
+      .prepare(
+        `INSERT INTO plus_seen (device_id, seen_at) VALUES (?, ?)
+         ON CONFLICT(device_id) DO UPDATE SET seen_at = excluded.seen_at`,
+      )
+      .run(deviceId, new Date(nowMs).toISOString());
+  } catch {
+    // Not remembered this time; the next success tries again. Never costs the shopper anything.
+  }
+}
+
+/** True when RevenueCat confirmed this device as Plus within the last day (in memory, else on disk). */
+function recentlyPlus(deviceId: string, nowMs: number): boolean {
+  const mem = plusSeenAt.get(deviceId);
+  if (mem !== undefined) return nowMs - mem < PLUS_GRACE_MS;
+  const store = activeScanStore() ?? openScanStore();
+  try {
+    if (!store.db) return false;
+    store.db.exec(PLUS_SEEN_DDL);
+    const row = store.db.prepare('SELECT seen_at FROM plus_seen WHERE device_id = ?').get(deviceId) as unknown as
+      | { seen_at: string }
+      | undefined;
+    const t = row ? Date.parse(row.seen_at) : NaN;
+    return Number.isFinite(t) && nowMs - t < PLUS_GRACE_MS;
+  } catch {
+    return false;
+  }
+}
+
+/** One RevenueCat call that gives up after the timeout, whether it hangs on the connection or on the body. */
+async function askRevenueCat(doFetch: FetchLike, deviceId: string, key: string): Promise<unknown> {
+  const ctl = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      ctl.abort();
+      reject(new Error(`RevenueCat did not answer in ${entitlementTimeoutMs} ms`));
+    }, entitlementTimeoutMs);
+  });
+  try {
+    const call = (async () => {
+      const res = await doFetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(deviceId)}`, {
+        headers: { authorization: `Bearer ${key}`, accept: 'application/json' },
+        signal: ctl.signal,
+      });
+      if (!res.ok) throw new Error(`RevenueCat answered ${res.status}`);
+      return res.json();
+    })();
+    call.catch(() => {}); // a call that loses the race must not become an unhandled rejection
+    return await Promise.race([call, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export type EntitlementMode = 'revenuecat' | 'client_trusted';
@@ -191,30 +314,48 @@ export async function isPlus(
    * with the secret key (security check A4, A7).
    */
   if (!PLUS_ID_SHAPE.test(deviceId) || !provesDevice(deviceId, headers)) return false;
+  const nowMs = now.getTime();
   const cached = entitlementCache.get(deviceId);
-  if (cached && cached.until > now.getTime()) return cached.plus;
+  if (cached && cached.until > nowMs) {
+    // R19: a shopper who has just paid is cached as "not Plus" for up to ten minutes. The phone knows
+    // its own store entitlement and says so with x-shin-plus; that is never believed, only a reason
+    // to ask RevenueCat now, at most once a minute per device.
+    if (cached.plus || headerText(headers, PLUS_HEADER) !== '1') return cached.plus;
+    if (nowMs - (hintRecheckAt.get(deviceId) ?? -Infinity) < HINT_RECHECK_MS) return false;
+    hintRecheckAt.set(deviceId, nowMs);
+    if (hintRecheckAt.size > 10_000) {
+      for (const [id, at] of hintRecheckAt) if (nowMs - at >= HINT_RECHECK_MS) hintRecheckAt.delete(id);
+    }
+  }
   // A safety valve on the lookups themselves: one process-wide ceiling, so a flood of freshly minted
   // ids cannot turn into a flood of calls to RevenueCat. Over it, the answer is the last known one.
-  if (!lookupLimiter.check('revenuecat', now.getTime()).allowed) {
-    if (!lookupAlarmAt || now.getTime() - lookupAlarmAt > 60_000) {
-      lookupAlarmAt = now.getTime();
+  if (!lookupLimiter.check('revenuecat', nowMs).allowed) {
+    lookupHealth.limiterRefusals += 1;
+    if (!lookupAlarmAt || nowMs - lookupAlarmAt > 60_000) {
+      lookupAlarmAt = nowMs;
       console.warn('[plus-lookup-limit] RevenueCat lookups are over 120 a minute; answering from the last known entitlement until it eases');
     }
-    return cached?.plus ?? false;
+    return cached?.plus ?? recentlyPlus(deviceId, nowMs);
   }
   const key = (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim();
   const doFetch: FetchLike = fetchForEntitlement ?? (globalThis.fetch as unknown as FetchLike);
+  lookupHealth.lookups += 1;
   try {
-    const res = await doFetch(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(deviceId)}`, {
-      headers: { authorization: `Bearer ${key}`, accept: 'application/json' },
-    });
-    if (!res.ok) throw new Error(`RevenueCat answered ${res.status}`);
-    const plus = entitlementActive(await res.json(), now);
-    entitlementCache.set(deviceId, { plus, until: now.getTime() + ENTITLEMENT_CACHE_MS });
+    const plus = entitlementActive(await askRevenueCat(doFetch, deviceId, key), now);
+    lookupHealth.consecutiveFailures = 0;
+    lookupHealth.lastSuccessAt = new Date().toISOString();
+    if (plus) rememberPlus(deviceId, nowMs);
+    entitlementCache.set(deviceId, { plus, until: nowMs + ENTITLEMENT_CACHE_MS });
     return plus;
-  } catch {
-    const plus = cached?.plus ?? false;
-    entitlementCache.set(deviceId, { plus, until: now.getTime() + ENTITLEMENT_ERROR_CACHE_MS });
+  } catch (err) {
+    // R27: counted where the health body can read it, and a subscriber RevenueCat confirmed in the
+    // last day stays Plus. Retried after a minute, not ten.
+    lookupHealth.failures += 1;
+    lookupHealth.consecutiveFailures += 1;
+    lookupHealth.lastFailureAt = new Date().toISOString();
+    lookupHealth.lastFailure = err instanceof Error ? err.message : String(err);
+    const plus = (cached?.plus ?? false) || recentlyPlus(deviceId, nowMs);
+    entitlementCache.set(deviceId, { plus, until: nowMs + ENTITLEMENT_ERROR_CACHE_MS });
     return plus;
   }
 }

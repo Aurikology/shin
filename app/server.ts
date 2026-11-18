@@ -97,7 +97,7 @@ import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
-import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorWindows, freeScanAddressWindows, isLocalRequest, networkOf } from './src/rate-limit.ts';
+import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorDeviceWindows, doorWindows, freeScanAddressWindows, isLocalRequest, networkOf, phoneIdOf } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
@@ -907,10 +907,11 @@ function imageKind(bytes: Buffer): 'png' | 'jpeg' | null {
  * dollar cap. The limiters are built once so their counts outlive a request; tests replace them
  * through `resetPaidCallLimitersForTests`.
  */
-let codeLimiter = new KeyedLimiter(codeWindows());
-let addressLimiter = new KeyedLimiter(addressWindows());
-let doorLimiter = new KeyedLimiter(doorWindows());
-let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows());
+let codeLimiter = new KeyedLimiter(codeWindows(), 'paid-code');
+let addressLimiter = new KeyedLimiter(addressWindows(), 'paid-address');
+let doorLimiter = new KeyedLimiter(doorWindows(), 'door-address');
+let doorDeviceLimiter = new KeyedLimiter(doorDeviceWindows(), 'door-device');
+let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(), 'free-scan-address');
 
 /*
  * WRONG GUESSES AT A SECRET (security check A5). The invite code ships inside the app and the admin
@@ -945,10 +946,11 @@ export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.e
   storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
   guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
   guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
-  codeLimiter = new KeyedLimiter(codeWindows(env));
-  addressLimiter = new KeyedLimiter(addressWindows(env));
-  doorLimiter = new KeyedLimiter(doorWindows(env));
-  freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(env));
+  codeLimiter = new KeyedLimiter(codeWindows(env), 'paid-code');
+  addressLimiter = new KeyedLimiter(addressWindows(env), 'paid-address');
+  doorLimiter = new KeyedLimiter(doorWindows(env), 'door-address');
+  doorDeviceLimiter = new KeyedLimiter(doorDeviceWindows(), 'door-device');
+  freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(env), 'free-scan-address');
   matchTextCodeLimiter = new KeyedLimiter(codeWindows(env));
   matchTextAddressLimiter = new KeyedLimiter(addressWindows(env));
 }
@@ -986,6 +988,14 @@ function claudeAllowed(req: IncomingMessage): boolean {
 function doorRefusal(req: IncomingMessage, pathname: string): { retryAfterSeconds: number } | null {
   if (!pathname.startsWith('/api/') || INVITE_EXEMPT.includes(pathname)) return null;
   if (isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
+  // R36: a phone is counted on its own first, so honest phones behind one shared address do not use
+  // each other up. The address is then only a high ceiling, and it still catches a script that makes
+  // up a new phone id on every request.
+  const phone = phoneIdOf(req.headers);
+  if (phone) {
+    const own = doorDeviceLimiter.check(`dev:${phone}`);
+    if (!own.allowed) return { retryAfterSeconds: own.retryAfterSeconds };
+  }
   const decision = doorLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
   return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
 }
@@ -3160,7 +3170,11 @@ export const server = createServer(async (req, res) => {
         const overLimitFirst = await scanLimitRefusal(device, req.headers);
         if (overLimitFirst) return json(402, overLimitFirst);
         const overAddress = await freeScanAddressRefusal(req, device);
-        if (overAddress) return tooManyCalls(overAddress.retryAfterSeconds);
+        // R36: a first-time shopper on a busy shared address meets the Plus screen, never the flood text.
+        if (overAddress) {
+          const free = freeScanLimit() ?? 0;
+          return json(402, { error: 'scan_limit', limit: free, used: free, resetsAt: new Date(Date.now() + overAddress.retryAfterSeconds * 1000).toISOString() });
+        }
         const canonical = canonicalBarcode(rawGtin);
         if (canonical) {
           // The pack read is developer-only: a shopper's `canSendFrame` is ignored and the miss goes to typing, with the reason.

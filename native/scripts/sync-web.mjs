@@ -15,6 +15,7 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync, existsSync } fr
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { checkRevenueCatKeys } from './rc-keys.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nativeRoot = path.resolve(__dirname, '..');
@@ -52,17 +53,23 @@ if (/REPLACE-WITH|example\.invalid/.test(`${config.apiBase} ${config.inviteCode}
  * plans on a platform with no key.
  */
 const rcPath = path.join(nativeRoot, 'config', 'revenuecat.config.json');
+/** A release build (App Store or TestFlight for review) passes --release or sets SHIN_RELEASE=1; R31. */
+const release = process.argv.includes('--release') || process.env.SHIN_RELEASE === '1';
 let rcKeys = { ios: '', android: '' };
 if (existsSync(rcPath)) {
   const rc = JSON.parse(readFileSync(rcPath, 'utf8'));
   rcKeys = { ios: String(rc.ios ?? ''), android: String(rc.android ?? '') };
-  for (const [k, v] of Object.entries(rcKeys)) {
-    if (v.startsWith('sk_')) {
-      console.error(`[sync-web] revenuecat.config.json "${k}" is a SECRET key (sk_...). Only public SDK keys go in the app.`);
-      process.exit(1);
-    }
+  // R31: refuse a secret key, a key of the wrong platform, and (for a release) a missing iOS key.
+  const keyProblem = checkRevenueCatKeys(rcKeys, { release });
+  if (keyProblem) {
+    console.error(`[sync-web] ${keyProblem}`);
+    process.exit(1);
   }
 } else {
+  if (release) {
+    console.error(`[sync-web] --release build with no ${rcPath}: the paywall could not sell. Copy revenuecat.config.example.json to it and fill in the iOS key.`);
+    process.exit(1);
+  }
   console.warn(`[sync-web] no ${rcPath}; copy revenuecat.config.example.json to it. Building with no RevenueCat keys.`);
 }
 
