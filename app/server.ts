@@ -100,6 +100,7 @@ import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
 import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorDeviceWindows, doorWindows, freeScanAddressWindows, isLocalRequest, networkOf, phoneIdOf } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
+import { cleanClientError, ClientErrorBudget } from './src/client-errors.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
 import { recordAccess } from './src/access-log.ts';
@@ -2060,6 +2061,7 @@ async function catalogueFirstMatchText(lines: readonly string[], device: string)
  * is refused at the first chunk rather than parsed and then argued with.
  */
 const MAX_JSON_BODY_BYTES = 8 * 1024;
+const clientErrorBudget = new ClientErrorBudget();
 
 /**
  * `POST /api/events/batch`'s own door, sized for what it actually carries:
@@ -4156,6 +4158,29 @@ export const server = createServer(async (req, res) => {
      * is 800 KB in the worst case, so the door is a full megabyte rather than
      * the 8 KiB every other JSON route takes.
      */
+    /*
+     * R09: an uncaught JavaScript error in the app, one report, no device id (see src/client-errors.ts).
+     * Behind the invite check like every write, and capped per minute so a throwing loop cannot fill the log.
+     */
+    if (url.pathname === '/api/client-error') {
+      if (req.method !== 'POST') return json(405, { error: 'POST only' });
+      const body = await readBody(req);
+      if (body === TOO_LARGE) return refuseTooLarge(MAX_JSON_BODY_BYTES);
+      const report = cleanClientError(body);
+      if (!report) return json(400, { error: 'a report needs a message' });
+      const verdict = clientErrorBudget.take();
+      if (verdict === 'ok') {
+        logError({
+          where: 'client.js_error',
+          err: new Error(report.message),
+          detail: { build: report.build, kind: report.kind, source: report.source, line: report.line, col: report.col, stack: report.stack },
+        });
+      } else if (verdict === 'first_refusal') {
+        logError({ where: 'client.js_error_flood', err: new Error('more than 30 client error reports in a minute; the rest are dropped until the minute is up') });
+      }
+      return json(200, { ok: true });
+    }
+
     if (url.pathname === '/api/events/batch') {
       if (req.method !== 'POST') return json(405, { error: 'POST only' });
       const body = await readBody(req, MAX_EVENTS_BATCH_BODY_BYTES);

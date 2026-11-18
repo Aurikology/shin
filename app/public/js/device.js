@@ -109,6 +109,11 @@ function secureStorageOf(win) {
   return null;
 }
 
+/** The Keychain plugin, or null on the web and in a wrapper built without it. storage-backup.js (R79) shares it. */
+export function secureStorage(win = globalThis.window) {
+  return secureStorageOf(win);
+}
+
 /** The value under `key`, or null when absent (the plugin rejects an absent key). */
 async function keychainGet(plugin, key) {
   try {

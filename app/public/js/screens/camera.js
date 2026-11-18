@@ -6755,7 +6755,13 @@ export default {
       /* D17, D37: Retry on the offline and server-fault sheets sends the same barcode again. */
       if (act === 'lookup-retry' && lastLookup) {
         const again = lastLookup;
-        void resolveBarcode(again.code, again.cents);
+        if (again.typed) {
+          setState('reading');
+          slot.innerHTML = workingSheet(again.text, 0);
+          mounted();
+          void runTypedSearch(again.text, again.cents, again.asked, { skipPicks: true });
+        }
+        else void resolveBarcode(again.code, again.cents);
         return;
       }
       if (act === 'gem-retry' && last?.scenario) {
@@ -6941,6 +6947,8 @@ export default {
       // apart from an honest catalogue miss.
       let idFailure = null;
       let typedBusy = false;
+      let typedFault = false;
+      let typedOffline = false;
       if (!typed) {
         try {
           const id = await ctx.api.identify({ text, shelfPriceCents: cents ?? undefined });
@@ -7001,6 +7009,8 @@ export default {
         } catch (err) {
           typed = null;
           typedBusy = isBusy(err);
+          typedFault = isServerFault(err);
+          typedOffline = !typedBusy && !typedFault;
         }
       }
       if (dead || (asked && myGen !== gen)) return;
@@ -7008,13 +7018,19 @@ export default {
         showOwnData(own, text, cents);
         return;
       }
-      /* R17: a web page answered, so nothing was looked up. Said as busy, never as "nothing matches". */
-      if (typedBusy && !typed) {
+      /*
+       * Nothing was looked up, so it is never said as "nothing matches" (R17, R67): a web page answered
+       * (busy), the server answered with a fault (its side), or the request never reached it (no
+       * connection). Each gets the same sheet the barcode path gives, with Try again re-running the
+       * typed search.
+       */
+      if ((typedBusy || typedFault || typedOffline) && !typed) {
         last = null;
-        slot.innerHTML = busySheet();
+        lastLookup = { typed: true, text, cents, asked };
+        slot.innerHTML = typedBusy ? busySheet() : typedFault ? serverFaultSheet() : needsConnectionSheet();
         playRefusalLanding(slot);
         setState('result');
-        mounted();
+        mounted('[data-act="lookup-retry"]');
         return;
       }
       if (typed) {

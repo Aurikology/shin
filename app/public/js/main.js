@@ -20,6 +20,7 @@
  * the person being asked.
  */
 
+import './crash-report.js'; /* first, so a start-up error in any module below is reported (R09) */
 import * as router from './router.js';
 import { startThemeColourSync } from './lib/theme.js';
 import { startTextSizeSync } from './lib/text-size.js';
@@ -54,6 +55,7 @@ import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
 import { refreshPlus } from './purchases.js';
 import { hydrateDeviceIdentity } from './device.js';
+import { restoreSetupIfWiped, startSetupBackup } from './storage-backup.js';
 import { applyFlags } from './flags-boot.js';
 import { startRemoteStatus } from './remote-status.js';
 
@@ -107,6 +109,13 @@ startTextSizeSync();
    (screens/permissions.js), which is that flow's own step 24 standing on its
    own: switching the flow off must not take the camera and location ask with
    it. The flow module reads the flags itself; this passes nothing. */
+/* The phone's id and secret live in the Keychain as well as localStorage (device.js), so a reinstall keeps the
+   free-scan count. Waited for, but at most 1.5 s and never failing: on the web it returns at once.
+   R79: then, if iOS has cleared the app's web storage, the setup copy kept in the Keychain is put back BEFORE the
+   first screen is chosen below, so a shopper is not walked through setup and the agreements again. */
+await hydrateDeviceIdentity();
+await restoreSetupIfWiped({ store });
+startSetupBackup({ store });
 // Item 9: nothing opens before the terms tick and the Claude choice, whatever the link says.
 router.setGuard((id) => (id !== 'agree' && needsAgreement(store.get()) ? 'agree' : null));
 const first = firstScreen(store.get());
@@ -115,9 +124,6 @@ const first = firstScreen(store.get());
    not start it again. First-run behaviour above is untouched. */
 const replayUrl = replayUrlFor(location.search, store.get());
 if (replayUrl) history.replaceState({}, '', replayUrl);
-/* The phone's id and secret live in the Keychain as well as localStorage (device.js), so a reinstall keeps the
-   free-scan count. Waited for, but at most 1.5 s and never failing: on the web it returns at once. */
-await hydrateDeviceIdentity();
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
 
 /* Item 11a: if location consent already carries over from an earlier

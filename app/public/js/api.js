@@ -995,6 +995,20 @@ export function postEventsBatch(events) {
     .catch(() => false);
 }
 
+/**
+ * R09: one uncaught-error report to Pexi's own server (`/api/client-error`, src/client-errors.ts).
+ * Deliberately NOT built on `headers()`: that helper puts the device id and its key on every request,
+ * and a crash report carries neither. Only the invite goes with it, the same as any write. Resolves to
+ * whether the server took it; never throws.
+ */
+export function postClientError(report) {
+  const h = { 'content-type': 'application/json' };
+  if (INVITE_CODE) h['x-shin-invite'] = INVITE_CODE;
+  return edgeFetch(`${BASE}/api/client-error`, { method: 'POST', headers: h, keepalive: true, body: JSON.stringify(report) })
+    .then((res) => res.ok)
+    .catch(() => false);
+}
+
 /* -------------------------------------------------------------- item 11: stores */
 
 /** The nearest few stores for a cell, at most three, per the fixed contract. Empty on any failure, never a throw a picker would have to guard against. */
