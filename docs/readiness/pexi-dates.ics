@@ -1,0 +1,344 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Pexi//readiness dates//EN
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Pexi dates
+BEGIN:VEVENT
+UID:pexi-1-20261202@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261203
+SUMMARY:PEXI DUE: CocoaPods goes read-only
+DESCRIPTION:R70. Copy the Pods folder and lock file to a second disk first. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-2-20261125@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261125
+DTEND;VALUE=DATE:20261126
+SUMMARY:Pexi in 7 days: CocoaPods goes read-only
+DESCRIPTION:R70. Due 2026-12-02. Copy the Pods folder and lock file to a second disk first. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-3-20270101@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270101
+DTEND;VALUE=DATE:20270102
+SUMMARY:PEXI DUE: Old Gemini key or project: rates double
+DESCRIPTION:R90. Delete the key\, close the billing project. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-4-20261202@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261202
+DTEND;VALUE=DATE:20261203
+SUMMARY:Pexi in 30 days: Old Gemini key or project: rates double
+DESCRIPTION:R90. Due 2027-01-01. Delete the key\, close the billing project. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-5-20261225@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261225
+DTEND;VALUE=DATE:20261226
+SUMMARY:Pexi in 7 days: Old Gemini key or project: rates double
+DESCRIPTION:R90. Due 2027-01-01. Delete the key\, close the billing project. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-6-20270112@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270112
+DTEND;VALUE=DATE:20270113
+SUMMARY:PEXI DUE: Apple age-rating questionnaire due
+DESCRIPTION:R48. Answers are prepared in docs/store/listing.md. Confirm the date in App Store Connect. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-7-20261213@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261213
+DTEND;VALUE=DATE:20261214
+SUMMARY:Pexi in 30 days: Apple age-rating questionnaire due
+DESCRIPTION:R48. Due 2027-01-12. Answers are prepared in docs/store/listing.md. Confirm the date in App Store Connect. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-8-20270105@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270105
+DTEND;VALUE=DATE:20270106
+SUMMARY:Pexi in 7 days: Apple age-rating questionnaire due
+DESCRIPTION:R48. Due 2027-01-12. Answers are prepared in docs/store/listing.md. Confirm the date in App Store Connect. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-9-20270120@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270120
+DTEND;VALUE=DATE:20270121
+SUMMARY:PEXI DUE: OPC Children Privacy Code comments close
+DESCRIPTION:R91. Draft in docs/privacy/opc-comment-draft.md. Send\, edit or write no comment. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-10-20261221@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261221
+DTEND;VALUE=DATE:20261222
+SUMMARY:Pexi in 30 days: OPC Children Privacy Code comments close
+DESCRIPTION:R91. Due 2027-01-20. Draft in docs/privacy/opc-comment-draft.md. Send\, edit or write no comment. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-11-20270113@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270113
+DTEND;VALUE=DATE:20270114
+SUMMARY:Pexi in 7 days: OPC Children Privacy Code comments close
+DESCRIPTION:R91. Due 2027-01-20. Draft in docs/privacy/opc-comment-draft.md. Send\, edit or write no comment. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-12-20270215@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270215
+DTEND;VALUE=DATE:20270216
+SUMMARY:PEXI DUE: TestFlight build 9 expires (about)
+DESCRIPTION:R83. Upload a fresh build before this date. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-13-20270116@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270116
+DTEND;VALUE=DATE:20270117
+SUMMARY:Pexi in 30 days: TestFlight build 9 expires (about)
+DESCRIPTION:R83. Due 2027-02-15. Upload a fresh build before this date. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-14-20270208@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270208
+DTEND;VALUE=DATE:20270209
+SUMMARY:Pexi in 7 days: TestFlight build 9 expires (about)
+DESCRIPTION:R83. Due 2027-02-15. Upload a fresh build before this date. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-15-20270430@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270430
+DTEND;VALUE=DATE:20270501
+SUMMARY:PEXI DUE: Node 22 end of life
+DESCRIPTION:R86. Match the alarm workflow Node version to the Mac. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-16-20270331@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270331
+DTEND;VALUE=DATE:20270401
+SUMMARY:Pexi in 30 days: Node 22 end of life
+DESCRIPTION:R86. Due 2027-04-30. Match the alarm workflow Node version to the Mac. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-17-20270423@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270423
+DTEND;VALUE=DATE:20270424
+SUMMARY:Pexi in 7 days: Node 22 end of life
+DESCRIPTION:R86. Due 2027-04-30. Match the alarm workflow Node version to the Mac. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-18-20270430@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270430
+DTEND;VALUE=DATE:20270501
+SUMMARY:PEXI DUE: Personal income tax filing
+DESCRIPTION:R46. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-19-20270331@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270331
+DTEND;VALUE=DATE:20270401
+SUMMARY:Pexi in 30 days: Personal income tax filing
+DESCRIPTION:R46. Due 2027-04-30. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-20-20270423@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270423
+DTEND;VALUE=DATE:20270424
+SUMMARY:Pexi in 7 days: Personal income tax filing
+DESCRIPTION:R46. Due 2027-04-30. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-21-20270503@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270503
+DTEND;VALUE=DATE:20270504
+SUMMARY:PEXI DUE: AMD internship starts
+DESCRIPTION:R06 R54. The stand-in plan in HANDOVER.md must be running before this. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-22-20270403@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270403
+DTEND;VALUE=DATE:20270404
+SUMMARY:Pexi in 30 days: AMD internship starts
+DESCRIPTION:R06 R54. Due 2027-05-03. The stand-in plan in HANDOVER.md must be running before this. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-23-20270426@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270426
+DTEND;VALUE=DATE:20270427
+SUMMARY:Pexi in 7 days: AMD internship starts
+DESCRIPTION:R06 R54. Due 2027-05-03. The stand-in plan in HANDOVER.md must be running before this. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-24-20270615@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270615
+DTEND;VALUE=DATE:20270616
+SUMMARY:PEXI DUE: Self-employed income tax filing
+DESCRIPTION:R46. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-25-20270516@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270516
+DTEND;VALUE=DATE:20270517
+SUMMARY:Pexi in 30 days: Self-employed income tax filing
+DESCRIPTION:R46. Due 2027-06-15. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-26-20270608@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270608
+DTEND;VALUE=DATE:20270609
+SUMMARY:Pexi in 7 days: Self-employed income tax filing
+DESCRIPTION:R46. Due 2027-06-15. Confirm the dates with an accountant. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-27-20270819@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270819
+DTEND;VALUE=DATE:20270820
+SUMMARY:PEXI DUE: anjiawenda.com renewal
+DESCRIPTION:R01. Turn on auto-renew or pay several years. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-28-20270720@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270720
+DTEND;VALUE=DATE:20270721
+SUMMARY:Pexi in 30 days: anjiawenda.com renewal
+DESCRIPTION:R01. Due 2027-08-19. Turn on auto-renew or pay several years. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-29-20270812@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270812
+DTEND;VALUE=DATE:20270813
+SUMMARY:Pexi in 7 days: anjiawenda.com renewal
+DESCRIPTION:R01. Due 2027-08-19. Turn on auto-renew or pay several years. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-30-20271008@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20271008
+DTEND;VALUE=DATE:20271009
+SUMMARY:PEXI DUE: Apple Developer Program renewal (about)
+DESCRIPTION:R25. Date is assumed from enrolment on 2026-10-08. Read the real one in the account and move these reminders. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-31-20270908@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270908
+DTEND;VALUE=DATE:20270909
+SUMMARY:Pexi in 30 days: Apple Developer Program renewal (about)
+DESCRIPTION:R25. Due 2027-10-08. Date is assumed from enrolment on 2026-10-08. Read the real one in the account and move these reminders. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-32-20271001@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20271001
+DTEND;VALUE=DATE:20271002
+SUMMARY:Pexi in 7 days: Apple Developer Program renewal (about)
+DESCRIPTION:R25. Due 2027-10-08. Date is assumed from enrolment on 2026-10-08. Read the real one in the account and move these reminders. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-33-20270915@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270915
+DTEND;VALUE=DATE:20270916
+SUMMARY:PEXI DUE: New iOS and Xcode release (September\, yearly)
+DESCRIPTION:R65. Check the app builds and submits on the new Xcode. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-34-20270816@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270816
+DTEND;VALUE=DATE:20270817
+SUMMARY:Pexi in 30 days: New iOS and Xcode release (September\, yearly)
+DESCRIPTION:R65. Due 2027-09-15. Check the app builds and submits on the new Xcode. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-35-20270908@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270908
+DTEND;VALUE=DATE:20270909
+SUMMARY:Pexi in 7 days: New iOS and Xcode release (September\, yearly)
+DESCRIPTION:R65. Due 2027-09-15. Check the app builds and submits on the new Xcode. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-36-20270205@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270205
+DTEND;VALUE=DATE:20270206
+SUMMARY:Pexi: TestFlight build 9: 80 days since upload
+DESCRIPTION:R83. Send a fresh build to testers. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-37-20270104@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270104
+DTEND;VALUE=DATE:20270105
+SUMMARY:Pexi: Quarterly read: Apple requirements\, five vendor pages\, Anthropic deprecations
+DESCRIPTION:R50 R65 R34. Also check the Apple Small Business Program (R30). See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-38-20270405@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270405
+DTEND;VALUE=DATE:20270406
+SUMMARY:Pexi: Quarterly read: Apple requirements\, five vendor pages\, Anthropic deprecations
+DESCRIPTION:R50 R65 R34. Write the date read in HANDOVER.md. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-39-20270705@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20270705
+DTEND;VALUE=DATE:20270706
+SUMMARY:Pexi: Quarterly read: Apple requirements\, five vendor pages\, Anthropic deprecations
+DESCRIPTION:R50 R65 R34. Write the date read in HANDOVER.md. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-40-20271004@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20271004
+DTEND;VALUE=DATE:20271005
+SUMMARY:Pexi: Quarterly read: Apple requirements\, five vendor pages\, Anthropic deprecations
+DESCRIPTION:R50 R65 R34. Write the date read in HANDOVER.md. See docs/readiness/RUNBOOK.md.
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-41-20261120@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261120
+DTEND;VALUE=DATE:20261121
+SUMMARY:Pexi weekly check (Friday)
+DESCRIPTION:R18 R20 R24 R52. The weekly checklist in HANDOVER.md. See docs/readiness/RUNBOOK.md.
+RRULE:FREQ=WEEKLY;BYDAY=FR
+END:VEVENT
+BEGIN:VEVENT
+UID:pexi-42-20261201@pexi.local
+DTSTAMP:20261118T000000Z
+DTSTART;VALUE=DATE:20261201
+DTEND;VALUE=DATE:20261202
+SUMMARY:Pexi monthly: Apple agreements and vendor bills
+DESCRIPTION:R26 R32. App Store Connect Business page\, each vendor billing page. See docs/readiness/RUNBOOK.md.
+RRULE:FREQ=MONTHLY;BYMONTHDAY=1
+END:VEVENT
+END:VCALENDAR
