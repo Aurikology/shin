@@ -172,6 +172,8 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a111 | Saved item detail, a price range with no verdict | Saved, tap a row labelled A broad guess. | `app/public/js/screens/watchlist.js` |
 | a112 | Before you start (terms and the Claude choice) | First launch, before anything else. It cannot be skipped. | `app/public/js/screens/agree.js` |
 | a113 | Early access banner over the camera | First visit to the camera on a fresh install, until Got it; or tap the Early access badge under the wordmark. | `app/public/js/screens/camera.js` |
+| a114 | Pexi is busy sheet (a web page came back instead of an answer) | Scan or type a name while Cloudflare answers the API with a challenge page. The sheet says Pexi is busy and offers Try again; a barcode retries once by itself. | `app/public/js/screens/camera.js` |
+| a115 | Please update Pexi (this build is too old) | The server sets SHIN_APP_MIN_VERSION above this build. Covers the whole app with an Update Pexi link to the App Store. | `app/public/js/remote-status.js` |
 
 ## Not tagged, with reason
 

@@ -404,9 +404,10 @@ function inLocale(id, fn) {
 test('in French the decimal key shows a comma and still writes a point into the buffer', () => {
   const fr = inLocale('fr', () => keypadHtml());
   assert.ok(fr.includes('data-pad="."'), 'the handler reads data-pad="." and that must not change');
-  assert.ok(fr.includes('data-pad=".">,</button>'), 'the French key label is not a comma');
+  /* R80: the key also carries an aria-label now, so the attribute list may continue before the `>`. */
+  assert.ok(/data-pad="\."[^>]*>,<\/button>/.test(fr), 'the French key label is not a comma');
   const en = inLocale('en', () => keypadHtml());
-  assert.ok(en.includes('data-pad=".">.</button>'), 'the English key label is not a point');
+  assert.ok(/data-pad="\."[^>]*>\.<\/button>/.test(en), 'the English key label is not a point');
 });
 
 test('the French display writes 4,99 with the mark after, the English $4.99 with the mark before', () => {

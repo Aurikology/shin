@@ -502,7 +502,7 @@ function startScanWorker(): Worker {
   });
   w.on('error', (err) => {
     if (scanWorker === w) scanWorker = null;
-    failAllScans(err);
+    failAllScans(err instanceof Error ? err : new Error(String(err)));
   });
   w.on('exit', () => {
     if (scanWorker === w) scanWorker = null;
