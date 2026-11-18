@@ -300,6 +300,10 @@ notice shown before the change is the best available. For price rises, Apple ask
 - **Store listing:** it is commercial advertising (s.52 and s.58), so a French listing is expected.
 
 **Recommendation.**
+- **Correction, 2026-11-18:** the app itself is English-only today. The French text exists, but the `languages` flag
+  is off by Jamin's ruling of 2026-09-21 (`app/public/js/flags.js:83`), so every phone sees English. s.52.1 asks for
+  software to be available in French. Switching the flag on is Jamin's call; the named cost of leaving it off is a
+  complaint to the OQLF from a Quebec user.
 - Add a French (Canada) localization to the App Store listing: name, subtitle, description and screenshots text, with
   Aurik translating.
 - Make sure a French-language phone sees the French Terms at the "Before you start" tick.
