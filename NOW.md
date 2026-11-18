@@ -98,9 +98,10 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 ## Waiting on Jamin or Aurik
 - **Paywall go-live, 2026-11-17:** `docs/paywall-go-live-2026-11-17.md`. 10 a week free kept. Stage 1 (seller line, cancel row on the iPhone) pushed 4c561dd; build 10 asked of the Mac; Stage 3 with Jamin (trial, store text); next is Aurik's sandbox purchase on build 10, then the limit goes on.
 - **D-250 closed 2026-11-17:** Aurik, *"the app does not crash, and the phone screen looks good"*, on the build his phone holds (8 or 9). Paywall purchase (launch gaps 7) still not run.
-- **Claude range ask, 2026-11-18 (D-274):** built and wired; live it made no ask for a typed grill
-  (fixed broad guess, no model). a551c4a makes the typed answer say why (`noRangeReason`); the Mac
-  is asked to pull, restart and check ANTHROPIC_API_KEY. Then re-type an unpriced item from outside.
+- **Claude range ask, 2026-11-18 (D-274): live.** Typed unpriced groceries answer with Claude's range
+  (Rao's marinara $5.99 to $7.99 a jar); the earlier "no ask" was a probe with no country.
+- **The free limit is ON live (2026-11-18 15:10Z, `/api/quota` answers `limit: 10`)**, ahead of
+  Stage 4 (the sandbox purchase). Asked of Jamin: keep it on or unset it until the purchase works.
 
 ## Next steps
 
