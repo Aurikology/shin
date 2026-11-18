@@ -143,8 +143,13 @@ Contents (both laws agree on the substance; PIPEDA regulations s. 3, Quebec regu
 2. when;
 3. what information of theirs was involved;
 4. what you have done to reduce the risk;
-5. what they can do to protect themselves (for Pexi: stop using the old id by deleting and reinstalling the app, cancel and
-   re-check any subscription, ignore messages that quote their scans);
+5. what they can do to protect themselves (for Pexi: ask for their data to be deleted, cancel and re-check any subscription,
+   ignore messages that quote their scans). **Do not tell them to delete and reinstall the app to get a new id:** since build 9
+   (2026-11-17) the id and the phone's secret are kept in the iPhone Keychain, so a reinstall brings the same id back
+   (`app/public/js/device.js:79-140`). There is no reset-id button yet; if one is built, name it here. What does protect a phone
+   today is that the server answers a request about an id only when it carries that phone's secret
+   (`app/src/device-key.ts:1-30`); the secret travels in a header, not in the address (**ASSUMED** not written to the
+   logs, not checked), and a phone that never sent its secret is still open by id alone;
 6. who to contact for more (`useshinapp@gmail.com`).
 
 How: the notice must be conspicuous and given directly (PIPEDA s. 10.1(5)), by "email or any other form of communication that

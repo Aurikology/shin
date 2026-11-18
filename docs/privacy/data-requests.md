@@ -27,6 +27,24 @@ from the code says which file and line. What is a guess says **ASSUMED**.
 The law wants the request **in writing** (PIPEDA s. 8(1); Quebec private-sector Act s. 30). Email is writing.
 A phone call or a message in an app store review is not; ask them to email.
 
+## 1b. A request by a child, or for a child
+
+Pexi is rated 4+ and open to all ages, so some requests will come from a child or a parent (R53; reasoning in
+`docs/privacy/children-record.md` and `docs/security-check/legal-review-2026-11-17.md` questions 2, 4 and 5).
+
+- **Same steps, same clock, same check (sections 2 to 4).** Whoever holds the phone can answer the two-products check. A child
+  can pass it as well as an adult.
+- **Do not ask for the child's age, name, birth date or a parent's ID.** Pexi holds none of these, and asking for them would
+  collect more about a child than Pexi ever has. The device id plus the check is the whole test.
+- **A delete request from a parent or guardian is never refused.** The policy promises it (`docs/store/privacy.html:105`).
+  A delete request from the child is treated the same way: deleting harms only the person whose data it is.
+- **An export goes to the address that wrote, after the strict two-answer check.** If the sender says they are the parent, the
+  export still goes only when the answers match the scans; the sender may then pass it to the child.
+- **Reply plainly, in short sentences,** with no legal wording, and say that Pexi keeps no name or email for anyone.
+- **If a parent complains the child bought Plus:** that is a refund question, not a data question. Apple handles refunds
+  (the Apple reply is in `docs/readiness/TEMPLATES.md`, "Refund or purchase by a child"). Still run the delete if they ask for it.
+- **If a regulator or a school writes about children's data,** send them `docs/privacy/children-record.md` and tell Jamin the same day.
+
 ## 2. The deadline
 
 | Rule | Source |
@@ -101,8 +119,13 @@ ID=<the device id from the email>
    after delete" if any row, file or log line remains. **If it exits 1, the request is not done**; read the message.
 4. **RevenueCat**, if the export shows any purchase, or you are not sure (section 5).
 5. **Reply** to the person (a person sends it; the system does not). Say: what was deleted, that backups age out
-   in at most about 15 days, and that if they keep using the app on that phone it creates a new record the next time it runs
-   (deleting the app and reinstalling gives a brand new id, `docs/store/privacy.html:91`).
+   in at most about 15 days, and that if they keep using the app on that phone it creates a new record the next time it runs.
+   **Do not say that deleting the app and reinstalling gives a new id.** Since build 9 (2026-11-17) the id and the phone's
+   secret are also kept in the iPhone Keychain (`app/public/js/device.js:79-140`), which survives a reinstall, so the same id
+   comes back. There is no reset-id button yet. A shopper who wants a clean start can only ask for deletion here and then keep
+   using the app under the same id. (The privacy page says the same, `docs/store/privacy.html:47`.) Deleting a phone's scans also
+   restarts its free weekly allowance (the weekly count reads the scan rows, `app/src/scan-quota.ts:109`); that is a side effect,
+   not a reason to refuse.
 6. **Fill in the log** (section 8), including the date backups will have aged out.
 
 The script finds every table with a `device_id` column on its own, so a table added later is covered without an edit.
