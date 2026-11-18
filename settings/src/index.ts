@@ -105,6 +105,9 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_FREE_SCANS_PER_IP_DAY', default: '150, only while the free scan limit is on', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_SHOPPER_VOICE', default: "unset -> on; 'off' stops typed prices and learned picks from changing any shown answer (they are still stored)", ruling: 'operational' },
   { env: 'SHIN_NETWORK_SALT', default: 'unset -> a random salt made once and kept in <SHIN_DATA_DIR>/network-salt', ruling: 'operational', secret: true },
+  { env: 'SHIN_BACKUP_DIR', default: 'unset -> the newest backup is not looked for and health says the backup age is not checked', ruling: 'operational' },
+  { env: 'SHIN_WATCH_MIN_FREE_GB', default: '10 (health reports a problem under this much free disk)', ruling: 'operational' },
+  { env: 'SHIN_WATCH_OPENPRICES_DAYS', default: '60 (health reports a problem when Open Prices was last loaded longer ago; 0 turns the check off)', ruling: 'operational' },
   { env: 'SHIN_ADMIN_TOKEN', default: 'unset -> every /api/admin/* path answers 404', ruling: 'operational', secret: true },
   { env: 'SHIN_DATA_DIR', default: 'process.cwd()/data', ruling: 'operational' },
   { env: 'SHIN_PHOTOS', default: '<repo>/app/data/photos/', ruling: 'operational' },
@@ -258,6 +261,18 @@ export function SHIN_SHOPPER_VOICE(env: NodeJS.ProcessEnv = process.env): string
 
 export function SHIN_NETWORK_SALT(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_NETWORK_SALT');
+}
+
+export function SHIN_BACKUP_DIR(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_BACKUP_DIR');
+}
+
+export function SHIN_WATCH_MIN_FREE_GB(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_WATCH_MIN_FREE_GB');
+}
+
+export function SHIN_WATCH_OPENPRICES_DAYS(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_WATCH_OPENPRICES_DAYS');
 }
 
 export function REVENUECAT_SECRET_KEY(env: NodeJS.ProcessEnv = process.env): string | undefined {

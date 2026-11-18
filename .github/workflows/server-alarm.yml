@@ -1,5 +1,9 @@
 # Outage alarm for the live Pexi server (launch gaps item 27).
 #
+# SECOND LAYER since 2026-11-18. GitHub delayed this schedule to every 8 to 9 hours (readiness R02), so
+# the first layers are an uptime monitor on the public health address every 5 minutes and the Mac's
+# dead-man ping every minute (steps in docs/readiness/needs-jamin.md). This keeps running beside them.
+#
 # The server is one Mac behind a Cloudflare tunnel, so the alarm cannot run on
 # that Mac: when it is down, nothing on it can say so. This runs on GitHub's
 # machines every 30 minutes, sends every route the phone app calls exactly as
@@ -39,7 +43,7 @@ jobs:
           sparse-checkout: scripts
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '26'
       - name: Probe the live server as the phone app
         env:
           PROBE_ORIGIN: ${{ github.event.inputs.origin || 'capacitor://localhost' }}
@@ -50,8 +54,11 @@ jobs:
           echo "First probe failed; retrying once in 90 seconds."
           sleep 90
           node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"
+      # The strict reading of /api/health (`watch`: catalogue, scan log, Claude cap and account, RevenueCat, salt,
+      # retention, backup age, disk, price sources, deploy checker) and the weekly Project Hammer refresh, which
+      # is at most 8 days old. Both are said even when the probe failed.
       # Prices still being refreshed: the weekly Project Hammer refresh's last good run is at most
       # 8 days old (scripts/data-freshness.mjs). Runs even when the probe failed, so both are said.
-      - name: Prices still refreshed weekly
+      - name: Strict health reading and prices refreshed weekly
         if: always()
         run: node scripts/data-freshness.mjs

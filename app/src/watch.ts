@@ -1,0 +1,403 @@
+/**
+ * THE STRICT READING OF /api/health: `watch`.
+ *
+ * `/api/health` answers `ok: true` whenever the process can serve a shopper, and the phone treats
+ * anything else as "down". That is the right rule for the phone and the wrong one for the person
+ * who has to act. This module builds the second answer, `watch: { ok, problems }`, which the
+ * outside alarm reads (scripts/data-freshness.mjs, the Healthchecks ping from the Mac, the uptime
+ * monitor's keyword). It is strict: each state that gives shoppers wrong or empty answers, or that
+ * a person must act on, is a named problem with a plain sentence.
+ *
+ * WHY A SEPARATE FIELD AND NOT ok:false. Readiness lane fix-watch, 2026-11-18. A flipped `ok`
+ * would make the phone show "server down" for a Claude cap that only costs shoppers the estimate.
+ *
+ * TWO LAYERS. `judgeWatch` is pure (the tests drive it with a plain object). `collectWatch` reads
+ * the machine: the backup folder, the free disk, the deploy checker's last-seen file, the prices
+ * file's source log. Everything it reads is cached for a minute so a busy health route costs one
+ * read a minute, not one per request.
+ *
+ * A reading that cannot be taken is a problem, never a pass: "unknown until something shows it
+ * could have found a hit" (agent CLAUDE.md). The one exception is a getter another lane has not
+ * landed yet (`revenueCatHealth`), which reads as not yet reporting.
+ */
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
+import * as settings from '../../settings/src/index.ts';
+import { freeBytes } from './disk-guard.ts';
+import { networkSalt } from './network-hash.ts';
+import { HAMMER_IMPORT_REFUSED_KEY } from '../../price/src/hammer-sanity.ts';
+
+const HOUR = 3_600_000;
+const DAY = 24 * HOUR;
+
+export const BACKUP_MAX_HOURS = 36;
+export const HAMMER_MAX_DAYS = 8;
+export const RETENTION_MAX_DAYS = 3;
+export const CHECKER_MAX_MINUTES = 15;
+export const DEFAULT_MIN_FREE_GB = 10;
+export const CATALOGUE_GRACE_SECONDS = 10 * 60;
+export const CLAUDE_FAIL_RUN = 20;
+export const CLAUDE_CAP_WARN_SHARE = 0.8;
+export const REVENUECAT_FAILURES_LIMIT = 3;
+export const OPENPRICES_DEFAULT_MAX_DAYS = 60;
+
+export interface WatchInputs {
+  readonly nowMs: number;
+  readonly uptimeSeconds: number;
+  readonly catalogueUp: boolean;
+  readonly scanLog: boolean;
+  /** Scan-log write failures counted in the last hour. */
+  readonly scanWriteFaultsRecent: number;
+  readonly pricesDb: string;
+  readonly claude: {
+    readonly capReachedThisMonth: boolean;
+    readonly used: number | null;
+    readonly cap: number | null;
+    readonly recentAnswered: number;
+    readonly recentFailed: number;
+  };
+  /** Null until the money lane's getter exists. */
+  readonly revenueCat: { readonly recentFailures: number } | null;
+  readonly networkSalt: boolean;
+  readonly retention: readonly { readonly part: string; readonly lastOkAt: number | null; readonly lastFailure: string | null }[];
+  readonly backup: { readonly configured: boolean; readonly newestAt: number | null };
+  readonly disk: { readonly freeBytes: number | null; readonly minBytes: number };
+  readonly hammer: { readonly refreshedAt: string | null; readonly importRefused: { readonly at: string; readonly why: string } | null };
+  readonly sources: readonly { readonly name: string; readonly lastLoadedAt: string | null; readonly maxDays: number }[];
+  readonly checker: { readonly lastSeenAt: number | null };
+}
+
+export interface WatchProblem {
+  readonly code: string;
+  readonly why: string;
+}
+export interface WatchReport {
+  readonly ok: boolean;
+  readonly problems: readonly WatchProblem[];
+}
+
+const gb = (bytes: number) => (bytes / 1e9).toFixed(1);
+
+/** The strict verdict on one set of readings. Pure. */
+export function judgeWatch(i: WatchInputs): WatchReport {
+  const problems: WatchProblem[] = [];
+  const add = (code: string, why: string) => problems.push({ code, why });
+
+  if (!i.catalogueUp && i.uptimeSeconds > CATALOGUE_GRACE_SECONDS) {
+    add('catalogue_not_loaded', `The product catalogue is not attached ${Math.round(i.uptimeSeconds / 60)} minutes after the server started, so scans answer "not seen" for everything.`);
+  }
+  if (!i.scanLog) add('scan_log_not_writing', 'The scan log is not open, so scans are not being recorded.');
+  else if (i.scanWriteFaultsRecent > 0) add('scan_log_not_writing', `${i.scanWriteFaultsRecent} scan(s) failed to save in the last hour.`);
+
+  if (i.pricesDb !== 'ok' && i.pricesDb !== 'not_checked') {
+    add('prices_file_unusable', `The prices file cannot answer (${i.pricesDb}); every price range falls back to the Claude estimate.`);
+  }
+
+  const c = i.claude;
+  if (c.capReachedThisMonth) {
+    add('claude_cap_reached', 'The monthly Claude estimate cap is reached; shoppers whose product has no shop price get "No price here yet" until the month turns over. Raising the cap costs cents.');
+  } else if (c.used !== null && c.cap !== null && c.cap > 0 && c.used / c.cap >= CLAUDE_CAP_WARN_SHARE) {
+    add('claude_cap_near', `${c.used} of ${c.cap} monthly Claude estimates used (80 percent or more).`);
+  }
+  if (c.recentFailed >= CLAUDE_FAIL_RUN && c.recentAnswered === 0) {
+    add('claude_account_failing', `The last ${c.recentFailed} Claude calls all failed. Check the Anthropic account: credit balance, card, key, model name.`);
+  }
+
+  if (i.revenueCat !== null && i.revenueCat.recentFailures >= REVENUECAT_FAILURES_LIMIT) {
+    add('revenuecat_failing', `${i.revenueCat.recentFailures} RevenueCat checks failed recently; paying subscribers may be shown as free.`);
+  }
+
+  if (!i.networkSalt) add('network_salt_missing', 'The network salt is missing or unwritable, so typed prices and picks stop counting.');
+
+  for (const r of i.retention) {
+    if (r.lastFailure !== null) {
+      add('retention_failing', `The ${r.part.replace('_', ' ')} cleanup failed: ${r.lastFailure}`);
+    } else if (r.lastOkAt === null ? i.uptimeSeconds > DAY / 1000 : i.nowMs - r.lastOkAt > RETENTION_MAX_DAYS * DAY) {
+      add('retention_stale', `The ${r.part.replace('_', ' ')} cleanup has not completed in over ${RETENTION_MAX_DAYS} days.`);
+    }
+  }
+
+  if (!i.backup.configured) {
+    add('backup_not_checked', 'The server does not know where the backups are kept, so their age cannot be checked.');
+  } else if (i.backup.newestAt === null) {
+    add('backup_stale', 'No backup copy was found in the backup folder.');
+  } else if (i.nowMs - i.backup.newestAt > BACKUP_MAX_HOURS * HOUR) {
+    add('backup_stale', `The newest backup is ${Math.round((i.nowMs - i.backup.newestAt) / HOUR)} hours old (limit ${BACKUP_MAX_HOURS}).`);
+  }
+
+  if (i.disk.freeBytes === null) add('disk_low', 'The free disk space could not be read.');
+  else if (i.disk.freeBytes < i.disk.minBytes) add('disk_low', `${gb(i.disk.freeBytes)} GB free on the data disk (limit ${gb(i.disk.minBytes)} GB).`);
+
+  if (i.hammer.importRefused !== null) {
+    add('hammer_import_refused', `This week's Project Hammer prices were refused and last week's kept (${i.hammer.importRefused.at.slice(0, 10)}): ${i.hammer.importRefused.why}`);
+  }
+  if (i.hammer.refreshedAt === null) {
+    add('hammer_never_refreshed', 'The weekly Project Hammer refresh has never finished on the live prices file.');
+  } else {
+    const t = Date.parse(i.hammer.refreshedAt);
+    if (!Number.isFinite(t)) add('hammer_stale', `The Project Hammer refresh date is unreadable (${i.hammer.refreshedAt}).`);
+    else if ((i.nowMs - t) / DAY > HAMMER_MAX_DAYS) {
+      add('hammer_stale', `The last whole Project Hammer refresh was ${((i.nowMs - t) / DAY).toFixed(1)} days ago (limit ${HAMMER_MAX_DAYS}).`);
+    }
+  }
+
+  for (const s of i.sources) {
+    if (s.maxDays <= 0) continue;
+    const t = s.lastLoadedAt === null ? NaN : Date.parse(s.lastLoadedAt);
+    if (!Number.isFinite(t)) add('source_stale', `No load of ${s.name} prices is recorded.`);
+    else if ((i.nowMs - t) / DAY > s.maxDays) add('source_stale', `${s.name} prices were last loaded ${Math.round((i.nowMs - t) / DAY)} days ago (limit ${s.maxDays}).`);
+  }
+
+  if (i.checker.lastSeenAt === null) {
+    if (i.uptimeSeconds > 30 * 60) add('deploy_checker_silent', 'The deploy checker has never reported in, so a fix could not be shipped.');
+  } else if (i.nowMs - i.checker.lastSeenAt > CHECKER_MAX_MINUTES * 60_000) {
+    add('deploy_checker_silent', `The deploy checker was last seen ${Math.round((i.nowMs - i.checker.lastSeenAt) / 60_000)} minutes ago (limit ${CHECKER_MAX_MINUTES}).`);
+  }
+
+  return { ok: problems.length === 0, problems };
+}
+
+/* ----------------------------------------------------------- state the server feeds */
+
+export interface Sample {
+  readonly at: number;
+  readonly total: number;
+}
+
+/**
+ * How much a counter that only goes up rose inside the last `windowMs`. The baseline is the latest
+ * sample taken at or before the window's start; with none, the counter started at zero with the
+ * process, so all of it is recent.
+ */
+export function recentRise(samples: readonly Sample[], totalNow: number, nowMs: number, windowMs: number): number {
+  let base = 0;
+  for (const s of samples) if (s.at <= nowMs - windowMs) base = s.total;
+  return Math.max(0, totalNow - base);
+}
+
+/** Keeps a short history of one cumulative counter so a fault that happened once does not fail the alarm for ever. */
+export class RisingCounter {
+  private samples: Sample[] = [];
+  /** Records `total` and returns how much it rose over `windowMs`. */
+  sample(total: number, nowMs: number, windowMs: number): number {
+    const rise = recentRise(this.samples, total, nowMs, windowMs);
+    const last = this.samples[this.samples.length - 1];
+    if (!last || nowMs - last.at >= 60_000) this.samples.push({ at: nowMs, total });
+    const keepFrom = nowMs - 3 * windowMs;
+    while (this.samples.length > 2 && this.samples[1]!.at < keepFrom) this.samples.shift();
+    return rise;
+  }
+}
+
+/** Claude failures that are about the account or the key, as opposed to an answer we could not use or our own limits. */
+const ACCOUNT_FAILURES = new Set(['no_api_key', 'model_error', 'circuit_open', 'cap_store_error']);
+/** Our own limits and consent: not a sign anything is wrong with the account. */
+const NOT_A_CALL = new Set(['monthly_cap_reached', 'rate_limited', 'no_claude_consent', 'no_name', 'no_frame', 'unsupported_market']);
+
+/** The last 20 Claude calls, each either answered (the model replied) or failed at the account. */
+export class ClaudeOutcomes {
+  private ring: boolean[] = [];
+  note(result: { ok: boolean; reason?: string }): void {
+    if (!result.ok) {
+      const reason = result.reason ?? '';
+      if (NOT_A_CALL.has(reason)) return;
+      this.ring.push(ACCOUNT_FAILURES.has(reason) ? false : true);
+    } else this.ring.push(true);
+    while (this.ring.length > CLAUDE_FAIL_RUN) this.ring.shift();
+  }
+  recent(): { recentAnswered: number; recentFailed: number } {
+    const answered = this.ring.filter(Boolean).length;
+    return { recentAnswered: answered, recentFailed: this.ring.length - answered };
+  }
+}
+
+/** When each cleanup last finished well, and what the last failure said. */
+export class RetentionMarks {
+  private parts = new Map<string, { lastOkAt: number | null; lastFailure: string | null }>();
+  constructor(names: readonly string[]) {
+    for (const n of names) this.parts.set(n, { lastOkAt: null, lastFailure: null });
+  }
+  note(part: string, failure: string | null, nowMs: number = Date.now()): void {
+    const p = this.parts.get(part) ?? { lastOkAt: null, lastFailure: null };
+    if (failure === null) {
+      p.lastOkAt = nowMs;
+      p.lastFailure = null;
+    } else p.lastFailure = failure;
+    this.parts.set(part, p);
+  }
+  snapshot(): { part: string; lastOkAt: number | null; lastFailure: string | null }[] {
+    return [...this.parts].map(([part, v]) => ({ part, ...v }));
+  }
+}
+
+export const claudeOutcomes = new ClaudeOutcomes();
+export const retentionMarks = new RetentionMarks(['scan_data', 'request_log']);
+const scanWriteRise = new RisingCounter();
+const revenueCatRise = new RisingCounter();
+
+/* ----------------------------------------------------------- readings from the machine */
+
+/** The newest backup folder under `dir` (named like 20261118-040001), by its modified time, or null. */
+export function newestBackupAt(dir: string): number | null {
+  try {
+    const names = readdirSync(dir).filter((n) => /^\d{8}-\d{6}$/.test(n));
+    let newest: number | null = null;
+    for (const n of names) {
+      const m = statSync(join(dir, n)).mtimeMs;
+      if (newest === null || m > newest) newest = m;
+    }
+    return newest;
+  } catch {
+    return null;
+  }
+}
+
+/** When the deploy checker last said it was alive: the time inside the file, else the file's own time. Null when there is no file. */
+export function checkerSeenAt(file: string): number | null {
+  try {
+    if (!existsSync(file)) return null;
+    const t = Date.parse(readFileSync(file, 'utf8').trim());
+    return Number.isFinite(t) ? t : statSync(file).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+export interface PricesFileReadings {
+  readonly importRefused: { at: string; why: string } | null;
+  /** Last allowed automated use of each source, from the source log every loader writes to. */
+  readonly sourceUse: Record<string, string>;
+}
+
+/** What the prices file says about its own loads. Read-only, never throws. */
+export function readPricesFileReadings(file: string): PricesFileReadings {
+  const empty: PricesFileReadings = { importRefused: null, sourceUse: {} };
+  if (!existsSync(file)) return empty;
+  let db: DatabaseSync | null = null;
+  try {
+    db = new DatabaseSync(file, { readOnly: true });
+    let importRefused: PricesFileReadings['importRefused'] = null;
+    try {
+      const row = db.prepare('SELECT value FROM store_meta WHERE key = ?').get(HAMMER_IMPORT_REFUSED_KEY) as { value: string } | undefined;
+      if (row) {
+        const parsed = JSON.parse(row.value) as { at?: unknown; why?: unknown };
+        if (typeof parsed.at === 'string') importRefused = { at: parsed.at, why: typeof parsed.why === 'string' ? parsed.why : 'no reason recorded' };
+      }
+    } catch {
+      /* no store_meta table or a mark nobody can read: no refusal to report */
+    }
+    const sourceUse: Record<string, string> = {};
+    try {
+      const rows = db.prepare('SELECT seller, MAX(used_at) AS at FROM source_use WHERE allowed = 1 GROUP BY seller').all() as unknown as { seller: string; at: string }[];
+      for (const r of rows) sourceUse[r.seller] = r.at;
+    } catch {
+      /* an older file with no source log */
+    }
+    return { importRefused, sourceUse };
+  } catch {
+    return empty;
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      /* already closed */
+    }
+  }
+}
+
+let cachedReadings: { at: number; file: string; value: PricesFileReadings } | null = null;
+function pricesReadings(file: string, nowMs: number): PricesFileReadings {
+  if (cachedReadings && cachedReadings.file === file && nowMs - cachedReadings.at < 60_000) return cachedReadings.value;
+  const value = readPricesFileReadings(file);
+  cachedReadings = { at: nowMs, file, value };
+  return value;
+}
+
+let cachedBackup: { at: number; dir: string; value: number | null } | null = null;
+function backupReading(dir: string, nowMs: number): number | null {
+  if (cachedBackup && cachedBackup.dir === dir && nowMs - cachedBackup.at < 60_000) return cachedBackup.value;
+  const value = newestBackupAt(dir);
+  cachedBackup = { at: nowMs, dir, value };
+  return value;
+}
+
+/** What the money lane's RevenueCat getter reports, read defensively: the export may not exist yet. */
+export interface RevenueCatReading {
+  readonly failures: number;
+}
+export function readRevenueCat(mod: unknown): RevenueCatReading | null {
+  try {
+    const getter = (mod as Record<string, unknown> | null)?.['revenueCatHealth'];
+    if (typeof getter !== 'function') return null;
+    const r = (getter as () => unknown)();
+    const failures = (r as { failures?: unknown } | null)?.failures;
+    return typeof failures === 'number' && Number.isFinite(failures) ? { failures } : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface CollectDeps {
+  readonly nowMs: number;
+  readonly startedAt: number;
+  readonly catalogueUp: boolean;
+  readonly scanLog: boolean;
+  readonly customerDataFaults: Record<string, number>;
+  readonly pricesDb: string;
+  readonly pricesPath: string;
+  readonly hammerRefreshedAt: string | null;
+  readonly claudeCap: { reached: boolean; since: string | null };
+  readonly claudeCalls: { used: number | null; cap: number | null };
+  readonly revenueCat: RevenueCatReading | null;
+  readonly env?: NodeJS.ProcessEnv;
+}
+
+/** Takes every reading and returns the strict report with the readings behind it. */
+export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Record<string, unknown> } {
+  const env = d.env ?? process.env;
+  const dataDir = settings.SHIN_DATA_DIR(env)?.trim() || join(process.cwd(), 'data');
+  const backupDir = settings.SHIN_BACKUP_DIR(env)?.trim() ?? '';
+  const minGb = Number(settings.SHIN_WATCH_MIN_FREE_GB(env));
+  const minBytes = (Number.isFinite(minGb) && minGb > 0 ? minGb : DEFAULT_MIN_FREE_GB) * 1e9;
+  const opDays = settings.SHIN_WATCH_OPENPRICES_DAYS(env)?.trim();
+  const opMax = opDays !== undefined && /^\d+$/.test(opDays) ? Number(opDays) : OPENPRICES_DEFAULT_MAX_DAYS;
+
+  const prices = pricesReadings(d.pricesPath, d.nowMs);
+  const free = freeBytes(dataDir);
+  const newestBackup = backupDir === '' ? null : backupReading(backupDir, d.nowMs);
+  const checkerAt = checkerSeenAt(join(dataDir, 'checker-seen'));
+  const scanFaults = scanWriteRise.sample(d.customerDataFaults['scan_write_failed'] ?? 0, d.nowMs, HOUR);
+  const rcRecent = d.revenueCat === null ? null : { recentFailures: revenueCatRise.sample(d.revenueCat.failures, d.nowMs, 30 * 60_000) };
+  const sinceMonth = d.claudeCap.since === null ? null : new Date(d.claudeCap.since).toISOString().slice(0, 7);
+  const capThisMonth = d.claudeCap.reached && sinceMonth === new Date(d.nowMs).toISOString().slice(0, 7);
+  const openPricesLast = prices.sourceUse['openprices'] ?? null;
+
+  const inputs: WatchInputs = {
+    nowMs: d.nowMs,
+    uptimeSeconds: Math.round((d.nowMs - d.startedAt) / 1000),
+    catalogueUp: d.catalogueUp,
+    scanLog: d.scanLog,
+    scanWriteFaultsRecent: scanFaults,
+    pricesDb: d.pricesDb,
+    claude: { capReachedThisMonth: capThisMonth, used: d.claudeCalls.used, cap: d.claudeCalls.cap, ...claudeOutcomes.recent() },
+    revenueCat: rcRecent,
+    networkSalt: networkSalt(env) !== null,
+    retention: retentionMarks.snapshot(),
+    backup: { configured: backupDir !== '', newestAt: newestBackup },
+    disk: { freeBytes: free, minBytes },
+    hammer: { refreshedAt: d.hammerRefreshedAt, importRefused: prices.importRefused },
+    sources: [{ name: 'openprices', lastLoadedAt: openPricesLast, maxDays: opMax }],
+    checker: { lastSeenAt: checkerAt },
+  };
+  return {
+    watch: judgeWatch(inputs),
+    readings: {
+      diskFreeGb: free === null ? null : Number(gb(free)),
+      newestBackupAt: newestBackup === null ? null : new Date(newestBackup).toISOString(),
+      deployCheckerSeenAt: checkerAt === null ? null : new Date(checkerAt).toISOString(),
+      sourcesLoaded: prices.sourceUse,
+      claudeRecent: claudeOutcomes.recent(),
+    },
+  };
+}

@@ -115,6 +115,8 @@ import {
 import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPrices, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
+import { claudeOutcomes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
+import * as scanQuotaForWatch from './src/scan-quota.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
 const PORT = Number(settings.PORT() ?? 4173);
@@ -1621,6 +1623,7 @@ function claudeRangeAsk(req: IncomingMessage, device: string | null = null): Ran
       ...(s.storePath ? { storePath: s.storePath } : {}),
       ...(catalogueFirstTest?.rangeAskProvider ? { provider: catalogueFirstTest.rangeAskProvider } : {}),
     });
+    noteClaudeCall(asked);
     if (!asked.ok) noteClaudeCapIfReached('range ask', asked.reason);
     return asked;
   };
@@ -1685,6 +1688,11 @@ async function claudeAskRefusal(req: IncomingMessage, device: string | null): Pr
  * fail-loudly rule): a counted customer-data fault, an error-log line, and `/api/health`. Counted on
  * every refused ask; the log line is written at most once an hour so a busy day is one line, not thousands.
  */
+/** The strict health reading (src/watch.ts) learns whether the Claude account is answering. A cached answer made no call. */
+function noteClaudeCall(r: { ok: boolean; reason?: string; cached?: boolean }): void {
+  if (r.cached === true) return;
+  claudeOutcomes.note(r.ok ? { ok: true } : { ok: false, ...(r.reason !== undefined ? { reason: r.reason } : {}) });
+}
 let claudeCapRefused = 0;
 let claudeCapFirstAt: string | null = null;
 let claudeCapLoggedAt = 0;
@@ -1697,6 +1705,22 @@ function noteClaudeCapIfReached(what: string, reason: string): void {
   claudeCapLoggedAt = now;
   customerDataFault('claude_monthly_cap_reached', `the monthly cap on Claude (${what}) is reached; no more Claude calls are made until the month turns over`);
   logError({ where: 'claude.monthly_cap', err: new Error(`the monthly Claude cap (${what}) is reached: Pexi stopped calling Claude and answers from its own data until the month turns over`) });
+}
+/** Claude estimate calls used this month and the cap, for the 80 percent warning in `/api/health`. Read at most once a minute; null when unreadable. */
+let claudeCallsMemo: { at: number; value: { used: number | null; cap: number | null } } | null = null;
+async function claudeCallsThisMonth(): Promise<{ used: number | null; cap: number | null }> {
+  const now = Date.now();
+  if (claudeCallsMemo && now - claudeCallsMemo.at < 60_000) return claudeCallsMemo.value;
+  let value: { used: number | null; cap: number | null } = { used: null, cap: null };
+  try {
+    const s = rangeAskSettings();
+    const { readRangeStore, DEFAULT_RANGE_STORE_PATH } = await import('../identify/src/range-ask-store.ts');
+    value = { used: readRangeStore(s.storePath ?? DEFAULT_RANGE_STORE_PATH, now).calls, cap: s.monthlyCap };
+  } catch {
+    /* an unreadable count is reported as unknown, never as zero */
+  }
+  claudeCallsMemo = { at: now, value };
+  return value;
 }
 /** What `/api/health` says about the monthly Claude cap. */
 function claudeCapHealth(): { claudeMonthlyCap: { reached: boolean; refusedAsks: number; since: string | null } } {
@@ -1720,6 +1744,7 @@ function claudePackRead(req: IncomingMessage, device: string | null = null): (fr
       ...(s.storePath ? { storePath: s.storePath } : {}),
       ...(catalogueFirstTest?.packReadProvider ? { provider: catalogueFirstTest.packReadProvider } : {}),
     });
+    noteClaudeCall(r);
     if (!r.ok) {
       noteClaudeCapIfReached('pack read', r.reason);
       return { ok: false, reason: r.reason };
@@ -4314,7 +4339,7 @@ export const server = createServer(async (req, res) => {
      */
     if (url.pathname === '/api/health') {
       const scans = openScanStore();
-      return json(200, withoutFilePaths({
+      const base = {
         ok: true,
         uptimeSeconds: Math.round((Date.now() - STARTED_AT) / 1000),
         startedAt: new Date(STARTED_AT).toISOString(),
@@ -4328,7 +4353,27 @@ export const server = createServer(async (req, res) => {
         ...pricesHealth(),
         // A2: the monthly Claude cap, said out loud when it is hit.
         ...claudeCapHealth(),
-      }));
+      };
+      /*
+       * THE STRICT READING (src/watch.ts). `ok` above stays true while a shopper can be served, because
+       * the phone shows "server down" on anything else. `watch` is what the outside alarm reads: it is
+       * false for every state that gives shoppers wrong or empty answers, or that a person must act on.
+       * `"watch":{"ok":true` is the keyword the uptime monitor looks for.
+       */
+      const { watch, readings } = collectWatch({
+        nowMs: Date.now(),
+        startedAt: STARTED_AT,
+        catalogueUp: base.catalogueUp,
+        scanLog: base.scanLog,
+        customerDataFaults: base.customerDataFaults,
+        pricesDb: base.pricesDb,
+        pricesPath: PRICES_DB_PATH,
+        hammerRefreshedAt: base.hammerRefreshedAt,
+        claudeCap: { reached: base.claudeMonthlyCap.reached, since: base.claudeMonthlyCap.since },
+        claudeCalls: await claudeCallsThisMonth(),
+        revenueCat: readRevenueCat(scanQuotaForWatch),
+      });
+      return json(200, withoutFilePaths({ ...base, watch, ...readings }));
     }
 
     /*
@@ -4586,9 +4631,12 @@ server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
     }
     const retentionFailures = [...kept.failed, ...(shopperPrices.failed ? [`corrections: ${shopperPrices.failed}`] : [])];
     if (retentionFailures.length > 0) logError({ where: 'retention.sweep', err: new Error(retentionFailures.join('; ')) });
+    // R45: the sweep's result is on /api/health's `watch`, so a failing or never-running sweep is not only a log line.
+    retentionMarks.note('scan_data', retentionFailures.length > 0 ? retentionFailures.join('; ') : null);
     void sweepRequestLog().then((log) => {
       if (log.deleted > 0) console.log(`Retention: deleted ${log.deleted} request-log line(s) past 90 days.`);
       if (log.failed) logError({ where: 'retention.request_log', err: new Error(log.failed) });
+      retentionMarks.note('request_log', log.failed ?? null);
     });
   };
   sweep();

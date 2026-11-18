@@ -40,6 +40,7 @@ import { canonicalCode, repairShortUpc, toCents } from './bcldb.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
 import { looseCandidate, matchLoose, looseObservation, looseObservations, pluDisplayNames } from './hammer-produce.ts';
 import { HammerMatcher, type MatchResult } from './hammer-match.ts';
+import { compareToStored, judgeImport, priceUnitIsSane, readPriorImport, recordImport, recordRefusal, type ImportStats } from './hammer-sanity.ts';
 
 export const SELLER = 'hammer';
 
@@ -354,6 +355,41 @@ export function markRefreshed(db: ReturnType<typeof openPrices>, at: Date = new 
   return iso;
 }
 
+/**
+ * The numbers `judgeImport` reads (hammer-sanity.ts), taken from the barcoded products this run
+ * will write, before anything is written. Loose produce and twin-matched rows are left out: they
+ * are small, derived from the same prices, and have their own checks.
+ */
+export function planStats(
+  db: ReturnType<typeof openPrices>,
+  products: Map<string, HammerProduct>,
+  latest: Map<string, LatestPrice>,
+  skip: ReadonlySet<string>,
+  rows: number,
+  maxDay: string,
+): ImportStats {
+  const byVendor: Record<string, number> = {};
+  const items: { sku: string; cents: number }[] = [];
+  let priced = 0;
+  let unitBad = 0;
+  let unitChecked = 0;
+  for (const [id, l] of latest) {
+    if (skip.has(id)) continue;
+    const p = products.get(id);
+    if (!p) continue;
+    const obs = observationsFor(p, l);
+    if (obs.length === 0) continue;
+    priced++;
+    byVendor[p.vendor] = (byVendor[p.vendor] ?? 0) + 1;
+    items.push({ sku: p.id, cents: obs[0]!.priceCents });
+    for (const o of obs) {
+      unitChecked++;
+      if (!priceUnitIsSane(o.priceCents)) unitBad++;
+    }
+  }
+  return { rows, priced, byVendor, maxDay, unitChecked, unitBad, ...compareToStored(db, items) };
+}
+
 async function main(): Promise<void> {
   if (process.argv[2] === '--mark-refreshed') {
     const db = openPrices(undefined);
@@ -396,6 +432,20 @@ async function main(): Promise<void> {
   const db = openPrices(undefined, { enforceSources: true });
   ensureRegistered(db);
   requireSourceUse(db, SELLER, 'automated');
+  // R28: read the numbers before anything is written. A failed check refuses the whole import.
+  const stats = planStats(db, products, latest, new Set([...plan.matches.keys(), ...looseIds]), rows, maxDay);
+  const verdict = judgeImport(stats, readPriorImport(db), Date.now());
+  console.log(`hammer: sanity ${JSON.stringify({ rows: stats.rows, priced: stats.priced, byVendor: stats.byVendor, maxDay: stats.maxDay, compared: stats.compared, over10x: stats.over10x, medianMove: stats.medianMove, unitBad: stats.unitBad })}`);
+  if (!verdict.ok && process.argv.includes('--accept-checks')) {
+    // For a change somebody has looked at and accepts (a publisher unit change, say). Said loudly, never the default.
+    console.error(`hammer: sanity checks OVERRIDDEN by --accept-checks: ${verdict.failures.join('; ')}`);
+  } else if (!verdict.ok) {
+    const why = verdict.failures.join('; ');
+    recordRefusal(db, why);
+    db.close();
+    console.error(`hammer: IMPORT REFUSED, last week's prices kept: ${why}`);
+    process.exit(1);
+  }
   let written = 0;
   let skippedPrice = 0;
   const byVendor: Record<string, number> = {};
@@ -439,6 +489,7 @@ async function main(): Promise<void> {
     db.exec('ROLLBACK');
     throw e;
   }
+  recordImport(db, stats);
   const distinct = db.prepare('SELECT COUNT(DISTINCT code) AS n FROM observation WHERE seller = ?').get(SELLER) as { n: number };
   console.log(`hammer: wrote ${written} observations; ${skippedPrice} products skipped for an unusable price; ${distinct.n} distinct barcodes held`);
   console.log(`hammer: products priced by vendor ${JSON.stringify(byVendor)}`);
