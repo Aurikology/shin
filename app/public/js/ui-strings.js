@@ -469,6 +469,7 @@ const EN = {
   cam_seller_count: (f) => `${f.n} seller${f.n === '1' ? '' : 's'}`,
   cam_rail_alt: (f) => `Prices found run ${f.low} to ${f.high}. You are looking at ${f.asking}.`,
   cam_delete_last_digit: 'Delete last digit',
+  cam_decimal_point: 'Decimal point',
   cam_price_modifiers: 'Price modifiers',
   cam_cancel_scan: 'Cancel and go back to the viewfinder',
   cam_brand_model_placeholder: 'Product name…', // D-268 B17: was "Brand and model…" on a grocery scanner
@@ -1186,6 +1187,7 @@ const FR = {
   cam_seller_count: (f) => `${f.n} marchand${f.n === '1' ? '' : 's'}`,
   cam_rail_alt: (f) => `Les prix trouvés vont de ${f.low} à ${f.high}. Devant toi, c'est ${f.asking}.`,
   cam_delete_last_digit: 'Effacer le dernier chiffre',
+  cam_decimal_point: 'Virgule',
   cam_price_modifiers: 'Modificateurs de prix',
   cam_cancel_scan: 'Annuler et revenir au viseur',
   cam_brand_model_placeholder: 'Nom du produit…',

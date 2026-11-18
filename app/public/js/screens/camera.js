@@ -2446,7 +2446,7 @@ function keypadHtml({ confirm = false, canConfirm = false, confirmLabel = t('cam
           ${['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((k) => key(k)).join('')}
         </div>
         <div class="keypad keypad-bottom${threeCells ? ' keypad-bottom-3' : ''}">
-          ${centsFirst ? '' : key('.', '', padSeparator())}
+          ${centsFirst ? '' : key('.', ` aria-label="${escapeHtml(t('cam_decimal_point'))}"`, padSeparator())}
           ${key('0')}
           ${key('⌫', ` aria-label="${escapeHtml(t('cam_delete_last_digit'))}"`)}
           ${confirm
