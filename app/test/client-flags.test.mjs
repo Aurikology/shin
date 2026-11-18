@@ -113,11 +113,11 @@ test('You: no language row, no market row and no welcome replay while those are 
   assert.ok(!html.includes('data-act="market"'), 'the market picker row is still drawn');
   assert.ok(!html.includes('data-act="welcome"'), 'the welcome replay row is still drawn');
   /* D29: in a plain browser the store page is a dead end, so no Manage row. */
-  assert.ok(!html.includes('data-manage-sub'), 'Manage subscription is drawn outside the Android store build');
+  assert.ok(!html.includes('data-manage-sub'), 'Manage subscription is drawn outside the store builds');
   assert.match(html, /data-quota-row hidden/, 'the quota row must wait for the server');
   const android = youMarkup({ Capacitor: { getPlatform: () => 'android' } });
   assert.match(android, /data-manage-sub/);
-  assert.match(android, /Manage subscription/);
+  assert.match(android, /Manage or cancel subscription/);
 
   applyFlags({ ...FLAGS, languages: true, market: true });
   const on = youMarkup();
@@ -127,7 +127,7 @@ test('You: no language row, no market row and no welcome replay while those are 
 
 test('Manage subscription opens the store the phone uses, and the quota line shows only a real limit', () => {
   const { manageSubscriptionUrl, quotaText } = youModule;
-  assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'ios' } }), '', 'D29: no iOS build ships, so no row');
+  assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'ios' } }), 'https://apps.apple.com/account/subscriptions', 'the iPhone app ships (2026-11-17, legal review q14)');
   assert.equal(manageSubscriptionUrl({ Capacitor: { getPlatform: () => 'android' } }), 'https://play.google.com/store/account/subscriptions');
   assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (Linux; Android 14)' } }), '', 'a browser tab on an Android phone is still not the store build');
   assert.equal(manageSubscriptionUrl({ navigator: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0)' } }), '');

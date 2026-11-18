@@ -247,6 +247,7 @@ export function paywallBody(state, { plans = [], chosen = null, message = '', pl
             ${shown.map((p) => planRow(p, pick)).join('')}
           </div>
           <p class="fineprint pw-renews">${escapeHtml(t(platform === 'android' ? 'paywall_renews_android' : 'paywall_renews'))}</p>
+          ${/* Legal review 2026-11-17, question 13: Pexi is the merchant, so the seller, a contact and who refunds. */ ''}<p class="fineprint pw-seller" data-pw-seller>${escapeHtml(t('paywall_seller'))}</p>
           ${trial ? `<p class="pw-nopay" data-pw-nopay>${TICK_ICON}<span>${escapeHtml(t('paywall_no_payment_now'))}</span></p>` : ''}
           <button type="button" class="cta pw-cta" data-act="subscribe">${escapeHtml(trial ? t('paywall_start_trial', { days: String(trial) }) : t('paywall_subscribe'))}</button>
           ${restore}

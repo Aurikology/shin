@@ -212,9 +212,9 @@ test('D28: the build line is read from the running server, not a hand-set number
 
 /* ------------------------------------------------------------------ D29 */
 
-test('D29: Manage subscription is drawn in the Android store build and nowhere else', () => {
+test('D29: Manage subscription is drawn in the store builds (Android, and iOS since 2026-11-17) and not in a browser', () => {
   assert.ok(!youMarkup().includes('data-manage-sub'));
-  assert.ok(!youMarkup({ win: { Capacitor: { getPlatform: () => 'ios' } } }).includes('data-manage-sub'));
+  assert.match(youMarkup({ win: { Capacitor: { getPlatform: () => 'ios' } } }), /data-manage-sub/);
   const android = youMarkup({ win: { Capacitor: { getPlatform: () => 'android' } } });
   assert.match(android, /data-manage-sub/);
   assert.doesNotMatch(android, /data-plus-block hidden/);

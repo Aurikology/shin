@@ -55,11 +55,14 @@ import { platformOf } from '../purchases.js';
  * "Manage subscription": the store's own subscriptions page, or '' for no row.
  * D29 (2026-10-06): the page only means something inside the Android store
  * build, where the subscription was bought. In a browser tab it opened a
- * Google page that knows nothing about the person, and on iOS the build does
- * not ship yet, so everywhere else the row is simply not drawn.
+ * Google page that knows nothing about the person, so a browser gets no row.
+ * 2026-11-17: the iPhone app ships, and the legal review (question 14, Quebec's
+ * cancellation button) wants the row for every subscriber, so iOS gets Apple's
+ * subscriptions page.
  */
 export function manageSubscriptionUrl(win = globalThis.window) {
-  return platformOf(win) === 'android' ? MANAGE_URLS.android : '';
+  const p = platformOf(win);
+  return p === 'ios' || p === 'android' ? MANAGE_URLS[p] : '';
 }
 
 /**
