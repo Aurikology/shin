@@ -32,6 +32,9 @@ export const DB_ENV_KEYS = [
   'SHIN_CATALOGUE',
 ];
 
+/** The repeat cache held stored Gemini answers; Gemini left 2026-11-07, so the file may never exist (seen on the Mac 2026-11-18). */
+export const OPTIONAL_IF_ABSENT = new Set(['SHIN_REPEAT_CACHE']);
+
 const GIB = 1024 ** 3;
 
 /** One database. Never throws: every failure is a result with ok:false. */
@@ -104,7 +107,8 @@ export function runNightly({ files, dataDir, env = process.env, now = new Date()
 function main(argv, env = process.env) {
   const dry = argv.includes('--dry-run');
   let files = argv.filter((a) => !a.startsWith('--'));
-  if (!files.length) files = DB_ENV_KEYS.map((k) => env[k]).filter(Boolean);
+  // A cache that may never have been created is skipped when absent; every other missing database fails.
+  if (!files.length) files = DB_ENV_KEYS.filter((k) => env[k] && !(OPTIONAL_IF_ABSENT.has(k) && !existsSync(env[k]))).map((k) => env[k]);
   if (!files.length) {
     console.error('nightly-checks: no databases named (source mac/config.env, or pass file paths)');
     if (!dry) record({ job: 'integrity', ok: false, detail: 'nightly-checks was given no databases to check (config.env not sourced?)', env });
