@@ -639,6 +639,29 @@ export function searchAnswered(body) {
   return typeof body.ms === 'number' && body.ms < 5000;
 }
 
+// ---- where the server's launchd job lives (R04) ----
+
+/**
+ * SHIN_LAUNCHD_DOMAIN in config.env: "gui" (default, the old LaunchAgent, which exists only while someone is
+ * logged in) or "system" (the LaunchDaemon from mac/10-boot-survival.sh, which starts at boot with nobody logged in).
+ */
+export function launchdDomain(value) {
+  return String(value ?? '').trim().toLowerCase() === 'system' ? 'system' : 'gui';
+}
+
+export function launchdTarget(domain, uid, label = 'com.shin.server') {
+  return domain === 'system' ? `system/${label}` : `gui/${uid}/${label}`;
+}
+
+/**
+ * The command that runs `launchctl <args>` for that domain. System-domain jobs can only be restarted by root, so
+ * the deploy account uses `sudo -n` (never prompts; fails at once if the sudoers rule is missing) with the exact
+ * absolute path mac/10-boot-survival.sh allows in /etc/sudoers.d/shin-deploy.
+ */
+export function launchctlCall(domain, args) {
+  return domain === 'system' ? { cmd: 'sudo', argv: ['-n', '/bin/launchctl', ...args] } : { cmd: 'launchctl', argv: args };
+}
+
 export function healthGood(body, restartAt, before) {
   if (!body || body.ok !== true) return false;
   if (Date.parse(body.startedAt) < restartAt - 2000) return false;

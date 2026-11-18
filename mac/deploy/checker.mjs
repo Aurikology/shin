@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { checkDue, observeHealth } from './lib.mjs';
 import { handleOutcome, reportSink, stoppedReason, syncPage } from './sync.mjs';
+import { record } from '../lib/health.mjs';
 import { PATHS, childEnv, git, loadState, lockHolder, logTo, readConfig, run, tryLock, withState } from './util.mjs';
 
 const log = logTo('checker');
@@ -71,7 +72,10 @@ function startDeployerIfNeeded() {
 async function main() {
   if (reportSink() === 'notion' && stoppedReason()) return; // stopped: no Notion, no claude, no git
   const lock = tryLock('checker', 'checker');
-  if (!lock) return;
+  if (!lock) {
+    heartbeat(); // another check is running: still alive
+    return;
+  }
   try {
     const force = process.argv.includes('--now');
     if (force || checkDue(loadState(), Date.now())) {
@@ -82,15 +86,42 @@ async function main() {
       if (await handleOutcome({ r, log })) return; // notion sink only: the key broke, checker stopped
     }
     startDeployerIfNeeded();
+    heartbeat();
   } finally {
     lock.release();
   }
+}
+
+/**
+ * R72: one small file the server's /api/health reads, so the outside alarm can fail when the deploy path has been
+ * silent for too long ("checker last seen > 15 min"). Written on every run (launchd starts the checker every 30 s).
+ * lastCheckAt is the last time a check actually completed, which also stops moving when the checker is stuck backing
+ * off; `at` only says the process is being started. Never throws: a heartbeat must not break a check.
+ */
+function heartbeat(error = null) {
+  try {
+    const st = loadState();
+    const dir = readConfig(['SHIN_DATA_DIR']).SHIN_DATA_DIR;
+    const env = { ...process.env, ...(dir ? { SHIN_DATA_DIR: dir } : {}) };
+    record({
+      job: 'checker',
+      ok: !error,
+      detail: error ? `checker crashed: ${String(error).slice(0, 300)}` : 'checker running',
+      extra: {
+        lastCheckAt: st.lastCheckAt ? new Date(st.lastCheckAt).toISOString() : null,
+        transientFailures: st.transientFailures || 0,
+        live: st.live?.commit ?? null,
+      },
+      env,
+    });
+  } catch {}
 }
 
 // Only when run as a program: importing this file must never check or deploy.
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   main().catch((e) => {
     log(`checker crashed: ${e.stack}`);
+    heartbeat(e.message);
     process.exitCode = 1;
   });
 }

@@ -328,3 +328,28 @@ test('a new server process outside a deploy is logged; one inside the restart wi
   assert.equal(s.log.length, n);
   assert.notEqual(s.app?.kind, 'down');
 });
+
+// ---- R04: the server can run as a boot-time LaunchDaemon (system domain) instead of a LaunchAgent ----
+import { launchdTarget, launchctlCall, launchdDomain } from '../lib.mjs';
+
+test('launchd domain: gui by default, system only when config says so', () => {
+  assert.equal(launchdDomain(undefined), 'gui');
+  assert.equal(launchdDomain(''), 'gui');
+  assert.equal(launchdDomain('gui'), 'gui');
+  assert.equal(launchdDomain('system'), 'system');
+  assert.equal(launchdDomain('SYSTEM '), 'system');
+  assert.equal(launchdDomain('banana'), 'gui');
+});
+
+test('launchd target names the job in the right domain', () => {
+  assert.equal(launchdTarget('gui', 501), 'gui/501/com.shin.server');
+  assert.equal(launchdTarget('system', 501), 'system/com.shin.server');
+});
+
+test('gui calls are plain launchctl; system calls go through sudo -n with the absolute path the sudoers rule names', () => {
+  assert.deepEqual(launchctlCall('gui', ['list']), { cmd: 'launchctl', argv: ['list'] });
+  assert.deepEqual(launchctlCall('system', ['kickstart', '-k', 'system/com.shin.server']), {
+    cmd: 'sudo',
+    argv: ['-n', '/bin/launchctl', 'kickstart', '-k', 'system/com.shin.server'],
+  });
+});

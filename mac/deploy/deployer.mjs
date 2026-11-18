@@ -18,15 +18,21 @@ import { constants, cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync
 import { pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { clean, expire, failingTests, finishDeploy, healthGood, itemLabel, searchAnswered, short, summarizeFailures, addLog } from './lib.mjs';
+import { clean, expire, failingTests, finishDeploy, healthGood, itemLabel, launchctlCall, launchdDomain, launchdTarget, searchAnswered, short, summarizeFailures, addLog } from './lib.mjs';
 import { syncPage } from './sync.mjs';
 import { PACKAGES, PATHS, existsSync, git, logTo, readConfig, run, sleep, tryLock, withState } from './util.mjs';
 
 const OWNER = 'deployer';
 const log = logTo('deployer');
-const cfg = readConfig(['PORT', 'SHIN_TUNNEL_HOSTNAME', 'SHIN_INVITE_CODE', 'SHIN_INVITES']);
+const cfg = readConfig(['PORT', 'SHIN_TUNNEL_HOSTNAME', 'SHIN_INVITE_CODE', 'SHIN_INVITES', 'SHIN_LAUNCHD_DOMAIN']);
 const UID = process.getuid();
-const SERVER = `gui/${UID}/com.shin.server`;
+// R04: "system" once the server is a boot-time LaunchDaemon (mac/10-boot-survival.sh); "gui" (default) is the old LaunchAgent.
+const DOMAIN = launchdDomain(cfg.SHIN_LAUNCHD_DOMAIN);
+const SERVER = launchdTarget(DOMAIN, UID);
+const launchctl = (args, opts) => {
+  const c = launchctlCall(DOMAIN, args);
+  return run(c.cmd, c.argv, opts);
+};
 // Gitignored files a clean clone lacks and no build step makes, laid out as
 // repo paths: the optional detector model and the catalogue offline packs.
 const OVERLAY = join(homedir(), 'shin-data', 'deploy', 'repo-overlay');
@@ -209,7 +215,7 @@ async function warmSearch() {
 const tunnelUrl = () => (cfg.SHIN_TUNNEL_HOSTNAME ? `https://${cfg.SHIN_TUNNEL_HOSTNAME}/api/health` : null);
 
 async function serverPidCwd() {
-  const p = await run('launchctl', ['print', SERVER], { timeoutMs: 10e3 });
+  const p = await launchctl(['print', SERVER],{ timeoutMs: 10e3 });
   const pid = Number((p.out.match(/^\s*pid = (\d+)/m) ?? [])[1] ?? 0);
   if (!pid) return { pid: 0, cwd: null };
   const l = await run('lsof', ['-a', '-p', String(pid), '-d', 'cwd', '-Fn'], { timeoutMs: 10e3 });
@@ -218,7 +224,7 @@ async function serverPidCwd() {
 
 /** launchd's last exit status for the server: negative = killed by that signal, positive = exit code. */
 async function lastExitStatus() {
-  const r = await run('launchctl', ['list'], { timeoutMs: 10e3 });
+  const r = await launchctl(['list'],{ timeoutMs: 10e3 });
   const line = r.out.split('\n').find((l) => /\scom\.shin\.server$/.test(l));
   const v = line ? Number(line.split(/\s+/)[1]) : NaN;
   return Number.isFinite(v) ? v : null;
@@ -226,7 +232,7 @@ async function lastExitStatus() {
 
 async function restartAndCheck(sha, before) {
   const restartAt = Date.now();
-  const k = await run('launchctl', ['kickstart', '-k', SERVER], { timeoutMs: T.restart });
+  const k = await launchctl(['kickstart', '-k', SERVER],{ timeoutMs: T.restart });
   if (k.code !== 0) return { ok: false, reason: 'launchctl kickstart failed' };
   const waitHealthy = async () => {
     const until = Date.now() + T.localHealth;
