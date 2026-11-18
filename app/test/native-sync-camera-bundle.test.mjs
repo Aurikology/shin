@@ -32,6 +32,8 @@ function layout(buildEyeBody) {
   };
   mkdirSync(path.join(root, 'native', 'scripts'), { recursive: true });
   copyFileSync(realSync, path.join(root, 'native', 'scripts', 'sync-web.mjs'));
+  // sync-web.mjs imports its RevenueCat key check from a sibling (R31, 2026-11-18).
+  copyFileSync(path.join(repoRoot, 'native', 'scripts', 'rc-keys.mjs'), path.join(root, 'native', 'scripts', 'rc-keys.mjs'));
   w('native/config/shin-api.config.json', JSON.stringify({ apiBase: 'https://api.test.local', inviteCode: '', nativeCameraFallback: false }));
   w('native/node_modules/@capacitor/core/dist/capacitor.js', '/* stand-in */');
   w('app/public/index.html', '<!doctype html><html><head><meta charset="utf-8"></head><body><script type="module" src="/js/main.js"></script></body></html>');
