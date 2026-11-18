@@ -109,3 +109,77 @@ Connect API key file lives. Printed recovery codes for every account go somewher
 
 Drills 1 to 10 and 12 need you at a keyboard (drill 11 can be done by a Mac session). Start with drill 1; do the rest before
 launch or in the quietest hour after. None has been run.
+
+## fix-watch
+
+What changed in the code: `/api/health` still says `ok: true` while a shopper can be served, and now also carries
+`watch: { ok, problems }`, the strict reading. It lists a named problem for: catalogue not loaded (after 10 minutes up),
+scan log not open or failing to save, a prices file that cannot answer, the Claude monthly cap reached or at 80 percent,
+the last 20 Claude calls all failing, RevenueCat checks failing (reads the money lane's getter once it exists), the
+network salt missing, a retention cleanup that failed or has not completed in 3 days, the newest backup older than 36
+hours (or no backup folder told to the server), free disk under 10 GB, the weekly Project Hammer refresh never done,
+older than 8 days or refused by the new sanity checks, Open Prices not loaded for 60 days, and the deploy checker silent
+for 15 minutes. The GitHub alarm, the uptime monitor and the Mac's dead-man ping all read `watch`.
+
+Expect the alarm to be RED right after the first deploy of this change until the Mac side is done (steps 3 and 4 below),
+and the email text lists exactly what is missing. That is the alarm working.
+
+### R02 and R03: the outside check that does not depend on GitHub (two free sign-ups, about 20 minutes)
+
+1. Uptime monitor on the public health address, checked every 5 minutes, emailing you and Aurik.
+   - Sign up at uptimerobot.com (free). Add Aurik's email under Alert Contacts.
+   - Add New Monitor, type **Keyword**. URL `https://relay.anjiawenda.com/api/health`. Keyword `"watch":{"ok":true`
+     (with the quotes and braces, exactly). Alert when: **keyword does not exist**. Interval 5 minutes. Tick both contacts.
+   - This one monitor catches a tunnel blip (HTTP 530), a dead server and every problem in `watch`.
+   - Check the plan page when you sign up: I have not verified whether the free plan allows a commercial product. If it
+     does not, use Better Stack (betterstack.com, free uptime tier, 3-minute checks) with the same URL and keyword, "should
+     contain" the keyword. The setup is the same.
+   - Test it once: temporarily change the keyword to `"watch":{"ok":false` and confirm the email arrives within 10 minutes,
+     then change it back.
+2. Dead-man switch for a dead Mac (power cut, home internet down, server hung):
+   - Sign up at healthchecks.io (free). Create a check named `pexi-mac`, Period 2 minutes, Grace 5 minutes. Add your
+     email and Aurik's as integrations.
+   - Copy its ping address (looks like `https://hc-ping.com/<long-id>`). Send it to the Mac as one line in
+     `mac/config.env`: `SHIN_DEADMAN_URL=https://hc-ping.com/<long-id>` (never into the repo).
+3. Mac, once (fix-mac lane runs it, steps are in my report): a job that runs `node scripts/deadman-probe.mjs` every 60
+   seconds. It pings the check when the server is healthy and pings its `/fail` address (an email with the problem
+   text) when `watch` lists a problem or the server does not answer.
+4. Mac: the deploy checker must write the current time (ISO text) to `$SHIN_DATA_DIR/checker-seen` on every run. Until it
+   does, the alarm lists `deploy_checker_silent`.
+
+The GitHub alarm stays as the second layer (Node 26 now, R86). It retries `/api/health` three times 20 seconds apart
+before saying "unreachable", so one blip does not email.
+
+### R33, R34: two things only you can do
+
+- Anthropic console: set a monthly spend limit and a low-balance email on the account that holds the Pexi key, and make
+  sure the card on file is current. The alarm emails at 80 percent of the 1,000-call cap and when the cap is reached;
+  raising it is one line, `SHIN_RANGE_ASK_MONTHLY_CAP=3000` in `mac/config.env`, then restart the server.
+- Quarterly: look at the Anthropic model deprecations page for `claude-haiku-4-5-20251001`. The alarm says
+  `claude_account_failing` once 20 calls in a row fail, which is what a retired model name looks like too.
+
+### R82: Open Prices freshness
+
+The alarm goes red when Open Prices has not been loaded for 60 days (read from the prices file's own load log). If you
+never load it any more, set `SHIN_WATCH_OPENPRICES_DAYS=0` in `mac/config.env` to turn that one check off; any other
+number of days sets the limit.
+
+### R52: the backup check needs `SHIN_BACKUP_DIR` in the server's environment
+
+`mac/config.env` already has it (the backup script requires it), and the server reads the same file. The alarm reads the
+newest dated folder in it. If it lists `backup_not_checked`, the server was started without that line.
+
+### R10: disk
+
+`watch` goes red under 10 GB free on the data disk (`SHIN_WATCH_MIN_FREE_GB` changes the number). Log rotation is the
+Mac lane's.
+
+### R28: Project Hammer import checks
+
+The weekly import now refuses itself (keeps last week's prices, exits non-zero, shows `hammer_import_refused` in
+`watch`) when price rows fall over 30 percent against the last accepted run, a retailer's products fall by half, the
+newest price day is over 14 days old, over 2 percent of prices move more than ten times, the median price moves more
+than 25 percent, or over 1 percent of prices are under 5 cents or over 3,000 dollars. The first run after this deploys
+has no earlier baseline, so only the absolute checks apply. If a real change (a publisher unit change you have looked at)
+trips it, clear the stored baseline with `sqlite3 "$SHIN_PRICES" "DELETE FROM store_meta WHERE key='hammer_last_import'"`
+and run the refresh again.
