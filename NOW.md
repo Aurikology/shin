@@ -96,6 +96,7 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 9a1a9c1, not live yet). Older blockers: `docs/archive/now-history-2026-11-05.md`.
 
 ## Waiting on Jamin or Aurik
+- **Paywall go-live, 2026-11-17:** `docs/paywall-go-live-2026-11-17.md`. 10 a week free kept. Stage 1 (seller line, cancel row on the iPhone) pushed 4c561dd; build 10 asked of the Mac; Stage 3 with Jamin (trial, store text); next is Aurik's sandbox purchase on build 10, then the limit goes on.
 - **D-250 closed 2026-11-17:** Aurik, *"the app does not crash, and the phone screen looks good"*, on the build his phone holds (8 or 9). Paywall purchase (launch gaps 7) still not run.
 - **Aurik:** the range ask on Claude with no web search (his claim, 2026-09-28 17:00 UTC). The
   server makes no range ask until it is wired back in.
