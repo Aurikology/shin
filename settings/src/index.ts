@@ -106,6 +106,7 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_SHOPPER_VOICE', default: "unset -> on; 'off' stops typed prices and learned picks from changing any shown answer (they are still stored)", ruling: 'operational' },
   { env: 'SHIN_NETWORK_SALT', default: 'unset -> a random salt made once and kept in <SHIN_DATA_DIR>/network-salt', ruling: 'operational', secret: true },
   { env: 'SHIN_BACKUP_DIR', default: 'unset -> the newest backup is not looked for and health says the backup age is not checked', ruling: 'operational' },
+  { env: 'SHIN_HEALTH_DIR', default: 'unset -> <SHIN_DATA_DIR>/health, where the Mac jobs write <job>.json and <job>.FAILED', ruling: 'operational' },
   { env: 'SHIN_WATCH_MIN_FREE_GB', default: '10 (health reports a problem under this much free disk)', ruling: 'operational' },
   { env: 'SHIN_WATCH_OPENPRICES_DAYS', default: '60 (health reports a problem when Open Prices was last loaded longer ago; 0 turns the check off)', ruling: 'operational' },
   { env: 'SHIN_ADMIN_TOKEN', default: 'unset -> every /api/admin/* path answers 404', ruling: 'operational', secret: true },
@@ -265,6 +266,10 @@ export function SHIN_NETWORK_SALT(env: NodeJS.ProcessEnv = process.env): string 
 
 export function SHIN_BACKUP_DIR(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_BACKUP_DIR');
+}
+
+export function SHIN_HEALTH_DIR(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_HEALTH_DIR');
 }
 
 export function SHIN_WATCH_MIN_FREE_GB(env: NodeJS.ProcessEnv = process.env): string | undefined {

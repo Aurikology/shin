@@ -66,6 +66,8 @@ export interface WatchInputs {
   readonly hammer: { readonly refreshedAt: string | null; readonly importRefused: { readonly at: string; readonly why: string } | null };
   readonly sources: readonly { readonly name: string; readonly lastLoadedAt: string | null; readonly maxDays: number }[];
   readonly checker: { readonly lastSeenAt: number | null };
+  /** The Mac's unattended jobs (mac/README.md, markers in SHIN_HEALTH_DIR): failing now, or silent past their period. */
+  readonly macJobs?: { readonly failed: readonly string[]; readonly stale: readonly string[] };
 }
 
 export interface WatchProblem {
@@ -154,6 +156,9 @@ export function judgeWatch(i: WatchInputs): WatchReport {
   } else if (i.nowMs - i.checker.lastSeenAt > CHECKER_MAX_MINUTES * 60_000) {
     add('deploy_checker_silent', `The deploy checker was last seen ${Math.round((i.nowMs - i.checker.lastSeenAt) / 60_000)} minutes ago (limit ${CHECKER_MAX_MINUTES}).`);
   }
+
+  for (const job of i.macJobs?.failed ?? []) add('mac_job_failed', `The Mac job "${job}" failed its last run.`);
+  for (const job of i.macJobs?.stale ?? []) add('mac_job_stale', `The Mac job "${job}" has not reported within its period.`);
 
   return { ok: problems.length === 0, problems };
 }
@@ -251,6 +256,43 @@ export function newestBackupAt(dir: string): number | null {
   } catch {
     return null;
   }
+}
+
+/** How long each Mac job may stay silent before it counts as stopped (mac/README.md, "Where the health markers are"). */
+export const MAC_JOB_MAX_HOURS: Readonly<Record<string, number>> = {
+  backup: 36, offsite: 36, integrity: 36, disk: 36, logrotate: 36, 'restore-test': 240, certs: 960,
+};
+
+/**
+ * The Mac's job markers: `<job>.json` on every run ({job, ok, at, ...}) and `<job>.FAILED` while failing.
+ * A job with no .json yet is not installed and is not judged; a missing folder means none are. Never throws.
+ */
+export function readMacMarkers(dir: string, nowMs: number): { checkerAt: number | null; failed: string[]; stale: string[] } {
+  const out = { checkerAt: null as number | null, failed: [] as string[], stale: [] as string[] };
+  try {
+    if (!existsSync(dir)) return out;
+    for (const name of readdirSync(dir)) {
+      if (name.endsWith('.FAILED')) out.failed.push(name.slice(0, -'.FAILED'.length));
+      if (!name.endsWith('.json')) continue;
+      const job = name.slice(0, -'.json'.length);
+      let at = NaN;
+      try {
+        const m = JSON.parse(readFileSync(join(dir, name), 'utf8')) as { at?: unknown; lastCheckAt?: unknown };
+        at = Date.parse(String(m.lastCheckAt ?? m.at ?? ''));
+      } catch {
+        /* unreadable marker: fall back to the file time */
+      }
+      if (!Number.isFinite(at)) at = statSync(join(dir, name)).mtimeMs;
+      if (job === 'checker') out.checkerAt = at;
+      const max = MAC_JOB_MAX_HOURS[job];
+      if (max !== undefined && nowMs - at > max * 3_600_000) out.stale.push(job);
+    }
+  } catch {
+    /* a folder we cannot read reports nothing rather than breaking health */
+  }
+  out.failed.sort();
+  out.stale.sort();
+  return out;
 }
 
 /** When the deploy checker last said it was alive: the time inside the file, else the file's own time. Null when there is no file. */
@@ -366,7 +408,8 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
   const prices = pricesReadings(d.pricesPath, d.nowMs);
   const free = freeBytes(dataDir);
   const newestBackup = backupDir === '' ? null : backupReading(backupDir, d.nowMs);
-  const checkerAt = checkerSeenAt(join(dataDir, 'checker-seen'));
+  const mac = readMacMarkers(settings.SHIN_HEALTH_DIR(env)?.trim() || join(dataDir, 'health'), d.nowMs);
+  const checkerAt = mac.checkerAt ?? checkerSeenAt(join(dataDir, 'checker-seen'));
   const scanFaults = scanWriteRise.sample(d.customerDataFaults['scan_write_failed'] ?? 0, d.nowMs, HOUR);
   const rcRecent = d.revenueCat === null ? null : { recentFailures: revenueCatRise.sample(d.revenueCat.failures, d.nowMs, 30 * 60_000) };
   const sinceMonth = d.claudeCap.since === null ? null : new Date(d.claudeCap.since).toISOString().slice(0, 7);
@@ -389,6 +432,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
     hammer: { refreshedAt: d.hammerRefreshedAt, importRefused: prices.importRefused },
     sources: [{ name: 'openprices', lastLoadedAt: openPricesLast, maxDays: opMax }],
     checker: { lastSeenAt: checkerAt },
+    macJobs: { failed: mac.failed, stale: mac.stale },
   };
   return {
     watch: judgeWatch(inputs),
