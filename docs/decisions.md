@@ -3113,3 +3113,18 @@ Decided by the owner's session. Pexi lacks prices for many products, so a shelf 
 **When.** About 1 second after the shopper closes an answer sheet whose verdict came from real shop prices and was great or good, with no thumbs-down on that scan; at least the third such win, over at least 2 different days; never in the first session or right after two misses; at least 120 days apart (Apple shows its prompt at most 3 times a year, so each ask is spent after real improvements). "Once per app version" was dropped the same day: the app's APP_VERSION has not moved since 2026-09-19, so it would have blocked every later ask. The You page has "Rate Pexi" only; a "Tell us what's wrong" row was dropped because it opened the same screen as "Report a wrong price". Never over the camera, the price pad or the keyboard. Why: only 27% of real scans had a shop price (2026-11-15), so a random moment would ask after a miss.
 
 **Also.** A "Rate Pexi" row on the You page, user-started and never tied to the prompt. One `review_asked` event; the prompt's effect is read from App Store Connect's ratings count, since Apple never says whether the prompt showed. The prompt never appears in TestFlight; it is verified on a development build.
+
+## Paywall go-live: 10 a week kept; seller line and a cancel row on the iPhone
+**Date:** 2026-11-17 · **Status:** active
+
+Aurik asked how many free scans break even, was shown 10 in total (breaks even under 1 payer in
+100) against 10 a week (needs about 4 in 100 at a typical US$0.0017 a scan, about 11 at the
+US$0.006 worst case), and ruled *"10 a week, continue"*. RULINGS "Pexi Plus pricing and free
+scans" stands unchanged. Model spend stays bounded by the monthly caps (1,000 range asks, 300 pack
+reads, about US$7.50 at worst). The workflow to switch the wall on is
+`docs/paywall-go-live-2026-11-17.md`. Built the same day from the legal review (questions 13, 14):
+the paywall's seller line, the row renamed "Manage or cancel subscription", and that row (with
+the scans-left line) now drawn on the iPhone, reversing D29's iOS half.
+
+**Reverses if:** the measured share of scans reaching Claude makes free users cost more than payers
+bring in, or Jamin rules on the seller name or contact.
