@@ -130,6 +130,14 @@ launchctl kickstart -k gui/$(id -u)/com.shin.checker
 
 and delete the notice under "Needs attention". The checker repairs its own status line.
 
+## After mac/10-boot-survival.sh: the jobs are system daemons
+
+Once `mac/10-boot-survival.sh` has run, the server, the checker and every nightly job are LaunchDaemons that start at
+boot with nobody logged in (see `mac/README.md`). Every `launchctl ... gui/$(id -u)/com.shin.X` command in this file then
+becomes `sudo launchctl ... system/com.shin.X`; the plists live in `/Library/LaunchDaemons`, not `~/Library/LaunchAgents`.
+The deployer already does this by itself (`SHIN_LAUNCHD_DOMAIN=system` in `mac/config.env`, and a sudoers rule that
+allows exactly the restart of `com.shin.server`). The old agents are kept in `~/Library/LaunchAgents.shin-disabled`.
+
 ## Where things are
 
 - State and logs: `~/.shin-deploy/` (`state.json`, `status.md`, `logs/checker.log`, `logs/deployer.log`,

@@ -2,6 +2,10 @@
 # 1e. Run the server (and, only in the rare fallback, the tunnel client)
 # under a process manager that restarts them.
 #
+# SUPERSEDED for the server by mac/10-boot-survival.sh (R04): that installs the server and every job as
+# boot-time LaunchDaemons that run with nobody logged in, and retires the login-session agents this script makes.
+# Use this script only if you deliberately want the old login-session behaviour. See mac/README.md.
+#
 # Not run. Cannot be run from Windows: launchctl and the log paths only
 # exist on the Mac.
 #

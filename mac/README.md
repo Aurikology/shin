@@ -115,7 +115,7 @@ the model key are, and those three stay placeholders.
 - Whether `mac/04-catalogue-acquire.md`'s transfer actually completes over
   the available LAN in reasonable time, or needs the external-drive
   fallback instead -- not knowable without trying it.
-- Whether the founder wants the server to survive a full reboot with
+- (Resolved by mac/10-boot-survival.sh, see the last section.) Whether the founder wants the server to survive a full reboot with
   nobody logged in (needs a LaunchDaemon, not the LaunchAgent written
   here) -- flagged in `launchd/com.shin.server.plist`'s own comment and in
   `05-install-launchd.sh`, not decided either way.
@@ -124,3 +124,149 @@ the model key are, and those three stay placeholders.
   The boss identified the source (the Mac session's zone lookup, landing
   between the two reads) and it is now recorded as the provenance note at
   the top of that file's domain section rather than a live question.
+
+---
+
+# Surviving a restart, encrypted, backed up, hardened (readiness lane fix-mac, 2026-11-18)
+
+Written on the Windows laptop with no Mac to try it on. Every script has a `--dry-run` (or `--audit`), is `bash -n`
+clean, and has tests against fake macOS commands (`node --test mac/test/*.test.mjs`). Those tests prove the scripts'
+own logic. They cannot prove how the real `launchctl`, `fdesetup` or firewall behave, which is why each step below ends
+in a check you run on the Mac. Anything not run on a Mac is UNVERIFIED.
+
+Covers readiness rows R04, R07, R08, R10, R16, R52, R55, R58, R66, R69, R72 and findings D1 to D5.
+
+## What still needs a person (the plain statement)
+
+This Mac is Apple silicon (arm64, seen in the 2026-11-16 check) running macOS 27.0.1. With FileVault on:
+
+| Event | Comes back by itself? | Why |
+|---|---|---|
+| Server crash, tunnel crash, a job overruns | Yes | launchd KeepAlive and boot-time daemons |
+| Planned restart with `11-planned-restart.sh` (macOS update) | Yes, if authrestart works as documented | `fdesetup authrestart` hands the disk key to the next boot once (fdesetup(8)). On Apple silicon the credential is single use (Apple developer forums thread 774703) |
+| Power cut, crash, forced shutdown | **No, not by itself.** It stops at the FileVault unlock screen until someone unlocks it | Apple silicon cannot start macOS until the disk is unlocked. Apple Platform Deployment, "Use FileVault with Mac computers with Apple silicon" (support.apple.com/guide/deployment/dep24dbdcf9e) |
+| Same, with nobody home | Maybe: unlock over SSH from the home network (LAN) | Reported for macOS 26 and later when Remote Login is on and the Mac has a network connection before unlock. Secondhand (a web search summary and a Jeff Geerling write-up), NOT checked against Apple's own page and NOT tried on this Mac. Wi-Fi before unlock was reported as version dependent, and this Mac is a laptop |
+
+Tailscale is not running before the disk is unlocked, so the SSH unlock works from the home network only, never from outside.
+The MacBook's battery rides out short power cuts, so a power cut rarely reaches the third row.
+
+The trade this makes: R08 (the disk must be encrypted) and R04 (comes back with nobody logged in) pull against each other on a
+power cut. The design gives full automation for crashes and planned restarts and needs a person only for an unplanned power loss.
+If nobody can be reached and uptime matters more than encryption, FileVault stays off. That is Jamin's call
+(`docs/readiness/needs-jamin.md`).
+
+## The ordered procedure
+
+Run on the Mac as `worker`, from `~/shin`. `sudo` asks for the password; a Claude session on the Mac cannot type it.
+Dry runs and audits change nothing.
+
+0. **Get this branch's code onto the Mac** (it is not merged when this is written).
+1. **Config.** Open `mac/config.env` (mode 600) and add the keys from the "boot, health, off-site backup, checks" block at the end of
+   `mac/config.env.example`. Keep what is there. Set `SHIN_BACKUP_DIR=/Users/worker/shin-backup` (see "the old backup script").
+2. **Boot survival (R04).**
+   ```
+   sh mac/10-boot-survival.sh --dry-run          # reads the plan
+   sudo sh mac/10-boot-survival.sh               # installs 9 daemons, moves old agents aside
+   sudo sh mac/10-boot-survival.sh --verify      # the FileVault line may fail until step 3
+   ```
+   It renders `mac/launchd-daemons/*.plist` into `/Library/LaunchDaemons` (server, checker, integrity, backup, offsite,
+   logrotate, hammer, restoretest, expiry), all run as `worker`, never root; stops the old login agents and keeps them in
+   `~/Library/LaunchAgents.shin-disabled`; converts the existing tunnel agent into a daemon in place; writes
+   `/etc/sudoers.d/shin-deploy` (worker may restart `com.shin.server` and nothing else); sets `SHIN_LAUNCHD_DOMAIN=system`;
+   sets macOS to download updates but not install and restart on their own; `pmset autorestart 1` as best effort.
+   Undo: `sudo sh mac/10-boot-survival.sh --rollback`. The site is down for a few seconds while the server swaps over.
+3. **FileVault on (R08, D1). Jamin only, at the Mac, needs his password.** System Settings > Privacy and Security > FileVault >
+   Turn On. Choose a recovery key (not iCloud) and write it down somewhere that is not this Mac. Encryption runs in the background.
+   Then `sudo sh mac/10-boot-survival.sh --verify` should be all green.
+4. **Planned restart drill (D5).**
+   ```
+   sudo sh mac/11-planned-restart.sh --dry-run
+   sudo sh mac/11-planned-restart.sh              # installs updates (27.2.1), asks for the FileVault password
+   sudo sh mac/11-planned-restart.sh --after      # a few minutes later: waits for the server, lists pending updates, runs --verify
+   ```
+   UNVERIFIED: that a staged macOS update finishes installing across an authrestart boot. If `--after` still lists the update, run
+   the script once more; failing that, install it from System Settings and unlock at the screen afterwards.
+5. **Harden (R55, D3).**
+   ```
+   sh mac/12-harden.sh --audit                      # read-only: firewall, SSH, listeners, file modes
+   sudo sh mac/12-harden.sh --dry-run
+   sudo sh mac/12-harden.sh                         # firewall + SSH drop-in + private files
+   ```
+   The firewall step checks the site answers locally and through the tunnel before and after; if it stops answering it turns the
+   firewall off again and exits 1. Not done by default: `--ssh-keys-only` (SSH passwords off: only after key login is tested and
+   you have decided it does not break the SSH unlock above) and `--screen-sharing-off` (Jamin's call). `--undo` reverses all of it.
+   The audit names the unknown program on port 8787 (finding D3) with its command and folder; a person decides what it is.
+6. **Off-site backup (R07, R52).** Jamin picks the destination (`docs/readiness/needs-jamin.md`). In `mac/config.env` set
+   `SHIN_RESTIC_REPOSITORY` and `SHIN_RESTIC_PASSWORD_FILE` (create that file, mode 600, one long random password, and keep a second
+   copy in his password manager: without it the backup cannot be opened). `brew install restic`. Then:
+   ```
+   sh mac/14-offsite-backup.sh --dry-run
+   sh mac/14-offsite-backup.sh --init              # once
+   sh mac/07-backup.sh && sh mac/14-offsite-backup.sh
+   sh mac/15-restore-test.sh --dry-run && sh mac/15-restore-test.sh
+   ```
+7. **The rest, run once by hand to see them work** (the daemons run them on schedule):
+   ```
+   sh mac/run-job.sh integrity        # nightly database check and free disk (R16)
+   sh mac/16-rotate-logs.sh --dry-run # (R10) keeps 14 days
+   sh mac/run-job.sh expiry           # (R66, R69) days left on certificate, profiles, App Store Connect key, Tailscale key
+   ```
+8. **Reboot drill, the final proof (Jamin at the Mac the first time).** Planned: step 4 again. Unplanned: only when he is willing to
+   unlock it at the screen: `sudo shutdown -r now`, unlock, then `sudo sh mac/10-boot-survival.sh --verify`.
+
+## After any restart: checklist
+
+`sudo sh mac/10-boot-survival.sh --verify` (daemons loaded, server and tunnel up, public `/api/health`, FileVault state), then look
+at `~/shin-data/health/` (no `*.FAILED` files) and the status page.
+
+## Where the health markers are (for the fix-watch lane)
+
+Folder: `/Users/worker/shin-data/health/` (`SHIN_HEALTH_DIR`, default `$SHIN_DATA_DIR/health`). One file per job:
+
+| File | Written by | Meaning |
+|---|---|---|
+| `<job>.json` | every run, pass or fail: job, ok, at, detail | stale = the job stopped (periods below) |
+| `<job>.FAILED` | exists only while the last run failed, removed on the next pass | its presence is the alarm |
+| `~/.worker-state/shin-<job>-failed` | same, for the old `~/bin/worker-heartbeat.sh` mail | |
+
+Jobs and staleness: `backup` (04:00, 36 h), `offsite` (04:45, 36 h), `integrity` (03:30, 36 h), `disk` (with integrity),
+`restore-test` (Sunday 06:30, **10 days**), `certs` (1st of the month, **40 days**), `logrotate` (daily, 36 h), `checker` (every
+30 s, the heartbeat: it carries `lastCheckAt`, `transientFailures` and the live commit; older than 5 minutes means the checker or
+the Mac is down). One mail per failure streak through the mailbox (`SHIN_HEALTH_MAIL=off` silences it).
+UNVERIFIED on the Mac: that `~/bin/worker-heartbeat.sh` reads the `shin-*-failed` flags (that script is not in this repo).
+
+## Moving the server off the admin account (D4): a plan, not a script
+
+The server runs as `worker`, an admin. Moving it needs passwords and moves live data and the Git, tunnel and Tailscale logins, so it
+is not scripted. Plan, each step reversible:
+1. Jamin creates a standard (non-admin) account `shinsvc` in System Settings > Users and Groups (his password).
+2. As `shinsvc`: clone the repo (a read-only GitLab deploy key for that account, added in GitLab by him), `npm install` in each package,
+   copy `mac/config.env` (mode 600) and set `SHIN_DATA_DIR` to the new home.
+3. Stop the daemons, `rsync -a` the data folder to the new home (the catalogue is 4+ GB), run `node mac/nightly-checks.mjs --check-only`
+   on the copy, then run `SHIN_SERVICE_USER=shinsvc sudo sh mac/10-boot-survival.sh` and `--verify`.
+4. Copy the tunnel credentials file and change its owner. Tailscale is system level and is unaffected.
+5. `worker` stays as the admin Jamin logs in to; it no longer runs anything.
+Until then D4 is open. What is in place meanwhile: Umask 077 on every daemon and the 600/700 file modes from step 5.
+
+## The old backup script, and what changed
+
+`~/bin/shin-backup.sh` (the agent `com.shin.backup`, seen in the 2026-11-16 check) is replaced by `mac/07-backup.sh` by default.
+Behaviour change to know about: the old script kept 3 nights and copied the catalogue; the new one keeps 14 nights, does NOT copy the
+4 GB catalogue (rebuild sources: `mac/04-catalogue-acquire.md`), writes a manifest and markers, and checks integrity first.
+To keep the old job instead: `SHIN_KEEP_LEGACY_BACKUP=1 sudo sh mac/10-boot-survival.sh`.
+
+## Restore (R58)
+
+`sh mac/07-restore.sh <backup> <clean-target>` verifies the copy against its manifest, then re-runs every deletion in the data-request
+log (`SHIN_REQUEST_LOG`, default `~/shin-privacy/request-log.csv`) against the restored data, so a person who asked to be deleted after
+the backup was taken does not come back. A missing log is a loud failure ("NO REQUEST LOG"). `SHIN_RESTORE_SKIP_REDELETE=1` skips it and
+prints "NOT re-running deletions": only for a test restore that never goes live (the weekly restore test does exactly that).
+
+## Caveats, named
+
+- Daemons run with a locked login keychain, so `expiry-check` may list the signing certificate as "unknown" there. Also run
+  `sh mac/run-job.sh expiry` from a Terminal once a month until the daemon is seen to read it.
+- Log rotation uses copy-then-truncate and assumes launchd opens the log files in append mode (about 80% sure, not seen). If a rotated
+  log keeps its old size after truncation, switch to rotate-by-restart.
+- `mac/launchd/*.plist` (login agents) stay in the repo as the fallback; `mac/launchd-daemons/` replaces them.
+- The App Store Connect key has no expiry date; the check asks Apple whether the key still works (one request) and treats 401 or 403 as expired.
