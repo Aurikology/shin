@@ -105,6 +105,29 @@ Apple's questions change; these are the answers and the reasons. The 18+ require
 
 Expected result: 4+ (or the lowest tier Apple's form gives after the alcohol answer). The packet expected 4+ (`the-store-accounts-packet.md` section 3d); it did not answer the questionnaire.
 
+### Age-rating answers for the 2027 questionnaire (prepared 2026-11-18, register R48)
+
+Apple asked developers to re-answer the age-rating questions by **2027-01-12** (the date is from the register and the legal review: confirm it in App Store Connect, App Information, Age Rating). Owner: Aurik, with Jamin as account holder. Do it in December, not on the deadline. Apple's new form shows each content question with None, Infrequent or Frequent, and new tiers above 9+ (13+, 16+, 18+); both are ASSUMED from Apple's announcement and were not read in the account. Answer from this table and change a row only if the app changed.
+
+| Apple question | Answer | Why (one line, for Apple if it asks) |
+|---|---|---|
+| Parental controls | No | No such feature built. |
+| Age assurance | No | No age check. Pexi asks no name, birth date or account, and its Terms say it is for all ages. |
+| Unrestricted web access | No | No address bar or in-app browser; links open outside the app. |
+| User-generated content | Yes, minimal | A number and a store name a shopper types can feed another shopper's answer. No free text, photos or posting. |
+| Messaging and chat | No | None. |
+| Advertising | No | No ads and no ad code. |
+| Profanity or crude humor | None | None in the app's text. |
+| Horror, violence, sexual content or nudity, mature or suggestive themes, guns or weapons | None | None. |
+| Medical or wellness content | None | None. |
+| Simulated gambling, contests, loot boxes | None | None; draws and bounties were ruled out. |
+| Alcohol, tobacco or drug references | None | A price list for a bottle is a reference to a product, not to drinking it, and nothing promotes it (legal review, question 9: "None" is defensible; the worst outcome is a rejection asking for 13+, which costs a resubmission, not a fine). |
+| Made for Kids / Kids Category | Do not choose | Pexi is for all ages and is not aimed at children. Choosing the Kids Category brings stricter rules (no third-party analytics, no outside links without a parental gate) that RevenueCat and the legal links would break (from Apple guideline 1.3, ASSUMED, not re-read). |
+
+**If Apple objects to "None" for alcohol:** the fallback is the answer "Infrequent", which gives 13+ (legal review, question 9). A 13+ rating does not conflict with the all-ages Terms, because Apple forces an override only when the Terms' minimum age is higher than the rating. The other choice is to hide liquor products from answers. That choice is Jamin's and is listed in `docs/readiness/needs-jamin.md`; until he writes it down, the answer is: accept 13+, do not change the catalogue.
+
+**Correction to the sentence above the first table:** it says the Terms carry an 18+ requirement. The Terms (section 2) say Pexi is for all ages and that a minor uses it with a parent's permission. The rating answers rest on the all-ages Terms.
+
 ## App Review notes
 
 ```
