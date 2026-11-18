@@ -55,6 +55,7 @@ import paywall from './screens/paywall.js';
 import { refreshPlus } from './purchases.js';
 import { hydrateDeviceIdentity } from './device.js';
 import { applyFlags } from './flags-boot.js';
+import { startRemoteStatus } from './remote-status.js';
 
 /* The MVP switches (flags.js), before anything paints: English only and
    Canada only while those two flags are off. */
@@ -144,6 +145,10 @@ primeOfflineAisle();
    After the router and never awaited, like the three above; in a browser it
    does nothing. */
 void refreshPlus();
+
+/* R13/R14: ask the server whether this build is still supported and whether anything is switched off. Never awaited
+   and never blocking: a failed or slow answer changes nothing (remote-status.js). */
+void startRemoteStatus();
 
 /*
  * The offline shell. Registered after the router for the same reason as the two

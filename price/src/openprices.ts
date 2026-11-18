@@ -126,7 +126,11 @@ async function fetchPage(page: number): Promise<ApiPage> {
   const url = `${API}?currency=CAD&size=${PAGE_SIZE}&page=${page}`;
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      /* R35: Open Food Facts asks every client to name itself. The 400 ms gap between pages is the rate limit. */
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(15_000),
+        headers: { 'user-agent': 'Pexi-server/1.0 (grocery price scanner, Canada)', accept: 'application/json' },
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as ApiPage;
     } catch (e) {

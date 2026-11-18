@@ -206,7 +206,7 @@ export function beginShutter(video) {
       if (!blob) return;
       try {
         const frame = await blobToBase64(blob);
-        const res = await fetch(`${BASE}/api/shutter/frame`, {
+        const res = await edgeFetch(`${BASE}/api/shutter/frame`, {
           method: 'POST',
           headers: headers({ 'content-type': 'application/json' }),
           body: JSON.stringify({ id, frame, width, height, takenAt }),
@@ -221,6 +221,41 @@ export function beginShutter(video) {
     console.error('shutter frame not captured:', err);
   }
   return id;
+}
+
+/**
+ * R17. Every call to Pexi's own server goes through this instead of a bare `fetch`.
+ *
+ * Something in front of the server (Cloudflare's bot protection, a "site is down" page, a hotel
+ * login page) can answer an API call with a web page. The app cannot solve a challenge, and before
+ * this the page was read as a status number ("Pexi hit a problem on its side"), failed to parse as
+ * JSON, or, worst, a 200 page counted as a write that had been sent. It is now one named error,
+ * `PexiBusy`, with `busy: true`: the camera shows "Pexi is busy, try again" and tries once more by
+ * itself, and the outbox keeps whatever was being sent, exactly as it does for no signal.
+ *
+ * What is NOT busy and passes through untouched: a normal JSON answer of any status, a 429, and a
+ * dead network (fetch's own TypeError, which means "no connection").
+ */
+export class PexiBusyError extends Error {
+  constructor(url, status) {
+    super(`${String(url).split('?')[0]} was answered by a web page, not by Pexi (status ${status})`);
+    this.name = 'PexiBusy';
+    this.busy = true;
+    this.status = status;
+  }
+}
+
+function isEdgePage(res) {
+  const get = (h) => res?.headers?.get?.(h) ?? null;
+  // Cloudflare marks a challenge it served with this header.
+  if (get('cf-mitigated')) return true;
+  return /text\/html/i.test(get('content-type') ?? '');
+}
+
+async function edgeFetch(url, init) {
+  const res = await fetch(url, init);
+  if (isEdgePage(res)) throw new PexiBusyError(url, res.status);
+  return res;
 }
 
 function headers(extra = {}) {
@@ -250,7 +285,7 @@ function headers(extra = {}) {
 }
 
 async function post(path, body, { refusalIsAnswer = false } = {}) {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await edgeFetch(`${BASE}${path}`, {
     method: 'POST',
     headers: headers({ 'content-type': 'application/json' }),
     body: JSON.stringify(body),
@@ -271,7 +306,7 @@ async function post(path, body, { refusalIsAnswer = false } = {}) {
 }
 
 async function get(path) {
-  const res = await fetch(`${BASE}${path}`, { headers: headers() });
+  const res = await edgeFetch(`${BASE}${path}`, { headers: headers() });
   if (!res.ok) throw new Error(`${path} returned ${res.status}`);
   return res.json();
 }
@@ -288,7 +323,7 @@ async function get(path) {
  */
 async function postSoft(path, body, fallback) {
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await edgeFetch(`${BASE}${path}`, {
       method: 'POST',
       headers: headers({ 'content-type': 'application/json' }),
       body: JSON.stringify(body),
@@ -308,7 +343,7 @@ async function postSoft(path, body, fallback) {
  */
 const outbox = createOutbox({
   post: async (path, body) => {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await edgeFetch(`${BASE}${path}`, {
       method: 'POST',
       headers: headers({ 'content-type': 'application/json' }),
       body: JSON.stringify(body),
@@ -333,7 +368,7 @@ async function postKept(path, body, flag) {
 
 async function getSoft(path, fallback) {
   try {
-    const res = await fetch(`${BASE}${path}`, { headers: headers() });
+    const res = await edgeFetch(`${BASE}${path}`, { headers: headers() });
     if (!res.ok) return fallback;
     return await res.json();
   } catch {
@@ -434,7 +469,7 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
   // it: `catalogueLookup`'s own `catch` in camera.js is what turns that into
   // "no connection", and that path is unchanged by this function's own 429
   // branch below.
-  const res = await fetch(`${BASE}/api/identify?${params.toString()}`, { headers: headers() });
+  const res = await edgeFetch(`${BASE}/api/identify?${params.toString()}`, { headers: headers() });
   if (res.status === 429) {
     const respBody = await res.json().catch(() => null);
     const out = {
@@ -473,7 +508,7 @@ export async function identifyPack({ gtin, frame, shelfPriceCents } = {}) {
     ...(thresholds ? { thresholds } : {}),
     ...(device?.id ? { deviceId: device.id } : {}),
   };
-  const res = await fetch(`${BASE}/api/identify/pack`, {
+  const res = await edgeFetch(`${BASE}/api/identify/pack`, {
     method: 'POST',
     headers: headers({ 'content-type': 'application/json' }),
     body: JSON.stringify(body),
@@ -508,7 +543,7 @@ export async function identifyPack({ gtin, frame, shelfPriceCents } = {}) {
 export async function matchText(lines) {
   const device = getDeviceId()?.id;
   const body = { ...scanContext(), lines, ...(device ? { deviceId: device } : {}) };
-  const res = await fetch(`${BASE}/api/match-text`, {
+  const res = await edgeFetch(`${BASE}/api/match-text`, {
     method: 'POST',
     headers: headers({ 'content-type': 'application/json' }),
     body: JSON.stringify(body),
@@ -858,7 +893,7 @@ export async function identifyPhoto(blob, { sharpness, deviceId, tier, shelfPric
 
   let res;
   try {
-    res = await fetch(`${BASE}/api/identify/photo`, {
+    res = await edgeFetch(`${BASE}/api/identify/photo`, {
       method: 'POST',
       headers: headers({ 'content-type': 'application/json' }),
       body: JSON.stringify(body),
@@ -950,7 +985,7 @@ export function postEvent({ deviceId, type, payload }) {
  * other function on this file that a background queue depends on.
  */
 export function postEventsBatch(events) {
-  return fetch(`${BASE}/api/events/batch`, {
+  return edgeFetch(`${BASE}/api/events/batch`, {
     method: 'POST',
     headers: headers({ 'content-type': 'application/json' }),
     keepalive: true,
@@ -1028,7 +1063,7 @@ export function uploadShelfFrame({ frame, width, height, takenAt }) {
   const device = getDeviceId()?.id;
   if (!device || !frame) return Promise.resolve(false);
   const extras = identifyExtras();
-  return fetch(`${BASE}/api/shelf/frame`, {
+  return edgeFetch(`${BASE}/api/shelf/frame`, {
     method: 'POST',
     headers: headers({ 'content-type': 'application/json' }),
     body: JSON.stringify({

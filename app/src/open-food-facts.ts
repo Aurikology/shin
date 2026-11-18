@@ -39,11 +39,39 @@ export interface OffProduct {
 const OFF_TIMEOUT_MS = 4_000;
 const CACHE_MAX = 2_000;
 
+/*
+ * R35. Open Food Facts asks every app to name itself in its User-Agent (app name and version) and
+ * publishes a read limit of 100 product requests a minute. Both are kept: the name is sent on every
+ * call, requests leave at least OFF_MIN_GAP_MS apart (under 100 a minute from this server), a burst
+ * that would wait longer than OFF_MAX_WAIT_MS gives up as a miss rather than stacking, and a 429
+ * pauses every live lookup until its Retry-After has passed. A miss from any of these is
+ * "off_failed", never cached, so the next scan asks again.
+ */
+export const OFF_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada)';
+const OFF_MIN_GAP_MS = 600;
+const OFF_MAX_WAIT_MS = 4_000;
+const OFF_DEFAULT_PAUSE_S = 60;
+const OFF_MAX_PAUSE_S = 300;
+let nextSlotAt = 0;
+let pausedUntil = 0;
+
+/** Reserve the next send time; false when waiting for it would be longer than OFF_MAX_WAIT_MS. */
+async function takeSlot(): Promise<boolean> {
+  const now = Date.now();
+  const at = Math.max(now, nextSlotAt);
+  if (at - now > OFF_MAX_WAIT_MS) return false;
+  nextSlotAt = at + OFF_MIN_GAP_MS;
+  if (at > now) await new Promise((r) => setTimeout(r, at - now));
+  return true;
+}
+
 const cache = new Map<string, OffProduct | null>();
 
 /** TEST ONLY. */
 export function clearOffCacheForTests(): void {
   cache.clear();
+  nextSlotAt = 0;
+  pausedUntil = 0;
 }
 
 function cacheSet(gtin: string, product: OffProduct | null): void {
@@ -79,9 +107,10 @@ export function normalizeOffResponse(raw: unknown): OffProduct | null {
 }
 
 /** What `fetch` looks like, narrowed to what this file uses. TEST ONLY seam. */
-export type OffFetch = (url: string, init: { signal: AbortSignal }) => Promise<{
+export type OffFetch = (url: string, init: { signal: AbortSignal; headers: Record<string, string> }) => Promise<{
   readonly ok: boolean;
   readonly status: number;
+  readonly headers?: { get(name: string): string | null };
   json(): Promise<unknown>;
 }>;
 
@@ -109,14 +138,26 @@ export async function lookupOpenFoodFactsWithReason(gtin: string): Promise<OffLo
     return hit ? { product: hit, miss: null } : { product: null, miss: 'off_not_found' };
   }
 
+  if (Date.now() < pausedUntil) {
+    return { product: null, miss: 'off_failed', detail: 'Open Food Facts asked us to slow down; cooling off' };
+  }
+  if (!(await takeSlot())) return { product: null, miss: 'off_failed', detail: 'too many lookups queued for Open Food Facts' };
+
   const doFetch: OffFetch = fetchDouble ?? ((url, init) => fetch(url, init) as unknown as ReturnType<OffFetch>);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), OFF_TIMEOUT_MS);
   try {
     const res = await doFetch(`https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(gtin)}.json`, {
       signal: controller.signal,
+      headers: { 'user-agent': OFF_USER_AGENT, accept: 'application/json' },
     });
     if (!res.ok) {
+      if (res.status === 429) {
+        const ra = Number(res.headers?.get('retry-after'));
+        const secs = Number.isFinite(ra) && ra > 0 ? Math.min(ra, OFF_MAX_PAUSE_S) : OFF_DEFAULT_PAUSE_S;
+        pausedUntil = Date.now() + secs * 1000;
+        return { product: null, miss: 'off_failed', detail: `status 429, cooling off for ${secs} s` };
+      }
       // OFF answers an unknown barcode with a 404; that is a real "no such product". Anything else is OFF failing.
       if (res.status === 404) {
         cacheSet(gtin, null);

@@ -118,10 +118,14 @@ export const INVITE_REFUSAL = 'This server is in a closed beta and that request 
 /**
  * Routes that answer without a code, and why each one is on the list.
  *
- * `/api/health` only. It is the uptime ping (plan item 39c), it is polled by
+ * `/api/health` first. It is the uptime ping (plan item 39c), it is polled by
  * something that is not the app, and it carries nothing: whether the process
  * is up, how long it has been up, and whether the scan log opened. A ping that
  * needs the shared secret is a ping that stops working the day the secret is
  * rotated, which is the day you most want to know the server is alive.
+ *
+ * `/api/app-status` (R13, app/src/app-status.ts) is the second, for the same reason: it is how an old
+ * build is told to update, and the day an invite is rotated is the day old builds most need telling.
+ * It carries a minimum build and a feature list and nothing about anyone.
  */
-export const INVITE_EXEMPT: readonly string[] = ['/api/health'];
+export const INVITE_EXEMPT: readonly string[] = ['/api/health', '/api/app-status'];

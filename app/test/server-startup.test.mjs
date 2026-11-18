@@ -139,7 +139,7 @@ test('a trailing newline on either side still matches', () => {
 
 test('the header name and the exemption list are what the client lane was given', () => {
   assert.equal(INVITE_HEADER, 'x-shin-invite');
-  assert.deepEqual(INVITE_EXEMPT, ['/api/health']);
+  assert.deepEqual(INVITE_EXEMPT, ['/api/health', '/api/app-status']);
 });
 
 /* ------------------------------- 39a, error log -------------------------- */

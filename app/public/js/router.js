@@ -180,8 +180,18 @@ export function register(screen) {
  */
 const FLAG_GATED = Object.freeze({ market: 'market' });
 
+/**
+ * Screens the server has switched off (R14, remote-status.js): not routable until a later status says
+ * otherwise. Set at start-up from the server's answer; empty means nothing is switched off.
+ */
+let switchedOff = new Set();
+export function setSwitchedOff(ids) {
+  switchedOff = new Set(ids);
+}
+
 /** Whether `id` may be shown with these flags. Pure, so a test needs no DOM. */
 export function screenAllowed(id, flags = FLAGS) {
+  if (switchedOff.has(id)) return false;
   const flag = FLAG_GATED[id];
   return !flag || flags[flag] === true;
 }

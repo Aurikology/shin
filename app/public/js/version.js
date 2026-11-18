@@ -10,5 +10,10 @@
  *
  * Update this string when a build pass changes user-visible behaviour, same
  * rule BUILD_STAMP always carried.
+ *
+ * It is also the build identity the server judges (R13, remote-status.js): SHIN_APP_MIN_VERSION is this
+ * same `YYYY-MM-DD.N` format, and a build below it is shown "Please update Pexi". Every build that goes to
+ * TestFlight therefore needs this bumped first, or the server cannot tell it from the one before it.
+ * 2026-11-18.1 is the first build that asks; every build before it reads as older.
  */
-export const APP_VERSION = '2026-09-19.1';
+export const APP_VERSION = '2026-11-18.1';

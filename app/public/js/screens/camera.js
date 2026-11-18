@@ -1554,8 +1554,39 @@ function geminiFailureSheet(result, item) {
  * "I need a connection" (2026-11-14: a refused request was shown as bad signal).
  */
 export function isServerFault(err) {
+  if (isBusy(err)) return false;
   const m = /returned (\d{3})\b/.exec(String(err?.message ?? ''));
   return !!m && Number(m[1]) >= 300;
+}
+
+/**
+ * R17: api.js threw `PexiBusy` because a web page (a Cloudflare challenge, a "site is down" page, a
+ * hotel login) came back where the server's JSON should have. Neither "I need a connection" (the phone
+ * is online) nor "Pexi hit a problem" (nothing in Pexi failed): the answer is "Pexi is busy, try again",
+ * and one automatic retry follows a few seconds later.
+ */
+export function isBusy(err) {
+  return err?.busy === true;
+}
+
+/** How long the camera waits before it retries a busy answer by itself, and how many times it does. */
+export const BUSY_RETRY_MS = 12000;
+export const BUSY_RETRIES = 1;
+
+export function busySheet() {
+  return `
+    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-busy>
+      ${grabber()}
+      ${backButton()}
+      <div class="sheet-peek">
+        <div class="sheet-head">
+          ${shinSay('unknown', 'cam_server_fault_busy', {}, { size: 'face-verdict' })}
+        </div>
+        <div class="actions actions-primary">
+          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
+        </div>
+      </div>
+    </section>`;
 }
 
 /**
@@ -4666,6 +4697,24 @@ export default {
        * offline"): say so, in one plain sentence, and stop. Nothing is named
        * and nothing is sent on to be priced. `offline-aisle.js` says why.
        */
+      /* R17: a web page answered where the server's JSON should have (bot protection, a down page). "Pexi is
+         busy, try again", and one retry by itself a few seconds later; a good answer resets the allowance. */
+      if (found?.busy) {
+        lastLookup = { code, cents };
+        slot.innerHTML = busySheet();
+        playRefusalLanding(slot);
+        setState('result');
+        mounted('[data-act="lookup-retry"]');
+        clearTimeout(busyTimer);
+        if (busyRetriesUsed < BUSY_RETRIES) {
+          busyRetriesUsed += 1;
+          busyTimer = setTimeout(() => {
+            if (!dead && slot.querySelector('[data-busy]')) void resolveBarcode(code, cents);
+          }, BUSY_RETRY_MS);
+        }
+        return;
+      }
+      busyRetriesUsed = 0;
       if (found?.serverFault) {
         lastLookup = { code, cents };
         slot.innerHTML = serverFaultSheet();
@@ -4782,6 +4831,7 @@ export default {
        */
       let id = null;
       let serverFault = false;
+      let busy = false;
       try {
         /* RULINGS.md "A scan never ends with no result": a misread goes straight to
            the frame; a good code says the frame is in hand, and when the catalogue
@@ -4809,6 +4859,7 @@ export default {
            and the shopper's network is fine. Only a request that never got a
            response (a TypeError from fetch) is "no signal". */
         serverFault = isServerFault(err);
+        busy = isBusy(err);
       }
 
       /*
@@ -4920,6 +4971,7 @@ export default {
        * failed. A server that DID answer without a product is not a missing
        * connection and falls through to the candidate sheet as before.
        */
+      if (id === null && busy) return { busy: true };
       if (id === null && serverFault) return { serverFault: true };
       return id === null ? identifyOffline(code) : null;
     }
@@ -6888,6 +6940,7 @@ export default {
       // no-match fallthrough below can tell a real server-side model outage
       // apart from an honest catalogue miss.
       let idFailure = null;
+      let typedBusy = false;
       if (!typed) {
         try {
           const id = await ctx.api.identify({ text, shelfPriceCents: cents ?? undefined });
@@ -6945,13 +6998,23 @@ export default {
               notThisQuery: null,
             };
           }
-        } catch {
+        } catch (err) {
           typed = null;
+          typedBusy = isBusy(err);
         }
       }
       if (dead || (asked && myGen !== gen)) return;
       if (own) {
         showOwnData(own, text, cents);
+        return;
+      }
+      /* R17: a web page answered, so nothing was looked up. Said as busy, never as "nothing matches". */
+      if (typedBusy && !typed) {
+        last = null;
+        slot.innerHTML = busySheet();
+        playRefusalLanding(slot);
+        setState('result');
+        mounted();
         return;
       }
       if (typed) {
@@ -7301,6 +7364,9 @@ export default {
 
     /* The barcode and shelf price of the last lookup that got no answer, for Retry. */
     let lastLookup = null;
+    /* R17: the one automatic retry of a "busy" answer. */
+    let busyTimer = null;
+    let busyRetriesUsed = 0;
     function showDistribution(raw, { name = '', key = null, cents = null, scenario = null, shopperReport = null, historyId = null, sold = null } = {}) {
       const v = usableVerdict(raw);
       dist = { raw, name, key: key ?? (name ? `name:${name}` : null), typedCents: !v?.shopper && cents ? cents : null, shopperReport, historyId, ownRow: false, sold, amount: { ...AMOUNT_DEFAULT } };

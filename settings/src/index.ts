@@ -128,6 +128,9 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'EBAY_CERT_ID', default: 'unset -> eBay source unavailable', ruling: 'operational', secret: true },
   { env: 'SOLDCOMPS_API_KEY', default: 'unset -> soldcomps source unavailable', ruling: 'operational', secret: true },
   { env: 'SOLDCOMPS_API_BASE', default: "the source's own DEFAULT_BASE", ruling: 'operational' },
+  // -- The remote status the app reads at start-up (app/src/app-status.ts): a minimum build and a switch-off list --
+  { env: 'SHIN_APP_MIN_VERSION', default: "unset or malformed -> no minimum (every build is supported); format 'YYYY-MM-DD.N', the app's APP_VERSION", ruling: 'operational' },
+  { env: 'SHIN_APP_FEATURES_OFF', default: 'unset -> nothing switched off; a comma list of feature names the app knows (watchlist, share, pastscans, removed, correct, savings, pack, centsfirstpad)', ruling: 'operational' },
 ];
 
 /**
@@ -339,6 +342,14 @@ export function SOLDCOMPS_API_KEY(env: NodeJS.ProcessEnv = process.env): string 
 }
 export function SOLDCOMPS_API_BASE(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SOLDCOMPS_API_BASE');
+}
+
+export function SHIN_APP_MIN_VERSION(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_APP_MIN_VERSION');
+}
+
+export function SHIN_APP_FEATURES_OFF(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_APP_FEATURES_OFF');
 }
 
 /* eslint-enable @typescript-eslint/naming-convention */

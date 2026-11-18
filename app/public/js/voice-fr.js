@@ -573,6 +573,11 @@ export const LINES_FR = {
     warm: () => "Quelque chose a mal tourné de mon côté",
     blunt: () => "Pexi a un problème",
   },
+  cam_server_fault_busy: {
+    deadpan: () => "Pexi est occupé, réessaie",
+    warm: () => "Je suis un peu occupé en ce moment, réessaie dans un instant",
+    blunt: () => "Pexi est occupé. Réessaie",
+  },
   cam_photo_offline: {
     deadpan: () => "Tu es hors ligne, alors j'ai gardé la photo. Je finirai ça dès que tu seras de retour.",
     warm: () => "Pas de signal, alors j'ai gardé ta photo en sûreté. Je reprends ça dès que tu es de retour en ligne.",

@@ -1030,6 +1030,12 @@ const LINES_EN = {
     warm: () => 'Something went wrong on my side',
     blunt: () => 'Pexi is having a problem',
   },
+  /* R17: a web page (a bot-protection challenge, a "down" page) answered where Pexi's server should have. */
+  cam_server_fault_busy: {
+    deadpan: () => 'Pexi is busy, try again',
+    warm: () => 'I am a bit busy right now, try again in a moment',
+    blunt: () => 'Pexi is busy. Try again',
+  },
   /*
    * --- the photo route's own six, added with the photo path
    * (docs/the-photo-path.md section 3) ---

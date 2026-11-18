@@ -29,6 +29,7 @@ import {
 } from '../catalogue/src/user-catalogue.ts';
 import { shopperSources } from './src/attribution.ts';
 import { packScope, packVersion, servePack } from './src/pack-route.ts';
+import { readAppStatus } from './src/app-status.ts';
 import {
   correctScan,
   getScan,
@@ -4402,6 +4403,9 @@ export const server = createServer(async (req, res) => {
       // The shopper's words, not the record: see shopperSources() in attribution.ts for what stays behind.
       return json(200, { sources: shopperSources() });
     }
+
+    // R13/R14: the oldest supported build and the switch-off list, read by every app at start-up (app/src/app-status.ts).
+    if (url.pathname === '/api/app-status') return json(200, readAppStatus());
 
     if (url.pathname === '/api/pack-version') {
       const scope = packScope(url.searchParams.get('scope'));
