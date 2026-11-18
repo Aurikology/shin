@@ -20,6 +20,9 @@
     <key>UserName</key>
     <string>__SHIN_USER__</string>
 
+    <key>Umask</key>
+    <integer>63</integer>
+
     <key>ProgramArguments</key>
     <array>
         <string>/bin/sh</string>

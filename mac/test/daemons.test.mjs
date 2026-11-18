@@ -71,3 +71,7 @@ test('nightly order: integrity 03:30, backup 04:00, offsite 04:45, logrotate 05:
   assert.ok(at('integrity') < at('backup') && at('backup') < at('offsite') && at('offsite') < at('logrotate'));
   assert.ok(at('offsite') - at('backup') >= 30, 'room for the backup to finish');
 });
+
+test('every daemon starts with Umask 077 (decimal 63) so files it creates are owner-only (D3)', () => {
+  for (const f of files) assert.match(readFileSync(join(DIR, f), 'utf8'), /<key>Umask<\/key>\s*<integer>63<\/integer>/, f);
+});
