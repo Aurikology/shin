@@ -37,6 +37,8 @@ Part A is for shoppers. Part B is the fact sheets and replies for retailers, par
 > Hi <name>, let us get you back to Plus. On the phone, open Pexi, go to the You screen, tap Pexi Plus, then Restore
 > Purchases, signed in with the same Apple ID you paid with. Plus comes back within a minute. If it does not, reply
 > with the Apple receipt email or order number and we will look it up. Pexi
+>
+> Internal: with RevenueCat set to Transfer (fix-money, needs-jamin.md R21), Plus moves to the phone that restores and the old phone drops to the free limit; say so if they ask. Look an order up in RevenueCat, Customers, by transaction id.
 
 ## I paid and it is still limited
 > Hi <name>, thanks for your patience. Please wait about 10 minutes, then scan again. If it still shows the limit, open
