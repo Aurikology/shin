@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd-daemons/com.shin.restoretest.plist
+
+  Sundays 06:30: restore the newest off-site copy into a temporary folder and check it (R07 and R52,
+  mac/15-restore-test.sh). After the 04:45 copy and the 05:30 refresh, so the Mac is quiet.
+
+  A LaunchDAEMON: installed by mac/10-boot-survival.sh into /Library/LaunchDaemons, started by launchd at
+  boot with nobody logged in, and run as __SHIN_USER__ (UserName), never as root. The tokens
+  __SHIN_REPO_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
+  this file as it is. launchd gives a job almost no environment, so HOME, USER, LOGNAME and PATH are set below.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.restoretest</string>
+
+    <key>UserName</key>
+    <string>__SHIN_USER__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/15-restore-test.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/mac</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>__SHIN_HOME__</string>
+        <key>USER</key>
+        <string>__SHIN_USER__</string>
+        <key>LOGNAME</key>
+        <string>__SHIN_USER__</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>0</integer>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/restore-test.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/restore-test.err.log</string>
+</dict>
+</plist>

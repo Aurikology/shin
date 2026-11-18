@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd-daemons/com.shin.backup.plist
+
+  04:00 every night: the nightly backup (mac/07-backup.sh): integrity check, copy, manifest, prune to 14 nights.
+  Replaces the old ~/bin/shin-backup.sh job of the same name (see mac/README.md, "the old backup script").
+
+  A LaunchDAEMON: installed by mac/10-boot-survival.sh into /Library/LaunchDaemons, started by launchd at
+  boot with nobody logged in, and run as __SHIN_USER__ (UserName), never as root. The tokens
+  __SHIN_REPO_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
+  this file as it is. launchd gives a job almost no environment, so HOME, USER, LOGNAME and PATH are set below.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.backup</string>
+
+    <key>UserName</key>
+    <string>__SHIN_USER__</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/07-backup.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/mac</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>__SHIN_HOME__</string>
+        <key>USER</key>
+        <string>__SHIN_USER__</string>
+        <key>LOGNAME</key>
+        <string>__SHIN_USER__</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/backup.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/backup.err.log</string>
+</dict>
+</plist>
