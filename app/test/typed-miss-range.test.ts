@@ -120,7 +120,9 @@ test('D-241 / 3.1: a typed name that matches nothing answers with the broad gues
   assert.equal(typed.range.currency, 'CAD');
   assert.ok(Number.isInteger(typed.range.lowCents) && Number.isInteger(typed.range.highCents));
   assert.ok(typed.range.lowCents > 0 && typed.range.lowCents < typed.range.highCents);
-  assert.equal(typed.noRangeReason, 'no_shin_prices');
+  // Pexi had no price, so the range ask was tried; this world has no Claude key, and since 2026-11-18 the answer
+  // says so instead of a blanket 'no_shin_prices' (the barcode path always did).
+  assert.equal(typed.noRangeReason, 'no_api_key');
   assert.equal(typed.lowConfidence, true);
 });
 

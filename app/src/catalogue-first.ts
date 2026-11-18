@@ -622,7 +622,7 @@ function nationalAverageOf(
 }
 
 /** A Claude range a shopper may be shown: whole positive cents, low <= high, in the answer's currency. */
-function usableClaudeRange(r: unknown, currency: string): r is { lowCents: number; highCents: number; currency: string; unit: string; askedAt: string } {
+export function usableClaudeRange(r: unknown, currency: string): r is { lowCents: number; highCents: number; currency: string; unit: string; askedAt: string } {
   if (!r || typeof r !== 'object') return false;
   const x = r as { lowCents?: unknown; highCents?: unknown; currency?: unknown };
   const want = (currency ?? '').trim().toUpperCase() || 'CAD';

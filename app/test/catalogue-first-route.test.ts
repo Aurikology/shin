@@ -594,3 +594,24 @@ test('preview=1 on a malformed code, or with catalogue first off, answers with n
   assert.equal(scanCount(), rows);
   on();
 });
+
+/*
+ * RULINGS "Catalogue first; Claude ... is the capped price-range fallback": "a typed name that matches
+ * nothing" asks Claude. Live 2026-11-18, "Weber Spirit II E-310 propane gas grill" typed with the
+ * shopper's yes came back with the fixed broad guess ($5.76 to $17.35) and no ask was made.
+ */
+test('ON, a typed name the catalogue does not know, with the shopper\'s yes: exactly one range ask, and the range is Claude\'s', async () => {
+  on();
+  const asksBefore = askCalls.length;
+  const r = await fetch(`${base}/api/identify`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-shin-claude': '1' },
+    body: JSON.stringify({ text: 'Zorblax turbo garden hose reel', deviceId: 'cf-typed-miss', countryCode: 'CA' }),
+  });
+  assert.equal(r.status, 200);
+  const body = (await r.json()) as Record<string, unknown>;
+  assert.equal(askCalls.length, asksBefore + 1, `one ask expected; answer ${JSON.stringify({ rangeSource: body.rangeSource, noRangeReason: body.noRangeReason, range: body.range })}`);
+  assert.equal(body.rangeSource, 'claude_typical');
+  const range = body.range as Record<string, unknown>;
+  assert.deepEqual([range.lowCents, range.highCents], [199, 349]);
+});

@@ -76,6 +76,8 @@ import {
   type NamedElsewhere,
   type NoRangeReason,
   type TypedRow,
+  type CatalogueRange,
+  usableClaudeRange,
 } from './src/catalogue-first.ts';
 import { isNeverSentToAModel } from '../catalogue/src/source-rights.ts';
 import { onceAsk, readShelfCents, readThresholdsRaw, shownRange, sortByName, verdictRecord, type RangeAsk } from './src/distribution.ts';
@@ -1155,6 +1157,8 @@ interface TypedVerdictContext {
  * a too-thin or empty estimate (no verdict) gets the same last rung a no-price barcode gets
  * (`lastRungRange`: the fixed wide bell, `fixed_prior`), which carries no verdict and so no word.
  */
+type TypedLast = { range: CatalogueRange; source: ReturnType<typeof lastRungRange>['source'] | 'claude_typical' };
+
 async function typedVerdict(
   text: string,
   match: OwnMatch | null,
@@ -1164,7 +1168,7 @@ async function typedVerdict(
   modelBarred = false,
   /** D-270: how sure the product behind `match` is; absent is a guess, priced from `text`. */
   identity: Identity = { grade: 'guess', words: text },
-): Promise<{ verdict: Verdict | null; last: ReturnType<typeof lastRungRange>; noRangeReason: NoRangeReason }> {
+): Promise<{ verdict: Verdict | null; last: TypedLast; noRangeReason: NoRangeReason | null; rangeAskedAt: string | null }> {
   const prices = openPricesReadOnly(defaultPricesPath(), device);
   try {
     const once = modelBarred ? null : onceAsk(ctx.askRange);
@@ -1186,11 +1190,29 @@ async function typedVerdict(
     );
     // D-233: a too-thin estimate is no verdict, logged loudly (catalogue-first.ts shownVerdict).
     const verdict = shownVerdict(est, `typed:${match?.code ?? text.slice(0, 40)}`);
-    return {
-      verdict,
-      last: lastRungRange(est, ctx.market.currency ?? 'CAD'),
-      noRangeReason: est?.trace.tooThin ? 'pool_too_wide' : 'no_shin_prices',
-    };
+    const currency = ctx.market.currency ?? 'CAD';
+    const tooWide = est?.trace.tooThin ?? false;
+    // Same reading of the one ask as the barcode path (catalogue-first.ts answerBarcodeFromCatalogue): Claude's
+    // range is shown as Claude's, with its unit and time, and a failed ask keeps its reason (2026-11-18).
+    let noRangeReason: NoRangeReason = tooWide ? 'pool_too_wide' : 'no_shin_prices';
+    if (once?.started()) {
+      const asked = once.settled();
+      if (asked === undefined) noRangeReason = tooWide ? 'pool_too_wide' : 'claude_slow';
+      else if (asked.ok && usableClaudeRange(asked.range, currency)) {
+        const range: CatalogueRange = {
+          lowCents: asked.range.lowCents,
+          highCents: asked.range.highCents,
+          medianCents: null,
+          n: null,
+          basis: 'gemini_typical',
+          category: null,
+          currency: asked.range.currency,
+          unit: asked.range.unit,
+        };
+        return { verdict, last: { range, source: 'claude_typical' }, noRangeReason: null, rangeAskedAt: asked.range.askedAt };
+      } else noRangeReason = tooWide ? 'pool_too_wide' : asked.ok ? 'unusable_claude_range' : asked.reason;
+    }
+    return { verdict, last: lastRungRange(est, currency), noRangeReason, rangeAskedAt: null };
   } finally {
     try {
       prices?.close();
@@ -1412,7 +1434,9 @@ async function typedFromOwnData(
      * verdict it is the broad guess (`rangeSource` and `range.basis` 'fixed_prior', `confidence: 'low'`),
      * the very range a no-price barcode gets, and carries no verdict, so no word is read off it (D-239).
      */
-    ...(typedRange ? { range: typedRange.last.range, rangeSource: typedRange.last.source, noRangeReason: typedRange.noRangeReason } : {}),
+    ...(typedRange
+      ? { range: typedRange.last.range, rangeSource: typedRange.last.source, noRangeReason: typedRange.noRangeReason, rangeAskedAt: typedRange.rangeAskedAt }
+      : {}),
     ...shopperReportField(device, named?.code || match?.code || null),
     ...(scanId === null ? {} : { scanId }),
   };
