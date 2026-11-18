@@ -73,6 +73,15 @@ if [ -f "$CONFIG_FILE" ]; then
   set +a
 fi
 
+# R52 / R16: this job reports "worked" or "failed" to the health markers
+# (mac/lib/health.sh, read by /api/health and the alarm), so a dead backup is not
+# only a line in backup.err.log. The EXIT trap covers every early exit: whatever
+# stops this script before the final line below leaves backup.FAILED behind.
+# shellcheck source=lib/health.sh
+. "$SCRIPT_DIR/lib/health.sh"
+BACKUP_DONE=0
+trap '_rc=$?; if [ "$BACKUP_DONE" != 1 ]; then health_fail backup "07-backup.sh stopped before it finished (exit $_rc); see mac/logs/backup.err.log"; fi' EXIT
+
 if [ -z "${SHIN_BACKUP_DIR:-}" ]; then
   echo "07-backup.sh: SHIN_BACKUP_DIR is not set (fill it in config.env first)" >&2
   exit 1
@@ -136,10 +145,21 @@ const { DatabaseSync } = require("node:sqlite");
 const [src, dest] = process.argv.slice(1);
 try {
   const db = new DatabaseSync(src, { readOnly: true });
+  // R16: a damaged database is named BEFORE it is copied into 14 nights of backups, and
+  // the copy is checked again below. VACUUM INTO can rebuild a clean-looking copy from a
+  // damaged file, so the source check is the one that matters.
+  const before = db.prepare("PRAGMA integrity_check").all().map((r) => String(Object.values(r)[0]));
+  if (before.length !== 1 || before[0] !== "ok") {
+    throw new Error("integrity_check on the live database failed: " + before.slice(0, 5).join(" | "));
+  }
   const lit = dest.replace(/'/g, "''");
   db.exec("VACUUM INTO '" + lit + "'");
   db.close();
   const out = new DatabaseSync(dest, { readOnly: true });
+  const after = out.prepare("PRAGMA integrity_check").all().map((r) => String(Object.values(r)[0]));
+  if (after.length !== 1 || after[0] !== "ok") {
+    throw new Error("integrity_check on the backup copy failed: " + after.slice(0, 5).join(" | "));
+  }
   const tables = out.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
   ).all();
@@ -282,12 +302,21 @@ prune_old_backups() {
     esac
   done
 }
-prune_old_backups
 
+# A failed night does NOT prune: the 14 older folders are the last good copies, and a
+# bad night must never be the thing that pushes one of them out (R52).
 if [ "$FAILED" -ne 0 ]; then
-  echo "07-backup.sh: one or more backups FAILED -- see above. Partial backup left at: $DEST" >&2
+  _names=$(awk -F'\t' '$1=="failed"{printf "%s ", $2}' "$MANIFEST")
+  echo "07-backup.sh: one or more backups FAILED -- see above. Partial backup left at: $DEST (nothing pruned)" >&2
+  BACKUP_DONE=1
+  health_fail backup "night $STAMP: failed ${_names}(partial copy left at $DEST, nothing pruned)"
   exit 1
 fi
 
+prune_old_backups
+
 echo "07-backup.sh: OK -- backup complete: $DEST"
 echo "07-backup.sh: manifest: $MANIFEST"
+# The last step, and only reached when everything above worked: the dated "last good backup" mark.
+BACKUP_DONE=1
+health_ok backup "night $STAMP ok: $DEST"

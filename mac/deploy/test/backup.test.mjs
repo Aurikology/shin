@@ -57,8 +57,21 @@ after(() => {
   rmSync(SAFE_CWD, { recursive: true, force: true });
 });
 
+// Health markers (R52/R16) and the state flag go to throwaway folders, and no mailbox message is
+// ever sent from a test.
+const SAFE_HEALTH = posix(join(SAFE_CWD, 'health'));
+const SAFE_REQUEST_LOG = posix(join(SAFE_CWD, 'request-log.csv'));
+writeFileSync(SAFE_REQUEST_LOG, 'received,from,kind,device_id,check,export_sent,deleted_on,revenuecat,answered_on,backups_clear_on,notes\n');
+const TEST_ENV = {
+  ...process.env,
+  SHIN_HEALTH_DIR: SAFE_HEALTH,
+  WORKER_STATEDIR: posix(join(SAFE_CWD, 'state')),
+  SHIN_HEALTH_MAIL: 'off',
+  SHIN_REQUEST_LOG: SAFE_REQUEST_LOG, // R58: restore re-runs deletions from this log (empty here)
+};
+
 function run(script, args) {
-  const r = spawnSync('sh', [posix(script), ...args.map(posix)], { encoding: 'utf8', cwd: SAFE_CWD });
+  const r = spawnSync('sh', [posix(script), ...args.map(posix)], { encoding: 'utf8', cwd: SAFE_CWD, env: TEST_ENV });
   return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
@@ -296,6 +309,145 @@ test('backup: keeps only the newest 14 timestamped backups inside SHIN_BACKUP_DI
     assert.equal(timestamped.length, 14, `expected 14 timestamped dirs, got ${timestamped.length}: ${timestamped.join(', ')}`);
     assert.ok(remaining.includes('not-a-backup'), 'a non-matching folder must never be pruned');
     assert.ok(existsSync(join(backupDir, 'not-a-backup', 'keepme.txt')));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---- R52 / R16: the backup says loudly when it worked and when it did not ----
+
+import { corruptSecondPage, healthState } from './backup-helpers.mjs';
+
+test('backup: success writes backup.json ok and leaves no backup.FAILED', () => {
+  const { root, configPath } = setupFakeDeployment();
+  try {
+    rmSync(SAFE_HEALTH, { recursive: true, force: true });
+    const res = run(BACKUP_SH, [configPath]);
+    assert.equal(res.status, 0, res.stderr);
+    const h = healthState(SAFE_HEALTH, 'backup');
+    assert.equal(h.ok, true);
+    assert.equal(h.failedFileExists, false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: a missing database leaves backup.FAILED that names the job', () => {
+  const { root, dataDir, backupDir } = setupFakeDeployment();
+  try {
+    rmSync(SAFE_HEALTH, { recursive: true, force: true });
+    const cfg = join(root, 'config-missing.env');
+    writeConfig(cfg, { SHIN_BACKUP_DIR: backupDir, SHIN_DATA_DIR: dataDir, SHIN_SCANS: join(dataDir, 'scans.db'), SHIN_CORRECTIONS: join(dataDir, 'corrections.db') });
+    const res = run(BACKUP_SH, [cfg]);
+    assert.notEqual(res.status, 0);
+    const h = healthState(SAFE_HEALTH, 'backup');
+    assert.equal(h.failedFileExists, true);
+    assert.match(h.failedText, /backup FAILED/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: SHIN_BACKUP_DIR unset still leaves backup.FAILED (an early exit is not silence)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'shin-backup-test-'));
+  try {
+    rmSync(SAFE_HEALTH, { recursive: true, force: true });
+    const cfg = join(root, 'config-empty.env');
+    writeFileSync(cfg, '# nothing set\n');
+    const res = run(BACKUP_SH, [cfg]);
+    assert.notEqual(res.status, 0);
+    assert.equal(healthState(SAFE_HEALTH, 'backup').failedFileExists, true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: a damaged source database fails the backup and is named (integrity_check before and after the copy)', () => {
+  const { root, configPath, scansPath } = setupFakeDeployment();
+  try {
+    rmSync(SAFE_HEALTH, { recursive: true, force: true });
+    corruptSecondPage(scansPath);
+    const res = run(BACKUP_SH, [configPath]);
+    assert.notEqual(res.status, 0, `a damaged database must fail the backup:\n${res.stdout}\n${res.stderr}`);
+    assert.match(res.stderr, /FAILED scans/);
+    assert.equal(healthState(SAFE_HEALTH, 'backup').failedFileExists, true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: a failed night does not prune, so it cannot push the last good backups out', () => {
+  const { root, backupDir, dataDir } = setupFakeDeployment();
+  try {
+    for (let i = 0; i < 14; i++) {
+      const dir = join(backupDir, `20260101-0000${String(i).padStart(2, '0')}`);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'manifest.tsv'), '# fake\n');
+    }
+    const cfg = join(root, 'config-fail.env');
+    writeConfig(cfg, { SHIN_BACKUP_DIR: backupDir, SHIN_DATA_DIR: dataDir, SHIN_SCANS: join(dataDir, 'scans.db'), SHIN_CORRECTIONS: join(dataDir, 'corrections.db') });
+    const res = run(BACKUP_SH, [cfg]);
+    assert.notEqual(res.status, 0);
+    const stamped = require_ls(backupDir).filter((d) => /^\d{8}-\d{6}$/.test(d));
+    assert.equal(stamped.length, 15, 'the 14 old ones are all still there plus the partial one');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---- R58: a restore re-runs the deletions already honoured ----
+
+function runWithEnv(script, args, extraEnv) {
+  const r = spawnSync('sh', [posix(script), ...args.map(posix)], { encoding: 'utf8', cwd: SAFE_CWD, env: { ...TEST_ENV, ...extraEnv } });
+  return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
+}
+
+test('restore: re-runs a recent deletion against the restored copy, so a deleted phone does not come back', () => {
+  const { root, backupDir, configPath, scansPath } = setupFakeDeployment();
+  try {
+    const db = new DatabaseSync(scansPath);
+    db.exec('ALTER TABLE scan ADD COLUMN device_id TEXT');
+    db.exec("INSERT INTO scan(device_id) VALUES ('idDELETEDphone1'), ('idKEEPphone999')");
+    db.close();
+    assert.equal(run(BACKUP_SH, [configPath]).status, 0);
+    const today = new Date().toISOString().slice(0, 10);
+    const log = join(root, 'log.csv');
+    writeFileSync(log, `received,from,kind,device_id,deleted_on\n${today},a@x.com,delete,idDELETEDphone1,${today}\n`);
+    const target = join(root, 'restored');
+    const res = runWithEnv(RESTORE_SH, [require_ls(backupDir)[0], target, configPath], { SHIN_REQUEST_LOG: posix(log) });
+    assert.equal(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const out = new DatabaseSync(join(target, 'scans.db'), { readOnly: true });
+    const left = out.prepare('SELECT device_id FROM scan WHERE device_id IS NOT NULL').all().map((r) => r.device_id);
+    out.close();
+    assert.deepEqual(left, ['idKEEPphone999']);
+    assert.match(res.stdout, /re-ran 1 deletion/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('restore: a missing request log fails the restore loudly (it cannot be called proven)', () => {
+  const { root, backupDir, configPath } = setupFakeDeployment();
+  try {
+    assert.equal(run(BACKUP_SH, [configPath]).status, 0);
+    const res = runWithEnv(RESTORE_SH, [require_ls(backupDir)[0], join(root, 'restored'), configPath], { SHIN_REQUEST_LOG: posix(join(root, 'nope.csv')) });
+    assert.notEqual(res.status, 0);
+    assert.match(res.stderr, /NO REQUEST LOG/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('restore: SHIN_RESTORE_SKIP_REDELETE=1 skips it, and says so loudly', () => {
+  const { root, backupDir, configPath } = setupFakeDeployment();
+  try {
+    assert.equal(run(BACKUP_SH, [configPath]).status, 0);
+    const res = runWithEnv(RESTORE_SH, [require_ls(backupDir)[0], join(root, 'restored'), configPath], {
+      SHIN_REQUEST_LOG: posix(join(root, 'nope.csv')),
+      SHIN_RESTORE_SKIP_REDELETE: '1',
+    });
+    assert.equal(res.status, 0, res.stderr);
+    assert.match(res.stderr, /NOT re-running deletions/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -227,4 +227,21 @@ if [ "$FAILED" -ne 0 ]; then
   exit 1
 fi
 
+echo "07-restore.sh: verified $CHECKED item(s) against $MANIFEST"
+
+# R58: the backup holds every shopper who existed that night, including ones who have since asked
+# for deletion. Run those deletions again, against THIS restored copy, before anyone moves it into
+# place (docs/privacy/data-requests.md section 6). The request log is outside git:
+# ~/shin-privacy/request-log.csv (SHIN_REQUEST_LOG overrides). Only a restore TEST that is never
+# going into service sets SHIN_RESTORE_SKIP_REDELETE=1 (mac/15-restore-test.sh does).
+if [ "${SHIN_RESTORE_SKIP_REDELETE:-}" = "1" ]; then
+  echo "07-restore.sh: NOT re-running deletions (SHIN_RESTORE_SKIP_REDELETE=1). Never move a restore into service without them." >&2
+else
+  echo "07-restore.sh: re-running honoured deletions against the restored copy (R58)"
+  if ! "${NODE_BIN:-node}" "$SCRIPT_DIR/redelete-requests.mjs" --target "$TARGET"; then
+    echo "07-restore.sh: restore NOT complete: the deletions could not be re-run (see above)" >&2
+    exit 1
+  fi
+fi
+
 echo "07-restore.sh: OK -- $CHECKED item(s) verified against $MANIFEST"
