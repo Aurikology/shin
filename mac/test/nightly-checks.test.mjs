@@ -102,3 +102,22 @@ test('CLI --dry-run opens nothing and writes no marker', () => {
   assert.match(r.stdout, /dry run/i);
   assert.ok(!existsSync(health));
 });
+
+test('CLI --check-only checks the named files, exits 1 on a bad one, and writes NO marker (used by the restore test)', () => {
+  const health = join(root, 'health-co');
+  const good = makeDb('co-good.db');
+  const bad = makeDb('co-bad.db');
+  corrupt(bad);
+  const run = (...files) =>
+    spawnSync(process.execPath, [join(HERE, '..', 'nightly-checks.mjs'), '--check-only', ...files], {
+      env: { ...process.env, SHIN_HEALTH_DIR: health, SHIN_HEALTH_MAIL: 'off' },
+      encoding: 'utf8',
+    });
+  const a = run(good);
+  assert.equal(a.status, 0, a.stderr + a.stdout);
+  assert.match(a.stdout, /1 of 1 databases ok/);
+  const b = run(good, bad);
+  assert.equal(b.status, 1);
+  assert.match(b.stdout, /FAILED/);
+  assert.ok(!existsSync(health), 'check-only must not write the integrity marker');
+});

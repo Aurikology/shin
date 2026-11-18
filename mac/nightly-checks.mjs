@@ -6,6 +6,7 @@
 //   node mac/nightly-checks.mjs                  run against the databases named in config.env
 //   node mac/nightly-checks.mjs --dry-run [f..]  list what it would open, change nothing
 //   node mac/nightly-checks.mjs a.db b.db        check exactly these files
+//   node mac/nightly-checks.mjs --check-only f.. print results and exit 1 on a bad one; writes NO marker
 //
 // Run nightly at 03:30 by the com.shin.integrity LaunchDaemon (mac/launchd-daemons/), before
 // the 04:00 backup, so a database that went bad is named BEFORE it is copied into 14 nights
@@ -120,6 +121,15 @@ function main(argv, env = process.env) {
     }
     console.log(`  disk: data volume of ${env.SHIN_DATA_DIR || '/'} must keep ${env.SHIN_DISK_MIN_GB ?? 10} GB free`);
     return 0;
+  }
+  if (argv.includes('--check-only')) {
+    // The restore test (mac/15-restore-test.sh) checks a RESTORED copy: it must say pass or fail
+    // through its own marker, never overwrite the live `integrity` marker.
+    const results = files.map((f) => checkDb(f));
+    for (const x of results) console.log(`${x.ok ? 'ok    ' : 'FAILED'} ${x.mode ?? '-'} ${x.path}${x.ok ? '' : ': ' + x.detail}`);
+    const good = results.filter((x) => x.ok).length;
+    console.log(`nightly-checks: ${good} of ${results.length} databases ok`);
+    return good === results.length ? 0 : 1;
   }
   const r = runNightly({ files, env });
   for (const x of r.results) console.log(`${x.ok ? 'ok    ' : 'FAILED'} ${x.mode ?? '-'} ${x.path}${x.ok ? '' : ': ' + x.detail}`);
