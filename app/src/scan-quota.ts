@@ -197,6 +197,11 @@ export function entitlementLookupHealth(): EntitlementLookupHealth {
   return { ...lookupHealth };
 }
 
+/** The total the health watch reads (app/src/watch.ts readRevenueCat): it alarms when failures rise fast. */
+export function revenueCatHealth(): { failures: number } {
+  return { failures: lookupHealth.failures };
+}
+
 /** The scan store's own small table of devices RevenueCat confirmed as Plus, so a restart in an outage forgets nobody. */
 const PLUS_SEEN_DDL = `CREATE TABLE IF NOT EXISTS plus_seen (
   device_id TEXT PRIMARY KEY,
