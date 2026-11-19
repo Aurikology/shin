@@ -20,6 +20,7 @@
  * could have found a hit" (agent CLAUDE.md). The one exception is a getter another lane has not
  * landed yet (`revenueCatHealth`), which reads as not yet reporting.
  */
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -68,6 +69,13 @@ export interface WatchInputs {
   readonly checker: { readonly lastSeenAt: number | null };
   /** The Mac's unattended jobs (mac/README.md, markers in SHIN_HEALTH_DIR): failing now, or silent past their period. */
   readonly macJobs?: { readonly failed: readonly string[]; readonly stale: readonly string[] };
+  /** The Mac's power source (pmset), null off macOS or when unreadable. The Mac ran flat on 2026-11-18: 2 hours down. */
+  readonly power?: PowerReading | null;
+}
+
+export interface PowerReading {
+  readonly onBattery: boolean;
+  readonly percent: number | null;
 }
 
 export interface WatchProblem {
@@ -159,6 +167,11 @@ export function judgeWatch(i: WatchInputs): WatchReport {
 
   for (const job of i.macJobs?.failed ?? []) add('mac_job_failed', `The Mac job "${job}" failed its last run.`);
   for (const job of i.macJobs?.stale ?? []) add('mac_job_stale', `The Mac job "${job}" has not reported within its period.`);
+
+  if (i.power?.onBattery) {
+    const left = i.power.percent === null ? '' : ` (${i.power.percent}% left)`;
+    add('mac_on_battery', `The Mac is running on battery${left}. Plug it in: when the battery runs out, Pexi goes down.`);
+  }
 
   return { ok: problems.length === 0, problems };
 }
@@ -364,6 +377,32 @@ function backupReading(dir: string, nowMs: number): number | null {
   return value;
 }
 
+/**
+ * Reads `pmset -g batt` output: the first line names the source ("Now drawing from 'Battery Power'" or "'AC Power'"),
+ * the next carries the charge ("85%;"). Null when the text names neither source.
+ */
+export function parsePmsetBatt(text: string): PowerReading | null {
+  const source = /drawing from '([^']+)'/.exec(text)?.[1];
+  if (source === undefined) return null;
+  const pct = /(\d{1,3})%/.exec(text)?.[1];
+  return { onBattery: /battery/i.test(source), percent: pct === undefined ? null : Number(pct) };
+}
+
+let cachedPower: { at: number; value: PowerReading | null } | null = null;
+function powerReading(nowMs: number): PowerReading | null {
+  if (process.platform !== 'darwin') return null;
+  if (cachedPower && nowMs - cachedPower.at < 60_000) return cachedPower.value;
+  let value: PowerReading | null = null;
+  try {
+    value = parsePmsetBatt(execFileSync('/usr/bin/pmset', ['-g', 'batt'], { encoding: 'utf8', timeout: 2000 }));
+  } catch {
+    // allow-silent-catch: an unreadable power source is "unknown", and the watch keeps every other check
+    value = null;
+  }
+  cachedPower = { at: nowMs, value };
+  return value;
+}
+
 /** What the money lane's RevenueCat getter reports, read defensively: the export may not exist yet. */
 export interface RevenueCatReading {
   readonly failures: number;
@@ -415,6 +454,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
   const sinceMonth = d.claudeCap.since === null ? null : new Date(d.claudeCap.since).toISOString().slice(0, 7);
   const capThisMonth = d.claudeCap.reached && sinceMonth === new Date(d.nowMs).toISOString().slice(0, 7);
   const openPricesLast = prices.sourceUse['openprices'] ?? null;
+  const power = powerReading(d.nowMs);
 
   const inputs: WatchInputs = {
     nowMs: d.nowMs,
@@ -433,6 +473,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
     sources: [{ name: 'openprices', lastLoadedAt: openPricesLast, maxDays: opMax }],
     checker: { lastSeenAt: checkerAt },
     macJobs: { failed: mac.failed, stale: mac.stale },
+    power,
   };
   return {
     watch: judgeWatch(inputs),
@@ -442,6 +483,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
       deployCheckerSeenAt: checkerAt === null ? null : new Date(checkerAt).toISOString(),
       sourcesLoaded: prices.sourceUse,
       claudeRecent: claudeOutcomes.recent(),
+      power,
     },
   };
 }
