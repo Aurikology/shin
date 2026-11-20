@@ -1,6 +1,6 @@
 ---
 name: whats-next
-description: Work out what needs doing on Pexi right now, for Aurik's side, from every place work is recorded (NOW.md, the launch gaps, DEFECTS.md, bug sweeps, comms, claims), rank it, tell Aurik the plan in plain words, then build it item by item through fix-loop and push each piece. Use when Aurik says "what needs to be done", "what's next", "keep going", "continue", "build", or starts a session with no named task.
+description: Work out what needs doing on Pexi right now, for Aurik's side, from every place work is recorded (NOW.md, the launch gaps, DEFECTS.md, bug sweeps, comms, claims), rank it, tell Aurik the plan in plain words, then build it item by item through fix-loop and push each piece. Use when Aurik says "what needs to be done", "what's next", "keep going", "continue", "build", or starts a session with no named task. Desk mode (section 5b) when he wants only what his computer can finish, checked automatically.
 ---
 
 # whats-next
@@ -66,6 +66,30 @@ Each item runs `fix-loop` steps 2 to 7: cause to the line, red test first, small
 gate in `app/` (typecheck, test, test:ux, check, webkit-sweep, fake-camera-check), one commit
 `[app] <what the shopper sees now>`, push `origin` and `github`, `git ls-remote` both.
 Pull before every commit. A screen change is never "seen on a phone" until a build says so.
+
+## 5b. Desk mode: computer-only work, checked automatically
+
+Aurik, 2026-11-19: *"generate a workflow that gets things done on my computer right now and
+automatically checks the work to see if its correct. the phone testing is something I will do
+later"*. Used when he says "on my computer", "desk", "no phone", or the phone is not in hand.
+
+1. **Split.** From step 2's list keep only what a PC can finish: code, docs, audits, register
+   rows, calendar entries, drafts for him to read. Anything that needs the phone, a purchase,
+   his ruling or his account login goes to "needs you later", untouched.
+2. **Write the checks first.** Rewrite `notes/desk-checks.mjs` for the batch BEFORE any lane
+   starts: the gate (typecheck, test, `scripts/checks.mjs`, `scripts/one-source.mjs`) plus one or
+   more checks per item that read the result itself (the file, the register row, the page), not
+   the lane's report. Run `node scripts/desk-check.mjs` once: every item check must be red. A
+   check that is already green either found the work done (say so) or tests nothing (rewrite it).
+3. **Build.** One lane per item on disjoint files, the global lane contract, each told to iterate
+   until its own `--only` checks pass. Lanes never edit the checks file or status files.
+4. **Check, independently.** Run `node scripts/desk-check.mjs` on the whole tree. Then one fresh
+   read-only verifier agent (never one that built) checks what a script cannot: reads each
+   deliverable against its source files, spot-checks five claims to file:line, and checks
+   non-file results (calendar, App Store Connect) through their own tool. Any red goes back to
+   its lane once; red twice is reported as red, never committed as done.
+5. **Commit and push** only the green items, paths named, then report in his words: done and
+   checked (with what checked it), red (with the failing check), needs you later.
 
 ## 6. Close the batch
 
