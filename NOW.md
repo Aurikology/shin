@@ -103,6 +103,8 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 - **The free limit is ON live (2026-11-18 15:10Z, `/api/quota` answers `limit: 10`)**, ahead of
   Stage 4 (the sandbox purchase). Asked of Jamin: keep it on or unset it until the purchase works.
 
+- **Desk pass 2026-11-19 (Aurik's PC), for Aurik to read:** storage audit (R79) lists 7 gaps a wiped phone loses, worst the beta invite code; fixes not built, order is his. Support replies drafted (`docs/support/replies.md`, French needs his read; the one-phone restore paragraph waits on the two-phone sandbox test, R21).
+
 ## Next steps
 
 1. Ship `QUEUE.md` bands 7 and 7B to get to 10-20 testers.
