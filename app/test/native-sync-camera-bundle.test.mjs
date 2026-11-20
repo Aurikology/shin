@@ -99,3 +99,57 @@ test('cap:sync stops when the camera build itself fails', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+/*
+ * The photo engine (MediaPipe, 34 MB of WebAssembly in js/vendor/mediapipe-wasm) only ever starts
+ * when FLAGS.photoId is on AND js/vendor/efficientdet_lite0.tflite is there (eye-attach.js passes
+ * the model URL only then; src/eye/camera.ts makes no detector without it). Neither is true for
+ * 1.0, so until 2026-11-20 every phone build carried 34 MB it never ran, about three quarters of
+ * the app's download. The copy drops it unless both are true.
+ */
+const WRITES_BUNDLE_AND_ENGINE = `${WRITES_BUNDLE}
+mkdirSync(path.join(js, 'vendor', 'mediapipe-wasm'), { recursive: true });
+writeFileSync(path.join(js, 'vendor', 'mediapipe-wasm', 'vision_wasm_internal.wasm'), 'wasm');
+`;
+const engineIn = (root) => existsSync(path.join(root, 'native', 'www', 'js', 'vendor', 'mediapipe-wasm'));
+const flags = (on) => `export const FLAGS = {\n  centsFirstPad: true,\n  photoId: ${on},\n  languages: false,\n};\n`;
+
+test('the phone copy leaves out the photo engine while photo scans are off', () => {
+  const root = layout(WRITES_BUNDLE_AND_ENGINE);
+  try {
+    writeFileSync(path.join(root, 'app', 'public', 'js', 'flags.js'), flags(false));
+    const r = sync(root);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(engineIn(root), false, 'mediapipe-wasm shipped although FLAGS.photoId is off');
+    assert.ok(existsSync(path.join(root, 'native', 'www', 'js', 'vendor', 'zxing_reader.wasm')), 'the barcode reader must stay');
+    assert.ok(existsSync(path.join(root, 'app', 'public', 'js', 'vendor', 'mediapipe-wasm')), 'only the phone copy is trimmed, never app/public');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the phone copy leaves out the photo engine when there is no model for it, flag or not', () => {
+  const root = layout(WRITES_BUNDLE_AND_ENGINE);
+  try {
+    writeFileSync(path.join(root, 'app', 'public', 'js', 'flags.js'), flags(true));
+    const r = sync(root);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(engineIn(root), false, 'mediapipe-wasm shipped with no efficientdet_lite0.tflite to run');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the photo engine ships once photo scans are on and the model is there', () => {
+  const root = layout(WRITES_BUNDLE_AND_ENGINE);
+  try {
+    writeFileSync(path.join(root, 'app', 'public', 'js', 'flags.js'), flags(true));
+    mkdirSync(path.join(root, 'app', 'public', 'js', 'vendor'), { recursive: true });
+    writeFileSync(path.join(root, 'app', 'public', 'js', 'vendor', 'efficientdet_lite0.tflite'), 'model');
+    const r = sync(root);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(engineIn(root), true, 'turning photo scans on must bring the engine back with no other change');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

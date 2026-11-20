@@ -15,7 +15,7 @@
  */
 
 import { build } from 'esbuild';
-import { cp, mkdir, stat } from 'node:fs/promises';
+import { cp, mkdir, rm, stat } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -37,6 +37,10 @@ async function copyIfPresent(from, to, what) {
 
 async function main() {
   await mkdir(vendorDir, { recursive: true });
+  // esbuild never deletes a chunk it no longer writes, and chunk names carry a hash, so every
+  // rebuild left the old one beside the new and the phone copy shipped both (2026-11-20: two
+  // vision_bundle chunks, one from October). The folder is all build output; start it empty.
+  await rm(join(outDir, 'chunks'), { recursive: true, force: true });
 
   const result = await build({
     entryPoints: [join(root, 'src', 'eye', 'index.ts')],

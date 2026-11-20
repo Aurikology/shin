@@ -113,6 +113,22 @@ for (const rel of ['js/eye.js', 'js/vendor/zxing_reader.wasm']) {
   }
 }
 
+/*
+ * The photo engine (MediaPipe, 34 MB of WebAssembly) only ever starts when FLAGS.photoId is on AND
+ * js/vendor/efficientdet_lite0.tflite is present: eye-attach.js passes the model URL only then, and
+ * src/eye/camera.ts makes no detector without one. For 1.0 neither is true, so until 2026-11-20
+ * every phone build carried 34 MB it never ran. Only the copy is trimmed; turning photo scans on
+ * and adding the model brings it back with no change here.
+ */
+const flagsPath = path.join(source, 'js', 'flags.js');
+const photoIdOn = existsSync(flagsPath) && /\bphotoId:\s*true\b/.test(readFileSync(flagsPath, 'utf8'));
+const hasDetectorModel = existsSync(path.join(source, 'js', 'vendor', 'efficientdet_lite0.tflite'));
+const photoEngine = path.join(dest, 'js', 'vendor', 'mediapipe-wasm');
+if (!(photoIdOn && hasDetectorModel) && existsSync(photoEngine)) {
+  rmSync(photoEngine, { recursive: true, force: true });
+  console.log(`[sync-web] left out js/vendor/mediapipe-wasm: photo scans ${photoIdOn ? 'on' : 'off'}, detector model ${hasDetectorModel ? 'present' : 'absent'}`);
+}
+
 const indexPath = path.join(dest, 'index.html');
 let html = readFileSync(indexPath, 'utf8');
 
