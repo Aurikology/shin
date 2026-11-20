@@ -122,6 +122,13 @@ export async function startHarness(prefix: string): Promise<Harness> {
 
   const { server, setCatalogueForTests, setCatalogueFirstForTests } = await import('../server.ts');
   if (!server.listening) await new Promise<void>((r) => server.once('listening', () => r()));
+  /* The "5.1 control" flake (D-268 item 14, fbf5719 could not reproduce it): seen again 2026-11-20 as
+     `fetch failed` / ECONNRESET, twice in full-suite runs on a loaded machine and never alone. The
+     likely race: Node's server drops an idle keep-alive socket after 5 s, and fetch's pool can hand that
+     same socket to the next request as it closes, which a slow step between two requests makes likely.
+     The test server now keeps idle sockets longer than the client does, so the client always closes
+     first. Test-only; the live server's timeouts are untouched. */
+  server.keepAliveTimeout = 120_000;
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   setCatalogueForTests(catalogue);
   setCatalogueFirstForTests({ searcher: catalogue, db: catDb, rangeAskProvider: null as never });
