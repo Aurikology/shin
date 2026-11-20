@@ -112,7 +112,9 @@ startTextSizeSync();
 /* The phone's id and secret live in the Keychain as well as localStorage (device.js), so a reinstall keeps the
    free-scan count. Waited for, but at most 1.5 s and never failing: on the web it returns at once.
    R79: then, if iOS has cleared the app's web storage, the setup copy kept in the Keychain is put back BEFORE the
-   first screen is chosen below, so a shopper is not walked through setup and the agreements again. */
+   first screen is chosen below, so a shopper is not walked through setup and the agreements again. The restore
+   also puts back the look (it sets data-theme itself, which startThemeColourSync above already watches, so the
+   status bar follows) and the language, both read before this point from a then-empty localStorage. */
 await hydrateDeviceIdentity();
 await restoreSetupIfWiped({ store });
 startSetupBackup({ store });

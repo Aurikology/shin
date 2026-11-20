@@ -46,18 +46,19 @@ function fakeStore(initial) {
   };
 }
 
-test('the snapshot holds the setup choices and not the history, ratings or anything bulky', () => {
-  const snap = setupSnapshot({ ...SETUP, history: [{ id: 'h' }], ratings: [{}], corrections: [{}], removed: [{}], scanCount: 9 });
+test('the snapshot holds the setup choices and the Past scans, not the ratings or anything bulky', () => {
+  const snap = setupSnapshot({ ...SETUP, history: [{ id: 'h', at: '2026-11-01T00:00:00.000Z' }], ratings: [{}], corrections: [{}], removed: [{}], scanCount: 9 });
   assert.equal(snap.personality, 'warm');
   assert.equal(snap.agreement.claude, true);
   assert.deepEqual(snap.watchlist, [{ id: 'w1', name: 'Milk 2 L' }]);
-  for (const k of ['history', 'ratings', 'corrections', 'removed', 'scanCount']) assert.ok(!(k in snap), `${k} should not be backed up`);
+  assert.deepEqual(snap.history, [{ id: 'h', at: '2026-11-01T00:00:00.000Z' }]); // 2026-11-20: Past scans are backed up now
+  for (const k of ['ratings', 'corrections', 'removed', 'scanCount']) assert.ok(!(k in snap), `${k} should not be backed up`);
 });
 
-test('a watchlist too big for the Keychain is left out rather than the whole backup failing', () => {
+test('a watchlist too big for the Keychain is trimmed to its newest entries rather than the whole backup failing', () => {
   const big = Array.from({ length: 600 }, (_, i) => ({ id: 'w' + i, name: 'x'.repeat(60) }));
   const snap = setupSnapshot({ ...SETUP, watchlist: big });
-  assert.ok(!('watchlist' in snap));
+  assert.ok(snap.watchlist.length > 0 && snap.watchlist.length < big.length); // 2026-11-20: trimmed, no longer left out
   assert.equal(snap.personality, 'warm');
 });
 

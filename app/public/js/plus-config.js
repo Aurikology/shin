@@ -38,10 +38,12 @@ export const SCANS_PER_WEEK = Object.freeze({ free: 10, plus: 100 });
  * Both pages are static files hosted on GitHub Pages, away from the app's own
  * server (source: `docs/store/`, the same pages the App Store listing's
  * Privacy Policy and Support URLs name). They load for anyone, including a
- * store reviewer, with the server asleep or the invite gate on. There is one
- * copy, in English; the old pages under `app/public/legal/`, French twins
- * included, were removed 2026-11-05 because they described exact GPS and
- * photos sent to Gemini, which this build does not do.
+ * store reviewer, with the server asleep or the invite gate on. Each has a
+ * French twin beside it (`docs/store/terms-fr.html`, `privacy-fr.html`), which
+ * `legalUrl` below links for a French reader. The old pages under
+ * `app/public/legal/`, their French twins included, were removed 2026-11-05
+ * because they described exact GPS and photos sent to Gemini, which this
+ * build does not do.
  */
 export const LEGAL_URLS = Object.freeze({
   terms: 'https://xu826jamin.github.io/pexi/terms.html',

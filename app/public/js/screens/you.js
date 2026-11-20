@@ -675,6 +675,8 @@ export default {
         if (next === 'system') delete document.documentElement.dataset.theme;
         else document.documentElement.dataset.theme = next;
         try { localStorage.setItem('shin.theme', next); } catch { /* private window; see lib/persistence.js */ }
+        // R79: the Keychain copy (storage-backup.js) listens for this, as it does for `shin:locale`.
+        globalThis.dispatchEvent?.(new CustomEvent('shin:theme', { detail: { theme: next } }));
         // D-268 F28 (2026-11-11 walk): only the theme's own options. Walking every
         // .seg-o on the screen cleared Percentage/Dollar, the range chips and the torch row.
         const group = themeOpt.closest('[role="radiogroup"]') ?? root;
