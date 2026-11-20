@@ -28,9 +28,18 @@ export const checks = [
     const h = createHash('sha256').update(readFileSync(join(root, 'app/test/storage-backup-gaps.test.mjs'))).digest('hex');
     return { ok: h === '51f5157982ca19e83acdac97729a3ff7cf671fea14f3b009d0304af355b35a9a', evidence: h.slice(0, 12) };
   } },
+  { id: 'named-tests', what: 'barcode names and shops survive a wipe (tests written first)', cmd: 'node --test test/storage-backup-named.test.mjs', cwd: 'app' },
+  { id: 'named-tests-unchanged', what: 'nobody edited those tests to pass', fn: async ({ root }) => {
+    const h = createHash('sha256').update(readFileSync(join(root, 'app/test/storage-backup-named.test.mjs'))).digest('hex');
+    return { ok: h === 'ac82085dba6cb2843979c787594f84315ac17332d06a074a68ccd76ed87e1fef', evidence: h.slice(0, 12) };
+  } },
+  { id: 'harness-keepalive', what: 'test server outlives the client keep-alive (ECONNRESET flake)', fn: async ({ root }) => {
+    const t = read(root, 'app/test/customer-data-harness.ts');
+    return { ok: /keepAliveTimeout\s*=/.test(t), evidence: 'customer-data-harness.ts' };
+  } },
   { id: 'audit-rows', what: 'audit rows for theme, locale, watchlist, history say backed up', fn: async ({ root }) => {
     const a = read(root, AUDIT);
-    const bad = ['shin.theme', 'shin.locale', 'shin.v1.watchlist', 'shin.v1.history'].filter((k) => !/backed up/i.test(row(a, k)));
+    const bad = ['shin.theme', 'shin.locale', 'shin.v1.watchlist', 'shin.v1.history', 'shin.v1.named', 'shin.v1.shops'].filter((k) => !/backed up/i.test(row(a, k)));
     return { ok: bad.length === 0, evidence: `not "backed up": ${bad.join(', ') || 'none'}` };
   } },
   { id: 'audit-invite-native', what: 'audit says the invite gap is browser-only', fn: async ({ root }) => {

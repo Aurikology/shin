@@ -11,7 +11,7 @@ How to read the fates:
 - **accepted loss**: gone after a wipe; the Why column says what the shopper notices.
 - **not storage**: the string looks like a key but is something else.
 
-The `shin.v1` store is one localStorage value (written by `persist()` at store.js:383). Its fields have their own rows, named `shin.v1.<field>`. The "backed up" list is the `FIELDS` table in storage-backup.js, plus the newest watchlist entries and Past scans that fit their byte bounds, plus the two non-store keys `shin.theme` and `shin.locale` (updated 2026-11-20).
+The `shin.v1` store is one localStorage value (written by `persist()` at store.js:383). Its fields have their own rows, named `shin.v1.<field>`. The "backed up" list is the `FIELDS` table in storage-backup.js, plus the newest watchlist entries and Past scans that fit their byte bounds, plus `named` and `shops` (updated 2026-11-20), plus the two non-store keys `shin.theme` and `shin.locale` (updated 2026-11-20).
 
 | Key | Written at (file:line) | What it holds | Fate | Why |
 |---|---|---|---|---|
@@ -49,8 +49,8 @@ The `shin.v1` store is one localStorage value (written by `persist()` at store.j
 | `shin.v1.agreement` | store.js:171 | The accepted agreement record | backed up | In `FIELDS`. |
 | `shin.v1.permissionsSeen` | store.js:179 | Whether the permissions primer was shown | backed up | In `FIELDS`. |
 | `shin.v1.ratings` | store.js:187 | The shopper's own verdict ratings | accepted loss | The "Your ratings" section on You resets to zero. Ratings already posted are on the server. |
-| `shin.v1.shops` | store.js:212 | Known shops and last shop by map cell | accepted loss | Shop suggestions start over; the shopper has to pick shops again. |
-| `shin.v1.named` | store.js:219 | Names the shopper gave unknown barcodes | accepted loss | A barcode named before shows as unknown again. |
+| `shin.v1.shops` | store.js:212 | Known shops and last shop by map cell | backed up | Known shops and last shop per cell are in the Keychain copy (storage-backup.js, restored only entries with a string id). |
+| `shin.v1.named` | store.js:219 | Names the shopper gave unknown barcodes | backed up | The whole map (capped at 100 by store.js) is in the Keychain copy; restore keeps only rows with a string name. |
 | `shin.theme` | you.js:677 (read at main.js:82 and you.js:179) | Light, dark or system | backed up | Copied as `theme` when it is light or dark (absent means system, so nothing is copied). On restore a valid value is written back and `data-theme` is set on that launch, so the look shows at once; junk is never written back. The You screen fires `shin:theme` so a theme-only change refreshes the copy. |
 | `shin.locale` | lib/locale.js:121 via persistence.js:85 (key at lib/locale.js:49) | Chosen language (English or French) | backed up | Copied as `locale` when it is one of `LOCALES`; written back on restore only if valid. `setLocale` fires `shin:locale`, which refreshes the copy. The choice survives while the build is pinned to English, so switching the flag back on restores it. |
 | `shin.plus` | purchases.js:60 via persistence.js:85 | Cached "Plus was last seen active" flag | recomputed | Native app only: refreshPlus() (main.js:153, purchases.js:228-236) rewrites it from RevenueCat on launch; in a browser it stays the cached value. After a wipe, plusActive() reads false until getCustomerInfo resolves, so the first requests go without x-shin-plus; the server checks RevenueCat itself (scan-quota.ts), so the loss is a short window. Not verified on a device. |
@@ -93,5 +93,5 @@ Values whose loss the shopper would notice and that are not backed up. Updated 2
 
 1. **`shin-invite` (beta invite code), browser beta only.** The native app carries the code itself (`window.SHIN_INVITE_CODE`, injected by native/scripts/sync-web.mjs), so a wipe on the phone app loses nothing. In a browser, loss means every request is refused at the beta gate until the shopper reopens their invite link. A browser has no Keychain, so the fix is to resend the link.
 2. **Partial losses in what is backed up.** Watchlist entries past the newest 12,000 bytes, Past scans past the newest 24,000 bytes, and every scan thumbnail. Accepted: the newest entries are the ones most likely to matter.
-3. **`shin.v1.removed`, `shin.v1.ratings`, `shin.v1.named`, `shin.v1.shops`.** Small losses (undo bin, own ratings count, barcode names, shop suggestions). Smallest fix for the likely most noticed one, barcode names: add `named` to `FIELDS` as `isObj`, since it is capped at 100 entries.
+3. **`shin.v1.removed`, `shin.v1.ratings`.** Small accepted losses (undo bin, own ratings count). Barcode names (`named`) and shop suggestions (`shops`) are now backed up (updated 2026-11-20), so they are no longer part of this gap.
 4. **`shin-eye` and `pexi.outbox` unsent items.** Work done offline and not yet uploaded is lost. No cheap fix: the Keychain is the wrong place for photos. Accept it and rely on uploads draining quickly.

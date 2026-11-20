@@ -11,7 +11,9 @@
  * WHAT IS COPIED: the setup choices listed in FIELDS; the theme (`shin.theme`) and the language
  * (`shin.locale`), which are their own localStorage keys outside the store; the newest watchlist entries
  * that fit in MAX_WATCHLIST_BYTES; and the newest Past scans that fit in MAX_HISTORY_BYTES, with photo
- * thumbnails left out. NOT copied: ratings, corrections, the undo bin and counters. The server cannot
+ * thumbnails left out; the names the shopper gave unknown barcodes (`named`, at most 100 by store.js); and
+ * the shops they pick from (`shops`: known shops and the last shop per map cell, both capped by store.js).
+ * NOT copied: ratings, corrections, the undo bin and counters. The server cannot
  * refill Past scans: it keeps scan totals by device id (`/api/scans` returns summaries), not the rows,
  * so this copy is the only way the list comes back.
  *
@@ -70,6 +72,28 @@ const FIELDS = {
   permissionsSeen: isBool,
   market: isObj,
 };
+
+/** A barcode name row: an object with a string name (and a string date if it has one). */
+const isNamedRow = (v) => isObj(v) && isStr(v.name) && (v.at === undefined || isStr(v.at));
+
+/** `named` with only the well-formed rows. */
+function cleanNamed(named) {
+  if (!isObj(named)) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(named)) if (isNamedRow(v)) out[k] = v;
+  return out;
+}
+
+/** `shops` with only well-formed known shops (an object with a string id) and string last-shop ids. */
+function cleanShops(shops) {
+  if (!isObj(shops)) return { known: [], lastByCell: {} };
+  const known = Array.isArray(shops.known) ? shops.known.filter((s) => isObj(s) && isStr(s.id)) : [];
+  const lastByCell = {};
+  if (isObj(shops.lastByCell)) {
+    for (const [cell, id] of Object.entries(shops.lastByCell)) if (isStr(id)) lastByCell[cell] = id;
+  }
+  return { known, lastByCell };
+}
 
 const encoder = new TextEncoder();
 const bytes = (text) => encoder.encode(text).length;
@@ -132,6 +156,10 @@ export function setupSnapshot(state) {
     const kept = newestThatFit(state.history, MAX_HISTORY_BYTES, slimScan);
     if (kept.length > 0) out.history = kept;
   }
+  const named = cleanNamed(state.named);
+  if (Object.keys(named).length > 0) out.named = named;
+  const shops = cleanShops(state.shops);
+  if (shops.known.length > 0 || Object.keys(shops.lastByCell).length > 0) out.shops = shops;
   return out;
 }
 
@@ -192,6 +220,8 @@ export async function restoreSetupIfWiped({ plugin = secureStorage(), store } = 
     }
     if (Array.isArray(saved.watchlist)) patch.watchlist = saved.watchlist;
     if (Array.isArray(saved.history)) patch.history = saved.history.filter(isScan);
+    if ('named' in saved) patch.named = cleanNamed(saved.named);
+    if ('shops' in saved) patch.shops = cleanShops(saved.shops);
     if (isBlank({ ...store.get(), ...patch })) return 'nothing'; // a blank copy (after a reset) has nothing to restore
     restoreSettings(saved);
     store.update(patch);
