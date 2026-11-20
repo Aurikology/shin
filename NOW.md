@@ -103,6 +103,7 @@ is left, each item owned by Jamin or Aurik (RULINGS "Who owns what"), is one lis
 - **The free limit is ON live (2026-11-18 15:10Z, `/api/quota` answers `limit: 10`)**, ahead of
   Stage 4 (the sandbox purchase). Asked of Jamin: keep it on or unset it until the purchase works.
 
+- **Readiness register, 2026-11-20:** 45 of 93 items named in commits since 11-18; Aurik's side built or waiting on his phone. What is left (server code for Aurik's sessions on Jamin's yes, and Jamin-only account steps) is in `comms/messages/2026-11-20-aurik-to-jamin-readiness-register-what-is-left.md`.
 - **Desk pass 2026-11-19 (Aurik's PC), for Aurik to read:** storage audit (R79): a wiped phone now gets back its look, language, the newest watchlist entries and Past scans (2026-11-20, not yet on a phone); 4 smaller gaps left in the audit. The invite-code gap is browser-only. Support replies drafted (`docs/support/replies.md`, French needs his read; the one-phone restore paragraph waits on the two-phone sandbox test, R21).
 
 ## Next steps
