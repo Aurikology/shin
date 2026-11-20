@@ -74,6 +74,18 @@ body {
 }
 
 /*
+ * The keyboard is up (js/lib/keyboard-fit.js, 2026-11-20). An iPhone keyboard slides over the
+ * page and `dvh` does not move, so the frame takes the height left above the keys (--app-h, the
+ * visual viewport). Sheets are sized in % of the frame and pages fill it, so they all sit above
+ * the keyboard instead of under it. The page bar steps aside so the field and its list get the room.
+ */
+html[data-keyboard="open"] .device {
+  height: var(--app-h, 100dvh);
+  min-height: 0;
+}
+html[data-keyboard="open"] .page-bar { display: none; }
+
+/*
  * The screen slot. The camera fills it absolutely and scrolls nothing; a page
  * scrolls inside itself. Padding lives on the page, never here, because the
  * camera must reach every edge.

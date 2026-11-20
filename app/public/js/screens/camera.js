@@ -2611,7 +2611,7 @@ function storePickerSheet(shopList, chosenId = null, { needed = false, query = '
                  data-shop-search placeholder="${escapeHtml(pt('shop_search_placeholder'))}" value="${escapeHtml(query)}">
         </label>
         <div class="ilist shop-list" role="radiogroup" aria-label="${escapeHtml(t('correct_which_shop'))}"
-             style="max-height:42vh;overflow-y:auto" data-shop-list>
+             style="max-height:calc(var(--app-h, 100dvh) * 0.42);overflow-y:auto" data-shop-list>
           ${shopRowsHtml(shopList, chosenId)}
         </div>
       </div>

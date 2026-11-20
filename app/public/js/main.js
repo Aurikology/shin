@@ -24,6 +24,7 @@ import './crash-report.js'; /* first, so a start-up error in any module below is
 import * as router from './router.js';
 import { startThemeColourSync } from './lib/theme.js';
 import { startTextSizeSync } from './lib/text-size.js';
+import { startKeyboardFit } from './lib/keyboard-fit.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
@@ -91,6 +92,8 @@ try {
 startThemeColourSync();
 /* D-254: the phone's text size (iOS Larger Text, Android font size), on the native app only. */
 startTextSizeSync();
+/* 2026-11-20: the app fits above the keyboard instead of being pushed up and covered by it. */
+startKeyboardFit();
 
 /**
  * Item 6b: the consent screen sits between the attitude picker and the
