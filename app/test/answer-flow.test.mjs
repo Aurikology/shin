@@ -55,6 +55,14 @@ test('D04: the picker shows each match as a row carrying its own barcode, plus a
   assert.match(html, /McCain Tasti Taters/);
 });
 
+test('QUEUE 6.11: no match starts chosen; the shopper taps one or the way out', () => {
+  // A guard, not a red test: checked 2026-11-21 and already true. A preselected row turns a
+  // careful pick into "tap Continue" and a wrong product into a confident wrong verdict.
+  const html = typedPickSheet(picks, 'McCain Tasti Taters');
+  assert.doesNotMatch(html, /aria-(?:pressed|checked|selected)="true"|\bautofocus\b|\bchecked\b|class="[^"]*\b(?:chosen|selected|is-on)\b/);
+  assert.doesNotMatch(CAMERA, /\.cand[^\n]{0,40}\.focus\(/, 'nothing focuses the first candidate after the sheet draws');
+});
+
 test('D04: the typed query reaches the picker escaped', () => {
   const html = typedPickSheet(picks, '<script>x</script>');
   assert.doesNotMatch(html, /<script>x<\/script>/);
