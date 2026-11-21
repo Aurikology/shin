@@ -69,6 +69,9 @@ import { APP_VERSION } from '../version.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 import { pricePadDisplay, centsPadDisplay, padSeparator, padAmountHtml, keypadHtml, padCents, parsePadPrice } from './camera/pad.js';
 import { displayName, productLabel, categoryLineOf, candidateRow, answerName, captureNameFrom, humaniseTag } from './camera/names.js';
+import { thumbImg, backButton, grabber } from './camera/chrome.js';
+import { isServerFault, isBusy, BUSY_RETRY_MS, BUSY_RETRIES, busySheet, needsConnectionSheet, serverFaultSheet } from './camera/trouble.js';
+export { isServerFault, isBusy, BUSY_RETRY_MS, BUSY_RETRIES, busySheet, needsConnectionSheet, serverFaultSheet };
 
 /**
  * The camera states in which the docked face is faded out by `camera.css`.
@@ -251,66 +254,6 @@ async function thumbFromCrop(crop) {
   }
 }
 
-/** Row 40: the thumbnail beside an identity, when one was captured. */
-function thumbImg(thumb) {
-  return thumb ? `<img class="scan-thumb" src="${thumb}" width="40" height="40" alt="" loading="lazy">` : '';
-}
-
-/**
- * Rows the candidate list, the price pad and the type-it route all lacked: a
- * labelled way back, not only the swipe-to-dismiss that nothing on screen
- * teaches. Same icon and handler as the working sheet's own close,
- * `cancel-scan`, which already resets straight to the live viewfinder.
- *
- * `act` exists because that is the right answer on a SCAN sheet and the wrong
- * one on a sheet opened from another sheet. D-152: the shop picker is reached
- * from the price pad, and its X ran `cancel-scan` like everywhere else, so
- * dismissing the shop question threw away the price already typed and the
- * whole scan with it. A sub-sheet passes its own act and goes back one step.
- */
-function backButton(label = t('back_to_camera'), act = 'cancel-scan') {
-  return `<button type="button" class="sheet-close" data-act="${escapeHtml(act)}" aria-label="${escapeHtml(label)}">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
-  </button>`;
-}
-
-/**
- * The grabber on a sheet that has somewhere to go, as a real control.
- *
- * It used to be `<span class="grabber" aria-hidden="true" role="button"
- * tabindex="0" aria-label="Show more">` with no key handler anywhere in the
- * repo -- `grep -rn "keydown" public/js` returned zero hits -- which is the
- * worst of the three available states at once: in the tab order, announced as a
- * button, hidden from the accessibility tree by `aria-hidden`, and inert on
- * every key. A keyboard user reached it, was told it was a button, and nothing
- * happened.
- *
- * Made a real `<button>` rather than promoting `.sheet-head` to the control,
- * because the head is not a control: it holds Pexi's face, his spoken bubble
- * (which changes text while the sheet is open) and the frozen-frame thumbnail,
- * and a button's accessible name is its whole subtree -- so promoting the head
- * would name this control with a paragraph of speech and would re-announce it
- * every time the bubble changed. The head keeps its drag, which is a gesture
- * and not a control, and the grabber keeps its own short, stable name.
- *
- * Only the two sheets with a half or full detent get one. The candidate list,
- * the pad, the going-rate card, the working wait and the type-it route all top
- * out at peek, so their grabber stays a decorative `<span aria-hidden="true">`:
- * a focusable control that cannot do anything is the defect this is fixing.
- */
-function grabber() {
-  return `<button type="button" class="grabber" data-act="detent-step" aria-label="${escapeHtml(t('cam_show_more'))}"></button>`;
-}
-
-/**
- * Row 43: a tag can say "20% off" or "3 for $5" instead of one flat number.
- * Both recompute the unit price Pexi actually judges; the typed number stops
- * being the asking price once a modifier is active, and the confirm key sends
- * the effective price, never the sticker number alone.
- */
-/* D-268 E23 (2026-11-11 walk): the same limits as the inputs' own min/max.
-   A lit modifier outside them used to fall back to the sticker price, so
-   "96% off" priced and "150% off" sent the sticker number with "% off" lit. */
 const PCT_MIN = 1;
 const PCT_MAX = 95;
 const NFOR_MIN = 2;
@@ -1509,137 +1452,6 @@ function geminiFailureSheet(result, item) {
       </div>
     </section>`;
 }
-
-/**
- * Whether a failed call got an answer from the server that was not a success
- * (any non-2xx: a 5xx fault, or a 400/403/404 refusal) rather than the request
- * never arriving. api.js throws `/api/... returned 503` for a bad status and
- * lets fetch's own TypeError through for a dead network. Only the latter is
- * "I need a connection" (2026-11-14: a refused request was shown as bad signal).
- */
-export function isServerFault(err) {
-  if (isBusy(err)) return false;
-  const m = /returned (\d{3})\b/.exec(String(err?.message ?? ''));
-  return !!m && Number(m[1]) >= 300;
-}
-
-/**
- * R17: api.js threw `PexiBusy` because a web page (a Cloudflare challenge, a "site is down" page, a
- * hotel login) came back where the server's JSON should have. Neither "I need a connection" (the phone
- * is online) nor "Pexi hit a problem" (nothing in Pexi failed): the answer is "Pexi is busy, try again",
- * and one automatic retry follows a few seconds later.
- */
-export function isBusy(err) {
-  return err?.busy === true;
-}
-
-/** How long the camera waits before it retries a busy answer by itself, and how many times it does. */
-export const BUSY_RETRY_MS = 12000;
-export const BUSY_RETRIES = 1;
-
-export function busySheet() {
-  return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-busy>
-      ${grabber()}
-      ${backButton()}
-      <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinSay('unknown', 'cam_server_fault_busy', {}, { size: 'face-verdict' })}
-        </div>
-        <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
-        </div>
-      </div>
-    </section>`;
-}
-
-/**
- * D37: the offline sheet carries Retry, the same barcode sent again. The bubble
- * and Try again are the whole sheet (2026-10-10 audit row 18): a second sentence
- * under the bubble only said the same fact again.
- */
-export function needsConnectionSheet() {
-  return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-needs-connection>
-      ${grabber()}
-      ${backButton()}
-      <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinSay('unknown', 'cam_needs_connection', {}, { size: 'face-verdict' })}
-        </div>
-        <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
-        </div>
-      </div>
-    </section>`;
-}
-
-/**
- * D17: a fault on Pexi's side says so, and offers Retry. Never "I need a
- * connection". The bubble and Try again only (2026-10-10 audit row 17): the
- * sentence that followed repeated the bubble and claimed the connection was fine,
- * which nothing here checks.
- */
-export function serverFaultSheet() {
-  return `
-    <section class="sheet refusal" data-tier="unknown" data-conf="refuses" data-detent="peek" aria-live="polite" tabindex="-1" data-server-fault>
-      ${grabber()}
-      ${backButton()}
-      <div class="sheet-peek">
-        <div class="sheet-head">
-          ${shinSay('unknown', 'cam_server_fault', {}, { size: 'face-verdict' })}
-        </div>
-        <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="lookup-retry">${escapeHtml(t('try_again'))}</button>
-        </div>
-      </div>
-    </section>`;
-}
-
-/**
- * CATALOGUE FIRST: the answer to a barcode when `/api/identify` answers
- * `kind: 'catalogue'` (server setting SHIN_CATALOGUE_FIRST on; the shape is in
- * the header of app/src/catalogue-first.ts). With the setting off this is
- * never called and nothing below runs.
- *
- * Two outcomes, one template, so the surface has one tag (a98):
- *
- *   catalogue_hit      the product Pexi's own catalogue named (name, brand,
- *                      size) and its price range, low to high in the range's
- *                      own currency through lib/money.js (so French reads
- *                      `4,99 $`), with one provenance line that says where the
- *                      range came from and never what the price is. A shelf
- *                      price (typed on the pad, else read off a weighed label)
- *                      is placed against the SHOPPER'S OWN lines with the price
- *                      line's three zone words, exactly as the answer sheet
- *                      does with Gemini's zone. No range: the product still
- *                      shows, with a short line keyed on `noRangeReason`
- *                      (lib/catalogue-range.js), never the code.
- *   not_in_catalogue   one primary action, type the product name, which opens
- *                      the camera's existing type-it field (`typeit`); the
- *                      shelf price already typed rides on (`data-carry-price`).
- *
- * Peek only: there is nothing a half detent would hold yet, and a grabber that
- * cannot move is the defect `grabber()` records.
- */
-/* ==================================================== the verdict bell ==
- *
- * THE PRICE VERDICT AS A DISTRIBUTION (RULINGS.md "V1 verdict screen
- * mechanics", 2026-09-30: "an animated normal distribution chart and where
- * their product price falls on it. It will ALWAYS provide the answer(unless
- * the user runs out of scans)"). Built to the response contract in
- * docs/verdict-distribution-design-2026-09-30.md: any answer that carries a
- * drawable `verdict` (`kind: 'distribution'`) is shown here, whichever route
- * it came by, and no refusal sheet is drawn over it.
- *
- * Detents, per the same ruling: the peek holds the face, his zone word, the
- * bell and the one primary action (Save, tier-keyed); the half holds the
- * evidence (notes, the bigger-pack note, every dot with its store and
- * quantity, where the estimate came from) and Correct; the full holds the
- * thumbs and Done.
- */
-
-/* `distFace` (the zone word's face) lives in lib/history-answer.js: the Saved list wears the same face (D20). */
 
 /**
  * Why an answer is not fully confident, in a few plain words, for the half

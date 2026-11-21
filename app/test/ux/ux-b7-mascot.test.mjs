@@ -67,13 +67,15 @@ const ranges = await import('../../public/js/lib/ranges.js');
 const rangePicker = await import('../../public/js/lib/range-picker.js');
 const listscreen = await import('../../public/js/lib/listscreen.js');
 const flow = await import('../../public/js/onboarding-flow.js');
+const { cameraSource } = await import('../camera-source.mjs');
 const { FLAGS } = await import('../../public/js/flags.js');
 const { bellSvg } = await import('../../public/js/lib/verdict-chart.js');
 
 const ROOT_URL = new URL('../../public/', import.meta.url);
 const read = (rel) => readFileSync(new URL(rel, ROOT_URL), 'utf8').replace(/\r\n/g, '\n');
 const VOICE_SRC = read('js/voice.js');
-const CAMERA_SRC = read('js/screens/camera.js');
+// camera.js and the modules split out of it into screens/camera/ (2026-11-21).
+const CAMERA_SRC = cameraSource();
 const stripTags = (s) => s.replace(/<[^>]+>/g, ' ').replace(/&#39;|&apos;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const IDS = PERSONALITIES.map((p) => p.id);
 

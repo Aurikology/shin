@@ -75,7 +75,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a41 | Thanks toast after the thumbs, with Undo | Verdict sheet fully open, tap thumbs up or thumbs down. | `app/public/js/screens/camera.js` |
 | a42 | Refusal sheet, first look (Pexi will not call this) | A scan Pexi will not price: not sure which one, category not supported, nothing recognised, too little evidence, or the reader is down. | `app/public/js/screens/camera.js` |
 | a43 | Refusal sheet, half open (evidence and cheaper swaps) | Refusal sheet, tap or drag the grabber up. | `app/public/js/screens/camera.js` |
-| a44 | Needs a connection sheet (scan with no signal) | Scan while the phone is offline. The sheet is also exported as needsConnectionSheet. | `app/public/js/screens/camera.js` |
+| a44 | Needs a connection sheet (scan with no signal) | Scan while the phone is offline. The sheet is also exported as needsConnectionSheet. | `app/public/js/screens/camera/trouble.js` |
 | a45 | Going rate card, first look (range, no shelf price typed) | Scan an item and skip the shelf price on the price pad. | `app/public/js/screens/camera.js` |
 | a46 | Going rate card, half open (the sellers behind the range) | Going rate card, tap or drag the grabber up. | `app/public/js/screens/camera.js` |
 | a47 | Which one is it? (stand-in item list) | A scan where Pexi has to ask which item it is, from the stand-in list. | `app/public/js/screens/camera.js` |
@@ -166,13 +166,13 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a105 | Retired: Page: Terms of Use, French | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/terms.html` |
 | a106 | Retired: Page: Privacy Policy, French | Gone 2026-11-05. The app now links the hosted page (plus-config.js LEGAL_URLS); the copy under app/public/legal was deleted. | `docs/store/privacy.html` |
 | a107 | Which one is it? (the typed name's top three catalogue matches) | Camera, Type the product name, enter a name the catalogue knows, such as McCain Tasti Taters, and submit. | `app/public/js/screens/camera.js` |
-| a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera.js` |
+| a108 | Pexi hit a problem sheet (server fault on a scan) | Scan a barcode while the server answers with an error (a 500). The sheet says the fault is on Pexi's side, not the phone's connection, and offers Try again. | `app/public/js/screens/camera/trouble.js` |
 | a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |
 | a110 | Past scan detail, a price range with no verdict (read only) | Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for). | `app/public/js/screens/pastscans.js` |
 | a111 | Saved item detail, a price range with no verdict | Saved, tap a row labelled A broad guess. | `app/public/js/screens/watchlist.js` |
 | a112 | Before you start (terms and the Claude choice) | First launch, before anything else. It cannot be skipped. | `app/public/js/screens/agree.js` |
 | a113 | Early access banner over the camera | First visit to the camera on a fresh install, until Got it; or tap the Early access badge under the wordmark. | `app/public/js/screens/camera.js` |
-| a114 | Pexi is busy sheet (a web page came back instead of an answer) | Scan or type a name while Cloudflare answers the API with a challenge page. The sheet says Pexi is busy and offers Try again; a barcode retries once by itself. | `app/public/js/screens/camera.js` |
+| a114 | Pexi is busy sheet (a web page came back instead of an answer) | Scan or type a name while Cloudflare answers the API with a challenge page. The sheet says Pexi is busy and offers Try again; a barcode retries once by itself. | `app/public/js/screens/camera/trouble.js` |
 | a115 | Please update Pexi (this build is too old) | The server sets SHIN_APP_MIN_VERSION above this build. Covers the whole app with an Update Pexi link to the App Store. | `app/public/js/remote-status.js` |
 
 ## Not tagged, with reason

@@ -59,13 +59,15 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { makeDocument, makeStorage, installBrowser } from '../mini-dom.mjs';
+import { cameraSource } from '../camera-source.mjs';
 
 const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-const CAMERA = stripComments(read('../../public/js/screens/camera.js'));
+// camera.js and the modules split out of it into screens/camera/ (2026-11-21): one screen, one rule.
+const CAMERA = stripComments(cameraSource());
 
 function between(text, from, to, what) {
   const a = text.indexOf(from);
@@ -261,7 +263,7 @@ test('R-3: barcode captured is a light impact; Save is the confirm feel; torch, 
   const { win } = fakeWin({ platform: 'ios', plugin: true });
   for (const name of ['torch-toggled', 'offline', 'server-fault']) assert.throws(() => haptic(name, win), undefined, `${name} has a haptic`);
   assert.ok(!/\bhaptic\(|verdictHaptic\(/.test(between(CAMERA, 'function requestTorch(on) {', '\n    }\n', 'requestTorch')), 'the torch toggle fires a haptic');
-  assert.ok(!/haptic/i.test(between(CAMERA, 'export function needsConnectionSheet', 'export function serverFaultSheet', 'needsConnectionSheet')), 'the offline sheet fires a haptic');
+  assert.ok(!/haptic/i.test(between(CAMERA, 'function needsConnectionSheet', 'function serverFaultSheet', 'needsConnectionSheet')), 'the offline sheet fires a haptic');
 });
 
 test('R-3: no event uses a failure feel; a bad price is not a failed task', () => {

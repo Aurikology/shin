@@ -25,6 +25,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { cameraSource } from './camera-source.mjs';
 
 import { SCREEN_TAGS, NOT_TAGGED } from '../public/js/screen-tags.js';
 import { STEPS } from '../public/js/onboarding-flow.js';
@@ -141,7 +142,7 @@ test('every onboarding step has its own entry, and no entry names a step that is
 });
 
 test('every sheet in camera.js has an entry', () => {
-  const camera = readJs('screens/camera.js');
+  const camera = cameraSource(); // camera.js and the sheets split out of it into screens/camera/
   const sheets = new Set([...camera.matchAll(/class="sheet (\w+)"/g)].map((m) => m[1]));
   assert.ok(sheets.size >= 8, `expected the camera sheets, found ${sheets.size}`);
   const cameraSels = entries.filter(([, e]) => e.route === 'camera').map(([, e]) => e.sel ?? '');
@@ -153,7 +154,7 @@ test('every sheet in camera.js has an entry', () => {
 });
 
 test('every camera state is accounted for', () => {
-  const camera = readJs('screens/camera.js');
+  const camera = cameraSource();
   const states = new Set([...camera.matchAll(/setState\('(\w+)'\)/g)].map((m) => m[1]));
   assert.ok(states.size >= 5, `expected the camera states, found ${states.size}`);
   // A state either has a sheet over it (its tags are the sheets), or has its own entry.
@@ -402,7 +403,9 @@ test('nothing draws on document.body, so the badge watching #screen sees every v
 test('every selector names only classes and attributes its file still contains', () => {
   for (const [tag, e] of entries) {
     if (!e.sel || e.retired) continue;
-    const src = read(new URL(e.file, REPO));
+    // A camera sheet and the selectors that tell it from its neighbours can sit in camera.js or in a
+    // module split out of it (2026-11-21), so camera entries are checked against the whole camera source.
+    const src = e.file.includes('screens/camera') ? cameraSource() : read(new URL(e.file, REPO));
     const classes = [...e.sel.matchAll(/\.([A-Za-z][\w-]*)/g)].map((m) => m[1]);
     for (const c of classes) {
       assert.match(src, new RegExp(`(^|[^\\w-])${c}(?![\\w-])`), `${tag}: selector ${e.sel} needs class "${c}" and ${e.file} does not contain it`);
