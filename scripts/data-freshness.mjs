@@ -129,7 +129,11 @@ async function main() {
   // The headline goes last so it is the line the failed-run email shows. --routes-failed is passed by the
   // workflow when the phone contract probe failed (DOWN); without it a failure here is DEGRADED.
   const headline = alarmHeadline(args.includes('--routes-failed'), watch, fresh);
-  if (headline) console.error(headline);
+  if (headline) {
+    console.error(headline);
+    // GitHub's failed-run email shows annotations, not log lines: make the headline one so the email says it.
+    if (process.env.GITHUB_ACTIONS === 'true') console.log(`::error title=${headline.split(' ')[0]}::${headline}`);
+  }
   process.exitCode = fresh.ok && watch.ok ? 0 : 1;
 }
 
