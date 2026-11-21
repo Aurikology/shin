@@ -12,12 +12,18 @@
  * UTC days, `--to` inclusive; the default range is the last 14 days. --json prints the numbers.
  *
  * WHO COUNTS. Every device except `probe-*` (the phone-contract probe and the fix lanes) and demo
- * scans (is_demo = 1). A "new phone" is a device whose FIRST event or scan falls inside the range;
- * the steps after it are counted for those phones whenever they happened, up to now.
+ * scans (is_demo = 1). A "new phone" is a device that opened the app (event app_open) or made a
+ * non-demo scan, and whose FIRST event or scan falls inside the range; the steps after it are counted
+ * for those phones whenever they happened, up to now. Device ids that only ever sent other usage
+ * events (the events route takes any id, so scripts and junk land there) are not phones: they are
+ * counted on their own line, "other ids", so a flood is visible without swelling the funnel
+ * (fix 2026-11-21: the first live run counted 1,287 "new phones" against about 19 real ones).
  *
  *   new phones        first seen in the range
  *   first answer      of those, phones with at least one answered scan
- *   with shop prices  of those, answered scans that carried at least one shop price (verdict_sellers > 0)
+ *   with shop prices  of those, phones with an answered scan whose price range came from Pexi's own
+ *                     shop prices (range_source shin_prices). Not verdict_sellers: that is written only
+ *                     when the shopper typed a shelf price and got a verdict (fix 2026-11-21)
  *   hit the limit     of those, phones that got the weekly-limit screen (event scan_limit_hit)
  *   paywall views     of those, phones that opened the paywall screen (screen_view, screen paywall)
  *   tapped Subscribe  of those, phones with a paywall_buy tapped (outcome tapped)
@@ -62,10 +68,16 @@ WITH seen AS (
   SELECT device_id, created_at AS t FROM event WHERE ${real}
   UNION ALL
   SELECT device_id, scanned_at AS t FROM scan WHERE ${real} AND is_demo = 0
+), phones AS (
+  SELECT device_id FROM event WHERE ${real} AND type = 'app_open'
+  UNION
+  SELECT device_id FROM scan WHERE ${real} AND is_demo = 0
 ), first AS (
   SELECT device_id, MIN(t) AS first_at FROM seen GROUP BY device_id
-), cohort AS (
+), first_in_range AS (
   SELECT device_id, first_at FROM first WHERE first_at >= '${from}' AND first_at < '${toExclusive}'
+), cohort AS (
+  SELECT device_id, first_at FROM first_in_range WHERE device_id IN (SELECT device_id FROM phones)
 ), ev AS (
   SELECT device_id, type,
          CASE WHEN json_valid(payload) THEN json_extract(payload, '$.screen') END AS screen,
@@ -80,10 +92,11 @@ WITH seen AS (
 )
 SELECT
   (SELECT COUNT(*) FROM cohort) AS new_phones,
+  (SELECT COUNT(*) FROM first_in_range WHERE device_id NOT IN (SELECT device_id FROM phones)) AS other_ids,
   (SELECT COUNT(DISTINCT s.device_id) FROM scan s JOIN cohort c ON c.device_id = s.device_id
      WHERE s.outcome = 'answered' AND s.is_demo = 0) AS first_answer,
   (SELECT COUNT(DISTINCT s.device_id) FROM scan s JOIN cohort c ON c.device_id = s.device_id
-     WHERE s.outcome = 'answered' AND s.is_demo = 0 AND s.verdict_sellers > 0) AS with_shop_prices,
+     WHERE s.outcome = 'answered' AND s.is_demo = 0 AND s.range_source = 'shin_prices') AS with_shop_prices,
   (SELECT COUNT(DISTINCT e.device_id) FROM ev e JOIN cohort c ON c.device_id = e.device_id
      WHERE e.type = 'scan_limit_hit') AS hit_limit,
   (SELECT COUNT(DISTINCT e.device_id) FROM ev e JOIN cohort c ON c.device_id = e.device_id
@@ -123,6 +136,7 @@ export function formatReport(r, range) {
     line('tapped Subscribe', c('tapped_subscribe'), c('new_phones')),
     line('purchases', c('purchases'), c('new_phones')),
     line('day-7 return', c('day7_returned'), c('day7_eligible'), 'of phones first seen 7+ days ago'),
+    `  other ids         ${String(c('other_ids')).padStart(5)}  usage events only, never opened the app or scanned (not phones)`,
     '',
     'Falsifier (docs/decisions.md: under 1 in 10 who reach the limit tap Subscribe):',
     line('hit limit, tapped', c('hit_limit_and_tapped'), c('hit_limit')),

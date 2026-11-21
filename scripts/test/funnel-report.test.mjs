@@ -71,6 +71,13 @@ scan('G', '2026-11-29T00:01:00.000Z', { sellers: 1, source: 'claude_typical' });
 // H: only a demo scan answered; the demo scan counts nowhere.
 ev('H', 'app_open', '2026-11-25T10:00:00.000Z', {});
 scan('H', '2026-11-25T10:02:00.000Z', { sellers: 2, source: 'claude_typical', demo: 1 });
+// I: an answer priced from Pexi's own shop prices with no shelf price typed (verdict_sellers stays null).
+// It has shop prices: the first live run (2026-11-21) read 0 because it keyed on verdict_sellers.
+ev('I', 'app_open', '2026-11-26T10:00:00.000Z', {});
+scan('I', '2026-11-26T10:05:00.000Z', { sellers: null, source: 'shin_prices' });
+// J: an id that only ever sent a usage event, never opened the app or scanned. Not a phone: the events
+// route takes any id, and the first live run counted 1,287 such ids as "new phones".
+ev('J', 'screen_view', '2026-11-26T11:00:00.000Z', { screen: 'camera' });
 // A malformed payload must not break the report.
 db.exec("INSERT INTO event (device_id, type, payload, created_at) VALUES ('C', 'screen_view', 'not json', '2026-11-24T10:11:00.000Z')");
 db.close();
@@ -84,17 +91,18 @@ test('the funnel counts each step once per phone, for phones first seen in the r
   assert.deepEqual(
     { ...numbers },
     {
-      new_phones: 5, // A B C D H
-      first_answer: 2, // A B (D was refused, H's answer was a demo)
-      with_shop_prices: 1, // A
+      new_phones: 6, // A B C D H I (J only sent a usage event)
+      other_ids: 1, // J
+      first_answer: 3, // A B I (D was refused, H's answer was a demo)
+      with_shop_prices: 2, // A and I (B's range was a Claude estimate)
       hit_limit: 2, // A C
       paywall_views: 2, // A (twice) and C, one each
       tapped_subscribe: 1,
       purchases: 1,
       hit_limit_and_tapped: 1,
-      day7_eligible: 5,
+      day7_eligible: 6,
       day7_returned: 2, // A on 11-29, B on 11-30; C came on day 8
-      answered_scans: 3, // A, B, F in the range; D refused, H demo, G after, probe excluded
+      answered_scans: 4, // A, B, F, I in the range; D refused, H demo, G after, probe excluded
       claude_scans: 2, // B and F
       agreed_phones: 3, // A B C
       claude_yes_phones: 2, // A, and B by its LATEST answer
@@ -126,10 +134,10 @@ test('an empty range prints n/a, not a division by zero', async () => {
 test('the printed report names every figure that was asked for', async () => {
   const { range, numbers } = await runReport(fileQuery(dbPath), { from: '2026-11-22', to: '2026-11-28', now: NOW });
   const text = formatReport(numbers, range);
-  for (const label of ['new phones', 'first answer', 'paywall views', 'purchases', 'day-7 return', 'ask rate', 'consent rate', 'hit limit, tapped']) {
+  for (const label of ['new phones', 'first answer', 'paywall views', 'purchases', 'day-7 return', 'other ids', 'ask rate', 'consent rate', 'hit limit, tapped']) {
     assert.ok(text.includes(label), `missing "${label}"`);
   }
-  assert.match(text, /purchases\s+1\s+of\s+5\s+20\.0%/);
+  assert.match(text, /purchases\s+1\s+of\s+6\s+16\.7%/);
   assert.match(text, /consent rate\s+2\s+of\s+3\s+66\.7%/);
 });
 
@@ -180,9 +188,10 @@ test('the command line prints the report, and --json prints the numbers', () => 
   const text = run('--db', dbPath, '--from', '2026-11-22', '--to', '2026-11-28');
   assert.equal(text.status, 0, text.stderr);
   assert.match(text.stdout, /Funnel for phones first seen 2026-11-22 to 2026-11-28/);
-  assert.match(text.stdout, /new phones\s+5/);
+  assert.match(text.stdout, /new phones\s+6/);
+  assert.match(text.stdout, /other ids\s+1/);
   const json = run('--db', dbPath, '--from', '2026-11-22', '--to', '2026-11-28', '--json');
-  assert.equal(JSON.parse(json.stdout).new_phones, 5);
+  assert.equal(JSON.parse(json.stdout).new_phones, 6);
   const noSource = run('--from', '2026-11-22');
   assert.notEqual(noSource.status, 0);
   assert.match(noSource.stderr, /--db/);
