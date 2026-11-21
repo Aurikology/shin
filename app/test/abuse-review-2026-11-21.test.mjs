@@ -255,8 +255,12 @@ test('blind 13: the public health body carries no weak-moment detail; the admin 
   const text = await pub.text();
   const body = JSON.parse(text);
   assert.deepEqual(Object.keys(body).sort(), ['catalogueUp', 'hammerRefreshedAt', 'ok', 'scanLog', 'startedAt', 'uptimeSeconds', 'watch']);
-  assert.deepEqual(Object.keys(body.watch), ['ok']);
-  assert.match(text, /"watch":\{"ok":(true|false)\}/);
+  // gap 96: plus `problems`, an array of short non-security codes only (never words, never fileVault/keys/account)
+  assert.deepEqual(Object.keys(body.watch), ['ok', 'problems']);
+  assert.match(text, /"watch":\{"ok":(true|false),"problems":\[/);
+  assert.ok(Array.isArray(body.watch.problems) && body.watch.problems.every((c) => typeof c === 'string' && /^[a-z_]{3,40}$/.test(c)));
+  assert.doesNotMatch(JSON.stringify(body.watch), /fileVault|account|salt|revenuecat|refused/i);
+  if (body.watch.ok === false) assert.ok(body.watch.problems.length > 0, 'a failing watch names at least one public code in this harness (no backup folder is configured)');
   const admin = await (await h.get('/api/health', { 'cf-connecting-ip': '198.51.100.80', 'x-shin-admin': ADMIN })).json();
   assert.ok(Array.isArray(admin.watch.problems));
   assert.ok('claudeMonthlyCap' in admin && 'diskFreeGb' in admin);

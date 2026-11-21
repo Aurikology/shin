@@ -113,7 +113,7 @@ test('offsite --dry-run says what it would do and calls restic never', () => {
   assert.equal(t.marker('offsite').json, null, 'a dry run writes no marker');
 });
 
-test('offsite: copies the newest nightly backup, checks it, prunes to 14 daily, and marks success', () => {
+test('offsite: copies the newest nightly backup, checks it, prunes to 15 days, and marks success', () => {
   const t = setup();
   assert.equal(t.sh('14-offsite-backup.sh', ['--init']).status, 0);
   const r = t.sh('14-offsite-backup.sh');
@@ -121,7 +121,10 @@ test('offsite: copies the newest nightly backup, checks it, prunes to 14 daily, 
   const calls = t.calls();
   assert.ok(calls.some((c) => c.startsWith('backup . ') && /--tag shin-nightly/.test(c)), calls.join('\n'));
   assert.ok(calls.some((c) => c === 'check'));
-  assert.ok(calls.some((c) => /^forget .*--keep-daily 14 .*--prune/.test(c)));
+  // off-site retention: the privacy policy says about 15 days, so the off-site repository keeps 15 days and nothing longer
+  const forget = calls.find((c) => /^forget /.test(c));
+  assert.ok(forget && /--keep-within 15d\b/.test(forget) && /--prune/.test(forget), forget);
+  assert.doesNotMatch(forget, /--keep-(daily|weekly|monthly|yearly|last|hourly)/, 'no longer-lived keep rule');
   assert.ok(existsSync(join(t.repo, 'snap', 'scans.db')), 'the snapshot holds the database');
   assert.equal(t.marker('offsite').json.ok, true);
   assert.equal(t.marker('offsite').failed, false);

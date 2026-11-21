@@ -34,6 +34,7 @@ import {
   correctScan,
   getScan,
   lastAnsweredScan,
+  activeScanStore,
   openScanStore,
   recentCategories,
   recordScan,
@@ -104,7 +105,8 @@ import { cleanClientError, ClientErrorBudget } from './src/client-errors.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
 import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
 import { recordAccess } from './src/access-log.ts';
-import { ADMIN_HEADER, adminAllows, handleAdmin } from './src/admin.ts';
+import { ADMIN_HEADER, adminAllows, closePeople, handleAdmin } from './src/admin.ts';
+import { createShutdown } from './src/shutdown.ts';
 import { DEVICE_REFUSAL, bindDevice, deviceHeaderOf, ownsDevice, provesDevice } from './src/device-key.ts';
 import { recordShutterRequest, shutterDir, shutterLogOn } from './src/shutter-log.ts';
 import { saveCappedShutterFrame } from './src/shutter-frame.ts';
@@ -117,7 +119,7 @@ import {
 import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPricesAsync, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
-import { claudeOutcomes, clientCrashes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
+import { claudeOutcomes, clientCrashes, collectWatch, publicProblemCodes, readRevenueCat, retentionMarks } from './src/watch.ts';
 import * as scanQuotaForWatch from './src/scan-quota.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
@@ -4558,7 +4560,8 @@ export const server = createServer(async (req, res) => {
           scanLog: base.scanLog,
           catalogueUp: base.catalogueUp,
           hammerRefreshedAt: base.hammerRefreshedAt,
-          watch: { ok: watch.ok },
+          // gap 96: short non-security codes only, so the outside alarm can say what is wrong (watch.ts)
+          watch: { ok: watch.ok, problems: publicProblemCodes(watch) },
         });
       }
       // Abuse review 2026-11-21, finding 6: the refusals R36 counted and the RevenueCat budget, said here.
@@ -4772,8 +4775,11 @@ function listenOnLoopback6(port: number): void {
     logError({ where: 'server.listen.ipv6', err, detail: { port } });
   });
   server.once('close', () => server6.close());
+  drainServers.push(server6);
   server6.listen(port, '::1');
 }
+/** Every listener the drain at shutdown stops (src/shutdown.ts): the main one, plus ::1 once it is open. */
+const drainServers: (typeof server)[] = [server];
 
 server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
   if (BIND_HOST === '') {
@@ -4855,3 +4861,31 @@ server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
   // whether or not a 3.47 GB file is sitting where this expects it.
   void attachCatalogue();
 });
+
+/*
+ * DRAIN, DON'T KILL (src/shutdown.ts). Every deploy is `launchctl kickstart -k`, which sends SIGTERM.
+ * Stop accepting, let the requests in flight finish for up to 8 seconds (launchd's ExitTimeOut is 15,
+ * mac/launchd*, so it waits for this), close the databases, exit 0. Only when this file IS the
+ * program: tests import `server` into their own process and must keep Node's default signal handling.
+ */
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const shutdown = createShutdown({
+    servers: drainServers,
+    graceMs: 8_000,
+    closers: [
+      () => {
+        const db = activeScanStore()?.db;
+        if (db) {
+          db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+          db.close();
+        }
+      },
+      () => currentCorrectionStore().db?.close(),
+      () => closePeople(),
+    ],
+    exit: (code) => process.exit(code),
+    log: (message) => console.log(`Pexi: ${message}`),
+  });
+  process.once('SIGTERM', () => void shutdown('SIGTERM'));
+  process.once('SIGINT', () => void shutdown('SIGINT'));
+}

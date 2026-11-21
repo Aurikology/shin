@@ -208,6 +208,43 @@ export function judgeWatch(i: WatchInputs): WatchReport {
   return { ok: problems.length === 0, problems };
 }
 
+/**
+ * The problem codes the PUBLIC health body may name (gap 96). The blind review (finding 13) hid the
+ * detail because it maps the server's weak moments; that also left the outside alarm with "watch.ok is
+ * false and no problems are listed". So the public body says WHICH non-security check failed, as a short
+ * code and nothing else: no words, no readings. Anything about keys, accounts, billing, the salt or the
+ * rate limits (what a flood attack would want to know) stays on the admin and local body only. A code
+ * that is not on this list is never public, so a new check is private until someone adds it here.
+ */
+export const PUBLIC_PROBLEM_CODES: readonly string[] = [
+  'catalogue_not_loaded',
+  'scan_log_not_writing',
+  'prices_file_unusable',
+  'claude_cap_reached',
+  'claude_cap_near',
+  'retention_failing',
+  'retention_stale',
+  'backup_not_checked',
+  'backup_stale',
+  'disk_low',
+  'hammer_import_refused',
+  'hammer_never_refreshed',
+  'hammer_stale',
+  'source_stale',
+  'deploy_checker_silent',
+  'mac_job_failed',
+  'mac_job_stale',
+  'mac_on_battery',
+  'client_crash_spike',
+];
+
+/** The allowlisted codes of a report, once each, in the order they were found. Pure. */
+export function publicProblemCodes(report: WatchReport): string[] {
+  const out: string[] = [];
+  for (const p of report.problems) if (PUBLIC_PROBLEM_CODES.includes(p.code) && !out.includes(p.code)) out.push(p.code);
+  return out;
+}
+
 /* ----------------------------------------------------------- state the server feeds */
 
 export interface Sample {

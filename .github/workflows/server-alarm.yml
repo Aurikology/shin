@@ -45,6 +45,7 @@ jobs:
         with:
           node-version: '26'
       - name: Probe the live server as the phone app
+        id: probe
         env:
           PROBE_ORIGIN: ${{ github.event.inputs.origin || 'capacitor://localhost' }}
         run: |
@@ -53,7 +54,12 @@ jobs:
           fi
           echo "First probe failed; retrying once in 90 seconds."
           sleep 90
-          node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"
+          if node scripts/phone-contract-probe.mjs --origin "$PROBE_ORIGIN"; then
+            exit 0
+          fi
+          # The email's first words say which kind of failure this is (gap 96): DOWN here, DEGRADED below.
+          echo "::error title=DOWN::DOWN: the phone routes failed (the probe output above says which)"
+          exit 1
       # The strict reading of /api/health (`watch`: catalogue, scan log, Claude cap and account, RevenueCat, salt,
       # retention, backup age, disk, price sources, deploy checker) and the weekly Project Hammer refresh, which
       # is at most 8 days old. Both are said even when the probe failed.
@@ -61,4 +67,12 @@ jobs:
       # 8 days old (scripts/data-freshness.mjs). Runs even when the probe failed, so both are said.
       - name: Strict health reading and prices refreshed weekly
         if: always()
-        run: node scripts/data-freshness.mjs
+        env:
+          PROBE_OUTCOME: ${{ steps.probe.outcome }}
+        run: |
+          # DOWN when the probe failed, DEGRADED (routes fine, watch problems: codes) when only this check failed.
+          if [ "$PROBE_OUTCOME" = "success" ]; then
+            node scripts/data-freshness.mjs
+          else
+            node scripts/data-freshness.mjs --routes-failed
+          fi

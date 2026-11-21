@@ -10,6 +10,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   judgeWatch,
+  publicProblemCodes,
+  PUBLIC_PROBLEM_CODES,
   recentRise,
   ClaudeOutcomes,
   RetentionMarks,
@@ -204,4 +206,30 @@ test('RetentionMarks: a part that failed shows its failure, and a later good run
   const b = m.snapshot().find((p) => p.part === 'request_log')!;
   assert.equal(b.lastFailure, null);
   assert.equal(b.lastOkAt, NOW);
+});
+
+/* gap 96: the public health body carries the problem CODES that are not security, so the outside alarm can say why. */
+test('publicProblemCodes: only the allowlisted non-security codes, deduplicated, never words', () => {
+  const report = {
+    ok: false,
+    problems: [
+      { code: 'disk_low', why: 'x'.repeat(20) },
+      { code: 'backup_stale', why: 'y' },
+      { code: 'disk_low', why: 'again' },
+      { code: 'claude_account_failing', why: 'the key is wrong' },
+      { code: 'network_salt_missing', why: 'salt' },
+      { code: 'requests_refused_spike', why: 'flood' },
+      { code: 'revenuecat_lookups_capped', why: 'budget' },
+      { code: 'something_unknown', why: 'new code' },
+    ],
+  };
+  assert.deepEqual(publicProblemCodes(report), ['disk_low', 'backup_stale']);
+  assert.deepEqual(publicProblemCodes({ ok: true, problems: [] }), []);
+});
+
+test('the public allowlist holds no security-flavoured code', () => {
+  for (const c of PUBLIC_PROBLEM_CODES) assert.doesNotMatch(c, /account|key|salt|vault|requests_refused|revenuecat|token|secret|capped|auth/i, c);
+  for (const c of ['disk_low', 'mac_on_battery', 'backup_stale', 'source_stale', 'deploy_checker_silent', 'claude_cap_reached', 'catalogue_not_loaded', 'scan_log_not_writing', 'mac_job_stale']) {
+    assert.ok(PUBLIC_PROBLEM_CODES.includes(c), `${c} should be public`);
+  }
 });

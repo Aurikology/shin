@@ -54,9 +54,30 @@ export function judgeWatch(health) {
   const { ok, problems } = /** @type {{ ok?: unknown, problems?: unknown }} */ (w);
   if (ok === true) return { ok: true, why: 'watch ok, no problems listed' };
   const list = Array.isArray(problems) ? problems : [];
-  if (list.length === 0) return { ok: false, why: `watch.ok is ${JSON.stringify(ok)} and no problems are listed` };
+  // Public health (gap 96) lists short non-security codes as strings; the admin body lists { code, why }.
+  // A failing watch whose causes are all private (keys, accounts, billing, rate limits) lists nothing.
+  if (list.length === 0) return { ok: false, why: `watch.ok is ${JSON.stringify(ok)}; the cause is not one of the publicly named checks (read the admin health body on the Mac)` };
   const lines = list.map((p) => `${p && typeof p === 'object' ? `${p.code}: ${p.why}` : String(p)}`);
-  return { ok: false, why: `${list.length} problem(s) on the live server:\n  ${lines.join('\n  ')}` };
+  const codes = list.map((p) => (p && typeof p === 'object' ? String(p.code) : String(p)));
+  return { ok: false, why: `${list.length} problem(s) on the live server: ${codes.join(', ')}${list.some((p) => p && typeof p === 'object') ? `\n  ${lines.join('\n  ')}` : ''}` };
+}
+
+/**
+ * The first words of the alarm's failure message, so the email says which kind of failure it is.
+ * DOWN: the phone routes failed. DEGRADED: the routes answered but the strict reading names problems
+ * (the codes follow). Null when nothing failed. Pure.
+ * @param {boolean} routesFailed
+ * @param {{ ok: boolean, why: string }} watch  judgeWatch's verdict
+ * @param {{ ok: boolean, why: string }} [fresh]  judgeFreshness's verdict
+ * @returns {string | null}
+ */
+export function alarmHeadline(routesFailed, watch, fresh) {
+  if (routesFailed) return 'DOWN: the phone routes failed (the probe output above says which)';
+  if (watch.ok && (!fresh || fresh.ok)) return null;
+  const parts = [];
+  if (!watch.ok) parts.push(`watch problems: ${watch.why.replace(/^\d+ problem\(s\) on the live server: /, '').split('\n')[0]}`);
+  if (fresh && !fresh.ok) parts.push(`prices: ${fresh.why}`);
+  return `DEGRADED (routes fine, ${parts.join('; ')})`;
 }
 
 /**
@@ -105,6 +126,10 @@ async function main() {
   else console.error(`STALE  ${fresh.why}`);
   if (watch.ok) console.log(`WATCH  ${watch.why}`);
   else console.error(`WATCH FAILED  ${watch.why}`);
+  // The headline goes last so it is the line the failed-run email shows. --routes-failed is passed by the
+  // workflow when the phone contract probe failed (DOWN); without it a failure here is DEGRADED.
+  const headline = alarmHeadline(args.includes('--routes-failed'), watch, fresh);
+  if (headline) console.error(headline);
   process.exitCode = fresh.ok && watch.ok ? 0 : 1;
 }
 

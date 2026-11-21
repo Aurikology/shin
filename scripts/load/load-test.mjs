@@ -15,6 +15,7 @@
  *   --invite CODE              the x-shin-invite code, when the server has SHIN_INVITE_CODE set
  *   --port 4199                 (--spawn) the port for the throwaway server
  *   --keep                      (--spawn) leave the throwaway data directory behind
+ *   --i-mean-live               allow --url to name the live host (relay.anjiawenda.com); refused otherwise
  *
  * WHAT IT SENDS. Only routes that cost nothing and cannot spend money: typed-name search, the app
  * status check, health, a ten-event usage batch from a made-up device, and (gap 54) a barcode scan,
@@ -56,6 +57,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { randomUUID } from 'node:crypto';
+import { buildSpawnEnv, liveHostRefusal } from './spawn-env.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP_DIR = join(HERE, '..', '..', 'app');
@@ -83,6 +85,10 @@ const baseUrl = String(spawnIt ? `http://127.0.0.1:${port}` : option('url', 'htt
 
 if (!spawnIt && process.argv.indexOf('--url') < 0) {
   fail(2, 'say what to test: --spawn (a throwaway local server) or --url http://127.0.0.1:4173');
+}
+{
+  const refusal = liveHostRefusal(baseUrl, process.argv);
+  if (refusal) fail(2, refusal);
 }
 if (!Number.isFinite(seconds) || seconds < 1) fail(2, '--seconds must be a number of at least 1');
 if (steps.length === 0 || steps.some((n) => !Number.isInteger(n) || n < 1)) fail(2, '--steps must be whole numbers, e.g. 1,4,16');
@@ -250,16 +256,14 @@ if (spawnIt) {
   const catalogueOption = option('catalogue', '');
   child = spawn(process.execPath, ['server.ts'], {
     cwd: APP_DIR,
-    env: {
-      ...process.env,
-      ...writes,
-      ...(typeof catalogueOption === 'string' && catalogueOption ? { SHIN_CATALOGUE: catalogueOption } : {}),
-      PORT: String(port),
-      SHIN_DATA_DIR: dataDir,
-      SHIN_RATE_DOOR_IP_PER_10MIN: '100000000',
-      SHIN_RATE_DOOR_IP_PER_DAY: '100000000',
-      SHIN_INVITE_CODE: invite,
-    },
+    // every inherited SHIN_* variable is dropped (gap 99); see spawn-env.mjs
+    env: buildSpawnEnv(process.env, {
+      writes,
+      catalogue: typeof catalogueOption === 'string' && catalogueOption ? catalogueOption : '',
+      port,
+      dataDir,
+      invite,
+    }),
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   child.stderr.on('data', (d) => { for (const l of String(d).split('\n')) if (l.trim()) { stderrTail.push(l); if (stderrTail.length > 8) stderrTail.shift(); } });

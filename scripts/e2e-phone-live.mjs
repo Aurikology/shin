@@ -186,6 +186,14 @@ async function runCombo(combo, feeds, storage = null) {
     ...(combo.location ? { geolocation: { latitude: 43.6532, longitude: -79.3832 } } : {}),
     ...(storage ? { storageState: storage } : {}),
   });
+  // Name this phone a probe BEFORE any page script runs, so every scan, event and typed search it writes is
+  // `probe-e2e-*` and the funnel report leaves it out (round 3: 12 random-id devices typed "zzqxwv" and counted
+  // as shoppers). An id already stored by an earlier step (storageState) is replaced only if it is not a probe's.
+  await ctx.addInitScript(([key, fresh]) => {
+    try {
+      if (!(localStorage.getItem(key) || '').startsWith('probe-')) localStorage.setItem(key, fresh);
+    } catch { /* storage blocked: the app falls back to its own session id */ }
+  }, ['shin.deviceId', `probe-e2e-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`]);
   if (combo.control) {
     // The negative control: one header the server does not allow, on every API call, as the Claude header was.
     await ctx.addInitScript((api) => {

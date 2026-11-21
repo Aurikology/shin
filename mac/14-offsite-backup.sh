@@ -18,7 +18,8 @@
 #   RESTIC_BIN                 optional, path to restic (default: restic on PATH)
 #   SHIN_OFFSITE_MAX_AGE_H     optional, the newest nightly backup must be younger than this (default 36)
 #
-# Retention in the repository: 14 daily, 8 weekly, 6 monthly snapshots (restic forget --prune). The
+# Retention in the repository: every snapshot from the last 15 days (restic forget --keep-within 15d --prune), the
+# same "about 15 days" the privacy policy tells shoppers. The
 # nightly folder on this Mac keeps its own 14 nights (07-backup.sh).
 #
 # Loud failure: health marker `offsite` (mac/lib/health.sh). The EXIT trap makes every early exit
@@ -103,7 +104,7 @@ fi
 if [ "$DRY" = 1 ]; then
   echo "14-offsite-backup.sh (dry run): would copy $NEWEST"
   echo "  into restic repository $RESTIC_REPOSITORY (password file $RESTIC_PASSWORD_FILE)"
-  echo "  then: restic check, restic forget --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune"
+  echo "  then: restic check, restic forget --keep-within 15d --prune"
   echo "  and record health marker offsite"
   exit 0
 fi
@@ -118,7 +119,7 @@ echo "14-offsite-backup.sh: checking the repository"
 "$RESTIC" check || die "restic check failed: the off-site repository is damaged; do not prune, investigate"
 
 echo "14-offsite-backup.sh: pruning old snapshots"
-"$RESTIC" forget --tag shin-nightly --keep-daily 14 --keep-weekly 8 --keep-monthly 6 --prune --quiet || die "restic forget/prune failed (the new copy IS stored; only the clean-up failed)"
+"$RESTIC" forget --tag shin-nightly --keep-within 15d --prune --quiet || die "restic forget/prune failed (the new copy IS stored; only the clean-up failed)"
 
 DONE=1
 health_ok offsite "copied $(basename "$NEWEST") to $RESTIC_REPOSITORY"

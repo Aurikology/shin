@@ -65,6 +65,17 @@ export function adminAllows(sent: unknown, env: NodeJS.ProcessEnv = process.env)
 let people: DatabaseSync | null = null;
 let peopleAt: string | null = null;
 
+/** Closes the people database, for the drain at shutdown (src/shutdown.ts). Never throws. */
+export function closePeople(): void {
+  try {
+    people?.close();
+  } catch {
+    // Already closed or never opened: nothing to do on the way out.
+  }
+  people = null;
+  peopleAt = null;
+}
+
 /** Remembers whose link a device came through. Never throws. */
 export function notePerson(deviceId: string | null, who: string | null, env: NodeJS.ProcessEnv = process.env): void {
   if (!deviceId || !who) return;

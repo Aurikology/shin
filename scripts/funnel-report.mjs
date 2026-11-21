@@ -11,7 +11,8 @@
  * and needs SHIN_ADMIN_TOKEN in your shell, never in the repo; --origin changes the host. Dates are
  * UTC days, `--to` inclusive; the default range is the last 14 days. --json prints the numbers.
  *
- * WHO COUNTS. Every device except `probe-*` (the phone-contract probe and the fix lanes) and demo
+ * WHO COUNTS. Every device except `probe-*` (the phone-contract probe and the fix lanes), a device that ever typed a
+ * synthetic test name (SYNTHETIC_QUERIES below) and demo
  * scans (is_demo = 1). A "new phone" is a device that opened the app (event app_open) or made a
  * non-demo scan, and whose FIRST event or scan falls inside the range; the steps after it are counted
  * for those phones whenever they happened, up to now. Device ids that only ever sent other usage
@@ -60,9 +61,17 @@ export function resolveRange({ from, to, now = new Date() }) {
   return { from: start, to: end, toExclusive: addDays(end, 1), today };
 }
 
-/** One row of counts. Probes and demo scans are out of every number. */
+/**
+ * Typed searches that only our own test runs send (scripts/e2e-phone-live.mjs types "zzqxwv", a nonsense
+ * name that must answer "no match"). A device that ever sent one is a test phone and is out of every
+ * number, as a `probe-*` device is. The e2e run now names its devices `probe-e2e-*`; this catches the
+ * rows written before it did (round 3: 22 of 59 typed scans, 12 devices). Lower case, no quotes.
+ */
+export const SYNTHETIC_QUERIES = ['zzqxwv'];
+
+/** One row of counts. Probes, our own test runs and demo scans are out of every number. */
 export function funnelSql({ from, toExclusive, today }) {
-  const real = "device_id NOT LIKE 'probe-%'";
+  const real = `device_id NOT LIKE 'probe-%' AND device_id NOT IN (SELECT device_id FROM scan WHERE kind = 'text' AND lower(trim(query_text)) IN (${SYNTHETIC_QUERIES.map((q) => `'${q}'`).join(', ')}))`;
   return `
 WITH seen AS (
   SELECT device_id, created_at AS t FROM event WHERE ${real}

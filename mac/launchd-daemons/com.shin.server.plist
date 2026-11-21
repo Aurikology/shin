@@ -47,6 +47,9 @@
     <key>KeepAlive</key>
     <true/>
 
+    <key>ExitTimeOut</key>
+    <integer>15</integer>
+
     <key>ThrottleInterval</key>
     <integer>10</integer>
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { judgeFreshness, judgeWatch, fetchHealth, HAMMER_STALE_DAYS } from '../data-freshness.mjs';
+import { judgeFreshness, judgeWatch, alarmHeadline, fetchHealth, HAMMER_STALE_DAYS } from '../data-freshness.mjs';
 
 // The GitHub outage alarm fails on a stale Project Hammer refresh (scripts/data-freshness.mjs).
 // Each failing state must fail: a refresh that never ran, an old build, a garbled mark, an old mark.
@@ -70,4 +70,32 @@ test('fetchHealth reports unreachable only after every try failed', async () => 
   assert.equal(calls, 3);
   assert.equal(r.body, null);
   assert.match(r.error, /530/);
+});
+
+// gap 96: the public health body lists problem CODES (strings). The alarm names them, and its headline says
+// DOWN (routes failed) or DEGRADED (routes fine, watch problems: codes).
+test('public watch codes (strings) are named in the verdict', () => {
+  const v = judgeWatch({ ok: true, watch: { ok: false, problems: ['disk_low', 'backup_stale'] } });
+  assert.equal(v.ok, false);
+  assert.match(v.why, /disk_low, backup_stale/);
+  assert.doesNotMatch(v.why, /no problems are listed/);
+});
+
+test('the workflow says DOWN when the probe fails and passes --routes-failed to the freshness check', async () => {
+  const { readFileSync } = await import('node:fs');
+  const yml = readFileSync(new URL('../../.github/workflows/server-alarm.yml', import.meta.url), 'utf8');
+  assert.match(yml, /id: probe/);
+  assert.match(yml, /DOWN: the phone routes failed/);
+  assert.match(yml, /data-freshness\.mjs --routes-failed/);
+  assert.match(yml, /steps\.probe\.outcome/);
+});
+
+test('alarmHeadline: DOWN when the routes failed, DEGRADED with the codes when only watch failed, null when fine', () => {
+  const bad = judgeWatch({ ok: true, watch: { ok: false, problems: ['mac_on_battery', 'disk_low'] } });
+  const good = { ok: true, why: 'x' };
+  assert.match(alarmHeadline(true, bad, good), /^DOWN/);
+  const d = alarmHeadline(false, bad, good);
+  assert.match(d, /^DEGRADED \(routes fine, watch problems: mac_on_battery, disk_low\)/);
+  assert.equal(alarmHeadline(false, judgeWatch({ ok: true, watch: { ok: true, problems: [] } }), good), null);
+  assert.match(alarmHeadline(false, { ok: true, why: 'ok' }, { ok: false, why: 'old refresh' }), /^DEGRADED .*prices: old refresh/);
 });

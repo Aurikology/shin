@@ -78,6 +78,12 @@ scan('I', '2026-11-26T10:05:00.000Z', { sellers: null, source: 'shin_prices' });
 // J: an id that only ever sent a usage event, never opened the app or scanned. Not a phone: the events
 // route takes any id, and the first live run counted 1,287 such ids as "new phones".
 ev('J', 'screen_view', '2026-11-26T11:00:00.000Z', { screen: 'camera' });
+// K: the e2e phone run (scripts/e2e-phone-live.mjs) typed "zzqxwv", a nonsense name that must answer "no match".
+// Before the run set its device id to probe-e2e-*, those phones had random ids, opened the app and scanned
+// (22 of 59 typed scans, 12 devices, round 3). It is traffic of ours: it must appear nowhere.
+ev('K', 'app_open', '2026-11-24T12:00:00.000Z', {});
+db.prepare("INSERT INTO scan (device_id, kind, query_text, outcome, scanned_at, range_source, is_demo) VALUES ('K', 'text', ' ZZQXWV ', 'answered', '2026-11-24T12:01:00.000Z', 'claude_typical', 0)").run();
+ev('K', 'agreement', '2026-11-24T12:00:30.000Z', { claude: true });
 // A malformed payload must not break the report.
 db.exec("INSERT INTO event (device_id, type, payload, created_at) VALUES ('C', 'screen_view', 'not json', '2026-11-24T10:11:00.000Z')");
 db.close();
@@ -121,6 +127,21 @@ test('probe devices appear in no count, even when they do everything', async () 
   assert.equal(numbers.new_phones, 1); // A only; the probe also started on the 22nd
   assert.equal(numbers.purchases, 1);
   assert.equal(numbers.agreed_phones, 1);
+});
+
+test('devices that typed the e2e run\'s synthetic name are out of every number (zzqxwv)', async () => {
+  const { numbers } = await runReport(fileQuery(dbPath), { from: '2026-11-24', to: '2026-11-24', now: NOW });
+  assert.equal(numbers.new_phones, 1, 'C started on the 24th; K typed zzqxwv and is ours');
+  assert.equal(numbers.agreed_phones, 1);
+  assert.equal(numbers.claude_scans, 0, 'the 24th has no real Claude-estimate scan once K is out');
+  assert.match(funnelSql({ from: '2026-11-24', toExclusive: '2026-11-25', today: '2026-12-10' }), /zzqxwv/);
+});
+
+test('the e2e phone run names its device probe-e2e-* so the source is marked too', () => {
+  const src = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'e2e-phone-live.mjs'), 'utf8');
+  assert.match(src, /shin\.deviceId/);
+  assert.match(src, /probe-e2e-/);
+  assert.match(src, /addInitScript\(\(\[key, fresh\]\)/);
 });
 
 test('an empty range prints n/a, not a division by zero', async () => {
