@@ -469,14 +469,24 @@ blind reviewer: about 5 of 21, 24%), none a blocker.
 
 Detail and evidence: `docs/readiness/review-2026-11-21/round3/REPORT.md` and `round3/*.jsonl`.
 
+**Fix pass 2026-11-21 23:50 UTC (Jamin: "fix what you can"):** fixed 96 (alarm says DOWN or DEGRADED with public
+non-security problem codes), 99 (load test drops every inherited SHIN_* path and refuses the live host; junk deleted
+on the Mac: 45,860 events, 1,833 device keys, real scans 642 intact; a second burst at 23:24 came from the fix
+lane's own red-first test, now a static check), deploy drains for 8 s instead of killing, e2e probe ids marked and
+excluded, off-site retention 15 days, allergen line in Terms (EN, FR, published). 97: "typed 0% shop price" was a
+logging artifact (regression test added). Jamin only: 95 (2FA), 98 (storage pick and backup password; iCloud not
+signed in), the disk and integrity daemons (`sudo sh mac/10-boot-survival.sh`), plugging in the Mac, and 94's
+lockdown (server and tunnel are login-session agents, so auto-login off or FileVault on stops unattended restarts).
+
 94. **[Jamin]** Laptop open to what runs on it: server and five Claude sessions (two with checks off) share one
     user that reads every key in config.env; auto-login on, FileVault off, firewall off, SSH and Screen Sharing on.
 95. **[Jamin]** GitHub 2FA off (checked) and GitLab reported off; a push deploys; Aurik pushes too. Which remote the
     Mac checker follows is unresolved (Mac clone from GitLab, a GitHub push deployed 26cfc00).
 96. **[Jamin]** Outside alarm red on 7 of 7 runs since 2026-11-20 on watch.ok with no problems listed; runs every
     6 to 9 hours, not 30 minutes. A real outage looks the same.
-97. **[Jamin]** 0 of 17 real phones came back on a second day (30 days); typed search 0% shop price; no answer-rate
-    target; Plus sells only a count (3.1.2); subtitle against 2.3.7.
+97. **[Jamin]** 0 of 17 real phones came back on a second day (30 days); no answer-rate target; Plus sells only a
+    count (3.1.2); subtitle against 2.3.7. ("Typed search 0% shop price" was a logging artifact: typed picks are
+    logged as barcode scans; text rows are only the misses. Reports cannot split typed from scanned yet.)
 98. **[Jamin]** Off-site backup built, repository setting empty: no copy outside the house.
 99. **[Jamin]** `load-test.mjs --spawn` overrides only SHIN_DATA_DIR; with config.env loaded it wrote 42,230 events
     and 1,749 device keys into live (incident closed, no loss; targeted deletes await his go).

@@ -33,9 +33,14 @@ prefers SHIN_SCANS (app/server.ts:4712), so the "throwaway" server wrote to live
    UTC; 28 of 28 routes work; it fails on "watch.ok is false and no problems are listed", since public health no
    longer lists them). GitHub also runs it every 6 to 9 hours, not every 30 minutes. A real outage looks the same.
    Fix: alarm only on the routes; send watch problems separately; a real uptime monitor.
-4. **Nobody comes back, and typed search never prices** (money, Mac checked on the last clean backup, real phones,
-   30 days): 17 phones, 100 scans. 0 of 17 used Pexi on a second day. Barcode: 61% shop price (41 scans). Typed:
-   0% shop price, 68% nothing (59 scans, of which 22 are "zzqxwv" from 12 devices, likely an unfiltered probe).
+4. **Nobody comes back** (money, Mac checked on the last clean backup, real phones, 30 days): 17 phones, 100 scans.
+   0 of 17 used Pexi on a second day. Barcode rows: 61% shop price (41 scans). CORRECTED after the fix lane: the
+   "typed 0% shop price" reading was a logging artifact, not a failure. A typed search that the shopper picks from
+   is logged as a barcode scan (camera.js:6405 typed pick, then resolveBarcode); a text row is written only when
+   nothing matched or the shopper chose "none of these" (camera.js:6440). So the 59 text rows are the misses (22 are
+   the "zzqxwv" probe in scripts/e2e-phone-live.mjs:68), and typed success is hidden inside the barcode figure.
+   Regression test app/test/typed-range-source.test.ts. A typed pick's feedback may attach to a stale scan id
+   (camera.js:2876, not fixed, Aurik's file).
    Median answer 283 ms, p95 4.0 s. Top miss: barcode 0064100111998, 10 times. Value job: no answer-rate target
    exists anywhere; a free shopper gets about 2 to 3 priced verdicts in 10 free scans; Plus sells only a bigger
    count, which rests Apple 3.1.2 "ongoing value" on the answer rate; subtitle "Know if it's a deal" meets 2.3.7.
