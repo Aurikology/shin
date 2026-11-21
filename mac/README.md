@@ -166,11 +166,11 @@ Dry runs and audits change nothing.
 2. **Boot survival (R04).**
    ```
    sh mac/10-boot-survival.sh --dry-run          # reads the plan
-   sudo sh mac/10-boot-survival.sh               # installs 9 daemons, moves old agents aside
+   sudo sh mac/10-boot-survival.sh               # installs 10 daemons, moves old agents aside
    sudo sh mac/10-boot-survival.sh --verify      # the FileVault line may fail until step 3
    ```
    It renders `mac/launchd-daemons/*.plist` into `/Library/LaunchDaemons` (server, checker, integrity, backup, offsite,
-   logrotate, hammer, restoretest, expiry), all run as `worker`, never root; stops the old login agents and keeps them in
+   logrotate, hammer, restoretest, expiry, deadman), all run as `worker`, never root; stops the old login agents and keeps them in
    `~/Library/LaunchAgents.shin-disabled`; converts the existing tunnel agent into a daemon in place; writes
    `/etc/sudoers.d/shin-deploy` (worker may restart `com.shin.server` and nothing else); sets `SHIN_LAUNCHD_DOMAIN=system`;
    sets macOS to download updates but not install and restart on their own; `pmset autorestart 1` as best effort.
@@ -232,7 +232,7 @@ Folder: `/Users/worker/shin-data/health/` (`SHIN_HEALTH_DIR`, default `$SHIN_DAT
 Jobs and staleness: `backup` (04:00, 36 h), `offsite` (04:45, 36 h), `integrity` (03:30, 36 h), `disk` (with integrity),
 `restore-test` (Sunday 06:30, **10 days**), `certs` (1st of the month, **40 days**), `logrotate` (daily, 36 h), `checker` (every
 30 s, the heartbeat: it carries `lastCheckAt`, `transientFailures` and the live commit; older than 5 minutes means the checker or
-the Mac is down). One mail per failure streak through the mailbox (`SHIN_HEALTH_MAIL=off` silences it).
+the Mac is down). The `deadman` job (every 60 s, `scripts/deadman-probe.mjs`) writes no marker: the outside service (Healthchecks) emails when its pings stop, and a problem listed in `watch` makes it ping the `/fail` address instead. One mail per failure streak through the mailbox (`SHIN_HEALTH_MAIL=off` silences it).
 UNVERIFIED on the Mac: that `~/bin/worker-heartbeat.sh` reads the `shin-*-failed` flags (that script is not in this repo).
 
 ## Moving the server off the admin account (D4): a plan, not a script
@@ -259,7 +259,7 @@ To keep the old job instead: `SHIN_KEEP_LEGACY_BACKUP=1 sudo sh mac/10-boot-surv
 
 `sh mac/07-restore.sh <backup> <clean-target>` verifies the copy against its manifest, then re-runs every deletion in the data-request
 log (`SHIN_REQUEST_LOG`, default `~/shin-privacy/request-log.csv`) against the restored data, so a person who asked to be deleted after
-the backup was taken does not come back. A missing log is a loud failure ("NO REQUEST LOG"). `SHIN_RESTORE_SKIP_REDELETE=1` skips it and
+the backup was taken does not come back. A missing log means no deletion request was ever logged, so it passes and prints "no request log" (an unreadable log, or a deletion that fails, still fails the restore). `SHIN_RESTORE_SKIP_REDELETE=1` skips it and
 prints "NOT re-running deletions": only for a test restore that never goes live (the weekly restore test does exactly that).
 
 ## Caveats, named

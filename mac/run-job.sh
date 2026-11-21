@@ -3,6 +3,7 @@
 #
 #   mac/run-job.sh integrity [--dry-run]   03:30 nightly: PRAGMA integrity_check on every database + disk space
 #   mac/run-job.sh expiry    [--dry-run]   monthly: days left on certificate, profiles, App Store Connect key, Tailscale key
+#   mac/run-job.sh deadman                 every 60 s (R02/R03): scripts/deadman-probe.mjs pings the outside dead-man service
 #
 # launchd gives a job almost no environment, and the databases' paths live in mac/config.env. This
 # sources it and runs the node script. If it cannot even do that, it records the job as FAILED itself,
@@ -26,22 +27,25 @@ fi
 case "$JOB" in
   integrity) SCRIPT=nightly-checks.mjs; MARK=integrity ;;
   expiry) SCRIPT=expiry-check.mjs; MARK=certs ;;
+  # The dead-man job writes no health marker: a stopped ping IS its alarm (the outside service emails when the pings stop),
+  # and a marker written every minute would never clear. A broken config shows in deadman.err.log and by the silence.
+  deadman) SCRIPT=../scripts/deadman-probe.mjs; MARK='' ;;
   *)
-    echo "usage: run-job.sh integrity|expiry [--dry-run]" >&2
+    echo "usage: run-job.sh integrity|expiry [--dry-run] | deadman" >&2
     exit 2
     ;;
 esac
 
 if [ ! -f "$CONFIG_FILE" ]; then
   echo "run-job.sh: $CONFIG_FILE does not exist" >&2
-  case " $* " in *" --dry-run "*) ;; *) health_fail "$MARK" "run-job.sh $JOB: no config.env at $CONFIG_FILE" ;; esac
+  case " $* " in *" --dry-run "*) ;; *) [ -z "$MARK" ] || health_fail "$MARK" "run-job.sh $JOB: no config.env at $CONFIG_FILE" ;; esac
   exit 1
 fi
 
 NODE="${NODE_BIN:-node}"
 if ! command -v "$NODE" >/dev/null 2>&1; then
   echo "run-job.sh: node not found ($NODE); set NODE_BIN in config.env" >&2
-  case " $* " in *" --dry-run "*) ;; *) health_fail "$MARK" "run-job.sh $JOB: node not found ($NODE)" ;; esac
+  case " $* " in *" --dry-run "*) ;; *) [ -z "$MARK" ] || health_fail "$MARK" "run-job.sh $JOB: node not found ($NODE)" ;; esac
   exit 1
 fi
 

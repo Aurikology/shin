@@ -29,7 +29,7 @@ function tags(xml) {
 }
 
 test('there is one daemon per job the install procedure lists', () => {
-  const want = ['backup', 'checker', 'expiry', 'hammer', 'integrity', 'logrotate', 'offsite', 'restoretest', 'server'].map((n) => `com.shin.${n}.plist`);
+  const want = ['backup', 'checker', 'deadman', 'expiry', 'hammer', 'integrity', 'logrotate', 'offsite', 'restoretest', 'server'].map((n) => `com.shin.${n}.plist`);
   assert.deepEqual(files.sort(), want.sort());
 });
 
@@ -58,7 +58,7 @@ test('the server daemon is kept alive and starts at boot; scheduled jobs do not 
   const server = readFileSync(join(DIR, 'com.shin.server.plist'), 'utf8');
   assert.match(server, /<key>KeepAlive<\/key>\s*<true\/>/);
   assert.match(server, /<key>RunAtLoad<\/key>\s*<true\/>/);
-  for (const f of files.filter((x) => !/server|checker/.test(x))) {
+  for (const f of files.filter((x) => !/server|checker|deadman/.test(x))) {
     assert.match(readFileSync(join(DIR, f), 'utf8'), /<key>RunAtLoad<\/key>\s*<false\/>/, f);
   }
 });
@@ -70,6 +70,12 @@ test('nightly order: integrity 03:30, backup 04:00, offsite 04:45, logrotate 05:
   };
   assert.ok(at('integrity') < at('backup') && at('backup') < at('offsite') && at('offsite') < at('logrotate'));
   assert.ok(at('offsite') - at('backup') >= 30, 'room for the backup to finish');
+});
+
+test('the dead-man ping runs every 60 seconds and at load, so the first ping does not wait a minute (R02/R03)', () => {
+  const x = readFileSync(join(DIR, 'com.shin.deadman.plist'), 'utf8');
+  assert.match(x, /<key>StartInterval<\/key>\s*<integer>60<\/integer>/);
+  assert.match(x, /<key>RunAtLoad<\/key>\s*<true\/>/);
 });
 
 test('every daemon starts with Umask 077 (decimal 63) so files it creates are owner-only (D3)', () => {

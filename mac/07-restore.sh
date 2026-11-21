@@ -124,7 +124,13 @@ fi
 echo "07-restore.sh: restoring $SRC_DIR -> $TARGET"
 cp -R "$SRC_DIR/." "$TARGET/"
 
-VERIFY_JS=$(cat <<'JS'
+# Read with a while loop, not $(cat <<'JS' ... ): macOS /bin/sh is bash 3.2, which misparses the quotes
+# when the here-document sits inside $( ), so this script did not parse there (same fix as 07-backup.sh).
+VERIFY_JS=''
+while IFS= read -r _js_line; do
+  VERIFY_JS="$VERIFY_JS$_js_line
+"
+done <<'JS'
 const { DatabaseSync } = require("node:sqlite");
 const path = process.argv[1];
 try {
@@ -144,7 +150,6 @@ try {
   process.exit(1);
 }
 JS
-)
 
 FAILED=0
 CHECKED=0

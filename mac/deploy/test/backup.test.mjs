@@ -170,6 +170,71 @@ test('backup: red path -- a configured but missing database exits non-zero and n
   }
 });
 
+test('backup: the retired repeat cache is skipped when its file does not exist (Mac, 2026-11-21), and nothing else is lost', () => {
+  const { root, configPath, dataDir, backupDir } = setupFakeDeployment();
+  try {
+    const cfg = join(root, 'config-repeat.env');
+    writeConfig(cfg, {
+      SHIN_BACKUP_DIR: backupDir,
+      SHIN_DATA_DIR: dataDir,
+      SHIN_SCANS: join(dataDir, 'scans.db'),
+      SHIN_GAPS: join(dataDir, 'gaps.db'),
+      SHIN_REPEAT_CACHE: join(dataDir, 'repeat-cache.db'), // retired, never created
+    });
+    const res = run(BACKUP_SH, [cfg]);
+    assert.equal(res.status, 0, `a missing retired repeat cache must not fail the night:\n${res.stdout}\n${res.stderr}`);
+    assert.doesNotMatch(res.stderr, /FAILED/);
+    assert.match(res.stdout, /backed up scans/);
+    const dest = join(backupDir, require_ls(backupDir)[0]);
+    const manifest = readFileSync(join(dest, 'manifest.tsv'), 'utf8');
+    assert.match(manifest, /^skipped\trepeat_cache\t.*retired/m);
+    assert.doesNotMatch(manifest, /^failed/m);
+    assert.equal(existsSync(join(dest, 'repeat-cache.db')), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: a repeat cache that does exist is still backed up', () => {
+  const { root, dataDir, backupDir } = setupFakeDeployment();
+  try {
+    makeSqlite(join(dataDir, 'repeat-cache.db'), 'answer', 2);
+    const cfg = join(root, 'config-repeat2.env');
+    writeConfig(cfg, { SHIN_BACKUP_DIR: backupDir, SHIN_DATA_DIR: dataDir, SHIN_REPEAT_CACHE: join(dataDir, 'repeat-cache.db') });
+    const res = run(BACKUP_SH, [cfg]);
+    assert.equal(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(res.stdout, /backed up repeat_cache .*tables: answer:2/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('backup: a missing database other than the repeat cache still fails the night (people)', () => {
+  const { root, dataDir, backupDir } = setupFakeDeployment();
+  try {
+    const cfg = join(root, 'config-people.env');
+    writeConfig(cfg, { SHIN_BACKUP_DIR: backupDir, SHIN_DATA_DIR: dataDir, SHIN_PEOPLE_DB: join(dataDir, 'people.db') });
+    const res = run(BACKUP_SH, [cfg]);
+    assert.notEqual(res.status, 0);
+    assert.match(res.stderr, /FAILED people .*does not exist/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mac scripts: no here-document inside $( ), which macOS /bin/sh (bash 3.2) cannot parse', () => {
+  const macDir = MAC_DIR;
+  const offenders = [];
+  for (const f of readdirSync(macDir).filter((n) => n.endsWith('.sh'))) {
+    const lines = readFileSync(join(macDir, f), 'utf8').split('\n');
+    lines.forEach((l, i) => {
+      if (/^\s*#/.test(l)) return;
+      if (/\$\(\s*cat\s*<<|\$\([^)]*<<-?\s*['"]?[A-Za-z_]+['"]?\s*$/.test(l)) offenders.push(`${f}:${i + 1}: ${l.trim()}`);
+    });
+  }
+  assert.deepEqual(offenders, []);
+});
+
 test('backup: refuses a relative SHIN_BACKUP_DIR instead of writing under the launch directory', () => {
   const { root, dataDir, scansPath, gapsPath } = setupFakeDeployment();
   try {
@@ -426,13 +491,14 @@ test('restore: re-runs a recent deletion against the restored copy, so a deleted
   }
 });
 
-test('restore: a missing request log fails the restore loudly (it cannot be called proven)', () => {
+test('restore: a missing request log means nobody has asked for a deletion yet, so the restore still completes (and says so)', () => {
   const { root, backupDir, configPath } = setupFakeDeployment();
   try {
     assert.equal(run(BACKUP_SH, [configPath]).status, 0);
     const res = runWithEnv(RESTORE_SH, [require_ls(backupDir)[0], join(root, 'restored'), configPath], { SHIN_REQUEST_LOG: posix(join(root, 'nope.csv')) });
-    assert.notEqual(res.status, 0);
-    assert.match(res.stderr, /NO REQUEST LOG/);
+    assert.equal(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(res.stdout, /no request log/i);
+    assert.match(res.stdout, /OK -- \d+ item\(s\) verified/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

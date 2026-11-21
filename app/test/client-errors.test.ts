@@ -106,3 +106,12 @@ test('the route sits behind the invite, takes only POST, and refuses a body that
   assert.equal((await post('not json', 'a-secret-invite', true)).status, 400);
   assert.equal((await post({ nothing: true })).status, 400);
 });
+
+test('gap 84: enough reports in an hour reach /api/health as a client_crash_spike problem', async () => {
+  const { CLIENT_CRASH_SPIKE_PER_HOUR } = await import('../src/watch.ts');
+  const health = async () => (await (await fetch(`http://127.0.0.1:${port}/api/health`, { headers: { 'x-shin-invite': 'a-secret-invite' } })).json()) as { watch: { problems: { code: string }[] }; clientCrashesLastHour: number };
+  for (let i = 0; i < CLIENT_CRASH_SPIKE_PER_HOUR + 5; i++) assert.equal((await post(good)).status, 200);
+  const h = await health();
+  assert.ok(h.clientCrashesLastHour >= CLIENT_CRASH_SPIKE_PER_HOUR, `count shown: ${h.clientCrashesLastHour}`);
+  assert.ok(h.watch.problems.some((p) => p.code === 'client_crash_spike'), JSON.stringify(h.watch.problems.map((p) => p.code)));
+});

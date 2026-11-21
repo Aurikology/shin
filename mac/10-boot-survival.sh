@@ -105,7 +105,7 @@ if [ -z "$NODE" ]; then
 fi
 AGENT_DIR="$HOME_DIR/Library/LaunchAgents"
 DISABLED_DIR="$HOME_DIR/Library/LaunchAgents.shin-disabled"
-LABELS="server checker integrity backup offsite logrotate hammer restoretest expiry"
+LABELS="server checker integrity backup offsite logrotate hammer restoretest expiry deadman"
 
 say "== Mac: $(sysctl -n hw.model 2>/dev/null || echo unknown model), $(uname -m), macOS $(sw_vers -productVersion 2>/dev/null || echo ?)"
 say "== service user: $SVC_USER (uid $SVC_UID), repo: $REPO, node: ${NODE:-NOT FOUND}, port: $PORT"

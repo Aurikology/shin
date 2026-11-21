@@ -186,6 +186,14 @@ backup_sqlite() {
     return 0
   fi
   if [ ! -f "$_src" ]; then
+    # The repeat cache held stored Gemini answers; Gemini left 2026-11-07, so the file may never exist
+    # (the Mac's backup failed on it 2026-11-21; mac/nightly-checks.mjs OPTIONAL_IF_ABSENT, commit 1de1191).
+    # Skipped and written in the manifest. Every other missing database still fails the night.
+    if [ "$_envvar" = SHIN_REPEAT_CACHE ]; then
+      echo "07-backup.sh: $_envvar=$_src does not exist; skipping retired $_name" >&2
+      printf 'skipped\t%s\t%s\t-\tretired, file does not exist\n' "$_name" "$_src" >> "$MANIFEST"
+      return 0
+    fi
     echo "07-backup.sh: FAILED $_name -- $_envvar=$_src does not exist" >&2
     printf 'failed\t%s\t%s\t-\tsource missing\n' "$_name" "$_src" >> "$MANIFEST"
     FAILED=1

@@ -49,6 +49,23 @@ echo "Expected: HTML back (the app's own index page), not a connection"
 echo "refused error."
 
 echo
+echo "Step 3b. The outside dead-man ping (R02/R03), no sudo: scripts/deadman-probe.mjs"
+echo "every 60 seconds, through mac/run-job.sh deadman. First put the Healthchecks"
+echo "address in mac/config.env as one line (steps: docs/readiness/needs-jamin.md,"
+echo "item 2), never into the repo:"
+echo "  SHIN_DEADMAN_URL=https://hc-ping.com/<long-id>"
+echo "Then install it the same way as the server agent:"
+echo "  sed \"s|__SHIN_REPO_DIR__|\$SHIN_REPO_DIR|g\" \\"
+echo "    \"\$SHIN_REPO_DIR/mac/launchd/com.shin.deadman.plist\" \\"
+echo "    > ~/Library/LaunchAgents/com.shin.deadman.plist"
+echo "  launchctl bootstrap gui/\$(id -u) ~/Library/LaunchAgents/com.shin.deadman.plist"
+echo "Proof: within a minute \"pinged ok\" appears in mac/logs/deadman.out.log and the"
+echo "Healthchecks page shows a ping. \"SHIN_DEADMAN_URL is not set\" in"
+echo "mac/logs/deadman.err.log means the config line is missing. The boot-time version"
+echo "(sudo sh mac/10-boot-survival.sh) installs the same job as a daemon and retires"
+echo "this agent, so the two never run together."
+
+echo
 echo "===== ONLY if \`cloudflared service install\` (mac/01-cloudflare-tunnel.md"
 echo "step 4) could not be used and the tunnel must be launched by hand: ====="
 echo "Step 4. Find where cloudflared actually installed:"

@@ -87,9 +87,19 @@ test('dry run changes nothing', () => {
   assert.match(r.out, /dry run/i);
 });
 
-test('a missing request log is a loud failure, never a quiet pass', () => {
+test('a missing request log means no requests: it passes, says so, and changes nothing', () => {
   const dir = restoredCopy();
   const r = runScript(['--target', dir, '--log', join(root, 'does-not-exist.csv')]);
+  assert.equal(r.status, 0, r.out);
+  assert.match(r.out, /no request log/i);
+  assert.deepEqual(scanIds(dir).sort(), ['idAAAAAAAA1', 'idKEEPKEEP9']);
+});
+
+test('a log that exists but cannot be read is still a loud failure', () => {
+  const dir = restoredCopy();
+  const log = join(root, 'bad-header.csv');
+  writeFileSync(log, ['foo,bar', '1,2', ''].join('\n'));
+  const r = runScript(['--target', dir, '--log', log]);
   assert.notEqual(r.status, 0);
-  assert.match(r.out, /NO REQUEST LOG/);
+  assert.match(r.out, /REDELETE FAILED/);
 });

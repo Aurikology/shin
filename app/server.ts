@@ -117,7 +117,7 @@ import {
 import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPricesAsync, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
 import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
-import { claudeOutcomes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
+import { claudeOutcomes, clientCrashes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
 import * as scanQuotaForWatch from './src/scan-quota.ts';
 
 const PUBLIC_DIR = fileURLToPath(new URL('./public/', import.meta.url));
@@ -4172,6 +4172,7 @@ export const server = createServer(async (req, res) => {
       if (body === TOO_LARGE) return refuseTooLarge(MAX_JSON_BODY_BYTES);
       const report = cleanClientError(body);
       if (!report) return json(400, { error: 'a report needs a message' });
+      clientCrashes.note(); // gap 84: every valid report counts toward the hourly spike alert, logged or not
       const verdict = clientErrorBudget.take();
       if (verdict === 'ok') {
         logError({

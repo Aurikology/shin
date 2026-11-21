@@ -42,6 +42,15 @@ export const CLAUDE_FAIL_RUN = 20;
 export const CLAUDE_CAP_WARN_SHARE = 0.8;
 export const REVENUECAT_FAILURES_LIMIT = 3;
 export const OPENPRICES_DEFAULT_MAX_DAYS = 60;
+/**
+ * Gap 84. Client crash reports received in the last hour at or above which the watch raises `client_crash_spike`.
+ * There is no measured baseline (Aurik, 2026-11-17: "the app does not crash"; the log has no history to count), so this is
+ * set by reasoning: a bad build crashes every phone on a screen, while one person retrying the same broken tap produces a
+ * handful of reports (the app already collapses a loop to one report a second and the server logs at most 30 a minute).
+ * 20 in an hour is well past one person and low enough that two or three phones on a broken screen trip it within the hour.
+ * Re-read after the first week of real counts.
+ */
+export const CLIENT_CRASH_SPIKE_PER_HOUR = 20;
 
 export interface WatchInputs {
   readonly nowMs: number;
@@ -71,6 +80,8 @@ export interface WatchInputs {
   readonly macJobs?: { readonly failed: readonly string[]; readonly stale: readonly string[] };
   /** The Mac's power source (pmset), null off macOS or when unreadable. The Mac ran flat on 2026-11-18: 2 hours down. */
   readonly power?: PowerReading | null;
+  /** Client crash reports the server received in the last hour (gap 84). Absent from an older caller: not judged. */
+  readonly clientCrashesLastHour?: number;
 }
 
 export interface PowerReading {
@@ -173,6 +184,11 @@ export function judgeWatch(i: WatchInputs): WatchReport {
     add('mac_on_battery', `The Mac is running on battery${left}. Plug it in: when the battery runs out, Pexi goes down.`);
   }
 
+  const crashes = i.clientCrashesLastHour ?? 0;
+  if (crashes >= CLIENT_CRASH_SPIKE_PER_HOUR) {
+    add('client_crash_spike', `${crashes} app crash reports in the last hour (alarm at ${CLIENT_CRASH_SPIKE_PER_HOUR}). A build is probably broken on some screen: search the server log for client.js_error and group by build.`);
+  }
+
   return { ok: problems.length === 0, problems };
 }
 
@@ -230,6 +246,27 @@ export class ClaudeOutcomes {
   }
 }
 
+/**
+ * When each client crash report (`POST /api/client-error`, logged as client.js_error) reached the server. Kept in memory, so a
+ * restart forgets it: a spike that is still happening refills within minutes. Bounded, so a flood costs a few KB, not a leak.
+ */
+export class ClientCrashLog {
+  private stamps: number[] = [];
+  private static readonly KEEP = 5000;
+  note(nowMs: number = Date.now()): void {
+    this.stamps.push(nowMs);
+    if (this.stamps.length > ClientCrashLog.KEEP) this.stamps.splice(0, this.stamps.length - ClientCrashLog.KEEP);
+  }
+  lastHour(nowMs: number = Date.now()): number {
+    const from = nowMs - HOUR;
+    this.stamps = this.stamps.filter((t) => t > from);
+    return this.stamps.length;
+  }
+  size(): number {
+    return this.stamps.length;
+  }
+}
+
 /** When each cleanup last finished well, and what the last failure said. */
 export class RetentionMarks {
   private parts = new Map<string, { lastOkAt: number | null; lastFailure: string | null }>();
@@ -251,6 +288,7 @@ export class RetentionMarks {
 
 export const claudeOutcomes = new ClaudeOutcomes();
 export const retentionMarks = new RetentionMarks(['scan_data', 'request_log']);
+export const clientCrashes = new ClientCrashLog();
 const scanWriteRise = new RisingCounter();
 const revenueCatRise = new RisingCounter();
 
@@ -403,6 +441,36 @@ function powerReading(nowMs: number): PowerReading | null {
   return value;
 }
 
+export type FileVaultState = 'on' | 'off' | 'in_progress';
+
+/** Reads `fdesetup status` output ("FileVault is On." / "FileVault is Off." / "Encryption in progress: ..."). Null when it says none of these. */
+export function parseFdesetupStatus(text: string): FileVaultState | null {
+  if (/(?:en|de)cryption in progress/i.test(text)) return 'in_progress';
+  if (/FileVault is On/i.test(text)) return 'on';
+  if (/FileVault is Off/i.test(text)) return 'off';
+  return null;
+}
+
+/**
+ * Whether the Mac's disk is encrypted (gap 83, R08). Information only, not a problem: an unplanned restart with FileVault on
+ * waits at the unlock screen, and which state the Mac is in has to be known before that can be planned for. `fdesetup status`
+ * needs no sudo. Cached for an hour because it does not change by itself. Null off macOS or when unreadable.
+ */
+let cachedFileVault: { at: number; value: FileVaultState | null } | null = null;
+function fileVaultReading(nowMs: number): FileVaultState | null {
+  if (process.platform !== 'darwin') return null;
+  if (cachedFileVault && nowMs - cachedFileVault.at < HOUR) return cachedFileVault.value;
+  let value: FileVaultState | null = null;
+  try {
+    value = parseFdesetupStatus(execFileSync('/usr/bin/fdesetup', ['status'], { encoding: 'utf8', timeout: 3000 }));
+  } catch {
+    // allow-silent-catch: an unreadable FileVault state is "unknown", shown as null; it is information, not a pass or a fail
+    value = null;
+  }
+  cachedFileVault = { at: nowMs, value };
+  return value;
+}
+
 /** What the money lane's RevenueCat getter reports, read defensively: the export may not exist yet. */
 export interface RevenueCatReading {
   readonly failures: number;
@@ -474,6 +542,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
     checker: { lastSeenAt: checkerAt },
     macJobs: { failed: mac.failed, stale: mac.stale },
     power,
+    clientCrashesLastHour: clientCrashes.lastHour(d.nowMs),
   };
   return {
     watch: judgeWatch(inputs),
@@ -484,6 +553,8 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
       sourcesLoaded: prices.sourceUse,
       claudeRecent: claudeOutcomes.recent(),
       power,
+      fileVault: fileVaultReading(d.nowMs),
+      clientCrashesLastHour: inputs.clientCrashesLastHour,
     },
   };
 }

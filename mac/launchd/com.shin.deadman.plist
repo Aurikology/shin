@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mac/launchd/com.shin.deadman.plist
+
+  R02 / R03: the outside dead-man ping, as a login-session LaunchAgent (no sudo). Every 60 seconds
+  scripts/deadman-probe.mjs reads the local /api/health and pings the Healthchecks.io address in
+  SHIN_DEADMAN_URL (mac/config.env): the plain address when `watch` is ok, its /fail address when `watch`
+  lists a problem or the server does not answer. When the pings stop, Healthchecks emails.
+
+  This is the no-sudo install. It only runs while worker is logged in; mac/10-boot-survival.sh installs the
+  boot-time daemon of the same label (mac/launchd-daemons/com.shin.deadman.plist) and retires this agent, so
+  the two never run together.
+
+  Template, same __SHIN_REPO_DIR__ placeholder as com.shin.hammer.plist.
+  Install (fill the path, then load):
+    mkdir -p "$SHIN_REPO_DIR/mac/logs"
+    sed "s|__SHIN_REPO_DIR__|$SHIN_REPO_DIR|g" \
+      "$SHIN_REPO_DIR/mac/launchd/com.shin.deadman.plist" \
+      > ~/Library/LaunchAgents/com.shin.deadman.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shin.deadman.plist
+  Run it once now:  launchctl kickstart gui/$(id -u)/com.shin.deadman
+  Stop it:          launchctl bootout gui/$(id -u)/com.shin.deadman
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shin.deadman</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/sh</string>
+        <string>__SHIN_REPO_DIR__/mac/run-job.sh</string>
+        <string>deadman</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIN_REPO_DIR__/mac</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <key>StartInterval</key>
+    <integer>60</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/deadman.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIN_REPO_DIR__/mac/logs/deadman.err.log</string>
+</dict>
+</plist>

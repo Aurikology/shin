@@ -17,8 +17,8 @@
 // at the restored folder (file names are the ones 07-backup.sh writes). The server's own log
 // folder is pointed at an empty path, so live logs are never touched.
 //
-// Loud failure: a missing log, an unreadable log, or any deletion that exits non-zero ends with
-// exit 1 and "REDELETE FAILED". Restore is not "done" until this exits 0.
+// A missing log means no request was ever logged: it passes, and says so on stdout. Loud failure: an unreadable log, or any
+// deletion that exits non-zero, ends with exit 1 and "REDELETE FAILED". Restore is not "done" until this exits 0.
 
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -125,11 +125,11 @@ function main(argv) {
     return 2;
   }
   if (!existsSync(logPath)) {
-    console.error(`REDELETE FAILED: NO REQUEST LOG at ${logPath}.`);
-    console.error('  Without it nobody can say which shoppers asked for deletion. Restore ~/shin-privacy from the');
-    console.error('  encrypted off-machine copy (mac/14-offsite-backup.sh includes it), or, if there truly never was a');
-    console.error('  request, create the file with just the header row from docs/privacy/data-requests.md section 8.');
-    return 1;
+    // No log means nobody has ever sent a deletion request (the log is created with the first one), so there is nothing to
+    // re-run. Said out loud, so a log that was lost rather than never made is noticed: restore ~/shin-privacy from the
+    // encrypted off-machine copy (mac/14-offsite-backup.sh includes it) if requests were ever handled.
+    console.log(`redelete: no request log at ${logPath}, so no deletion requests to re-run (restore ~/shin-privacy from the off-machine copy if requests were ever handled)`);
+    return 0;
   }
   let due;
   try {
