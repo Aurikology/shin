@@ -1,0 +1,192 @@
+group,barcode,off_name,status,outcome,found,priced,verdict,confidence,verdict_basis,range_low,range_median,range_high,range_basis,range_n,pexi_name,pexi_brand,pexi_size,ms
+dairy,3560070475711,Lait frais demi-écrémé,200,catalogue_hit,true,true,distribution,low,department_prior,3.17,5.50,9.54,department_prior,23193,CMI (Carrefour Marchandises Internationales) Cmi 1 L,CMI (Carrefour Marchandises Internationales),1 L,2572
+dairy,0064420255013,Breuvage Laitier (2% M.G. - Sans Lactose ),200,catalogue_hit,true,true,distribution,high,own_prices,6.68,6.99,7.99,this_product,3,Sans Lactose Free Fine-Filtered 2% M.F. Dairy Product made with lactose free ultrafiltered partly skimmed milk,Natrel,2 L,1299
+dairy,0064420010124,Partly Skimmed Milk 2% M.F.,200,catalogue_hit,true,true,distribution,high,own_prices,5.78,6.09,6.99,this_product,3,Partly Skimmed Milk 2% M.F,Natrel,2 l,1313
+dairy,0068200010229,lait lactantia 1%,200,catalogue_hit,true,true,distribution,high,own_prices,5.49,5.95,5.99,this_product,4,Lactantia Purfiltre 1%,lactantia,2 l,1486
+dairy,0068200010120,PūrFiltre 2% Milk,200,catalogue_hit,true,true,distribution,high,own_prices,5.75,5.95,6.16,this_product,4,PūrFiltre 2% Milk,Lactantia,2 L,1339
+dairy,0064420320148,Milk protein shake made with ultrafiltered partly skimmed milk,200,catalogue_hit,true,true,distribution,high,own_prices,8.69,8.99,9.30,this_product,5,Natrel Milk protein shake 2 L,Natrel,2 L,1355
+dairy,0064420010223,PARTLY SKIMMED MILK,200,catalogue_hit,true,true,distribution,high,own_prices,5.78,6.09,6.99,this_product,3,Partly Skimmed Milk,Natrel,2 L,1609
+dairy,0063667301408,Organic Original Soy Milk Beverage,200,catalogue_hit,true,true,distribution,low,own_prices,2.50,3.49,4.87,own_prices,1,Organic Original Soy Milk Beverage,Natur aktiv,946 ml,1331
+dairy,0055872024012,Lait 2%,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Québon Lait 2% 1 L,Québon,1 L,1396
+dairy,0055872025019,Lait (2%),200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Partly skimmed milk 2%,Québon,2 L,1301
+dairy,0068700011016,Partly Skimmed Milk,200,catalogue_hit,true,true,distribution,low,own_prices,6.30,8.79,12.27,own_prices,1,Partly Skimmed Milk,Dairyland,4 L,1723
+dairy,0811620023023,vanilla lactose-free nutritious shake,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,vanilla lactose-free nutritious shake,fairlife plan nutrition,,247
+dairy,0059000003115,Evaporated Milk,200,catalogue_hit,true,true,distribution,medium,own_prices,2.47,2.99,3.19,this_product,7,Evaporated Milk,Carnation,354 mL,1299
+dairy,0062884520012,2% Cow’s Milk,200,catalogue_hit,true,true,distribution,low,own_prices,3.58,4.99,6.96,own_prices,2,2% Cow’s Milk,Grand PRÉ (UHT Shelf stable),1 L,1292
+dairy,0064420355010,Lactose Milk,200,catalogue_hit,true,true,distribution,high,own_prices,6.95,7.19,7.49,this_product,5,Lactose Milk,Natrel,2 L,1355
+dairy,0055872026016,Lait (2%),200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,2 % partly skimmed milk,Québon,4 l.,1336
+dairy,0059000000015,Regular Sweetened Condensed Milk,200,catalogue_hit,true,true,distribution,medium,own_prices,4.29,5.49,5.99,this_product,8,Regular Sweetened Condensed Milk,Eagle brand,300 ml,1304
+dairy,0068700011009,Homogenized Milk,200,catalogue_hit,true,true,distribution,low,own_prices,4.79,6.69,9.34,own_prices,1,Homogenized Milk,Dairyland,4L,1264
+dairy,0065244133228,Lait nutrinor biologique partiellement écrémé 2 %,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Organic 2% Partly Skimmed Milk,Nutrinor,2 L,1408
+dairy,0064420010117,Lait Natrel,200,catalogue_hit,true,true,distribution,low,own_prices,2.36,3.29,4.59,own_prices,2,Fine-Filtered 2% Fat Milk,Natrel,1L,1337
+dairy,0065000116052,Carnation Chocolat chaud,200,catalogue_hit,true,true,distribution,high,own_prices,7.68,8.99,8.99,this_product,5,Hot Chocolate Beverage Mix,Nestlé Carnation,450g,1320
+dairy,6111246721261,Fromage Blanc Nature,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Fromage Blanc Nature,Milky Food Professional,1 kg,1418
+dairy,7441001601156,inline Leche Descremada,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,inline Leche Descremada,Dos Pinos,,470
+dairy,6111242106949,Jben,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,jben,Jaouda,160g,1379
+dairy,3228021950051,President petit brie 500g,200,named_outside_catalogue,false,false,,,,5.76,,17.35,fixed_prior,0,President petit brie 500g,Président,0.5 kg,2383
+dairy,0068100896459,Cream Cheese Product,200,catalogue_hit,true,true,distribution,low,other_size,6.96,10.98,17.33,other_size,1,Cream Cheese Product,Philadelphia,500 g,1398
+dairy,3073780828642,Babybel Light Mini,200,catalogue_hit,true,true,distribution,medium,own_prices,4.51,6.49,9.34,own_prices,4,Babybel Light Mini,Babybel,120 g,1432
+dairy,0079813000118,GARLIC & FINE HERBS SPREADABLE GOURMET CHEESE,200,catalogue_hit,true,true,distribution,high,own_prices,6.79,7.99,7.99,this_product,5,Garlic & Fine Herbs Spreadable Gourmet Cheese,Boursin,150 g,1287
+dairy,0068100895971,Cream Cheese Product,200,catalogue_hit,true,true,distribution,high,own_prices,5.49,5.49,5.99,this_product,9,Cream Cheese Product,Philadelphia,227 g,1378
+dairy,3222110025149,Saint Agur (format familial) (33% MG),200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Saint Agur format familial) 250 g,Saint Agur,250 g,1405
+dairy,0068100892314,Cheez Whiz,200,catalogue_hit,true,true,distribution,medium,own_prices,6.47,8.49,8.49,this_product,7,Cheez Whiz,Kraft,450g,1272
+dairy,0621879007503,Le petit crémeux,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Le petit Crèmeux,Boivin,400 g,1394
+dairy,3176580111911,Camembert ile de france. bn batouta.as,200,catalogue_hit,true,true,distribution,low,own_prices,6.78,10.29,15.61,own_prices,1,Camembert Cheese,Ile de FranceSavencia,250 g,1264
+dairy,0064420006707,Fromage cottage,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Fromage Cottage,Sealtest,500g,1513
+dairy,0064420004147,Cottage cheese,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Fromage Cottage,Sealtest,,471
+dairy,0621879007251,Le petit crémeux,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Le petit CRÉMEUX,Boivin,,261
+dairy,0068200479088,100% Parmesan Grated Cheese,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,100% Parmesan Grated Cheese,Kraft,,450
+dairy,0068200479057,100% Parmesan Grated Cheese,200,catalogue_hit,true,true,distribution,low,own_prices,7.99,10.99,12.49,this_product,7,100% Parmesan Grated Cheese,Kraft,250g,1437
+dairy,0068100896336,Original Cream Cheese Product,200,catalogue_hit,true,true,distribution,high,own_prices,6.99,7.99,8.29,this_product,7,Original Cream Cheese Product,Philadelphia,340 g,1431
+dairy,0068100896473,Light Cream Cheese Spread,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Light Cream Cheese Spread,Philadelphia,500g,1539
+dairy,0096619553303,Greek Yogourt,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Greek Yogurt,KIRKLAND Signature,650 g,1442
+dairy,0068200750156,Original Balkan Yogurt Natural Yogurt,200,catalogue_hit,true,true,distribution,medium,own_prices,3.69,4.99,5.49,this_product,8,Original Balkan Yogurt Natural Yogurt,Astro,750 g,1396
+dairy,0056800634211,Yogourt grec nature,200,catalogue_hit,true,true,distribution,high,own_prices,7.29,8.79,8.99,this_product,5,Yogourt grec nature,Oikos,650g,1441
+dairy,0065684005109,Greek Plain,200,catalogue_hit,true,true,distribution,medium,own_prices,7.00,8.25,8.79,this_product,5,Greek Plain,LIBERTÉ,750 g,1264
+dairy,0056800202465,Yogourt grec,200,catalogue_hit,true,true,distribution,high,own_prices,7.29,8.79,8.99,this_product,7,Yogourt Grec Nature,Oikos,750g,1370
+dairy,0065684004706,Grec - Greek 2%,200,catalogue_hit,true,true,distribution,medium,own_prices,7.00,8.25,8.79,this_product,5,yogourt grec nature - liberté 2%,LIBERTÉ,750 g,1373
+dairy,0068200325118,skyr aux ingrédients simples,200,catalogue_hit,true,true,distribution,high,own_prices,7.79,8.99,8.99,this_product,7,skyr aux ingrédients simples,siggi's,750 g,1571
+dairy,0056800098297,vanilla,200,catalogue_hit,true,true,distribution,medium,own_prices,3.75,4.25,4.99,this_product,4,vanilla,ACTIVIA,650 g,1557
+dairy,0056800202458,OIKOS,200,catalogue_hit,true,true,distribution,high,own_prices,7.29,8.79,8.99,this_product,5,Yogourt Grec Nature,Oikos,750g,1300
+dairy,0068200325125,simple ingredient skyr,200,catalogue_hit,true,true,distribution,high,own_prices,7.79,7.99,8.99,this_product,6,simple ingredient skyr,siggi's,750g,1312
+dairy,0068200325095,creamy skyr plain,200,catalogue_hit,true,true,distribution,high,own_prices,7.99,8.99,8.99,this_product,5,creamy skyr plain,siggi's,750g,1339
+dairy,0056800249170,Activia Propionique nature,200,catalogue_hit,true,true,distribution,medium,own_prices,3.75,3.87,4.99,this_product,6,plain,ACTIVIA,650 g,1410
+dairy,0196633916280,organic Greek yogurt,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,organic Greek yogurt,Kirkland Signature,1.3 kg,1282
+dairy,0056800739015,Yogourt Probiotique Activia (citron),200,catalogue_hit,true,true,distribution,medium,own_prices,3.75,4.25,4.99,this_product,3,Activia Lemon,Activia,650 g,1339
+dairy,3451790988677,Le Beurre Tendre,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Le Beurre Tendre,Elle&Vire,250 g,1293
+dairy,0068100084665,PEANUT BUTTER,200,catalogue_hit,true,true,distribution,medium,own_prices,6.29,7.99,8.49,this_product,5,Peanut Butter,ONLY PEANUTS Kraft,750 g,1291
+dairy,0068200701066,Tardinade traditionnelle,200,catalogue_hit,true,true,distribution,low,own_prices,2.14,2.98,4.16,own_prices,1,Original,Yachtanita,427g,1335
+dairy,4820001830071,Polyana Kvasova,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Polyana Kvasova,,,266
+dairy,0011115001370,Vegan,200,catalogue_hit,true,true,distribution,medium,own_prices,8.90,9.49,10.12,own_prices,6,Vegan,Becel,907g,1359
+dairy,0055872281866,Beurre non salé,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Butter,Natrel,454 g,1329
+bread,3600900020404,Fine chapelure de pain,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Chapelure,Tipiak,275 g,1415
+bread,26073651,10 pains au lait,200,catalogue_hit,true,true,distribution,low,category_prior,3.45,5.99,10.39,category_prior,4,10 pains au lait,Les PâtissadesAldi,400 g,1374
+bread,0068505110051,Quinoa Bread,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Quinoa Bread,Les Grains St-Méthode,550 g,1315
+bread,0068505100342,Pain style grand-mère,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Pain style grand-mère,Les 5 Grains d'Autrefois,600 g,1340
+bread,0068505300292,Pain tranché aux 9 grains entiers,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,9 Grains entiers / Whole grains Bread,Les Grains StMéthode,600g,1381
+bread,0068505110044,Pain Multi-Céréales,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Multi-Cereal Bread,Les Grains St-Méthode,1,358
+bread,0068505100366,Oat Home Style Bread,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Oat Home Style Bread,La recolte St-Méthode,600g,1293
+bread,0061077856334,PROTEIN LOAF,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Protein Loaf,BON MATIN,600 g,1374
+bread,0060885000670,Sourdough Bistro Classic Loaf,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Sourdough Bistro Classic Loaf,ACE Bakery,1150 g,1344
+bread,0061077771217,Superclub sandwich,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,100% Whole Wheat Sandwich Bread,POM,675,246
+bread,0061077771200,Pain blanc,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Ultra-Moelleux White Sandwich Bread,POM,675 g,1289
+bread,0096619316212,ORGANIC LOAF,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Organic Loaf,KIRKLAND Signature,765 g,1441
+bread,0055991040160,The Big 16,200,catalogue_hit,true,true,distribution,high,own_prices,5.99,5.99,6.99,this_product,5,The Big 16,Silver Hills,615 g,1442
+bread,0078935005186,RYVITA Sesame Rye Rye Crispbread,200,catalogue_hit,true,true,distribution,high,own_prices,4.17,4.79,4.99,this_product,4,RYVITA Sesame Rye Rye Crispbread,RYVITA,250 g,1251
+bread,0055577107799,Crispy minis,200,catalogue_hit,true,true,distribution,medium,own_prices,3.18,3.49,4.49,this_product,5,Crispy Minis,Taste of Nature,127 g,1352
+bread,0068505100717,Miche à l'avoine et sésame,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Sesame Oat Loaf,Le Campagnolo de St-Methode,2 tranches,375
+snacks,8901491100519,Kurkure,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Kurkure,Kurkure,78 g,1313
+snacks,8901491101844,Lay's Potato Chips,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Lay's Potato Chips,Lay's,50 g,1683
+snacks,3497917000938,Chips Brets Saveur Cheddar Oignon de Roscoff,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Chips Brets Saveur Cheddar Oignon de Roscoff 125g,Brets,125g,1462
+snacks,0096619615162,Kettle Brand Krinkle Cut Pink Salt Potato Chips,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Kettle Brand Krinkle Cut Pink Salt Potato Chips,Kirkland Signature,32 oz. (2 lb.) 907g,1291
+snacks,0096619161553,Tortilla Chips,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Tortilla Chips,Kirkland Que Pasa,908g,1248
+snacks,3497917001928,Chips Saveur camembert,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Chips Saveur camembert,Brets,125 g,1465
+snacks,0020685084423,Croustilles cuites en marmite - Sel de mer,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Original Sea Salt Kettle Cooked Potato Chips,Cape Cod,680 g,1386
+snacks,0068826176033,Volcanic Stone Ground Tortilla Chips,200,catalogue_hit,true,true,distribution,high,own_prices,4.99,5.25,5.49,this_product,5,Volcanic Stone Ground Tortilla Chips,QUE PASA,350 g,1297
+snacks,0853496008124,Shiitake Mushroom Crisps,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Shiitake Mushroom Crisps,D&J A,300 g,1364
+snacks,0060410046678,Original recipe,200,catalogue_hit,true,true,distribution,high,own_prices,5.30,5.49,5.79,this_product,9,Original Recipe,Miss Vickie's,200 gr,1315
+snacks,8901491435109,Potato chips (Spicy Treat flavour)20rs,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Potato chips (Spicy Treat flavour)20rs,Uncle Chipps,52 g,1239
+snacks,0071146012455,HARVEST SNAPS ORIGINAL BAKED VEGGIE SNACKS,200,catalogue_hit,true,true,distribution,medium,own_prices,3.29,3.99,4.29,this_product,6,Harvest Snaps Original Baked Veggie Snacks,Calbee,94 g,1323
+snacks,3046920028004,Excellence 70% Cocoa Intense Dark,200,named_outside_catalogue,false,false,,,,5.76,,17.35,fixed_prior,0,Excellence 70% Cocoa Intense Dark,Lindt,100 g,4309
+snacks,3046920022705,Excellence Noir Orange Intense,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Excellence Noir Orange Intense Aux amandes effilées,Lindt,100 g,1605
+snacks,7613035040793,NESTLÉ DESSERT Noir 2x205g,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,NESTLÉ DESSERT Noir 2x205g 410 g,Nestlé,410 g,1734
+snacks,7613035587793,NESTLE DESSERT Lait,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,NESTLE DESSERT Lait,Nestlé,170 g,1702
+snacks,3173281446595,Chocolat noir 82%,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Extra Dark Chocolate 82% Cocoa,Cemoi,100 g,1206
+snacks,3179142787104,Pépites de chocolat au lait,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,McCormick Pépites de chocolat au lait 100 g e,McCormick,100 g e,1357
+snacks,0068437389693,Açaí & blueberry flavours,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Açaí & blueberry flavours,BROOKSIDE,850 g,1313
+snacks,3664346300148,Chocolat au lait,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Poulain Chocolat au lait 95 g,Poulain,95 g,1246
+snacks,8410109104950,82% Cacao Supreme Dark,200,catalogue_hit,true,true,distribution,low,category_prior,4.60,7.99,13.86,category_prior,3,82% Cacao Supreme Dark,Valor,100 g,1402
+snacks,3179142787203,Pépites chunk chocolat noir,200,catalogue_hit,true,true,distribution,low,category_prior,3.45,5.99,10.39,category_prior,76,Vahiné Pépites chunk chocolat noir 100 g,Vahiné,100 g,1265
+snacks,7622210449283,Prince,200,catalogue_hit,true,true,distribution,low,own_prices,5.01,6.99,9.75,own_prices,1,Prince Goût Chocolat au Blé Complet,LU,300 g e,1247
+snacks,7622210421968,Véritable Petit Écolier Chocolat au Lait,200,catalogue_hit,true,true,distribution,low,own_prices,5.37,7.49,10.45,own_prices,1,Petit écolier Chocolat au lait,Mondelez International,150 g (12x 12.5 g) e,1373
+snacks,5410041010800,Petit écolier chocolat noir pur beurre de cacao,200,catalogue_hit,true,true,distribution,low,category_prior,2.67,4.49,7.54,category_prior,1933,Véritable Petit écolier Chocolat noir Pur beurre de cacao,LU,150 g,1315
+snacks,7622210450029,Prince -  Goût Lait -  Choco Au Blé Compet,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,LU Prince - Goût Lait - Choco Au Blé Compet 300 g,LU,300 g,1266
+snacks,3017760038409,Lulu La Barquette Fraise,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Lulu La Barquette Fraise,LU,120 g,1366
+snacks,3252755150005,20 madeleines longues aux œufs frais,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,20 madeleines longues aux œufs frais,Le Ster,250g,1324
+snacks,3017760595193,Granola Chocolat Noir,200,named_outside_catalogue,false,false,,,,5.76,,17.35,fixed_prior,0,Granola Chocolat Noir,LU,195 g (16× 12.2 g) e,1886
+snacks,7622300744663,Biscotti al cacao magro ripieni di crema al gusto vaniglia,200,catalogue_hit,true,true,distribution,low,parent_category,3.78,3.84,4.17,parent_category,5,Mondelēz Original 220 g,Mondelēz,220 g,1348
+snacks,3245390084422,Palets Bretons Spécialité de Pont-Aven au beurre,200,catalogue_hit,true,true,distribution,low,category_prior,2.67,4.49,7.54,category_prior,1933,Reflets de France Palets Bretons Spécialité de Pont-Aven au beurre 100 g,Reflets de France,100 g,1260
+snacks,0731216103987,Aussie Bites,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Aussie Bites,Universal Bakery,30 oz (1 lb. 14 oz.) 850 g,1213
+drinks,5449000000996,Coca-Cola Original,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Coca-Cola,COCA-COLA SERVICES SA/NV,330 ml,1297
+drinks,06224017,GINGER ALE,200,catalogue_hit,true,true,distribution,low,own_prices,1.21,1.69,2.36,own_prices,1,Ginger Flavoured Soft Drink,CANADA DRY,355ml,206
+drinks,06782900,Coca-cola Classique,200,catalogue_hit,true,true,distribution,low,own_prices,1.21,1.69,2.36,own_prices,2,Cola Flavoured Soft Drink,COCA-COLA,355ml,270
+drinks,06731906,Coke Zero,200,catalogue_hit,true,true,distribution,low,own_prices,1.21,1.69,2.36,own_prices,1,"Cola Flavoured Soft Drink, Zero Sugar",COCA-COLA,355ml,275
+drinks,8901764041259,Thums Up 300ml can,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Thums Up 300ml can,Coca Cola,1,1376
+drinks,0069000149171,sparkling water beverage lime,200,catalogue_hit,true,true,distribution,low,own_prices,0.85,1.19,1.66,own_prices,1,sparkling water beverage lime,bubly,355 mL,1360
+drinks,06792800,Diet Coke,200,catalogue_hit,true,true,distribution,low,own_prices,1.21,1.69,2.36,own_prices,1,Cola Flavoured Soft Drink,DIET COKE,355ml,249
+drinks,0069000013724,Pepsi Zero Sugar,200,catalogue_hit,true,true,distribution,low,own_prices,0.85,1.19,1.66,own_prices,1,Pepsi Zero Sugar,Pepsi,355 mL,1290
+drinks,0069000014257,Diet Pepsi,200,catalogue_hit,true,true,distribution,low,own_prices,0.85,1.19,1.66,own_prices,2,Diet Pepsi,Pepsi,355 ml,1333
+drinks,0069000004258,Pepsi,200,catalogue_hit,true,true,distribution,low,own_prices,1.21,1.69,2.36,own_prices,1,Pepsi,Pepsi,355mL,1315
+drinks,0067000104022,Coca-Cola,200,catalogue_hit,true,true,distribution,medium,own_prices,6.00,7.99,7.99,this_product,5,Coca-Cola,Coca-Cola,710 ml,1171
+drinks,06742708,Coca-Cola,200,catalogue_hit,true,true,distribution,medium,own_prices,2.79,3.69,3.99,this_product,7,Coca-Cola Soft Drink Original 2l,,2l,1694
+drinks,6111035000430,sidi ali,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,sidi ali,سيدي علي,33 cl,1233
+drinks,6111035000058,Eau minérale naturelle,200,named_outside_catalogue,false,false,,,,5.76,,17.35,fixed_prior,0,Eau minérale naturelle,Sidi Ali,"1,5 L",1860
+drinks,6111035002175,Eau minérale naturelle,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Sidi Ali 2 L,Sidi Ali,2 L,1330
+drinks,7613035833272,PERRIER eau minérale naturelle gazeuse 1L,200,catalogue_hit,true,true,distribution,low,leaf_category,3.45,3.99,4.62,leaf_category,6,Perrier,Nestlé,1 l,1345
+drinks,0671785501008,Eska - Eau de source naturelle,200,catalogue_hit,true,true,distribution,low,own_prices,0.65,0.99,1.50,own_prices,1,Eska Natural Spring Water,Eska,500 mL,1194
+drinks,0096619321841,Natural spring water,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Natural spring water,Kirkland Signature,500mL,1280
+frozen,3083681066852,"Purée Délice Carottes, Potiron, Crème",200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Purée Délice,Bonduelle,780 g,1276
+frozen,3599740007501,Tranches panées de Cabillaud MSC,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Findus Tranches panées de Cabillaud MSC,Findus,,205
+frozen,3251510551002,Sorbet Pêche Pomme Framboise,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Sorbet Pêche Pomme Framboise,Oasis,"500 ml, 400 g",1276
+frozen,3245412891175,Pomme Poire Sans sucres ajoutés*,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Pomme Poire,1er Classic,400 g (4 x 100 g),1397
+frozen,7613034965868,Extrême vanille de Madagascar,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Nestlé Extrême vanille de Madagascar 6 * 120 ml,Nestlé,6 * 120 ml,1343
+frozen,3564700441442,Poireaux en rondelles,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Marque Repère Poireaux en rondelles 1 kg,Marque Repère,1 kg,1217
+frozen,0096619281954,Soft & Chewy Granola Bars,200,catalogue_hit,true,true,distribution,low,category_prior,4.33,6.77,10.59,category_prior,332,Soft & Chewy Granola Bars,Kirkland Signature,54000 g,1350
+frozen,3245412891168,Pomme Pêche Sans sucres ajoutés*,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Carrefour Pomme Pêche Sans sucres ajoutés 400 g (4 x 100 g),Carrefour,400 g (4 x 100 g),1251
+frozen,26044439,2lboîtes Flageolets Verts Extra Fins Fleurs Des Champs 530 g,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,2lboîtes Flageolets Verts Extra Fins Fleurs Des Champs 530 g,Fleurs des Champs,800 g,1202
+frozen,0042272000715,Burrito Cheddar Cheese,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Burrito Cheddar Cheese,Amy's,6.0 oz,1338
+frozen,26043081,"Haricots Verts, Extra Fins",200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,"Aldi Haricots Verts, Extra Fins 800 g",Aldi,800 g,1237
+frozen,0842454041211,Fraises tranchées biologique,200,catalogue_hit,true,true,distribution,low,parent_category,11.44,15.99,22.35,parent_category,6,Sliced Strawberries,Fennec,2 kg,1207
+frozen,0058336170003,Thin Crust Pizza spinach,200,catalogue_hit,true,true,distribution,low,own_prices,4.00,6.99,7.39,this_product,5,Thin Crust Pizza spinach,Dr. Oetker Ristorante,390g,1298
+frozen,3560070809714,2 Pomme Poire - 2 Pomme Pêche - 4 Pomme Sans sucres ajoutés*,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Carrefour 2 Pomme Poire - 2 Pomme Pêche - 4 Pomme Sans sucres ajoutés 800 g (8 x 100 g),Carrefour,800 g (8 x 100 g),1276
+pantry,8076800376999,Lasagne all'uovo,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Lasagne all'Uovo n.199,Barilla,500 g,1900
+pantry,8004690612804,Fusilli No. 28 Le Integrali,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Fusilli,La Molisana SpA,500 gram,1383
+pantry,8801073114814,Artificial Spicy Chicken Flavor Stir-Fried Ramen,200,catalogue_hit,true,true,distribution,low,own_prices,1.43,1.99,2.78,own_prices,1,Artificial Spicy Chicken Flavor Stir-Fried Ramen,Samyang,4.93 oz,1264
+pantry,8004690612002,Penne rigate nº 20,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Penne Rigate N°20,La Molisana,500g,1780
+pantry,8004690616604,Farfalle rigate n°66,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Pasta di semola di grano duro,La Molisana,500 g,1843
+pantry,3252970008419,Les Crozets Nature,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Les Crozets Nature,Alpina,600 g,1330
+pantry,0807176706923,Mini Wontons Chicken & Cilantro,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Mini Wontons Chicken & Cilantro,bibigo,48 oz 1.36kg,1361
+pantry,0813616020412,Pâtes de lentilles Biologiques,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,RED LENTIL Penne,felicia,,186
+pantry,8402001010873,Muesli Crunchy,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Muesli CRUNCHY,Hacendado,500gr,1391
+pantry,0096619194261,Ancient Grains Probiotic Granola,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Ancient Grains Probiotic Granola,Kirkland Signature,35.3 oz (1 kg),1276
+pantry,0058449251002,Flocons de son d'avoine,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Oat bran flakes,Nature's Path,1.5kg,1983
+pantry,0064100271913,All Bran Buds,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,All-Bran Buds,Kellogg's,1.05kg,2075
+pantry,0030000012000,Quick 1-Minute Oats,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Quick 1-Minute Oats,Quaker Oats,42 Oz / 1.19 kg,1384
+pantry,0628154011323,Shredded Wheat & Bran,200,catalogue_hit,true,true,distribution,high,own_prices,4.47,5.49,5.49,this_product,7,Shredded Wheat & Bran,Post,525 g,1263
+pantry,0058449770213,Heritage Flakes Cereal,200,catalogue_hit,true,true,distribution,high,own_prices,10.49,10.99,11.37,this_product,5,Heritage Flakes Cereal,Nature's Path,907 g,1299
+pantry,0628154020035,Post Shredded Wheat,200,catalogue_hit,true,true,distribution,high,own_prices,4.47,5.49,5.49,this_product,7,Post Shredded Wheat,Post,425 g,1273
+pantry,0055577105665,Oatmeal Squares,200,catalogue_hit,true,true,distribution,high,own_prices,5.00,5.99,5.99,this_product,4,Oatmeal Squares,Quaker,500 g,1237
+pantry,0058449890072,Pumpkin Seed + Flax Granola,200,catalogue_hit,true,true,distribution,medium,own_prices,5.99,6.49,7.99,this_product,6,Pumpkin Seed + Flax Granola,Nature's Path Organic,115 oz,1395
+pantry,8004030026018,Rio mare Light tuna salad,200,catalogue_hit,true,true,distribution,high,own_prices,4.97,5.49,5.49,this_product,5,Mexican Style Light Tuna Salad,Rio Mare,160g,1831
+pantry,8004030022010,"Light Tuna Salad Corn with peas, carrots and black olives",200,catalogue_hit,true,true,distribution,high,own_prices,4.50,4.97,5.49,this_product,3,Tuna Salad with Corn,Rio Mare,160g,219
+pantry,9300633929169,Chunk Light Tuna,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Chunk Light Tuna,Woolworths,,179
+pantry,3450971451856,Thon entier listao,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Eco+ Thon entier listao 140 g,Eco+,140 g,1317
+pantry,26043241,Ratatouille,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,"Aldi Ratatouille 750 g, 850 ml",Aldi,"750 g, 850 ml",1373
+pantry,5400101173224,Petits pois Extra-fins,200,catalogue_hit,true,true,distribution,low,category_prior,2.88,4.99,8.66,category_prior,3307,Carrefour Petits pois Extra-fins 800 g,Carrefour,800 g,1310
+pantry,0066613000097,Boneless Butterflied Sardine Fillets,200,catalogue_hit,true,true,distribution,medium,own_prices,2.49,2.99,3.19,this_product,7,Boneless Butterflied Sardine Fillets,Brunswick,106 Gr,1288
+pantry,0096619523900,Thon pâle entier,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Thon pâle entier,Kirkland Signature,184 g,1374
+pantry,0063211012613,Cream of Mushroom,200,catalogue_hit,true,true,distribution,low,own_prices,1.49,2.69,2.99,this_product,7,Cream of Mushroom,Campbell's,284 mL,1256
+pantry,0061202021200,Tomato soup,200,catalogue_hit,true,true,distribution,low,own_prices,0.95,1.32,1.84,own_prices,2,Tomato soup,Aylmer,284 mL,1239
+pantry,0815074022809,Classic Mayo,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Classic Mayo,Chosen Foods,946 ml,1280
+pantry,0068400662600,Mayonnaise,200,catalogue_hit,true,true,distribution,medium,own_prices,6.50,7.99,8.99,this_product,6,Mayonnaise,Hellmann’s,890 mL,1318
+pantry,0057000002992,Tomato Ketchup,200,catalogue_hit,true,true,distribution,high,own_prices,5.79,6.00,6.49,this_product,8,Tomato Ketchup,Heinz,1l,1280
+pantry,0078895300024,16000160 Panda Brand Oyster Flavoured Sauce,200,catalogue_hit,true,true,distribution,high,own_prices,4.29,4.29,4.79,this_product,6,16000160 Panda Brand Oyster Flavoured Sauce,Lee Kum Kee,510g,1303
+pantry,8853662056029,Hot Chilli Sauce,200,catalogue_hit,true,true,distribution,low,own_prices,4.29,5.99,8.36,own_prices,2,Hot Chilli Sauce,Flying Goose Brand,730ml,1336
+pantry,8001250016522,Pesto Alla Genovese,200,catalogue_hit,true,true,distribution,medium,own_prices,4.68,4.99,5.32,own_prices,3,PESTO alla GENOVESE,De Cecco,190g,1305
+pantry,8850620888012,Fischsauce,200,catalogue_hit,true,true,distribution,low,own_prices,1.93,2.69,3.75,own_prices,1,Fish Sauce,Squid,300ml,1325
+pantry,0815074020003,Chosen classic Mayo,200,catalogue_hit,true,true,distribution,medium,own_prices,10.99,13.49,13.99,this_product,3,Chosen classic Mayo,Chosen Foods,12 fl oz,1242
+pantry,0068100084245,Smooth Peanut Butter,200,catalogue_hit,true,true,distribution,medium,own_prices,6.29,6.99,8.49,this_product,7,Smooth Peanut Butter,Kraft,1kg,1296
+pantry,0068100084276,Smooth Peanut Butter,200,catalogue_hit,true,true,distribution,medium,own_prices,11.00,12.99,14.99,this_product,5,Smooth Peanut Butter,Kraft,2 kg,1298
+pantry,0096619450008,Peanut Butter creamy natural,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Peanut Butter creamy natural,Kirkland Signature,1 kg,1352
+pantry,0096619225798,beurre de noix mélangées avec graines,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Mixed Nut Butter with Seeds,Kirkland,765 g,1277
+produce,0898999010007,Coconut Water,200,catalogue_hit,true,true,distribution,high,own_prices,3.00,3.29,3.49,this_product,6,Coconut Water,Vita Coco,500 ml,1262
+produce,94001129,Sungold Kiwi,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,yellow kiwi,Zespri,118 g,1299
+produce,0815074022915,Avocado Oil Spray,200,catalogue_hit,true,true,distribution,low,own_prices,12.13,18.99,29.73,own_prices,4,Avocado Oil Spray,Chosen Foods,13.5oz,1213
+produce,0016229001711,Coconut Milk,200,catalogue_hit,true,true,distribution,medium,own_prices,2.29,2.99,3.49,this_product,7,Coconut Milk,Aroy-D,400ml,1303
+produce,0084380957444,Strawberry Fruit Spread,200,catalogue_hit,true,true,distribution,high,own_prices,6.49,6.50,7.99,this_product,3,Strawberry Fruit Spread,ST DALFOUR,284g,1242
+produce,0832650006008,Deglet Noor pitted dates,200,catalogue_hit,true,false,,,,5.76,,17.35,fixed_prior,0,Organic dates,Terra delyssa,44 oz,1345
+produce,0715756100019,Raspberries,200,catalogue_hit,true,true,distribution,low,own_prices,3.58,4.99,6.96,own_prices,2,Raspberries,Driscoll's,170 g,1322
+produce,8901030831706,Mixed Fruit Jam,200,catalogue_hit,true,true,distribution,low,category_prior,2.88,4.99,8.66,category_prior,3307,Mixed Fruit Jam,Hindustan Unilever Limited,500g,1290
+household,0022796976116,ogx  argan,200,catalogue_hit,true,true,distribution,low,department_prior,4.63,8.04,13.95,department_prior,39,Argan oil of Morocco,OGX,385 mL,1280
+household,0628451857860,Shampoing en barre,200,catalogue_hit,true,true,distribution,low,department_prior,4.63,8.04,13.95,department_prior,39,The Unscented Company Shampoing en barre 65 g,The Unscented Company,65 g,1263
+household,0603084459384,Garnier Whole Blends - Coconut & Cocoa Butter Smoothing Shampoo,200,catalogue_hit,true,true,distribution,low,department_prior,4.63,8.04,13.95,department_prior,39,Garnier Whole Blends - Coconut & Cocoa Butter Smoothing Shampoo,Garnier,370mL,1231

@@ -40,6 +40,9 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
+- **2026-11-21 launch review (Jamin's PC):** not ready to submit; result and per-job findings in
+  `docs/readiness/review-2026-11-21/REPORT.md`, phone checklist beside it.
+
 - The design-evidence document (`docs/design/ux-evidence-2026-10-09.md`) exists with 98 blocks and a build order (its section 13).
 - The ux test suite (`npm run test:ux` in `app/`) was 241 red on 2026-10-09, 12 red on 2026-10-13,
   2 red by 2026-10-28 (the bell's timing, R-89), **0 red on 2026-11-01** after Aurik said yes to

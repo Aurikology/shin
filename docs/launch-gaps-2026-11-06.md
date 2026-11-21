@@ -324,7 +324,122 @@ backend verdict rows are tested once after it is live, not twice.
 
 ---
 
+## E. Launch review, 2026-11-21 (Jamin's PC)
+
+Evidence per item: `docs/readiness/review-2026-11-21/` (REPORT.md, and the job's .jsonl named in brackets).
+Items 16, 17, 19 to 23 above are still unconfirmed: App Store Connect was not visible (Chrome not signed in).
+
+**Blocks submission or the first sale**
+36. **[Jamin]** Privacy policy lacks the 5.1.1 sentence that named outside services protect data equally (apple-rules).
+37. **[Jamin]** Public Privacy Policy and Terms are the 11-06 versions; the 11-18 Terms s.11 to 13 (Quebec) and the
+    device id and reinstall fixes are in the repo only. Live policy contradicts the code. Publishing is Jamin's call (apple-rules).
+38. **[Aurik]** "Pexi is in early access" banner: guideline 2.2 puts betas on TestFlight (blind).
+39. **[Jamin]** Apple server notifications never reached RevenueCat (R84); RevenueCat has no App Store Connect API key,
+    so it cannot confirm the two products exist (money).
+40. **[Aurik]** No purchase has completed end to end while the free limit is on: `phone-checklist.md` steps 6 to 9 (blind).
+41. **[Jamin]** Paid Apps agreement, banking, tax, GST/HST number and Form GST506 to Apple (legal review q24): unseen.
+42. **[Jamin]** Small Business Program enrolment unrecorded (15% versus 30%) (blind, money).
+
+**Loses money**
+43. **[Aurik]** Store screenshots: empty camera first, no captions, no verdict shown; taken 11-09, 34 screen changes since (business, apple-rules).
+44. **[Jamin]** App Store name is "Pexi" alone; add search words, e.g. "Pexi: Grocery Price Checker" (business).
+45. **[Aurik]** Paywall sells a count and says "Typing a name is always free" (typed searches free is a ruling,
+    RULINGS.md:472; saying it on the paywall is not); limit invisible until it refuses a scan (business).
+46. **[Aurik]** No-choice "Your data" screen between install and camera; no ruling requires it (business).
+47. **[Jamin]** Coverage: 98 of 191 popular Canadian barcodes priced (51%, optimistic); real tester scans 14 days:
+    17.4% shop price and verdict (functions, Mac). Coca-Cola 710 ml shows a 6-pack price.
+48. **[Jamin]** Free-limit bypass: new device id = new week, about 150 a day per IPv4 address, unlimited over IPv6 (abuse).
+49. **[Jamin]** About 130 requests a minute of made-up phones stops new Plus buyers being recognised (abuse).
+50. **[Jamin]** Funnel (install, first answer, paywall, purchase, day 7) computable from existing data, nothing computes it (business, R24).
+51. **[Jamin] CONFLICT to decide:** the business job suggests a free trial; legal review q14 says do not switch one on
+    (Quebec 2026 free-period notice rules).
+
+**Scale and reliability**
+52. **[Jamin]** Mac was on battery (80%) during the review; it ran flat 11-18.
+53. **[Jamin]** Nightly backup fails on the retired repeat cache; `07-restore.sh` does not parse under macOS sh;
+    no off-site copy (SHIN_RESTIC_REPOSITORY blank) (Mac).
+54. **[Jamin]** Load: breaks at 512 continuous users, typed search is synchronous SQLite on one thread (under 2 of 8
+    cores). Barcode route missing from the load-test mix (Mac).
+55. **[Jamin]** Product pack 44 MB uncompressed, Cloudflare does not cache it, no route limit (blind).
+56. **[Jamin]** Claude cap 1,000 a month drainable by one person over IPv6; events route can fill the disk in about two hours (abuse).
+57. **[Jamin]** Shoppers on one store Wi-Fi share one address limit (assumed, blind).
+58. **[Jamin]** Dead-man ping has no Mac job running it (R02, R03); RELEASE-CHECKLIST.md is cited but missing (R29, R37) (register).
+
+**Legal (from the 11-17 legal review's ranked actions, re-checked 11-21)**
+59. **[Jamin]** Transfer assessments for outside services (q3): no document found.
+60. **[Jamin]** Verdict-method note with its measured hit rate (q10): none found.
+61. **[Jamin]** French store listing (q16): none recorded. English Terms show on the French subscribe screen (blind).
+62. **[Jamin]** Support email still carries the Shin name, now also on the Plus screen (apple-rules, q10 of the actions list).
+63. **[Jamin]** Ontario business name registration (q19) and the PEXI trademark filing (q18): not recorded.
+64. **[Jamin]** Re-answer Apple's age rating descriptors before 2027-01-12 (q9); tobacco products also get verdicts (apple-rules).
+
+**Smaller**
+65. **[Aurik]** Landscape allowed but not laid out; dormant developer section ships (2.5.19); camera permission
+    text mentions photographs; usage tracking has no off switch (apple-rules).
+66. **[Jamin]** Privacy manifest misses the file-timestamp reason (apple-rules).
+
+## F. Launch review round 2, 2026-11-21 (Jamin's PC)
+
+Evidence: `docs/readiness/review-2026-11-21/round2/` (job named in brackets). Only items new to A to E and the
+register, or adding something to them. The blind pre-mortem's 33 findings: 6 new to every list (18%; round 1's
+blind reviewer: about 5 of 21, 24%), none a blocker.
+
+**Scale and cost**
+67. **[Jamin]** With barcode lookups in the mix the server breaks at 256 continuous users (round 1: 512, search
+    only); same cause, synchronous SQLite on one thread (Mac).
+68. **[Jamin]** Open Food Facts called up to about 100 a minute; its published limit is 15 a minute per address,
+    with an address ban. Overpass "regular use" passed near 1,300 users; its user-agent still says "shin-beta (six testers)" (cost, ops).
+69. **[Jamin]** Claude cap runs out at about 200 to 1,000 weekly users; Haiku 5.5 is a tenth of the hard-coded
+    Haiku 4.5 price; the real ask and consent rates were never measured (cost).
+70. **[Jamin]** RevenueCat is free under US$2.5K a month tracked revenue, then 1% of all of it, card on file (cost).
+71. **[Jamin]** One pack rebuild pushes about 340 GB through the home upload at 50,000 users; a Cloudflare cache rule fixes it (cost).
+
+**Answers**
+72. **[Jamin]** Store prices are one Toronto neighbourhood (Project Hammer); the listing says "typical prices in
+    Canada" (premortem). Ages: Hammer 1 to 4 weeks; BC liquor about 2 months; Open Prices a one-time August import
+    with no job; shopper-entered prices: 0 rows (Mac).
+73. **[Jamin]** Verdicts on guessed or sizeless items can overclaim: D-270 A6 to A11 never fixed (old-lists).
+74. **[Jamin]** Typed search ranking: a bare word tops a flavoured snack, sizes in the query ignored (old-lists, premortem).
+75. **[Jamin]** MVP "done means" price-match cashier line never built; `priceMatchAdvice` has no caller (old-lists).
+
+**Legal, tax, people**
+76. **[Jamin]** If the app stays in 148 countries, Apple's EU trader rule shows his address or P.O. box, phone and email on EU pages (legal).
+77. **[Jamin]** App income is self-employment income: income tax plus both halves of CPP on a T2125; keep six years
+    of records; Apple pays within 45 days of each fiscal month to one bank account (legal).
+78. **[Jamin]** No written agreement with Aurik on code ownership, the name or money (legal, premortem).
+79. **[Jamin]** His own employment papers (AMD, and any earlier contract in force while Pexi was built): check the
+    outside-activity and invention clauses. Not opened by any session (legal, premortem).
+80. **[Jamin]** "Unlimited scans" in App Store Connect now carries a named cost (restitution orders, private
+    applications); the headline verdict claim has no written test; "typical"/"usual" wording spread to the promo
+    text and the verdict line (legal; adds to 16, 60).
+81. **[Jamin]** Quebec: the privacy procedures must be described on the website (legal). With French off, a
+    Quebec shopper sees Pexi entirely in English, Terms included (legal; adds to 31, 61).
+82. **[Aurik]** Every tap is recorded with no opt-out (legal; apple-rules round 1 same).
+
+**Running it**
+83. **[Jamin]** Home Mac encryption trade-off: on, an unplanned restart waits for a password typed at home; off, a
+    stolen Mac exposes shopper records. Current state unchecked (`fdesetup status`). Before May 2027: a cloud
+    machine (about CA$10 to 30 a month) or a mains-powered Mac with remote unlock (premortem).
+84. **[Jamin]** Crash reports are only a log line: no alert, a 30-a-minute cap hides a wave; 0 stored since today's restart (ops, Mac).
+85. **[Aurik]** No Contact or Help row in the app; no reply time stated; every procedure is Jamin plus the Mac (ops).
+86. **[Aurik]** No deadline on calls to Pexi's own server: a slow Mac means a spinner (ops).
+87. **[Jamin]** Update gate needs a manual APP_VERSION bump and a restart; phased release is only in notes (ops).
+88. **[Jamin]** Apple requires the iOS 27 SDK from April 2027; upgrading Xcode on the server Mac means a planned restart (premortem).
+89. **[Jamin]** No proof anyone pays: set a two-week paywall-to-subscribe number and a continue or stop call (premortem).
+90. **[Jamin]** Deploy gate skips the price tests; four test folders run in no gate (old-lists).
+
+**French and Apple paperwork**
+91. **[Aurik]** French strings: tu and vous mixed, three words for "scan", machine-like phrasing, punctuation, legal
+    links open English pages (ops; adds to R43).
+92. **[Aurik]** Accessibility support not declared for submission; privacy manifest declares fewer data types than
+    the store label (premortem).
+
 ## Not covered yet (this list grows when these run)
+
+- **Still open after round 2:** the phone checklist, App Store Connect itself, his employment papers, the Mac's
+  encryption state.
+- **Run 2026-11-21:** Apple's guidelines against the real app (item E), abuse, load, coverage, live end to end.
+  Still open: a phone run of `docs/readiness/review-2026-11-21/phone-checklist.md`, and App Store Connect itself.
 
 - **[Jamin and Aurik]** Apple's review guidelines, section by section, against the real app: the
   server and listing halves are Jamin's, the screens and purchase flow halves Aurik's.

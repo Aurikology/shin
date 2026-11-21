@@ -1,0 +1,1721 @@
+[
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "3560070475711",
+  "name": "Lait frais demi-écrémé",
+  "brand": "CMI (Carrefour Marchandises Internationales), Carrefour, Carrefour Extra",
+  "qty": "1 L",
+  "scans": 17
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420255013",
+  "name": "Breuvage Laitier (2% M.G. - Sans Lactose )",
+  "brand": "Natrel",
+  "qty": "2 L",
+  "scans": 24
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420010124",
+  "name": "Partly Skimmed Milk 2% M.F.",
+  "brand": "Natrel",
+  "qty": "2 l",
+  "scans": 15
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0068200010229",
+  "name": "lait lactantia 1%",
+  "brand": "lactantia",
+  "qty": "2 l",
+  "scans": 5
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0068200010120",
+  "name": "PūrFiltre 2% Milk",
+  "brand": "Lactantia",
+  "qty": "2 L",
+  "scans": 16
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420320148",
+  "name": "Milk protein shake made with ultrafiltered partly skimmed milk",
+  "brand": "Natrel",
+  "qty": "2 L",
+  "scans": 16
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420010223",
+  "name": "PARTLY SKIMMED MILK",
+  "brand": "Natrel",
+  "qty": "2 L",
+  "scans": 8
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0063667301408",
+  "name": "Organic Original Soy Milk Beverage",
+  "brand": "Natur aktiv",
+  "qty": "946 ml",
+  "scans": 14
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0055872024012",
+  "name": "Lait 2%",
+  "brand": "Québon",
+  "qty": "1 L",
+  "scans": 2
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0055872025019",
+  "name": "Lait (2%)",
+  "brand": "Québon",
+  "qty": "2 L",
+  "scans": 6
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "7441001601156",
+  "name": "inline Leche Descremada",
+  "brand": "Dos Pinos",
+  "qty": "",
+  "scans": 2
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0068700011016",
+  "name": "Partly Skimmed Milk",
+  "brand": "Dairyland",
+  "qty": "4 L",
+  "scans": 11
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0811620023023",
+  "name": "vanilla lactose-free nutritious shake",
+  "brand": "fairlife plan nutrition",
+  "qty": "",
+  "scans": 2
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0059000003115",
+  "name": "Evaporated Milk",
+  "brand": "Carnation",
+  "qty": "354 mL",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0062884520012",
+  "name": "2% Cow’s Milk",
+  "brand": "Grand PRÉ (UHT Shelf stable)",
+  "qty": "1 L",
+  "scans": 7
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420355010",
+  "name": "Lactose Milk",
+  "brand": "Natrel",
+  "qty": "2 L",
+  "scans": 3
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0055872026016",
+  "name": "Lait (2%)",
+  "brand": "Québon",
+  "qty": "4 l.",
+  "scans": 3
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0059000000015",
+  "name": "Regular Sweetened Condensed Milk",
+  "brand": "Eagle brand",
+  "qty": "300 ml",
+  "scans": 4
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0068700011009",
+  "name": "Homogenized Milk",
+  "brand": "Dairyland",
+  "qty": "4L",
+  "scans": 11
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0065244133228",
+  "name": "Lait nutrinor biologique partiellement écrémé 2 %",
+  "brand": "Nutrinor",
+  "qty": "2 L",
+  "scans": 1
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0064420010117",
+  "name": "Lait Natrel",
+  "brand": "Natrel",
+  "qty": "",
+  "scans": 5
+ },
+ {
+  "group": "dairy",
+  "tag": "milks",
+  "code": "0065000116052",
+  "name": "Carnation Chocolat chaud",
+  "brand": "Nestlé Carnation",
+  "qty": "",
+  "scans": 5
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "6111246721261",
+  "name": "Fromage Blanc Nature",
+  "brand": "Milky Food Professional, SODIPOL",
+  "qty": "1 kg",
+  "scans": 1074
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "6111242106949",
+  "name": "Jben",
+  "brand": "Jaouda",
+  "qty": "160g",
+  "scans": 681
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "3228021950051",
+  "name": "President petit brie 500g",
+  "brand": "Président",
+  "qty": "0.5 kg",
+  "scans": 21
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068100896459",
+  "name": "Cream Cheese Product",
+  "brand": "Philadelphia",
+  "qty": "500 g",
+  "scans": 6
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "3073780828642",
+  "name": "Babybel Light Mini",
+  "brand": "Babybel",
+  "qty": "120 g",
+  "scans": 16
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0079813000118",
+  "name": "GARLIC & FINE HERBS SPREADABLE GOURMET CHEESE",
+  "brand": "Boursin",
+  "qty": "150 g",
+  "scans": 24
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068100895971",
+  "name": "Cream Cheese Product",
+  "brand": "Philadelphia",
+  "qty": "227 g",
+  "scans": 15
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "3222110025149",
+  "name": "Saint Agur (format familial) (33% MG)",
+  "brand": "Saint Agur, Savencia",
+  "qty": "250 g",
+  "scans": 20
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068100892314",
+  "name": "Cheez Whiz",
+  "brand": "Kraft",
+  "qty": "450g",
+  "scans": 14
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0621879007503",
+  "name": "Le petit crémeux",
+  "brand": "Boivin",
+  "qty": "400 g",
+  "scans": 16
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "3176580111911",
+  "name": "Camembert ile de france. bn batouta.as",
+  "brand": "Ile de FranceSavencia",
+  "qty": "250 g",
+  "scans": 6
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0064420006707",
+  "name": "Fromage cottage",
+  "brand": "Sealtest",
+  "qty": "500g",
+  "scans": 9
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0064420004147",
+  "name": "Cottage cheese",
+  "brand": "Sealtest",
+  "qty": "",
+  "scans": 14
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0621879007251",
+  "name": "Le petit crémeux",
+  "brand": "Boivin",
+  "qty": "",
+  "scans": 11
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068200479088",
+  "name": "100% Parmesan Grated Cheese",
+  "brand": "Kraft",
+  "qty": "",
+  "scans": 1
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068200479057",
+  "name": "100% Parmesan Grated Cheese",
+  "brand": "Kraft",
+  "qty": "250g",
+  "scans": 8
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068100896336",
+  "name": "Original Cream Cheese Product",
+  "brand": "Philadelphia",
+  "qty": "340 g",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "cheeses",
+  "code": "0068100896473",
+  "name": "Light Cream Cheese Spread",
+  "brand": "Philadelphia",
+  "qty": "500g",
+  "scans": 1
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0096619553303",
+  "name": "Greek Yogourt",
+  "brand": "KIRKLAND Signature",
+  "qty": "650 g",
+  "scans": 31
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0068200750156",
+  "name": "Original Balkan Yogurt Natural Yogurt",
+  "brand": "Astro",
+  "qty": "750 g",
+  "scans": 47
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800634211",
+  "name": "Yogourt grec nature",
+  "brand": "Oikos",
+  "qty": "650g",
+  "scans": 17
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0065684005109",
+  "name": "Greek Plain",
+  "brand": "LIBERTÉ",
+  "qty": "750 g",
+  "scans": 18
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800202465",
+  "name": "Yogourt grec",
+  "brand": "Oikos",
+  "qty": "750g",
+  "scans": 9
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0065684004706",
+  "name": "Grec - Greek 2%",
+  "brand": "LIBERTÉ",
+  "qty": "750 g",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0068200325118",
+  "name": "skyr aux ingrédients simples",
+  "brand": "Siggi's",
+  "qty": "750 g",
+  "scans": 32
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800098297",
+  "name": "vanilla",
+  "brand": "Activia",
+  "qty": "650 g",
+  "scans": 7
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800202458",
+  "name": "OIKOS",
+  "brand": "Oikos",
+  "qty": "",
+  "scans": 11
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0068200325125",
+  "name": "simple ingredient skyr",
+  "brand": "Siggi's",
+  "qty": "750g",
+  "scans": 14
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0068200325095",
+  "name": "creamy skyr plain",
+  "brand": "Siggi's",
+  "qty": "750.0 g",
+  "scans": 17
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800249170",
+  "name": "Activia Propionique nature",
+  "brand": "Activia",
+  "qty": "650 g",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0196633916280",
+  "name": "organic Greek yogurt",
+  "brand": "Kirkland Signature",
+  "qty": "1.3 kg",
+  "scans": 23
+ },
+ {
+  "group": "dairy",
+  "tag": "yogurts",
+  "code": "0056800739015",
+  "name": "Yogourt Probiotique Activia (citron)",
+  "brand": "Activia",
+  "qty": "650 g",
+  "scans": 3
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "3451790988677",
+  "name": "Le Beurre Tendre",
+  "brand": "Elle & Vire",
+  "qty": "250 g",
+  "scans": 343
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "0068100084665",
+  "name": "PEANUT BUTTER",
+  "brand": "ONLY PEANUTS Kraft",
+  "qty": "750 g",
+  "scans": 89
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "0068200701066",
+  "name": "Tardinade traditionnelle",
+  "brand": "Lactantia",
+  "qty": "427g",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "4820001830071",
+  "name": "Polyana Kvasova",
+  "brand": "",
+  "qty": "",
+  "scans": 10
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "0011115001370",
+  "name": "Vegan",
+  "brand": "Becel",
+  "qty": "907g",
+  "scans": 3
+ },
+ {
+  "group": "dairy",
+  "tag": "butters",
+  "code": "0055872281866",
+  "name": "Beurre non salé",
+  "brand": "Natrel",
+  "qty": "454 g",
+  "scans": 9
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "3600900020404",
+  "name": "Fine chapelure de pain",
+  "brand": "Tipiak",
+  "qty": "275 g",
+  "scans": 75
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "26073651",
+  "name": "10 pains au lait",
+  "brand": "Les PâtissadesAldi",
+  "qty": "400 g",
+  "scans": 25
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505110051",
+  "name": "Quinoa Bread",
+  "brand": "Les Grains St-Méthode",
+  "qty": "550 g",
+  "scans": 34
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505100342",
+  "name": "Pain style grand-mère",
+  "brand": "Les 5 Grains d'Autrefois",
+  "qty": "600 g",
+  "scans": 21
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505300292",
+  "name": "Pain tranché aux 9 grains entiers",
+  "brand": "Les Grains StMéthode",
+  "qty": "600g",
+  "scans": 12
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505110044",
+  "name": "Pain Multi-Céréales",
+  "brand": "Les Grains St-Méthode",
+  "qty": "1",
+  "scans": 14
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505100366",
+  "name": "Oat Home Style Bread",
+  "brand": "La recolte St-Méthode",
+  "qty": "600g",
+  "scans": 22
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0061077856334",
+  "name": "PROTEIN LOAF",
+  "brand": "BON MATIN",
+  "qty": "600 g",
+  "scans": 23
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0060885000670",
+  "name": "Sourdough Bistro Classic Loaf",
+  "brand": "ACE Bakery",
+  "qty": "1150 g",
+  "scans": 27
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0061077771217",
+  "name": "Superclub sandwich",
+  "brand": "POM",
+  "qty": "675",
+  "scans": 15
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0061077771200",
+  "name": "Pain blanc",
+  "brand": "POM",
+  "qty": "675 g",
+  "scans": 28
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0096619316212",
+  "name": "ORGANIC LOAF",
+  "brand": "KIRKLAND Signature",
+  "qty": "765 g",
+  "scans": 29
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0055991040160",
+  "name": "The Big 16",
+  "brand": "Silver Hills",
+  "qty": "615 g",
+  "scans": 22
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0078935005186",
+  "name": "RYVITA Sesame Rye Rye Crispbread",
+  "brand": "RYVITA",
+  "qty": "250 g",
+  "scans": 14
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0055577107799",
+  "name": "Crispy minis",
+  "brand": "Taste of Nature",
+  "qty": "127 g",
+  "scans": 25
+ },
+ {
+  "group": "bread",
+  "tag": "breads",
+  "code": "0068505100717",
+  "name": "Miche à l'avoine et sésame",
+  "brand": "Le Campagnolo de St-Methode",
+  "qty": "2 tranches",
+  "scans": 12
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "8901491100519",
+  "name": "Kurkure",
+  "brand": "Kurkure",
+  "qty": "78 g",
+  "scans": 44
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "8901491101844",
+  "name": "Lay's Potato Chips",
+  "brand": "Lay's",
+  "qty": "50 g",
+  "scans": 33
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "3497917000938",
+  "name": "Chips Brets Saveur Cheddar Oignon de Roscoff",
+  "brand": "Brets",
+  "qty": "125g",
+  "scans": 56
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0096619615162",
+  "name": "Kettle Brand Krinkle Cut Pink Salt Potato Chips",
+  "brand": "Kirkland Signature",
+  "qty": "32 oz. (2 lb.) 907g",
+  "scans": 40
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0096619161553",
+  "name": "Tortilla Chips",
+  "brand": "Kirkland Que Pasa",
+  "qty": "908g",
+  "scans": 33
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "3497917001928",
+  "name": "Chips Saveur camembert",
+  "brand": "Brets",
+  "qty": "125 g",
+  "scans": 25
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0020685084423",
+  "name": "Croustilles cuites en marmite - Sel de mer",
+  "brand": "Cape Cod",
+  "qty": "680 g",
+  "scans": 22
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0068826176033",
+  "name": "Volcanic Stone Ground Tortilla Chips",
+  "brand": "QUE PASA",
+  "qty": "350 g",
+  "scans": 10
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0853496008124",
+  "name": "Shiitake Mushroom Crisps",
+  "brand": "D&J A",
+  "qty": "300 g",
+  "scans": 13
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0060410046678",
+  "name": "Original recipe",
+  "brand": "Miss Vickie's",
+  "qty": "200 gr",
+  "scans": 29
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "8901491435109",
+  "name": "Potato chips (Spicy Treat flavour)20rs",
+  "brand": "Uncle Chipps",
+  "qty": "52 g",
+  "scans": 18
+ },
+ {
+  "group": "snacks",
+  "tag": "chips-and-fries",
+  "code": "0071146012455",
+  "name": "HARVEST SNAPS ORIGINAL BAKED VEGGIE SNACKS",
+  "brand": "Calbee",
+  "qty": "94 g",
+  "scans": 21
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3046920028004",
+  "name": "Excellence 70% Cocoa Intense Dark",
+  "brand": "Lindt",
+  "qty": "100 g",
+  "scans": 332
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3046920022705",
+  "name": "Excellence Noir Orange Intense",
+  "brand": "Lindt",
+  "qty": "100 g",
+  "scans": 189
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "7613035040793",
+  "name": "NESTLÉ DESSERT Noir 2x205g",
+  "brand": "Nestlé, Nestlé Dessert, Tablettes",
+  "qty": "410 g",
+  "scans": 223
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "7613035587793",
+  "name": "NESTLE DESSERT Lait",
+  "brand": "Nestlé, Nestlé Dessert, Tablettes",
+  "qty": "170 g",
+  "scans": 88
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3173281446595",
+  "name": "Chocolat noir 82%",
+  "brand": "Cemoi",
+  "qty": "100 g",
+  "scans": 3
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3179142787104",
+  "name": "Pépites de chocolat au lait",
+  "brand": "McCormick, Vahiné",
+  "qty": "100 g e",
+  "scans": 25
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "0068437389693",
+  "name": "Açaí & blueberry flavours",
+  "brand": "BROOKSIDE",
+  "qty": "850 g",
+  "scans": 26
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3664346300148",
+  "name": "Chocolat au lait",
+  "brand": "Poulain",
+  "qty": "95 g",
+  "scans": 26
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "8410109104950",
+  "name": "82% Cacao Supreme Dark",
+  "brand": "Valor",
+  "qty": "100 g",
+  "scans": 15
+ },
+ {
+  "group": "snacks",
+  "tag": "chocolates",
+  "code": "3179142787203",
+  "name": "Pépites chunk chocolat noir",
+  "brand": "Vahiné",
+  "qty": "100 g",
+  "scans": 23
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "7622210449283",
+  "name": "Prince",
+  "brand": "LU, Prince",
+  "qty": "300 g ℮",
+  "scans": 1323
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "7622210421968",
+  "name": "Véritable Petit Écolier Chocolat au Lait",
+  "brand": "Mondelez International",
+  "qty": "150 g (12x 12.5 g) e",
+  "scans": 251
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "5410041010800",
+  "name": "Petit écolier chocolat noir pur beurre de cacao",
+  "brand": "LU, MONDELEZ BELGIUM SERVICES BVBA",
+  "qty": "150 g",
+  "scans": 234
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "7622210450029",
+  "name": "Prince -  Goût Lait -  Choco Au Blé Compet",
+  "brand": "LU",
+  "qty": "300 g",
+  "scans": 169
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "3017760038409",
+  "name": "Lulu La Barquette Fraise",
+  "brand": "LU",
+  "qty": "120 g",
+  "scans": 166
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "3252755150005",
+  "name": "20 madeleines longues aux œufs frais",
+  "brand": "Le Ster",
+  "qty": "250g",
+  "scans": 90
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "3017760595193",
+  "name": "Granola Chocolat Noir",
+  "brand": "LU, Mondelez international",
+  "qty": "195 g (16× 12.2 g) e",
+  "scans": 87
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "7622300744663",
+  "name": "Biscotti al cacao magro ripieni di crema al gusto vaniglia",
+  "brand": "Oreo, Mondelez",
+  "qty": "220 g (5 x 44 g)",
+  "scans": 107
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "3245390084422",
+  "name": "Palets Bretons Spécialité de Pont-Aven au beurre",
+  "brand": "Reflets de France, Carrefour",
+  "qty": "100 g",
+  "scans": 70
+ },
+ {
+  "group": "snacks",
+  "tag": "biscuits-and-cakes",
+  "code": "0731216103987",
+  "name": "Aussie Bites",
+  "brand": "Universal Bakery",
+  "qty": "30 oz (1 lb. 14 oz.) 850 g",
+  "scans": 39
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "5449000000996",
+  "name": "Coca-Cola Original",
+  "brand": "COCA-COLA SERVICES SA/NV",
+  "qty": "330 ml",
+  "scans": 570
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "06224017",
+  "name": "GINGER ALE",
+  "brand": "Canada Dry",
+  "qty": "355 ml",
+  "scans": 14
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "06782900",
+  "name": "Coca-cola Classique",
+  "brand": "Coca-Cola",
+  "qty": "355 ml",
+  "scans": 25
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "06731906",
+  "name": "Coke Zero",
+  "brand": "Coca-Cola",
+  "qty": "355 ml",
+  "scans": 29
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "8901764041259",
+  "name": "Thums Up 300ml can",
+  "brand": "Coca-Cola",
+  "qty": "1",
+  "scans": 7
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "0069000149171",
+  "name": "sparkling water beverage lime",
+  "brand": "bubly",
+  "qty": "355 mL",
+  "scans": 12
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "06792800",
+  "name": "Diet Coke",
+  "brand": "Coca-Cola",
+  "qty": "355 mL",
+  "scans": 19
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "0069000013724",
+  "name": "Pepsi Zero Sugar",
+  "brand": "Pepsi",
+  "qty": "355 mL",
+  "scans": 9
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "0069000014257",
+  "name": "Diet Pepsi",
+  "brand": "Pepsi",
+  "qty": "355 ml",
+  "scans": 13
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "0069000004258",
+  "name": "Pepsi",
+  "brand": "Pepsi",
+  "qty": "355mL",
+  "scans": 20
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "0067000104022",
+  "name": "Coca-Cola",
+  "brand": "Coca-Cola",
+  "qty": "710 ml",
+  "scans": 5
+ },
+ {
+  "group": "drinks",
+  "tag": "sodas",
+  "code": "06742708",
+  "name": "Coca-Cola",
+  "brand": "Coca-Cola",
+  "qty": "2 L",
+  "scans": 7
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "6111035000430",
+  "name": "sidi ali",
+  "brand": "Sidi Ali, سيدي علي",
+  "qty": "33 cl",
+  "scans": 966
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "6111035000058",
+  "name": "Eau minérale naturelle",
+  "brand": "Sidi Ali",
+  "qty": "1,5 L",
+  "scans": 856
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "6111035002175",
+  "name": "Eau minérale naturelle",
+  "brand": "Sidi Ali",
+  "qty": "2 L",
+  "scans": 720
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "7613035833272",
+  "name": "PERRIER eau minérale naturelle gazeuse 1L",
+  "brand": "Nestlé, Perrier, Nestlé Waters",
+  "qty": "1000 ml",
+  "scans": 129
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "0671785501008",
+  "name": "Eska - Eau de source naturelle",
+  "brand": "Eska",
+  "qty": "500 mL",
+  "scans": 58
+ },
+ {
+  "group": "drinks",
+  "tag": "waters",
+  "code": "0096619321841",
+  "name": "Natural spring water",
+  "brand": "Kirkland Signature",
+  "qty": "500mL",
+  "scans": 80
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3083681066852",
+  "name": "Purée Délice Carottes, Potiron, Crème",
+  "brand": "Bonduelle",
+  "qty": "780 g",
+  "scans": 64
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3599740007501",
+  "name": "Tranches panées de Cabillaud MSC",
+  "brand": "Findus",
+  "qty": "",
+  "scans": 21
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3251510551002",
+  "name": "Sorbet Pêche Pomme Framboise",
+  "brand": "Oasis",
+  "qty": "500 ml, 400 g",
+  "scans": 65
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3245412891175",
+  "name": "Pomme Poire Sans sucres ajoutés*",
+  "brand": "1er Classic",
+  "qty": "400 g (4 x 100 g)",
+  "scans": 16
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "7613034965868",
+  "name": "Extrême vanille de Madagascar",
+  "brand": "Nestlé",
+  "qty": "6 * 120 ml",
+  "scans": 16
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3564700441442",
+  "name": "Poireaux en rondelles",
+  "brand": "Marque Repère, Notre Jardin",
+  "qty": "1 kg",
+  "scans": 9
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "0096619281954",
+  "name": "Soft & Chewy Granola Bars",
+  "brand": "Kirkland Signature",
+  "qty": "54000 g",
+  "scans": 12
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3245412891168",
+  "name": "Pomme Pêche Sans sucres ajoutés*",
+  "brand": "Carrefour",
+  "qty": "400 g (4 x 100 g)",
+  "scans": 10
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "26044439",
+  "name": "2lboîtes Flageolets Verts Extra Fins Fleurs Des Champs 530 g",
+  "brand": "Fleurs des Champs",
+  "qty": "800 g",
+  "scans": 3
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "0042272000715",
+  "name": "Burrito Cheddar Cheese",
+  "brand": "Amy's",
+  "qty": "6.0 oz",
+  "scans": 6
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "26043081",
+  "name": "Haricots Verts, Extra Fins",
+  "brand": "Aldi, Fleurs des Champs",
+  "qty": "800 g",
+  "scans": 6
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "0842454041211",
+  "name": "Fraises tranchées biologique",
+  "brand": "Fennec",
+  "qty": "2 kg",
+  "scans": 2
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "0058336170003",
+  "name": "Thin Crust Pizza spinach",
+  "brand": "Dr. Oetker",
+  "qty": "390g",
+  "scans": 7
+ },
+ {
+  "group": "frozen",
+  "tag": "frozen-foods",
+  "code": "3560070809714",
+  "name": "2 Pomme Poire - 2 Pomme Pêche - 4 Pomme Sans sucres ajoutés*",
+  "brand": "Carrefour",
+  "qty": "800 g (8 x 100 g)",
+  "scans": 5
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "8076800376999",
+  "name": "Lasagne all'uovo",
+  "brand": "Barilla, Barilla G. e R. Fratelli SpA",
+  "qty": "500 g",
+  "scans": 171
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "8004690612804",
+  "name": "Fusilli No. 28 Le Integrali",
+  "brand": "La Molisana SpA",
+  "qty": "500 gram",
+  "scans": 40
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "8801073114814",
+  "name": "Artificial Spicy Chicken Flavor Stir-Fried Ramen",
+  "brand": "Samyang",
+  "qty": "4.93 oz",
+  "scans": 31
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "8004690612002",
+  "name": "Penne rigate nº 20",
+  "brand": "La Molisana, la Molisana",
+  "qty": "500g",
+  "scans": 42
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "8004690616604",
+  "name": "Farfalle rigate n°66",
+  "brand": "La Molisana",
+  "qty": "500 g",
+  "scans": 25
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "3252970008419",
+  "name": "Les Crozets Nature",
+  "brand": "Alpina",
+  "qty": "600 g",
+  "scans": 12
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "0807176706923",
+  "name": "Mini Wontons Chicken & Cilantro",
+  "brand": "Bibigo",
+  "qty": "48 oz 1.36kg",
+  "scans": 9
+ },
+ {
+  "group": "pantry",
+  "tag": "pastas",
+  "code": "0813616020412",
+  "name": "Pâtes de lentilles Biologiques",
+  "brand": "felicia",
+  "qty": "",
+  "scans": 4
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "8402001010873",
+  "name": "Muesli Crunchy",
+  "brand": "MERCADONA",
+  "qty": "500gr",
+  "scans": 185
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0096619194261",
+  "name": "Ancient Grains Probiotic Granola",
+  "brand": "Kirkland Signature",
+  "qty": "35.3 oz (1 kg)",
+  "scans": 125
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0058449251002",
+  "name": "Flocons de son d'avoine",
+  "brand": "Nature's Path",
+  "qty": "1.5kg",
+  "scans": 29
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0064100271913",
+  "name": "All Bran Buds",
+  "brand": "Kellogg's",
+  "qty": "1.05kg",
+  "scans": 26
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0030000012000",
+  "name": "Quick 1-Minute Oats",
+  "brand": "Quaker Oats",
+  "qty": "42 Oz / 1.19 kg",
+  "scans": 31
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0628154011323",
+  "name": "Shredded Wheat & Bran",
+  "brand": "Post",
+  "qty": "525 g",
+  "scans": 33
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0058449770213",
+  "name": "Heritage Flakes Cereal",
+  "brand": "Nature's Path",
+  "qty": "907 g",
+  "scans": 34
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0628154020035",
+  "name": "Post Shredded Wheat",
+  "brand": "Post",
+  "qty": "425 g",
+  "scans": 22
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0055577105665",
+  "name": "Oatmeal Squares",
+  "brand": "Quaker",
+  "qty": "500 g",
+  "scans": 19
+ },
+ {
+  "group": "pantry",
+  "tag": "breakfast-cereals",
+  "code": "0058449890072",
+  "name": "Pumpkin Seed + Flax Granola",
+  "brand": "Nature's Path Organic",
+  "qty": "115 oz",
+  "scans": 36
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "8004030026018",
+  "name": "Rio mare Light tuna salad",
+  "brand": "Insalatissime - Rio Mare - Bolton-Gruppe, Rio Mare",
+  "qty": "160g",
+  "scans": 65
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "8004030022010",
+  "name": "Light Tuna Salad Corn with peas, carrots and black olives",
+  "brand": "Insalatissime - Rio Mare - Bolton-Gruppe, Rio Mare",
+  "qty": "160g",
+  "scans": 41
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "9300633929169",
+  "name": "Chunk Light Tuna",
+  "brand": "Woolworths",
+  "qty": "",
+  "scans": 27
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "3450971451856",
+  "name": "Thon entier listao",
+  "brand": "Eco+",
+  "qty": "140 g",
+  "scans": 40
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "26043241",
+  "name": "Ratatouille",
+  "brand": "Aldi, Fleurs des Champs",
+  "qty": "750 g, 850 ml",
+  "scans": 10
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "5400101173224",
+  "name": "Petits pois Extra-fins",
+  "brand": "Carrefour",
+  "qty": "800 g",
+  "scans": 14
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "0066613000097",
+  "name": "Boneless Butterflied Sardine Fillets",
+  "brand": "Brunswick",
+  "qty": "106 Gr",
+  "scans": 8
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "0096619523900",
+  "name": "Thon pâle entier",
+  "brand": "Kirkland Signature",
+  "qty": "184 g",
+  "scans": 16
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "0063211012613",
+  "name": "Cream of Mushroom",
+  "brand": "Campbell's",
+  "qty": "284 mL",
+  "scans": 8
+ },
+ {
+  "group": "pantry",
+  "tag": "canned-foods",
+  "code": "0061202021200",
+  "name": "Tomato soup",
+  "brand": "Aylmer",
+  "qty": "284 mL",
+  "scans": 15
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "0815074022809",
+  "name": "Classic Mayo",
+  "brand": "Chosen Foods",
+  "qty": "946 ml",
+  "scans": 89
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "0068400662600",
+  "name": "Mayonnaise",
+  "brand": "Hellmann's",
+  "qty": "890 mL",
+  "scans": 25
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "0057000002992",
+  "name": "Tomato Ketchup",
+  "brand": "Heinz",
+  "qty": "1l",
+  "scans": 49
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "0078895300024",
+  "name": "16000160 Panda Brand Oyster Flavoured Sauce",
+  "brand": "Lee Kum Kee",
+  "qty": "510g",
+  "scans": 34
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "8853662056029",
+  "name": "Hot Chilli Sauce",
+  "brand": "Flying Goose Brand",
+  "qty": "730ml",
+  "scans": 49
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "8001250016522",
+  "name": "Pesto Alla Genovese",
+  "brand": "De Cecco",
+  "qty": "190g",
+  "scans": 44
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "8850620888012",
+  "name": "Fischsauce",
+  "brand": "Squid",
+  "qty": "300ml",
+  "scans": 32
+ },
+ {
+  "group": "pantry",
+  "tag": "sauces",
+  "code": "0815074020003",
+  "name": "Chosen classic Mayo",
+  "brand": "Chosen Foods",
+  "qty": "355ml",
+  "scans": 67
+ },
+ {
+  "group": "pantry",
+  "tag": "peanut-butters",
+  "code": "0068100084245",
+  "name": "Smooth Peanut Butter",
+  "brand": "Kraft",
+  "qty": "1kg",
+  "scans": 119
+ },
+ {
+  "group": "pantry",
+  "tag": "peanut-butters",
+  "code": "0068100084276",
+  "name": "Smooth Peanut Butter",
+  "brand": "Kraft",
+  "qty": "2 kg",
+  "scans": 86
+ },
+ {
+  "group": "pantry",
+  "tag": "peanut-butters",
+  "code": "0096619450008",
+  "name": "Peanut Butter creamy natural",
+  "brand": "Kirkland Signature",
+  "qty": "1 kg",
+  "scans": 92
+ },
+ {
+  "group": "pantry",
+  "tag": "peanut-butters",
+  "code": "0096619225798",
+  "name": "beurre de noix mélangées avec graines",
+  "brand": "Kirkland",
+  "qty": "765 g",
+  "scans": 11
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0898999010007",
+  "name": "Coconut Water",
+  "brand": "Vita Coco",
+  "qty": "500 ml",
+  "scans": 78
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "94001129",
+  "name": "Sungold Kiwi",
+  "brand": "Zespri",
+  "qty": "118 g",
+  "scans": 79
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0815074022915",
+  "name": "Avocado Oil Spray",
+  "brand": "Chosen Foods",
+  "qty": "13.5oz",
+  "scans": 72
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0016229001711",
+  "name": "Coconut Milk",
+  "brand": "Aroy-D, Thai Agri Foods Public Company Limited",
+  "qty": "400ml",
+  "scans": 30
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0084380957444",
+  "name": "Strawberry Fruit Spread",
+  "brand": "ST DALFOUR",
+  "qty": "284g",
+  "scans": 50
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0832650006008",
+  "name": "Deglet Noor pitted dates",
+  "brand": "Terra Delyssa",
+  "qty": "44 oz",
+  "scans": 75
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "0715756100019",
+  "name": "Raspberries",
+  "brand": "Driscoll's",
+  "qty": "170 g",
+  "scans": 27
+ },
+ {
+  "group": "produce",
+  "tag": "fruits-and-vegetables-based-foods",
+  "code": "8901030831706",
+  "name": "Mixed Fruit Jam",
+  "brand": "Hindustan Unilever Limited, Kissan",
+  "qty": "500g",
+  "scans": 16
+ },
+ {
+  "group": "household",
+  "tag": "shampoos",
+  "code": "0022796976116",
+  "name": "ogx  argan",
+  "brand": "OGX",
+  "qty": "385 mL",
+  "scans": 21
+ },
+ {
+  "group": "household",
+  "tag": "shampoos",
+  "code": "0628451857860",
+  "name": "Shampoing en barre",
+  "brand": "The Unscented Company",
+  "qty": "65 g",
+  "scans": 1
+ },
+ {
+  "group": "household",
+  "tag": "shampoos",
+  "code": "0603084459384",
+  "name": "Garnier Whole Blends - Coconut & Cocoa Butter Smoothing Shampoo",
+  "brand": "garnier, l-oreal, l-oreal-consumer-products",
+  "qty": "370mL",
+  "scans": 3
+ }
+]

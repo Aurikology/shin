@@ -1,0 +1,1481 @@
+[
+ {
+  "code": "3560070475711",
+  "group": "dairy",
+  "off_name": "Lait frais demi-écrémé",
+  "pexi": "CMI (Carrefour Marchandises Internationales) Cmi 1 L",
+  "size": "1 L",
+  "median": 550,
+  "why": [
+   "range is department_prior (n=23193) not this product",
+   "wide range 317-954",
+   "name differs from Open Food Facts: Lait frais demi-écrémé vs CMI (Carrefour Marchandises Internationales) Cmi 1 L"
+  ]
+ },
+ {
+  "code": "0063667301408",
+  "group": "dairy",
+  "off_name": "Organic Original Soy Milk Beverage",
+  "pexi": "Organic Original Soy Milk Beverage",
+  "size": "946 ml",
+  "median": 349,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0055872024012",
+  "group": "dairy",
+  "off_name": "Lait 2%",
+  "pexi": "Québon Lait 2% 1 L",
+  "size": "1 L",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0055872025019",
+  "group": "dairy",
+  "off_name": "Lait (2%)",
+  "pexi": "Partly skimmed milk 2%",
+  "size": "2 L",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Lait (2%) vs Partly skimmed milk 2%"
+  ]
+ },
+ {
+  "code": "0068700011016",
+  "group": "dairy",
+  "off_name": "Partly Skimmed Milk",
+  "pexi": "Partly Skimmed Milk",
+  "size": "4 L",
+  "median": 879,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0811620023023",
+  "group": "dairy",
+  "off_name": "vanilla lactose-free nutritious shake",
+  "pexi": "vanilla lactose-free nutritious shake",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0062884520012",
+  "group": "dairy",
+  "off_name": "2% Cow’s Milk",
+  "pexi": "2% Cow’s Milk",
+  "size": "1 L",
+  "median": 499,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "0055872026016",
+  "group": "dairy",
+  "off_name": "Lait (2%)",
+  "pexi": "2 % partly skimmed milk",
+  "size": "4 l.",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Lait (2%) vs 2 % partly skimmed milk"
+  ]
+ },
+ {
+  "code": "0068700011009",
+  "group": "dairy",
+  "off_name": "Homogenized Milk",
+  "pexi": "Homogenized Milk",
+  "size": "4L",
+  "median": 669,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0065244133228",
+  "group": "dairy",
+  "off_name": "Lait nutrinor biologique partiellement écrémé 2 %",
+  "pexi": "Organic 2% Partly Skimmed Milk",
+  "size": "2 L",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0064420010117",
+  "group": "dairy",
+  "off_name": "Lait Natrel",
+  "pexi": "Fine-Filtered 2% Fat Milk",
+  "size": "1L",
+  "median": 329,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "6111246721261",
+  "group": "dairy",
+  "off_name": "Fromage Blanc Nature",
+  "pexi": "Fromage Blanc Nature",
+  "size": "1 kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "7441001601156",
+  "group": "dairy",
+  "off_name": "inline Leche Descremada",
+  "pexi": "inline Leche Descremada",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "6111242106949",
+  "group": "dairy",
+  "off_name": "Jben",
+  "pexi": "jben",
+  "size": "160g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068100896459",
+  "group": "dairy",
+  "off_name": "Cream Cheese Product",
+  "pexi": "Cream Cheese Product",
+  "size": "500 g",
+  "median": 1098,
+  "why": [
+   "range is other_size (n=1) not this product"
+  ]
+ },
+ {
+  "code": "3073780828642",
+  "group": "dairy",
+  "off_name": "Babybel Light Mini",
+  "pexi": "Babybel Light Mini",
+  "size": "120 g",
+  "median": 649,
+  "why": [
+   "range is own_prices (n=4) not this product"
+  ]
+ },
+ {
+  "code": "3222110025149",
+  "group": "dairy",
+  "off_name": "Saint Agur (format familial) (33% MG)",
+  "pexi": "Saint Agur format familial) 250 g",
+  "size": "250 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0621879007503",
+  "group": "dairy",
+  "off_name": "Le petit crémeux",
+  "pexi": "Le petit Crèmeux",
+  "size": "400 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3176580111911",
+  "group": "dairy",
+  "off_name": "Camembert ile de france. bn batouta.as",
+  "pexi": "Camembert Cheese",
+  "size": "250 g",
+  "median": 1029,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0064420006707",
+  "group": "dairy",
+  "off_name": "Fromage cottage",
+  "pexi": "Fromage Cottage",
+  "size": "500g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0064420004147",
+  "group": "dairy",
+  "off_name": "Cottage cheese",
+  "pexi": "Fromage Cottage",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0621879007251",
+  "group": "dairy",
+  "off_name": "Le petit crémeux",
+  "pexi": "Le petit CRÉMEUX",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068200479088",
+  "group": "dairy",
+  "off_name": "100% Parmesan Grated Cheese",
+  "pexi": "100% Parmesan Grated Cheese",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068100896473",
+  "group": "dairy",
+  "off_name": "Light Cream Cheese Spread",
+  "pexi": "Light Cream Cheese Spread",
+  "size": "500g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619553303",
+  "group": "dairy",
+  "off_name": "Greek Yogourt",
+  "pexi": "Greek Yogurt",
+  "size": "650 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0196633916280",
+  "group": "dairy",
+  "off_name": "organic Greek yogurt",
+  "pexi": "organic Greek yogurt",
+  "size": "1.3 kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3451790988677",
+  "group": "dairy",
+  "off_name": "Le Beurre Tendre",
+  "pexi": "Le Beurre Tendre",
+  "size": "250 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068200701066",
+  "group": "dairy",
+  "off_name": "Tardinade traditionnelle",
+  "pexi": "Original",
+  "size": "427g",
+  "median": 298,
+  "why": [
+   "range is own_prices (n=1) not this product",
+   "name differs from Open Food Facts: Tardinade traditionnelle vs Original"
+  ]
+ },
+ {
+  "code": "4820001830071",
+  "group": "dairy",
+  "off_name": "Polyana Kvasova",
+  "pexi": "Polyana Kvasova",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0011115001370",
+  "group": "dairy",
+  "off_name": "Vegan",
+  "pexi": "Vegan",
+  "size": "907g",
+  "median": 949,
+  "why": [
+   "range is own_prices (n=6) not this product"
+  ]
+ },
+ {
+  "code": "0055872281866",
+  "group": "dairy",
+  "off_name": "Beurre non salé",
+  "pexi": "Butter",
+  "size": "454 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Beurre non salé vs Butter"
+  ]
+ },
+ {
+  "code": "3600900020404",
+  "group": "bread",
+  "off_name": "Fine chapelure de pain",
+  "pexi": "Chapelure",
+  "size": "275 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "26073651",
+  "group": "bread",
+  "off_name": "10 pains au lait",
+  "pexi": "10 pains au lait",
+  "size": "400 g",
+  "median": 599,
+  "why": [
+   "range is category_prior (n=4) not this product",
+   "wide range 345-1039"
+  ]
+ },
+ {
+  "code": "0068505110051",
+  "group": "bread",
+  "off_name": "Quinoa Bread",
+  "pexi": "Quinoa Bread",
+  "size": "550 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068505100342",
+  "group": "bread",
+  "off_name": "Pain style grand-mère",
+  "pexi": "Pain style grand-mère",
+  "size": "600 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068505300292",
+  "group": "bread",
+  "off_name": "Pain tranché aux 9 grains entiers",
+  "pexi": "9 Grains entiers / Whole grains Bread",
+  "size": "600g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068505110044",
+  "group": "bread",
+  "off_name": "Pain Multi-Céréales",
+  "pexi": "Multi-Cereal Bread",
+  "size": "1",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068505100366",
+  "group": "bread",
+  "off_name": "Oat Home Style Bread",
+  "pexi": "Oat Home Style Bread",
+  "size": "600g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0061077856334",
+  "group": "bread",
+  "off_name": "PROTEIN LOAF",
+  "pexi": "Protein Loaf",
+  "size": "600 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0060885000670",
+  "group": "bread",
+  "off_name": "Sourdough Bistro Classic Loaf",
+  "pexi": "Sourdough Bistro Classic Loaf",
+  "size": "1150 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0061077771217",
+  "group": "bread",
+  "off_name": "Superclub sandwich",
+  "pexi": "100% Whole Wheat Sandwich Bread",
+  "size": "675",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0061077771200",
+  "group": "bread",
+  "off_name": "Pain blanc",
+  "pexi": "Ultra-Moelleux White Sandwich Bread",
+  "size": "675 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Pain blanc vs Ultra-Moelleux White Sandwich Bread"
+  ]
+ },
+ {
+  "code": "0096619316212",
+  "group": "bread",
+  "off_name": "ORGANIC LOAF",
+  "pexi": "Organic Loaf",
+  "size": "765 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068505100717",
+  "group": "bread",
+  "off_name": "Miche à l'avoine et sésame",
+  "pexi": "Sesame Oat Loaf",
+  "size": "2 tranches",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Miche à l'avoine et sésame vs Sesame Oat Loaf"
+  ]
+ },
+ {
+  "code": "8901491100519",
+  "group": "snacks",
+  "off_name": "Kurkure",
+  "pexi": "Kurkure",
+  "size": "78 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8901491101844",
+  "group": "snacks",
+  "off_name": "Lay's Potato Chips",
+  "pexi": "Lay's Potato Chips",
+  "size": "50 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3497917000938",
+  "group": "snacks",
+  "off_name": "Chips Brets Saveur Cheddar Oignon de Roscoff",
+  "pexi": "Chips Brets Saveur Cheddar Oignon de Roscoff 125g",
+  "size": "125g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619615162",
+  "group": "snacks",
+  "off_name": "Kettle Brand Krinkle Cut Pink Salt Potato Chips",
+  "pexi": "Kettle Brand Krinkle Cut Pink Salt Potato Chips",
+  "size": "32 oz. (2 lb.) 907g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619161553",
+  "group": "snacks",
+  "off_name": "Tortilla Chips",
+  "pexi": "Tortilla Chips",
+  "size": "908g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3497917001928",
+  "group": "snacks",
+  "off_name": "Chips Saveur camembert",
+  "pexi": "Chips Saveur camembert",
+  "size": "125 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0020685084423",
+  "group": "snacks",
+  "off_name": "Croustilles cuites en marmite - Sel de mer",
+  "pexi": "Original Sea Salt Kettle Cooked Potato Chips",
+  "size": "680 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Croustilles cuites en marmite - Sel de mer vs Original Sea Salt Kettle Cooked Potato Chips"
+  ]
+ },
+ {
+  "code": "0853496008124",
+  "group": "snacks",
+  "off_name": "Shiitake Mushroom Crisps",
+  "pexi": "Shiitake Mushroom Crisps",
+  "size": "300 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8901491435109",
+  "group": "snacks",
+  "off_name": "Potato chips (Spicy Treat flavour)20rs",
+  "pexi": "Potato chips (Spicy Treat flavour)20rs",
+  "size": "52 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3046920022705",
+  "group": "snacks",
+  "off_name": "Excellence Noir Orange Intense",
+  "pexi": "Excellence Noir Orange Intense Aux amandes effilées",
+  "size": "100 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "7613035040793",
+  "group": "snacks",
+  "off_name": "NESTLÉ DESSERT Noir 2x205g",
+  "pexi": "NESTLÉ DESSERT Noir 2x205g 410 g",
+  "size": "410 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "7613035587793",
+  "group": "snacks",
+  "off_name": "NESTLE DESSERT Lait",
+  "pexi": "NESTLE DESSERT Lait",
+  "size": "170 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3173281446595",
+  "group": "snacks",
+  "off_name": "Chocolat noir 82%",
+  "pexi": "Extra Dark Chocolate 82% Cocoa",
+  "size": "100 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Chocolat noir 82% vs Extra Dark Chocolate 82% Cocoa"
+  ]
+ },
+ {
+  "code": "3179142787104",
+  "group": "snacks",
+  "off_name": "Pépites de chocolat au lait",
+  "pexi": "McCormick Pépites de chocolat au lait 100 g e",
+  "size": "100 g e",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0068437389693",
+  "group": "snacks",
+  "off_name": "Açaí & blueberry flavours",
+  "pexi": "Açaí & blueberry flavours",
+  "size": "850 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3664346300148",
+  "group": "snacks",
+  "off_name": "Chocolat au lait",
+  "pexi": "Poulain Chocolat au lait 95 g",
+  "size": "95 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8410109104950",
+  "group": "snacks",
+  "off_name": "82% Cacao Supreme Dark",
+  "pexi": "82% Cacao Supreme Dark",
+  "size": "100 g",
+  "median": 799,
+  "why": [
+   "range is category_prior (n=3) not this product",
+   "wide range 460-1386"
+  ]
+ },
+ {
+  "code": "3179142787203",
+  "group": "snacks",
+  "off_name": "Pépites chunk chocolat noir",
+  "pexi": "Vahiné Pépites chunk chocolat noir 100 g",
+  "size": "100 g",
+  "median": 599,
+  "why": [
+   "range is category_prior (n=76) not this product",
+   "wide range 345-1039"
+  ]
+ },
+ {
+  "code": "7622210449283",
+  "group": "snacks",
+  "off_name": "Prince",
+  "pexi": "Prince Goût Chocolat au Blé Complet",
+  "size": "300 g e",
+  "median": 699,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "7622210421968",
+  "group": "snacks",
+  "off_name": "Véritable Petit Écolier Chocolat au Lait",
+  "pexi": "Petit écolier Chocolat au lait",
+  "size": "150 g (12x 12.5 g) e",
+  "median": 749,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "5410041010800",
+  "group": "snacks",
+  "off_name": "Petit écolier chocolat noir pur beurre de cacao",
+  "pexi": "Véritable Petit écolier Chocolat noir Pur beurre de cacao",
+  "size": "150 g",
+  "median": 449,
+  "why": [
+   "range is category_prior (n=1933) not this product"
+  ]
+ },
+ {
+  "code": "7622210450029",
+  "group": "snacks",
+  "off_name": "Prince -  Goût Lait -  Choco Au Blé Compet",
+  "pexi": "LU Prince - Goût Lait - Choco Au Blé Compet 300 g",
+  "size": "300 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3017760038409",
+  "group": "snacks",
+  "off_name": "Lulu La Barquette Fraise",
+  "pexi": "Lulu La Barquette Fraise",
+  "size": "120 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3252755150005",
+  "group": "snacks",
+  "off_name": "20 madeleines longues aux œufs frais",
+  "pexi": "20 madeleines longues aux œufs frais",
+  "size": "250g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "7622300744663",
+  "group": "snacks",
+  "off_name": "Biscotti al cacao magro ripieni di crema al gusto vaniglia",
+  "pexi": "Mondelēz Original 220 g",
+  "size": "220 g",
+  "median": 384,
+  "why": [
+   "range is parent_category (n=5) not this product",
+   "name differs from Open Food Facts: Biscotti al cacao magro ripieni di crema al gusto vaniglia vs Mondelēz Original 220 g"
+  ]
+ },
+ {
+  "code": "3245390084422",
+  "group": "snacks",
+  "off_name": "Palets Bretons Spécialité de Pont-Aven au beurre",
+  "pexi": "Reflets de France Palets Bretons Spécialité de Pont-Aven au beurre 100 g",
+  "size": "100 g",
+  "median": 449,
+  "why": [
+   "range is category_prior (n=1933) not this product"
+  ]
+ },
+ {
+  "code": "0731216103987",
+  "group": "snacks",
+  "off_name": "Aussie Bites",
+  "pexi": "Aussie Bites",
+  "size": "30 oz (1 lb. 14 oz.) 850 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "5449000000996",
+  "group": "drinks",
+  "off_name": "Coca-Cola Original",
+  "pexi": "Coca-Cola",
+  "size": "330 ml",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "06224017",
+  "group": "drinks",
+  "off_name": "GINGER ALE",
+  "pexi": "Ginger Flavoured Soft Drink",
+  "size": "355ml",
+  "median": 169,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "06782900",
+  "group": "drinks",
+  "off_name": "Coca-cola Classique",
+  "pexi": "Cola Flavoured Soft Drink",
+  "size": "355ml",
+  "median": 169,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "06731906",
+  "group": "drinks",
+  "off_name": "Coke Zero",
+  "pexi": "Cola Flavoured Soft Drink, Zero Sugar",
+  "size": "355ml",
+  "median": 169,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "8901764041259",
+  "group": "drinks",
+  "off_name": "Thums Up 300ml can",
+  "pexi": "Thums Up 300ml can",
+  "size": "1",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0069000149171",
+  "group": "drinks",
+  "off_name": "sparkling water beverage lime",
+  "pexi": "sparkling water beverage lime",
+  "size": "355 mL",
+  "median": 119,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "06792800",
+  "group": "drinks",
+  "off_name": "Diet Coke",
+  "pexi": "Cola Flavoured Soft Drink",
+  "size": "355ml",
+  "median": 169,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0069000013724",
+  "group": "drinks",
+  "off_name": "Pepsi Zero Sugar",
+  "pexi": "Pepsi Zero Sugar",
+  "size": "355 mL",
+  "median": 119,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "0069000014257",
+  "group": "drinks",
+  "off_name": "Diet Pepsi",
+  "pexi": "Diet Pepsi",
+  "size": "355 ml",
+  "median": 119,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "0069000004258",
+  "group": "drinks",
+  "off_name": "Pepsi",
+  "pexi": "Pepsi",
+  "size": "355mL",
+  "median": 169,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "6111035000430",
+  "group": "drinks",
+  "off_name": "sidi ali",
+  "pexi": "sidi ali",
+  "size": "33 cl",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "6111035002175",
+  "group": "drinks",
+  "off_name": "Eau minérale naturelle",
+  "pexi": "Sidi Ali 2 L",
+  "size": "2 L",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Eau minérale naturelle vs Sidi Ali 2 L"
+  ]
+ },
+ {
+  "code": "7613035833272",
+  "group": "drinks",
+  "off_name": "PERRIER eau minérale naturelle gazeuse 1L",
+  "pexi": "Perrier",
+  "size": "1 l",
+  "median": 399,
+  "why": [
+   "range is leaf_category (n=6) not this product"
+  ]
+ },
+ {
+  "code": "0671785501008",
+  "group": "drinks",
+  "off_name": "Eska - Eau de source naturelle",
+  "pexi": "Eska Natural Spring Water",
+  "size": "500 mL",
+  "median": 99,
+  "why": [
+   "range is own_prices (n=1) not this product",
+   "median under $1"
+  ]
+ },
+ {
+  "code": "0096619321841",
+  "group": "drinks",
+  "off_name": "Natural spring water",
+  "pexi": "Natural spring water",
+  "size": "500mL",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3083681066852",
+  "group": "frozen",
+  "off_name": "Purée Délice Carottes, Potiron, Crème",
+  "pexi": "Purée Délice",
+  "size": "780 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3599740007501",
+  "group": "frozen",
+  "off_name": "Tranches panées de Cabillaud MSC",
+  "pexi": "Findus Tranches panées de Cabillaud MSC",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3251510551002",
+  "group": "frozen",
+  "off_name": "Sorbet Pêche Pomme Framboise",
+  "pexi": "Sorbet Pêche Pomme Framboise",
+  "size": "500 ml, 400 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3245412891175",
+  "group": "frozen",
+  "off_name": "Pomme Poire Sans sucres ajoutés*",
+  "pexi": "Pomme Poire",
+  "size": "400 g (4 x 100 g)",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "7613034965868",
+  "group": "frozen",
+  "off_name": "Extrême vanille de Madagascar",
+  "pexi": "Nestlé Extrême vanille de Madagascar 6 * 120 ml",
+  "size": "6 * 120 ml",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3564700441442",
+  "group": "frozen",
+  "off_name": "Poireaux en rondelles",
+  "pexi": "Marque Repère Poireaux en rondelles 1 kg",
+  "size": "1 kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619281954",
+  "group": "frozen",
+  "off_name": "Soft & Chewy Granola Bars",
+  "pexi": "Soft & Chewy Granola Bars",
+  "size": "54000 g",
+  "median": 677,
+  "why": [
+   "range is category_prior (n=332) not this product"
+  ]
+ },
+ {
+  "code": "3245412891168",
+  "group": "frozen",
+  "off_name": "Pomme Pêche Sans sucres ajoutés*",
+  "pexi": "Carrefour Pomme Pêche Sans sucres ajoutés 400 g (4 x 100 g)",
+  "size": "400 g (4 x 100 g)",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "26044439",
+  "group": "frozen",
+  "off_name": "2lboîtes Flageolets Verts Extra Fins Fleurs Des Champs 530 g",
+  "pexi": "2lboîtes Flageolets Verts Extra Fins Fleurs Des Champs 530 g",
+  "size": "800 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0042272000715",
+  "group": "frozen",
+  "off_name": "Burrito Cheddar Cheese",
+  "pexi": "Burrito Cheddar Cheese",
+  "size": "6.0 oz",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "26043081",
+  "group": "frozen",
+  "off_name": "Haricots Verts, Extra Fins",
+  "pexi": "Aldi Haricots Verts, Extra Fins 800 g",
+  "size": "800 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0842454041211",
+  "group": "frozen",
+  "off_name": "Fraises tranchées biologique",
+  "pexi": "Sliced Strawberries",
+  "size": "2 kg",
+  "median": 1599,
+  "why": [
+   "range is parent_category (n=6) not this product",
+   "name differs from Open Food Facts: Fraises tranchées biologique vs Sliced Strawberries"
+  ]
+ },
+ {
+  "code": "3560070809714",
+  "group": "frozen",
+  "off_name": "2 Pomme Poire - 2 Pomme Pêche - 4 Pomme Sans sucres ajoutés*",
+  "pexi": "Carrefour 2 Pomme Poire - 2 Pomme Pêche - 4 Pomme Sans sucres ajoutés 800 g (8 x 100 g)",
+  "size": "800 g (8 x 100 g)",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8076800376999",
+  "group": "pantry",
+  "off_name": "Lasagne all'uovo",
+  "pexi": "Lasagne all'Uovo n.199",
+  "size": "500 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8004690612804",
+  "group": "pantry",
+  "off_name": "Fusilli No. 28 Le Integrali",
+  "pexi": "Fusilli",
+  "size": "500 gram",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8801073114814",
+  "group": "pantry",
+  "off_name": "Artificial Spicy Chicken Flavor Stir-Fried Ramen",
+  "pexi": "Artificial Spicy Chicken Flavor Stir-Fried Ramen",
+  "size": "4.93 oz",
+  "median": 199,
+  "why": [
+   "range is own_prices (n=1) not this product"
+  ]
+ },
+ {
+  "code": "8004690612002",
+  "group": "pantry",
+  "off_name": "Penne rigate nº 20",
+  "pexi": "Penne Rigate N°20",
+  "size": "500g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8004690616604",
+  "group": "pantry",
+  "off_name": "Farfalle rigate n°66",
+  "pexi": "Pasta di semola di grano duro",
+  "size": "500 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Farfalle rigate n°66 vs Pasta di semola di grano duro"
+  ]
+ },
+ {
+  "code": "3252970008419",
+  "group": "pantry",
+  "off_name": "Les Crozets Nature",
+  "pexi": "Les Crozets Nature",
+  "size": "600 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0807176706923",
+  "group": "pantry",
+  "off_name": "Mini Wontons Chicken & Cilantro",
+  "pexi": "Mini Wontons Chicken & Cilantro",
+  "size": "48 oz 1.36kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0813616020412",
+  "group": "pantry",
+  "off_name": "Pâtes de lentilles Biologiques",
+  "pexi": "RED LENTIL Penne",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Pâtes de lentilles Biologiques vs RED LENTIL Penne"
+  ]
+ },
+ {
+  "code": "8402001010873",
+  "group": "pantry",
+  "off_name": "Muesli Crunchy",
+  "pexi": "Muesli CRUNCHY",
+  "size": "500gr",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619194261",
+  "group": "pantry",
+  "off_name": "Ancient Grains Probiotic Granola",
+  "pexi": "Ancient Grains Probiotic Granola",
+  "size": "35.3 oz (1 kg)",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0058449251002",
+  "group": "pantry",
+  "off_name": "Flocons de son d'avoine",
+  "pexi": "Oat bran flakes",
+  "size": "1.5kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: Flocons de son d'avoine vs Oat bran flakes"
+  ]
+ },
+ {
+  "code": "0064100271913",
+  "group": "pantry",
+  "off_name": "All Bran Buds",
+  "pexi": "All-Bran Buds",
+  "size": "1.05kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0030000012000",
+  "group": "pantry",
+  "off_name": "Quick 1-Minute Oats",
+  "pexi": "Quick 1-Minute Oats",
+  "size": "42 Oz / 1.19 kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "9300633929169",
+  "group": "pantry",
+  "off_name": "Chunk Light Tuna",
+  "pexi": "Chunk Light Tuna",
+  "size": null,
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "3450971451856",
+  "group": "pantry",
+  "off_name": "Thon entier listao",
+  "pexi": "Eco+ Thon entier listao 140 g",
+  "size": "140 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "26043241",
+  "group": "pantry",
+  "off_name": "Ratatouille",
+  "pexi": "Aldi Ratatouille 750 g, 850 ml",
+  "size": "750 g, 850 ml",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "5400101173224",
+  "group": "pantry",
+  "off_name": "Petits pois Extra-fins",
+  "pexi": "Carrefour Petits pois Extra-fins 800 g",
+  "size": "800 g",
+  "median": 499,
+  "why": [
+   "range is category_prior (n=3307) not this product",
+   "wide range 288-866"
+  ]
+ },
+ {
+  "code": "0096619523900",
+  "group": "pantry",
+  "off_name": "Thon pâle entier",
+  "pexi": "Thon pâle entier",
+  "size": "184 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0061202021200",
+  "group": "pantry",
+  "off_name": "Tomato soup",
+  "pexi": "Tomato soup",
+  "size": "284 mL",
+  "median": 132,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "0815074022809",
+  "group": "pantry",
+  "off_name": "Classic Mayo",
+  "pexi": "Classic Mayo",
+  "size": "946 ml",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "8853662056029",
+  "group": "pantry",
+  "off_name": "Hot Chilli Sauce",
+  "pexi": "Hot Chilli Sauce",
+  "size": "730ml",
+  "median": 599,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "8001250016522",
+  "group": "pantry",
+  "off_name": "Pesto Alla Genovese",
+  "pexi": "PESTO alla GENOVESE",
+  "size": "190g",
+  "median": 499,
+  "why": [
+   "range is own_prices (n=3) not this product"
+  ]
+ },
+ {
+  "code": "8850620888012",
+  "group": "pantry",
+  "off_name": "Fischsauce",
+  "pexi": "Fish Sauce",
+  "size": "300ml",
+  "median": 269,
+  "why": [
+   "range is own_prices (n=1) not this product",
+   "name differs from Open Food Facts: Fischsauce vs Fish Sauce"
+  ]
+ },
+ {
+  "code": "0096619450008",
+  "group": "pantry",
+  "off_name": "Peanut Butter creamy natural",
+  "pexi": "Peanut Butter creamy natural",
+  "size": "1 kg",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0096619225798",
+  "group": "pantry",
+  "off_name": "beurre de noix mélangées avec graines",
+  "pexi": "Mixed Nut Butter with Seeds",
+  "size": "765 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide",
+   "name differs from Open Food Facts: beurre de noix mélangées avec graines vs Mixed Nut Butter with Seeds"
+  ]
+ },
+ {
+  "code": "94001129",
+  "group": "produce",
+  "off_name": "Sungold Kiwi",
+  "pexi": "yellow kiwi",
+  "size": "118 g",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0815074022915",
+  "group": "produce",
+  "off_name": "Avocado Oil Spray",
+  "pexi": "Avocado Oil Spray",
+  "size": "13.5oz",
+  "median": 1899,
+  "why": [
+   "range is own_prices (n=4) not this product"
+  ]
+ },
+ {
+  "code": "0832650006008",
+  "group": "produce",
+  "off_name": "Deglet Noor pitted dates",
+  "pexi": "Organic dates",
+  "size": "44 oz",
+  "median": null,
+  "why": [
+   "found but no price: pool_too_wide"
+  ]
+ },
+ {
+  "code": "0715756100019",
+  "group": "produce",
+  "off_name": "Raspberries",
+  "pexi": "Raspberries",
+  "size": "170 g",
+  "median": 499,
+  "why": [
+   "range is own_prices (n=2) not this product"
+  ]
+ },
+ {
+  "code": "8901030831706",
+  "group": "produce",
+  "off_name": "Mixed Fruit Jam",
+  "pexi": "Mixed Fruit Jam",
+  "size": "500g",
+  "median": 499,
+  "why": [
+   "range is category_prior (n=3307) not this product",
+   "wide range 288-866"
+  ]
+ },
+ {
+  "code": "0022796976116",
+  "group": "household",
+  "off_name": "ogx  argan",
+  "pexi": "Argan oil of Morocco",
+  "size": "385 mL",
+  "median": 804,
+  "why": [
+   "range is department_prior (n=39) not this product",
+   "wide range 463-1395"
+  ]
+ },
+ {
+  "code": "0628451857860",
+  "group": "household",
+  "off_name": "Shampoing en barre",
+  "pexi": "The Unscented Company Shampoing en barre 65 g",
+  "size": "65 g",
+  "median": 804,
+  "why": [
+   "range is department_prior (n=39) not this product",
+   "wide range 463-1395"
+  ]
+ },
+ {
+  "code": "0603084459384",
+  "group": "household",
+  "off_name": "Garnier Whole Blends - Coconut & Cocoa Butter Smoothing Shampoo",
+  "pexi": "Garnier Whole Blends - Coconut & Cocoa Butter Smoothing Shampoo",
+  "size": "370mL",
+  "median": 804,
+  "why": [
+   "range is department_prior (n=39) not this product",
+   "wide range 463-1395"
+  ]
+ }
+]

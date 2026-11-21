@@ -1,0 +1,39 @@
+[e2e] 15:59:34 START app from C:\shin (capacitor.js included), served at https://localhost, API https://relay.anjiawenda.com, chromium C:\Users\xujam\AppData\Local\ms-playwright\chromium-1248\chrome-win64\chrome.exe, out C:\shin\docs\readiness\review-2026-11-21\e2e-out
+[e2e] 15:59:34 live server: up since 2026-11-21T07:35:02.066Z, catalogue up
+[e2e] 15:59:34 CONTROL a header the server does not allow, on every API call: this must be reported as FAIL
+[e2e] 15:59:41 FAIL CONTROL :: fresh install: first screen (7 API calls, 6 s) :: console: Access to fetch at 'https://relay.anjiawenda.com/api/app-status' from origin 'https://localhost' has been blocked by CORS policy: Request header field x-shin-e2e-control is not allowed by Access-Contr | GET /api/app-status never completed (net::ERR_FAILED) | blocked GET /api/app-status (0 B body): HeaderDisallowedByPreflightResponse; the answer was never seen | console: Access to fetch at 'https://relay.anjiawenda.com/api/consent' from origin 'https://localhost' has been blocked by CORS policy: Request header field x-shin-e2e-control is not allowed by Access-Control-
+[e2e] 16:00:04 FAIL CONTROL :: scan a known barcode (0068100084245) (6 API calls, 23 s) :: console: Access to fetch at 'https://relay.anjiawenda.com/api/identify?gtin=0068100084245&preview=1&market=Canada&currency=CAD&countryCode=CA&language=en-CA&knows=national_average&deviceId=d9d48b4a-2f36-495e-b | GET /api/identify never completed (net::ERR_FAILED) | blocked GET /api/identify (0 B body): HeaderDisallowedByPreflightResponse; the answer was never seen | console: Access to fetch at 'https://relay.anjiawenda.com/api/event' from origin 'https://localhost' has been blocked by CORS policy: Request header field x-shin-e2e-control is not allowed by Access-Control-Al
+[e2e] 16:00:05 CONTROL caught, as it must be; the real run starts
+[e2e] 16:00:05 COMBO claude-yes.location-on.en: fresh install, known barcode
+[e2e] 16:00:12 PASS claude-yes.location-on.en :: fresh install: first screen (8 API calls, 6 s) :: on camera
+[e2e] 16:00:35 FAIL claude-yes.location-on.en :: scan a known barcode (0068100084245) (3 API calls, 23 s) :: console: Access to fetch at 'https://relay.anjiawenda.com/api/event' from origin 'https://localhost' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resourc | POST /api/event never completed (net::ERR_FAILED) | blocked POST /api/event (321 B body): MissingAllowOriginHeader; the answer was 502 from cloudflare (cf-ray), no allow-origin | warn: console.error: Failed to load resource: net::ERR_FAILED
+[e2e] 16:00:54 PASS claude-yes.location-on.en :: typed search "oreo" (3 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:01:12 PASS claude-yes.location-on.en :: typed search "cheerois" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:01:31 PASS claude-yes.location-on.en :: typed search "kraft dinner original 225g" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:01:49 PASS claude-yes.location-on.en :: typed search "zzqxwv" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:02:36 PASS claude-yes.location-on.en :: every button on Scan, Saved and You (41 API calls, 46 s) :: 40 controls tapped
+[e2e] 16:02:38 COMBO claude-yes.location-on.en: returning user, unknown barcode
+[e2e] 16:02:43 PASS claude-yes.location-on.en.returning :: returning user opens the app (5 API calls, 4 s) :: on camera
+[e2e] 16:02:52 PASS claude-yes.location-on.en.returning :: scan an unknown barcode (0064100111998) (4 API calls, 9 s) :: ended on sheet.textroute[unknown]
+[e2e] 16:02:56 PASS claude-yes.location-on.en.returning :: typed search "oreo" (3 API calls, 4 s) :: ended on sheet.working[unknown]
+[e2e] 16:03:00 PASS claude-yes.location-on.en.returning :: typed search "cheerois" (3 API calls, 4 s) :: ended on sheet.candidates.typedpick[unknown]
+[e2e] 16:03:04 PASS claude-yes.location-on.en.returning :: typed search "kraft dinner original 225g" (2 API calls, 4 s) :: ended on sheet.candidates.typedpick[unknown]
+[e2e] 16:03:08 PASS claude-yes.location-on.en.returning :: typed search "zzqxwv" (4 API calls, 4 s) :: ended on sheet.catalogue[unknown]
+[e2e] 16:03:51 PASS claude-yes.location-on.en.returning :: every button on Scan, Saved and You (44 API calls, 42 s) :: 36 controls tapped
+[e2e] 16:03:51 COMBO claude-no.location-off.en: fresh install, known barcode
+[e2e] 16:03:57 PASS claude-no.location-off.en :: fresh install: first screen (8 API calls, 6 s) :: on camera
+[e2e] 16:04:20 PASS claude-no.location-off.en :: scan a known barcode (0068100084245) (2 API calls, 23 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:04:38 PASS claude-no.location-off.en :: typed search "oreo" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:04:57 PASS claude-no.location-off.en :: typed search "cheerois" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:05:15 PASS claude-no.location-off.en :: typed search "kraft dinner original 225g" (2 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:05:34 PASS claude-no.location-off.en :: typed search "zzqxwv" (3 API calls, 18 s) :: ended on sheet.padsheet[unknown]
+[e2e] 16:06:19 PASS claude-no.location-off.en :: every button on Scan, Saved and You (41 API calls, 45 s) :: 40 controls tapped
+[e2e] 16:06:49 COMBO claude-no.location-off.en: returning user, unknown barcode
+[e2e] 16:06:54 PASS claude-no.location-off.en.returning :: returning user opens the app (5 API calls, 3 s) :: on camera
+[e2e] 16:07:01 PASS claude-no.location-off.en.returning :: scan an unknown barcode (0064100111998) (3 API calls, 7 s) :: ended on sheet.textroute[unknown]
+[e2e] 16:07:05 PASS claude-no.location-off.en.returning :: typed search "oreo" (2 API calls, 4 s) :: ended on sheet.candidates.typedpick[unknown]
+[e2e] 16:07:09 PASS claude-no.location-off.en.returning :: typed search "cheerois" (2 API calls, 4 s) :: ended on sheet.candidates.typedpick[unknown]
+[e2e] 16:07:13 PASS claude-no.location-off.en.returning :: typed search "kraft dinner original 225g" (3 API calls, 4 s) :: ended on sheet.candidates.typedpick[unknown]
+[e2e] 16:07:18 PASS claude-no.location-off.en.returning :: typed search "zzqxwv" (4 API calls, 4 s) :: ended on sheet.working[unknown]
+[e2e] 16:07:59 PASS claude-no.location-off.en.returning :: every button on Scan, Saved and You (43 API calls, 41 s) :: 36 controls tapped
+[e2e] 16:08:00 DONE FAIL 1 of 28 steps; summary C:\shin\docs\readiness\review-2026-11-21\e2e-out\summary.md

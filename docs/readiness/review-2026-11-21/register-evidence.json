@@ -1,0 +1,2388 @@
+{
+ "drillLog": [
+  [
+   "1",
+   "never"
+  ],
+  [
+   "2",
+   "never"
+  ],
+  [
+   "3",
+   "never"
+  ],
+  [
+   "4",
+   "never"
+  ],
+  [
+   "5",
+   "never"
+  ],
+  [
+   "6",
+   "never"
+  ],
+  [
+   "7",
+   "never"
+  ],
+  [
+   "8",
+   "never"
+  ],
+  [
+   "9",
+   "never"
+  ],
+  [
+   "10",
+   "never"
+  ],
+  [
+   "11",
+   "never"
+  ],
+  [
+   "12",
+   "never"
+  ]
+ ],
+ "out": [
+  {
+   "id": "R01",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "domain",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today. The calendar file (`pexi-dates.ics`) reminds at 2027-07-20 and 2027-08-12 for the 2027-08-19 renewal. An outage alarm would show the symptom, not ",
+   "rbWho": "Jamin. The domain sits in his Cloudflare account (`C:\\ACT\\NOW.md:20-22`; the reg",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R02",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "alarm-late",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody for the alarm itself. After fix-watch and Jamin's account step (`needs-jamin.md`): an outside uptime monitor pushes to both founders' phones.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 2,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "1. Alarm drill (first)\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R03",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "tunnel-down",
+   "commits": [],
+   "present": [
+    "mac/01-cloudflare-tunnel.md",
+    "mac/README.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the Mac's deploy checker mails the PC mailbox (checked 2026-11-18); the GitHub alarm is unreliable (R02); after fix-watch the uptime monitor pushes.\r",
+   "rbWho": "Jamin, or the stand-in at the Mac.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "1. Alarm drill (first)\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R04",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "reboot",
+   "commits": [
+    "39fa294 [mac] R04 R07 R55 R58 R66: mac/README.md ordered install procedure, re",
+    "9a0f3de [mac] R04 R08 D5: boot-time LaunchDaemons as the service user, mac/10-",
+    "1d8e79a [mac] R04 R72: deployer works against a system LaunchDaemon, checker w"
+   ],
+   "present": [
+    "mac/README.md",
+    "mac/05-install-launchd.sh",
+    "mac/09-e12-checks.sh",
+    "mac/DEPLOY.md",
+    "mac/10-boot-survival.sh",
+    "mac/11-planned-restart.sh",
+    "mac/launchd-daemons/com.shin.backup.plist",
+    "mac/launchd-daemons/com.shin.checker.plist",
+    "mac/launchd-daemons/com.shin.expiry.plist",
+    "mac/launchd-daemons/com.shin.hammer.plist",
+    "mac/launchd-daemons/com.shin.integrity.plist",
+    "mac/launchd-daemons/com.shin.logrotate.plist",
+    "mac/launchd-daemons/com.shin.offsite.plist",
+    "mac/launchd-daemons/com.shin.restoretest.plist"
+   ],
+   "missing": [
+    "shin/mac/06-verify-no-sleep.sh"
+   ],
+   "runbook": true,
+   "rbFind": "the alarm after about an hour; the checker's mail. The cause is not obvious from either.\r",
+   "rbWho": "Jamin, or the stand-in at the Mac or over Tailscale (R69).\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "2. Mac reboot and recovery\r",
+    "9. Aurik stand-in drill\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R05",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "no-stand-in",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "GitHub emails Jamin only (checked). After fix-watch: both founders get the push.\r",
+   "rbWho": "Aurik or the stand-in, after 30 minutes without Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "1. Alarm drill (first)\r",
+    "9. Aurik stand-in drill\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R06",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "amd-handover",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the calendar file reminds at 2027-04-03 and 2027-04-26. Nothing else flags it.\r",
+   "rbWho": "Jamin decides; Aurik and the stand-in carry it out.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "9. Aurik stand-in drill\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R07",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "mac-dead",
+   "commits": [
+    "39fa294 [mac] R04 R07 R55 R58 R66: mac/README.md ordered install procedure, re",
+    "a607289 [mac] R07 R52: encrypted off-site copy (14-offsite-backup.sh) and week",
+    "d909d8e [mac] R16 R52 R58 R07: health markers, nightly integrity checks, backu"
+   ],
+   "present": [
+    "mac/README.md",
+    "mac/07-restore.sh",
+    "mac/04-catalogue-acquire.md",
+    "mac/05-install-launchd.sh",
+    "mac/09-e12-checks.sh",
+    "mac/DEPLOY.md",
+    "mac/14-offsite-backup.sh",
+    "mac/15-restore-test.sh",
+    "mac/nightly-checks.mjs",
+    "mac/test/nightly-checks.test.mjs",
+    "mac/test/offsite.test.mjs",
+    "mac/07-backup.sh",
+    "mac/deploy/test/backup-helpers.mjs",
+    "mac/deploy/test/backup.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the alarm within about an hour; nothing says the backups are gone too.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "3. Backup restore onto another"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R08",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "filevault-clash",
+   "commits": [
+    "9a0f3de [mac] R04 R08 D5: boot-time LaunchDaemons as the service user, mac/10-"
+   ],
+   "present": [
+    "mac/10-boot-survival.sh",
+    "mac/11-planned-restart.sh",
+    "mac/launchd-daemons/com.shin.backup.plist",
+    "mac/launchd-daemons/com.shin.checker.plist",
+    "mac/launchd-daemons/com.shin.expiry.plist",
+    "mac/launchd-daemons/com.shin.hammer.plist",
+    "mac/launchd-daemons/com.shin.integrity.plist",
+    "mac/launchd-daemons/com.shin.logrotate.plist",
+    "mac/launchd-daemons/com.shin.offsite.plist",
+    "mac/launchd-daemons/com.shin.restoretest.plist",
+    "mac/launchd-daemons/com.shin.server.plist",
+    "mac/test/boot-survival.test.mjs",
+    "mac/test/daemons.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only after the change: the next reboot leaves the server down.\r",
+   "rbWho": "Jamin decides.\r",
+   "needsJaminLines": 3,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "2. Mac reboot and recovery\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R09",
+   "tier": 1,
+   "state0": "partial",
+   "slug": "crash-bad-deploy",
+   "commits": [
+    "5417881 [app] R09 R79 R67: crash reports to Pexi's own server, setup restored "
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/crash-report.js",
+    "app/public/js/device.js",
+    "app/public/js/main.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/storage-backup.js",
+    "app/server.ts",
+    "app/src/client-errors.ts",
+    "app/test/client-errors.test.ts",
+    "app/test/crash-report.test.mjs",
+    "app/test/storage-backup.test.mjs",
+    "app/test/typed-failure-sheets.test.mjs"
+   ],
+   "missing": [
+    ".shin-deploy/state.json"
+   ],
+   "runbook": true,
+   "rbFind": "launchd restarts a crash; the alarm sees gaps; the checker's status says `App: NOT working`; a harmful but healthy deploy is seen only through a shopper message",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "6. Bad server deploy rolled ba"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R10",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "disk-fills",
+   "commits": [
+    "304f969 [mac] R10: daily log rotation, 14 days kept (16-rotate-logs.sh), run-j"
+   ],
+   "present": [
+    "mac/hammer-refresh.sh",
+    "mac/16-rotate-logs.sh",
+    "mac/run-job.sh",
+    "mac/test/rotate-logs.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today. After fix-watch: free disk and photo folder size in `/api/health`, alarm red under 10 GB. After fix-mac: server logs rotated.\r",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 2,
+   "templatesLines": 0,
+   "drills": [
+    "10. Load test at 500 then 2,00"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R11",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "wrong-answers",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today (the health route shows `scanLog`, `catalogueUp`, faults; the alarm ignores them). After fix-watch the probe fails on those fields and on one known",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "6. Bad server deploy rolled ba"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R12",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "spike",
+   "commits": [
+    "10d9053 [app] R12: load-test script, requests a second and where it breaks (sc"
+   ],
+   "present": [
+    "scripts/load/load-test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only the probe, 30 to 60 minutes late, and slowness is invisible. After fix-watch the probe fails on any route over about 3 seconds.\r",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "10. Load test at 500 then 2,00"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R13",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "old-builds-break",
+   "commits": [
+    "d31051a [app] R13 R14 R17 R35: app-status route + update gate + switched-off f"
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/main.js",
+    "app/public/js/remote-status.js",
+    "app/public/js/router.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/version.js",
+    "app/public/js/voice-fr.js",
+    "app/public/js/voice.js",
+    "app/server.ts",
+    "app/src/app-status.ts",
+    "app/src/invite.ts",
+    "app/src/open-food-facts.ts",
+    "app/test/app-status.test.ts",
+    "app/test/edge-blocked.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today. After fix-app: weekly report of app versions, and a minimum-version field on the health route.\r",
+   "rbWho": "Jamin (server), Aurik (app).\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R14",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "kill-switch",
+   "commits": [
+    "d31051a [app] R13 R14 R17 R35: app-status route + update gate + switched-off f"
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/main.js",
+    "app/public/js/remote-status.js",
+    "app/public/js/router.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/version.js",
+    "app/public/js/voice-fr.js",
+    "app/public/js/voice.js",
+    "app/server.ts",
+    "app/src/app-status.ts",
+    "app/src/invite.ts",
+    "app/src/open-food-facts.ts",
+    "app/test/app-status.test.ts",
+    "app/test/edge-blocked.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "TestFlight and Xcode Organizer crash reports, if someone looks weekly in the first month; the app posts JavaScript errors to the server (checked). After fix-app",
+   "rbWho": "Aurik (app), Jamin (account).\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "7. TestFlight build installed "
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R15",
+   "tier": 1,
+   "state0": "gap",
+   "slug": "search-freeze",
+   "commits": [
+    "ad7770d [app] R15 R93: typed-name price scan on a worker thread, event batch i"
+   ],
+   "present": [
+    "app/server.ts",
+    "app/src/events.ts",
+    "app/src/own-prices-scan.ts",
+    "app/src/own-prices-worker.ts",
+    "app/src/own-prices.ts",
+    "app/test/events-batch-transaction.test.ts",
+    "app/test/own-prices-async.test.ts",
+    "scripts/load/bench-typed-search.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; the probe does not time searches. After fix-watch the probe times one typed search.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "10. Load test at 500 then 2,00"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R16",
+   "tier": 1,
+   "state0": "partial",
+   "slug": "db-corrupt",
+   "commits": [
+    "d909d8e [mac] R16 R52 R58 R07: health markers, nightly integrity checks, backu"
+   ],
+   "present": [
+    "mac/07-restore.sh",
+    "app/src/device-key.ts",
+    "mac/07-backup.sh",
+    "mac/deploy/test/backup-helpers.mjs",
+    "mac/deploy/test/backup.test.mjs",
+    "mac/lib/health.mjs",
+    "mac/lib/health.sh",
+    "mac/nightly-checks.mjs",
+    "mac/redelete-requests.mjs",
+    "mac/test/health.test.mjs",
+    "mac/test/nightly-checks.test.mjs",
+    "mac/test/redelete.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "partly (stderr lines, the customer-data fault counter). After fix-mac: the nightly backup runs `PRAGMA integrity_check` and fails loud. After fix-watch: device-",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "3. Backup restore onto another"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R17",
+   "tier": 1,
+   "state0": "partial",
+   "slug": "bot-challenge",
+   "commits": [
+    "d31051a [app] R13 R14 R17 R35: app-status route + update gate + switched-off f"
+   ],
+   "present": [
+    "mac/08-cellular-check.md",
+    "app/public/js/api.js",
+    "app/public/js/main.js",
+    "app/public/js/remote-status.js",
+    "app/public/js/router.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/version.js",
+    "app/public/js/voice-fr.js",
+    "app/public/js/voice.js",
+    "app/server.ts",
+    "app/src/app-status.ts",
+    "app/src/invite.ts",
+    "app/src/open-food-facts.ts",
+    "app/test/app-status.test.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; the alarm looks different to Cloudflare than the phone does. Check monthly with `mac/08-cellular-check.md` from a phone off Wi-Fi.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "1. Alarm drill (first)\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R18",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "inbox-unread",
+   "commits": [],
+   "present": [
+    "docs/privacy/data-requests.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today. After Jamin's step (`needs-jamin.md`): the inbox forwards to both founders with a phone notification, and an auto-reply gives the response time.\r",
+   "rbWho": "Jamin and Aurik; one named reader per week (`HANDOVER.md`).\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 1,
+   "drills": [
+    "4. Test delete-my-data request",
+    "12. Support inbox and removal-"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R19",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "paywall-after-purchase",
+   "commits": [
+    "a08e574 [money] R19 re-check Plus when the phone says it is Plus, R27 RevenueC"
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/src/scan-quota.ts",
+    "app/server.ts",
+    "app/src/rate-limit.ts",
+    "app/test/native-rc-keys.test.mjs",
+    "app/test/plus-lookup.test.mjs",
+    "app/test/rate-limit-shared.test.mjs",
+    "app/test/store-security.test.ts",
+    "docs/readiness/needs-jamin.md",
+    "docs/store/terms-fr.html",
+    "docs/store/terms.html",
+    "native/scripts/rc-keys.mjs",
+    "native/scripts/sync-web.mjs",
+    "settings/src/index.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody until a review or an email. After fix-money the server re-checks RevenueCat at once when the phone says it is Plus.\r",
+   "rbWho": "Aurik for the reply, Jamin for the server.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 2,
+   "drills": [
+    "8. Sandbox purchase, restore a"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R20",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "ratings-unseen",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "after Jamin's step: App Store Connect review notifications to both founders. Weekly 5-minute check.\r",
+   "rbWho": "Aurik (replies), Jamin (refunds and money).\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R21",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "restore-lost-plus",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only the support inbox or a review. Pexi has no account, name or email, so support cannot look up a person.\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 2,
+   "drills": [
+    "8. Sandbox purchase, restore a"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R22",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "support-load",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody until mail piles up. Count the mail each Friday.\r",
+   "rbWho": "Jamin (data, legal, press), Aurik (refunds, restore, French). Goal: first reply ",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 1,
+   "drills": [
+    "12. Support inbox and removal-"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R23",
+   "tier": 2,
+   "state0": "partial",
+   "slug": "wrong-rows",
+   "commits": [],
+   "present": [
+    "scripts/security/remove-shopper-input.mjs",
+    "docs/privacy/data-requests.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a shopper correction or a support mail. After fix-app: a weekly top-10 of most-edited barcodes.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 1,
+   "drills": [
+    "12. Support inbox and removal-"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R24",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "numbers-unseen",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today. After fix-watch or fix-app: a weekly email from the server.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R25",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "membership-lapse",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple emails the account holder (ASSUMED); calendar reminders at 2027-09-08 and 2027-10-01 (enrolment complete 2026-10-08, order 2026-10-03, `RULINGS.md:567`; t",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R26",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "apple-forms",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "an Apple email and a banner in App Store Connect; nobody checks.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R27",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "revenuecat-fails",
+   "commits": [
+    "a08e574 [money] R19 re-check Plus when the phone says it is Plus, R27 RevenueC"
+   ],
+   "present": [
+    "app/src/scan-quota.ts",
+    "app/server.ts",
+    "app/src/rate-limit.ts",
+    "app/test/native-rc-keys.test.mjs",
+    "app/test/plus-lookup.test.mjs",
+    "app/test/rate-limit-shared.test.mjs",
+    "app/test/store-security.test.ts",
+    "docs/readiness/needs-jamin.md",
+    "docs/store/terms-fr.html",
+    "docs/store/terms.html",
+    "native/scripts/rc-keys.mjs",
+    "native/scripts/sync-web.mjs",
+    "settings/src/index.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today (errors are swallowed, `app/src/scan-quota.ts:215-218`). After fix-money: 3-second timeout, a device that was Plus in the last 24 hours stays Plus ",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "5. Rotate one key\r",
+    "8. Sandbox purchase, restore a"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R28",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "hammer-wrong",
+   "commits": [],
+   "present": [
+    "mac/07-restore.sh"
+   ],
+   "missing": [
+    "shin/mac/hammer-refresh.sh"
+   ],
+   "runbook": true,
+   "rbFind": "nobody today. After fix-watch: the refresh refuses a bad file (rows down over 30 percent, newest day over 14 days old, median price moved over 20 to 25 percent)",
+   "rbWho": "Jamin or a Mac session.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "11. Hammer refresh by hand and"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R29",
+   "tier": 2,
+   "state0": "partial",
+   "slug": "apple-review-down",
+   "commits": [],
+   "present": [
+    "scripts/phone-contract-probe.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the alarm if the server is down at that moment; otherwise the rejection email.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R30",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "small-business",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only by reading the payout statement.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R31",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "launch-day",
+   "commits": [
+    "a08e574 [money] R19 re-check Plus when the phone says it is Plus, R27 RevenueC"
+   ],
+   "present": [
+    "app/server.ts",
+    "app/src/rate-limit.ts",
+    "app/src/scan-quota.ts",
+    "app/test/native-rc-keys.test.mjs",
+    "app/test/plus-lookup.test.mjs",
+    "app/test/rate-limit-shared.test.mjs",
+    "app/test/store-security.test.ts",
+    "docs/readiness/needs-jamin.md",
+    "docs/store/terms-fr.html",
+    "docs/store/terms.html",
+    "native/scripts/rc-keys.mjs",
+    "native/scripts/sync-web.mjs",
+    "settings/src/index.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Aurik or Jamin trying a purchase after release.\r",
+   "rbWho": "Jamin and Aurik.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "7. TestFlight build installed "
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R32",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "bills",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "each vendor emails whichever address it has.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R33",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "claude-cap",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a log line at most hourly and a health field (`claudeMonthlyCap.reached`); the alarm does not read it. After fix-watch: email at 80 percent and at the cap.\r",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R34",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "claude-account",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today (errors go to the log). After fix-watch: recent estimate failures counted in health.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "5. Rotate one key\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R35",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "off-throttle",
+   "commits": [
+    "d31051a [app] R13 R14 R17 R35: app-status route + update gate + switched-off f"
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/main.js",
+    "app/public/js/remote-status.js",
+    "app/public/js/router.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/version.js",
+    "app/public/js/voice-fr.js",
+    "app/public/js/voice.js",
+    "app/server.ts",
+    "app/src/app-status.ts",
+    "app/src/invite.ts",
+    "app/src/open-food-facts.ts",
+    "app/test/app-status.test.ts",
+    "app/test/edge-blocked.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today: `grep -c \"SCAN ENDED WITH NO NAME\" ~/shin/mac/logs/*.log`. After fix-app and fix-watch: source failures counted in health.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R36",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "address-limits",
+   "commits": [
+    "a08e574 [money] R19 re-check Plus when the phone says it is Plus, R27 RevenueC"
+   ],
+   "present": [
+    "app/server.ts",
+    "app/src/rate-limit.ts",
+    "app/src/scan-quota.ts",
+    "app/test/native-rc-keys.test.mjs",
+    "app/test/plus-lookup.test.mjs",
+    "app/test/rate-limit-shared.test.mjs",
+    "app/test/store-security.test.ts",
+    "docs/readiness/needs-jamin.md",
+    "docs/store/terms-fr.html",
+    "docs/store/terms.html",
+    "native/scripts/rc-keys.mjs",
+    "native/scripts/sync-web.mjs",
+    "settings/src/index.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody today (429s are not counted). After fix-watch: a daily 429 count in health.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "10. Load test at 500 then 2,00"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R37",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "review-rules",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple email, long after.\r",
+   "rbWho": "Jamin tells every helper.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R38",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "apple-removal",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple email to the account holder and an App Store Connect banner. After Jamin's step: Aurik is a user and notices reach both founders.\r",
+   "rbWho": "Jamin (account holder), Aurik.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R39",
+   "tier": 2,
+   "state0": "partial",
+   "slug": "config-settings",
+   "commits": [],
+   "present": [],
+   "missing": [
+    "mac/config.env",
+    "shin/mac/config.env"
+   ],
+   "runbook": true,
+   "rbFind": "nobody today. After fix-watch: the live limits in `/api/health`, the alarm fails when one is missing, and every unset expected setting is printed at start.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R40",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "lockout",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "at the moment it is needed.\r",
+   "rbWho": "Jamin; Aurik for what he can reach.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R41",
+   "tier": 2,
+   "state0": "partial",
+   "slug": "abuse",
+   "commits": [],
+   "present": [
+    "app/server.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only the door limiter's 429s and the access log. After fix-watch: daily counts of 429s and Claude calls per address.\r",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R42",
+   "tier": 2,
+   "state0": "gap",
+   "slug": "partner",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "silence on the comms board or a conversation.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 2,
+   "templatesLines": 1,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R43",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "french",
+   "commits": [],
+   "present": [
+    "docs/store/privacy-fr.html"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a review, a French email or a complaint. No alarm. French is off by Jamin's ruling of 2026-09-21 (`RULINGS.md`, near line 832).\r",
+   "rbWho": "Jamin decides; Aurik writes French.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 1,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R44",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "manage-sub-ios",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a review or Apple's reviewer. No alarm. After fix-app: the iPhone You screen shows the manage-subscription link.\r",
+   "rbWho": "Aurik for the reply, Jamin for the code.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "8. Sandbox purchase, restore a"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R45",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "retention",
+   "commits": [],
+   "present": [
+    "app/src/retention.ts",
+    "app/server.ts",
+    "docs/privacy/data-requests.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a stderr line nobody reads. After fix-watch: a \"last sweep ok\" time in `/api/health` and an alarm over 3 days; after fix-mac: weekly rotation of the server outp",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R46",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "biz-paperwork",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nothing; the first sale or a CRA letter. Calendar reminders are in `pexi-dates.ics` (GST/HST filing after registration; tax dates 2027-04-30 and 2027-06-15).\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 1,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R47",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "own-change-drift",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody until Apple or a user raises it.\r",
+   "rbWho": "whoever makes the change; Jamin signs off.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R48",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "age-rating",
+   "commits": [
+    "1cd9f54 [docs] R48 R53 R91 age-rating answers (docs/store/listing.md), childre"
+   ],
+   "present": [
+    "docs/store/listing.md",
+    "docs/privacy/children-record.md",
+    "docs/privacy/opc-comment-draft.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple's email to the account holder. Calendar reminders 2026-12-13 and 2027-01-05.\r",
+   "rbWho": "Aurik owns it with Jamin's yes; the account holder is Jamin.\r",
+   "needsJaminLines": 2,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R49",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "privacy-docs-wrong",
+   "commits": [
+    "ebcb033 [docs] R49 R53 reinstall keeps the id (Keychain): docs/privacy/data-re"
+   ],
+   "present": [
+    "docs/privacy/data-requests.md",
+    "docs/privacy/breach-plan.md",
+    "docs/store/privacy.html",
+    "docs/store/privacy-fr.html"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "",
+   "rbWho": "",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "4. Test delete-my-data request"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R50",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "vendor-drift",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "vendor emails to the account owners; nobody reviews them.\r",
+   "rbWho": "Jamin, quarterly.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R51",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "privacy-request",
+   "commits": [],
+   "present": [
+    "docs/privacy/data-requests.md",
+    "scripts/privacy/device-data.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the email arrives in the support inbox, so only R18 catches it.\r",
+   "rbWho": "Jamin (the tools run on the Mac).\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "4. Test delete-my-data request"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R52",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "backup-silent",
+   "commits": [
+    "a607289 [mac] R07 R52: encrypted off-site copy (14-offsite-backup.sh) and week",
+    "d909d8e [mac] R16 R52 R58 R07: health markers, nightly integrity checks, backu"
+   ],
+   "present": [
+    "mac/14-offsite-backup.sh",
+    "mac/15-restore-test.sh",
+    "mac/nightly-checks.mjs",
+    "mac/test/nightly-checks.test.mjs",
+    "mac/test/offsite.test.mjs",
+    "mac/07-backup.sh",
+    "mac/07-restore.sh",
+    "mac/deploy/test/backup-helpers.mjs",
+    "mac/deploy/test/backup.test.mjs",
+    "mac/lib/health.mjs",
+    "mac/lib/health.sh",
+    "mac/redelete-requests.mjs",
+    "mac/test/health.test.mjs",
+    "mac/test/redelete.test.mjs"
+   ],
+   "missing": [
+    "shin/mac/07-backup.sh"
+   ],
+   "runbook": true,
+   "rbFind": "nobody. After fix-mac and fix-watch: the backup writes a \"last good backup\" mark and the alarm goes red over 36 hours.\r",
+   "rbWho": "Jamin or the stand-in.\r",
+   "needsJaminLines": 2,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "3. Backup restore onto another"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R53",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "children",
+   "commits": [
+    "1cd9f54 [docs] R48 R53 R91 age-rating answers (docs/store/listing.md), childre",
+    "ebcb033 [docs] R49 R53 reinstall keeps the id (Keychain): docs/privacy/data-re"
+   ],
+   "present": [
+    "docs/privacy/data-requests.md",
+    "docs/privacy/children-record.md",
+    "docs/privacy/opc-comment-draft.md",
+    "docs/store/listing.md",
+    "docs/privacy/breach-plan.md",
+    "docs/store/privacy-fr.html",
+    "docs/store/privacy.html"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a parent's email or a letter. No alarm.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 2,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R54",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "amd-agreement",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; no review of the agreement is on file.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 2,
+   "templatesLines": 1,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R55",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "mac-entered",
+   "commits": [
+    "39fa294 [mac] R04 R07 R55 R58 R66: mac/README.md ordered install procedure, re",
+    "bcceb4e [mac] R55 D3 D4: mac/12-harden.sh (firewall with live-health revert, S"
+   ],
+   "present": [
+    "docs/privacy/breach-plan.md",
+    "mac/05-install-launchd.sh",
+    "mac/09-e12-checks.sh",
+    "mac/DEPLOY.md",
+    "mac/README.md",
+    "mac/12-harden.sh",
+    "mac/config.env.example",
+    "mac/launchd-daemons/com.shin.backup.plist",
+    "mac/launchd-daemons/com.shin.checker.plist",
+    "mac/launchd-daemons/com.shin.expiry.plist",
+    "mac/launchd-daemons/com.shin.hammer.plist",
+    "mac/launchd-daemons/com.shin.integrity.plist",
+    "mac/launchd-daemons/com.shin.logrotate.plist",
+    "mac/launchd-daemons/com.shin.offsite.plist"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "theft shows as the alarm going red; quiet entry shows as nothing.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "2. Mac reboot and recovery\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R56",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "key-leak",
+   "commits": [],
+   "present": [],
+   "missing": [
+    "shin/mac/config.env"
+   ],
+   "runbook": true,
+   "rbFind": "a vendor email, a surprise bill, or an alarm; a failed RevenueCat rotation shows as free users (R27).\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "5. Rotate one key\r"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R57",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "retailer-writes",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "scripts/security/remove-shopper-input.mjs",
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the support inbox or the source's account email.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 3,
+   "drills": [
+    "12. Support inbox and removal-"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R58",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "restore-resurrects",
+   "commits": [
+    "39fa294 [mac] R04 R07 R55 R58 R66: mac/README.md ordered install procedure, re",
+    "d909d8e [mac] R16 R52 R58 R07: health markers, nightly integrity checks, backu"
+   ],
+   "present": [
+    "docs/privacy/data-requests.md",
+    "mac/05-install-launchd.sh",
+    "mac/09-e12-checks.sh",
+    "mac/DEPLOY.md",
+    "mac/README.md",
+    "mac/07-backup.sh",
+    "mac/07-restore.sh",
+    "mac/deploy/test/backup-helpers.mjs",
+    "mac/deploy/test/backup.test.mjs",
+    "mac/lib/health.mjs",
+    "mac/lib/health.sh",
+    "mac/nightly-checks.mjs",
+    "mac/redelete-requests.mjs",
+    "mac/test/health.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody would know.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "3. Backup restore onto another",
+    "4. Test delete-my-data request"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R59",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "crawl-outreach",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a complaint or a blocked account.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R60",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "legal-pages-host",
+   "commits": [],
+   "present": [
+    "docs/store/listing.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; the alarm probes the server only. After fix-watch: the three URLs are in the alarm and a 404 emails.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R61",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "name-copycat",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a letter, an App Store dispute email, or chance. After Jamin's step: a Google alert for \"Pexi app\".\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R62",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "competition-bureau",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a letter.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 2,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R63",
+   "tier": 3,
+   "state0": "partial",
+   "slug": "regulators",
+   "commits": [],
+   "present": [
+    "docs/privacy/data-requests.md",
+    "docs/privacy/breach-plan.md",
+    "docs/privacy/children-record.md",
+    "docs/store/quebec-transfer-note.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a letter to the support or registered address.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R64",
+   "tier": 3,
+   "state0": "gap",
+   "slug": "placement",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the support inbox or a message to a founder.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 3,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R65",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "sdk-deadlines",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple's requirements page and developer emails; nobody reads them on a schedule.\r",
+   "rbWho": "Aurik (builds), Jamin (account).\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R66",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "signing",
+   "commits": [
+    "39fa294 [mac] R04 R07 R55 R58 R66: mac/README.md ordered install procedure, re",
+    "f3813ad [mac] R66 R69: monthly expiry check for certificate, profiles, App Sto"
+   ],
+   "present": [
+    "mac/05-install-launchd.sh",
+    "mac/09-e12-checks.sh",
+    "mac/DEPLOY.md",
+    "mac/README.md",
+    "mac/expiry-check.mjs",
+    "mac/test/expiry-check.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "only when someone tries to build.\r",
+   "rbWho": "Aurik, with Jamin's account.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "7. TestFlight build installed "
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R67",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "offline",
+   "commits": [
+    "f79fb11 [docs] fix-app needs-jamin section: Cloudflare, crash-report privacy s",
+    "5417881 [app] R09 R79 R67: crash reports to Pexi's own server, setup restored "
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/crash-report.js",
+    "app/public/js/device.js",
+    "app/public/js/main.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/storage-backup.js",
+    "app/server.ts",
+    "app/src/client-errors.ts",
+    "app/test/client-errors.test.ts",
+    "app/test/crash-report.test.mjs",
+    "app/test/storage-backup.test.mjs",
+    "app/test/typed-failure-sheets.test.mjs"
+   ],
+   "missing": [
+    "docs/readiness/needs-jamin-fix-app.md"
+   ],
+   "runbook": true,
+   "rbFind": "a review. No offline metric.\r",
+   "rbWho": "Jamin decides the limit.\r",
+   "needsJaminLines": 2,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R68",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "exam-collision",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "dates in Jamin's notes only.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R69",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "tailscale",
+   "commits": [
+    "f3813ad [mac] R66 R69: monthly expiry check for certificate, profiles, App Sto"
+   ],
+   "present": [
+    "mac/expiry-check.mjs",
+    "mac/test/expiry-check.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody until he tries.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 3,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R70",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "cocoapods",
+   "commits": [
+    "f79fb11 [docs] fix-app needs-jamin section: Cloudflare, crash-report privacy s"
+   ],
+   "present": [],
+   "missing": [
+    "docs/readiness/needs-jamin-fix-app.md"
+   ],
+   "runbook": true,
+   "rbFind": "calendar reminders 2026-11-02 (past) and 2026-11-25, and the 2026-12-02 date itself.\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R71",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "hammer-stale",
+   "commits": [],
+   "present": [
+    "scripts/data-freshness.mjs"
+   ],
+   "missing": [
+    "shin/mac/hammer-refresh.sh"
+   ],
+   "runbook": true,
+   "rbFind": "the alarm's freshness check fires when the newest price day is too old (`scripts/data-freshness.mjs`); after fix-watch also when a refresh is refused.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [
+    "11. Hammer refresh by hand and"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R72",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "deploy-stall",
+   "commits": [
+    "2e83d35 [mac] R72 D1-D5: docs/readiness/needs-jamin.md fix-mac section; mac/te",
+    "1d8e79a [mac] R04 R72: deployer works against a system LaunchDaemon, checker w"
+   ],
+   "present": [
+    "docs/readiness/needs-jamin.md",
+    "mac/test/planned-restart.test.mjs",
+    "mac/deploy/checker.mjs",
+    "mac/deploy/deployer.mjs",
+    "mac/deploy/lib.mjs",
+    "mac/deploy/test/lib.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; after fix-watch the alarm fails when the checker's last-seen time is over 15 minutes old.\r",
+   "rbWho": "Jamin or a Mac session.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "6. Bad server deploy rolled ba"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R73",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "rejection",
+   "commits": [],
+   "present": [
+    "docs/store/listing.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple's email and a Resolution Center message.\r",
+   "rbWho": "Aurik replies, Jamin approves any change.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "7. TestFlight build installed "
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R74",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "outside-canada",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a review or the weekly country count (access log field `country`).\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R75",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "competitor",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; chance or a review.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R76",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "mlkit-privacy",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "Apple email or a build warning.\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R77",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "overpass",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; the nearby-shops list is empty. After fix-app: User-Agent with the Pexi name and a contact, one shared in-flight request.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R78",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "press-social",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the support inbox, or a founder's messages.\r",
+   "rbWho": "Jamin speaks for Pexi; Aurik backs him up.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 3,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R79",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "local-storage",
+   "commits": [
+    "5417881 [app] R09 R79 R67: crash reports to Pexi's own server, setup restored "
+   ],
+   "present": [
+    "app/public/js/api.js",
+    "app/public/js/crash-report.js",
+    "app/public/js/device.js",
+    "app/public/js/main.js",
+    "app/public/js/screens/camera.js",
+    "app/public/js/storage-backup.js",
+    "app/server.ts",
+    "app/src/client-errors.ts",
+    "app/test/client-errors.test.ts",
+    "app/test/crash-report.test.mjs",
+    "app/test/storage-backup.test.mjs",
+    "app/test/typed-failure-sheets.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a shopper email (\"I lost my settings\").\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R80",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "accessibility",
+   "commits": [
+    "98d8982 [app] R80: decimal point key named for VoiceOver, guard test that no i"
+   ],
+   "present": [
+    "app/public/js/screens/camera.js",
+    "app/public/js/ui-strings.js",
+    "app/test/a11y-voiceover-labels.test.mjs"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a review or an email.\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R81",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "limiter-forget",
+   "commits": [
+    "a08e574 [money] R19 re-check Plus when the phone says it is Plus, R27 RevenueC"
+   ],
+   "present": [
+    "app/server.ts",
+    "app/src/rate-limit.ts",
+    "app/src/scan-quota.ts",
+    "app/test/native-rc-keys.test.mjs",
+    "app/test/plus-lookup.test.mjs",
+    "app/test/rate-limit-shared.test.mjs",
+    "app/test/store-security.test.ts",
+    "docs/readiness/needs-jamin.md",
+    "docs/store/terms-fr.html",
+    "docs/store/terms.html",
+    "native/scripts/rc-keys.mjs",
+    "native/scripts/sync-web.mjs",
+    "settings/src/index.ts"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody; the Claude cap would show the cost.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 3,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R82",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "sources-age",
+   "commits": [],
+   "present": [
+    "mac/04-catalogue-acquire.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody. After fix-watch: each source's last-loaded date in health, and an alarm on the two price sources.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "11. Hammer refresh by hand and"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R83",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "testflight-expire",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "calendar reminders 2027-01-16, 2027-02-05 and 2027-02-08; Apple emails testers.\r",
+   "rbWho": "Aurik.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "7. TestFlight build installed "
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R84",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "rc-lag",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 2,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R85",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "build-sources",
+   "commits": [],
+   "present": [
+    "mac/DEPLOY.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a failed deploy or rebuild.\r",
+   "rbWho": "Jamin or a Mac session.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "3. Backup restore onto another"
+   ],
+   "rulings": []
+  },
+  {
+   "id": "R86",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "node-eol",
+   "commits": [],
+   "present": [
+    ".github/workflows/server-alarm.yml"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "calendar reminders 2027-03-31 and 2027-04-23.\r",
+   "rbWho": "a Mac session or the PC.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R87",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "investor",
+   "commits": [
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "the support inbox or a founder's messages.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 2,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R88",
+   "tier": 4,
+   "state0": "partial",
+   "slug": "apple-feature",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "an Apple contact email.\r",
+   "rbWho": "Jamin and Aurik.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R89",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "rc-fee",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "RevenueCat's billing email.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R90",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "gemini-key",
+   "commits": [],
+   "present": [],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "a Google billing email, if read.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 1,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R91",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "opc-comment",
+   "commits": [
+    "1cd9f54 [docs] R48 R53 R91 age-rating answers (docs/store/listing.md), childre"
+   ],
+   "present": [
+    "docs/privacy/opc-comment-draft.md",
+    "docs/privacy/children-record.md",
+    "docs/store/listing.md"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "calendar reminders 2026-12-21 and 2027-01-13.\r",
+   "rbWho": "Jamin decides; the draft is `docs/privacy/opc-comment-draft.md`.\r",
+   "needsJaminLines": 1,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R92",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "salt",
+   "commits": [],
+   "present": [],
+   "missing": [
+    "shin/mac/config.env"
+   ],
+   "runbook": true,
+   "rbFind": "nobody. After fix-watch: health shows the salt state.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [],
+   "rulings": []
+  },
+  {
+   "id": "R93",
+   "tier": 4,
+   "state0": "gap",
+   "slug": "scan-rows-dropped",
+   "commits": [
+    "ad7770d [app] R15 R93: typed-name price scan on a worker thread, event batch i",
+    "696ef20 [docs] runbook for R01-R93, handover (R05 R06 R42), dates file, 12 dri"
+   ],
+   "present": [
+    "app/server.ts",
+    "app/src/events.ts",
+    "app/src/own-prices-scan.ts",
+    "app/src/own-prices-worker.ts",
+    "app/src/own-prices.ts",
+    "app/test/events-batch-transaction.test.ts",
+    "app/test/own-prices-async.test.ts",
+    "scripts/load/bench-typed-search.mjs",
+    "docs/readiness/DRILLS.md",
+    "docs/readiness/HANDOVER.md",
+    "docs/readiness/RUNBOOK.md",
+    "docs/readiness/TEMPLATES.md",
+    "docs/readiness/before-changing-data-use.md",
+    "docs/readiness/pexi-dates.ics"
+   ],
+   "missing": [],
+   "runbook": true,
+   "rbFind": "nobody. After fix-app and fix-watch: batches written in one transaction and a dropped-scan count in health.\r",
+   "rbWho": "Jamin.\r",
+   "needsJaminLines": 0,
+   "fixBriefLines": 0,
+   "handoverLines": 0,
+   "templatesLines": 0,
+   "drills": [
+    "10. Load test at 500 then 2,00"
+   ],
+   "rulings": []
+  }
+ ]
+}
