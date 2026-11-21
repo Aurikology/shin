@@ -154,7 +154,7 @@ export function provenanceOf(range, identity = null) {
  * later scan may well get a range. Everything else, including a code this
  * build has never heard of, takes the plain sentence.
  */
-const LATER = new Set(['monthly_cap_reached', 'rate_limited', 'cap_store_error', 'model_error']);
+const LATER = new Set(['monthly_cap_reached', 'daily_cap_reached', 'rate_limited', 'cap_store_error', 'model_error']);
 
 /** The ui-strings.js key for a null range. Never the code itself. */
 export function noRangeKey(reason) {

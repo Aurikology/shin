@@ -41,6 +41,10 @@ export const CATALOGUE_GRACE_SECONDS = 10 * 60;
 export const CLAUDE_FAIL_RUN = 20;
 export const CLAUDE_CAP_WARN_SHARE = 0.8;
 export const REVENUECAT_FAILURES_LIMIT = 3;
+/** RevenueCat lookups a buyer-facing budget refused in the last half hour before the watch fails (abuse review finding 6). */
+export const REVENUECAT_BUYER_REFUSALS_LIMIT = 5;
+/** Requests the limiters refused in the last hour before the watch fails: a flood, or limits set too tight. */
+export const REFUSALS_HOUR_LIMIT = 1_000;
 export const OPENPRICES_DEFAULT_MAX_DAYS = 60;
 /**
  * Gap 84. Client crash reports received in the last hour at or above which the watch raises `client_crash_spike`.
@@ -67,8 +71,10 @@ export interface WatchInputs {
     readonly recentAnswered: number;
     readonly recentFailed: number;
   };
-  /** Null until the money lane's getter exists. */
-  readonly revenueCat: { readonly recentFailures: number } | null;
+  /** Null until the money lane's getter exists. `recentBuyerRefusals`: lookups a buyer-facing budget refused, last 30 minutes. */
+  readonly revenueCat: { readonly recentFailures: number; readonly recentBuyerRefusals?: number } | null;
+  /** Requests the limiters refused in the last hour, by limiter (RevenueCat's own budgets excluded). */
+  readonly refusalsLastHour?: Readonly<Record<string, number>>;
   readonly networkSalt: boolean;
   readonly retention: readonly { readonly part: string; readonly lastOkAt: number | null; readonly lastFailure: string | null }[];
   readonly backup: { readonly configured: boolean; readonly newestAt: number | null };
@@ -127,6 +133,16 @@ export function judgeWatch(i: WatchInputs): WatchReport {
 
   if (i.revenueCat !== null && i.revenueCat.recentFailures >= REVENUECAT_FAILURES_LIMIT) {
     add('revenuecat_failing', `${i.revenueCat.recentFailures} RevenueCat checks failed recently; paying subscribers may be shown as free.`);
+  }
+  if (i.revenueCat !== null && (i.revenueCat.recentBuyerRefusals ?? 0) >= REVENUECAT_BUYER_REFUSALS_LIMIT) {
+    add('revenuecat_lookups_capped', `${i.revenueCat.recentBuyerRefusals} RevenueCat checks for subscribers or new buyers were skipped in the last 30 minutes because the lookup budget was used up; a shopper who just paid may still see the paywall.`);
+  }
+  if (i.refusalsLastHour) {
+    const total = Object.values(i.refusalsLastHour).reduce((a, b) => a + b, 0);
+    if (total >= REFUSALS_HOUR_LIMIT) {
+      const top = Object.entries(i.refusalsLastHour).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${v}`).join(', ');
+      add('requests_refused_spike', `${total} requests were refused by the rate limits in the last hour (${top}): a flood, or shoppers being turned away.`);
+    }
   }
 
   if (!i.networkSalt) add('network_salt_missing', 'The network salt is missing or unwritable, so typed prices and picks stop counting.');
@@ -227,7 +243,7 @@ export class RisingCounter {
 /** Claude failures that are about the account or the key, as opposed to an answer we could not use or our own limits. */
 const ACCOUNT_FAILURES = new Set(['no_api_key', 'model_error', 'circuit_open', 'cap_store_error']);
 /** Our own limits and consent: not a sign anything is wrong with the account. */
-const NOT_A_CALL = new Set(['monthly_cap_reached', 'rate_limited', 'no_claude_consent', 'no_name', 'no_frame', 'unsupported_market']);
+const NOT_A_CALL = new Set(['monthly_cap_reached', 'daily_cap_reached', 'rate_limited', 'no_claude_consent', 'no_name', 'no_frame', 'unsupported_market']);
 
 /** The last 20 Claude calls, each either answered (the model replied) or failed at the account. */
 export class ClaudeOutcomes {
@@ -291,6 +307,7 @@ export const retentionMarks = new RetentionMarks(['scan_data', 'request_log']);
 export const clientCrashes = new ClientCrashLog();
 const scanWriteRise = new RisingCounter();
 const revenueCatRise = new RisingCounter();
+const revenueCatBuyerRise = new RisingCounter();
 
 /* ----------------------------------------------------------- readings from the machine */
 
@@ -474,6 +491,8 @@ function fileVaultReading(nowMs: number): FileVaultState | null {
 /** What the money lane's RevenueCat getter reports, read defensively: the export may not exist yet. */
 export interface RevenueCatReading {
   readonly failures: number;
+  /** Lookups a buyer-facing budget refused since start (scan-quota.ts revenueCatHealth), when reported. */
+  readonly buyerRefusals?: number;
 }
 export function readRevenueCat(mod: unknown): RevenueCatReading | null {
   try {
@@ -481,10 +500,31 @@ export function readRevenueCat(mod: unknown): RevenueCatReading | null {
     if (typeof getter !== 'function') return null;
     const r = (getter as () => unknown)();
     const failures = (r as { failures?: unknown } | null)?.failures;
-    return typeof failures === 'number' && Number.isFinite(failures) ? { failures } : null;
+    if (typeof failures !== 'number' || !Number.isFinite(failures)) return null;
+    const buyerRefusals = (r as { buyerRefusals?: unknown } | null)?.buyerRefusals;
+    return typeof buyerRefusals === 'number' && Number.isFinite(buyerRefusals) ? { failures, buyerRefusals } : { failures };
   } catch {
     return null;
   }
+}
+
+/** Limiter names whose refusals are the RevenueCat lookup budget (read on their own, above), not requests turned away. */
+const NOT_A_REQUEST_REFUSAL = /^revenuecat-/;
+const refusalRises = new Map<string, RisingCounter>();
+/** How much each limiter's since-start refusal count rose in the last hour. */
+function refusalsInLastHour(sinceStart: Readonly<Record<string, number>>, nowMs: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [name, total] of Object.entries(sinceStart)) {
+    if (NOT_A_REQUEST_REFUSAL.test(name)) continue;
+    let c = refusalRises.get(name);
+    if (!c) {
+      c = new RisingCounter();
+      refusalRises.set(name, c);
+    }
+    const rise = c.sample(total, nowMs, HOUR);
+    if (rise > 0) out[name] = rise;
+  }
+  return out;
 }
 
 export interface CollectDeps {
@@ -499,6 +539,8 @@ export interface CollectDeps {
   readonly claudeCap: { reached: boolean; since: string | null };
   readonly claudeCalls: { used: number | null; cap: number | null };
   readonly revenueCat: RevenueCatReading | null;
+  /** Refusals since start by limiter name (rate-limit.ts limiterRefusalsSinceStart); absent reads as none. */
+  readonly refusalsSinceStart?: Readonly<Record<string, number>>;
   readonly env?: NodeJS.ProcessEnv;
 }
 
@@ -518,7 +560,16 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
   const mac = readMacMarkers(settings.SHIN_HEALTH_DIR(env)?.trim() || join(dataDir, 'health'), d.nowMs);
   const checkerAt = mac.checkerAt ?? checkerSeenAt(join(dataDir, 'checker-seen'));
   const scanFaults = scanWriteRise.sample(d.customerDataFaults['scan_write_failed'] ?? 0, d.nowMs, HOUR);
-  const rcRecent = d.revenueCat === null ? null : { recentFailures: revenueCatRise.sample(d.revenueCat.failures, d.nowMs, 30 * 60_000) };
+  const rcRecent =
+    d.revenueCat === null
+      ? null
+      : {
+          recentFailures: revenueCatRise.sample(d.revenueCat.failures, d.nowMs, 30 * 60_000),
+          ...(d.revenueCat.buyerRefusals !== undefined
+            ? { recentBuyerRefusals: revenueCatBuyerRise.sample(d.revenueCat.buyerRefusals, d.nowMs, 30 * 60_000) }
+            : {}),
+        };
+  const refusalsLastHour = d.refusalsSinceStart ? refusalsInLastHour(d.refusalsSinceStart, d.nowMs) : undefined;
   const sinceMonth = d.claudeCap.since === null ? null : new Date(d.claudeCap.since).toISOString().slice(0, 7);
   const capThisMonth = d.claudeCap.reached && sinceMonth === new Date(d.nowMs).toISOString().slice(0, 7);
   const openPricesLast = prices.sourceUse['openprices'] ?? null;
@@ -533,6 +584,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
     pricesDb: d.pricesDb,
     claude: { capReachedThisMonth: capThisMonth, used: d.claudeCalls.used, cap: d.claudeCalls.cap, ...claudeOutcomes.recent() },
     revenueCat: rcRecent,
+    ...(refusalsLastHour ? { refusalsLastHour } : {}),
     networkSalt: networkSalt(env) !== null,
     retention: retentionMarks.snapshot(),
     backup: { configured: backupDir !== '', newestAt: newestBackup },
@@ -552,6 +604,7 @@ export function collectWatch(d: CollectDeps): { watch: WatchReport; readings: Re
       deployCheckerSeenAt: checkerAt === null ? null : new Date(checkerAt).toISOString(),
       sourcesLoaded: prices.sourceUse,
       claudeRecent: claudeOutcomes.recent(),
+      ...(refusalsLastHour ? { refusalsLastHour } : {}),
       power,
       fileVault: fileVaultReading(d.nowMs),
       clientCrashesLastHour: inputs.clientCrashesLastHour,

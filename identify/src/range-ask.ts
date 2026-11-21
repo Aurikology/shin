@@ -17,7 +17,9 @@
  *      down the ask returns `circuit_open` at once, sends nothing, counts nothing;
  *   3. counts the ask against this UTC month BEFORE sending it (an attempt
  *      counts whether or not it succeeds). At or over the monthly limit it
- *      returns `monthly_cap_reached` and sends nothing. The limit is
+ *      returns `monthly_cap_reached` and sends nothing; over today's share of
+ *      what is left of the month (range-ask-store.ts dailyShare) it returns
+ *      `daily_cap_reached` and sends nothing. The limit is
  *      SHIN_RANGE_ASK_MONTHLY_CAP, read by the caller (app/src/catalogue-first.ts).
  *      A cap that is not a whole number >= 0 (NaN, negative, fractional) is
  *      read as 0: a bad cap fails closed, never open;
@@ -26,7 +28,7 @@
  *      `tools` key at all (so no web search tool exists for the model to use),
  *      and thinking disabled with a 1024-token ceiling, so the whole ceiling
  *      goes to the JSON answer and a thinking model cannot cut it off.
- *      The model is `claude-haiku-4-5-20251001` (the cheapest Claude) unless a caller names another. The key is
+ *      The model is `claude-haiku-5-5` (the cheapest Claude; Jamin 2026-11-21, from Haiku 4.5) unless a caller names another. The key is
  *      ANTHROPIC_API_KEY, read by the Anthropic SDK itself (after `.env` is
  *      loaded); an absent or empty key returns `no_api_key` before anything is
  *      counted or sent;
@@ -93,6 +95,7 @@ export type RangeAskFailure =
   | 'unsupported_market'
   | 'no_api_key'
   | 'monthly_cap_reached'
+  | 'daily_cap_reached'
   | 'circuit_open'
   | 'cap_store_error'
   | 'model_error'
@@ -205,12 +208,18 @@ export const RANGE_ASK_BREAKER: RangeBreaker = rangeBreaker();
 
 /* --------------------------------------------------------------- defaults */
 
-export const DEFAULT_MONTHLY_CAP = 1000;
+export const DEFAULT_MONTHLY_CAP = 10_000;
 export const DEFAULT_CEILING_CENTS = 2_000_000;
 export const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const DEFAULT_TIMEOUT_MS = 30_000;
-/** The Claude model asked. No setting names one yet; a caller may pass `deps.model`. */
-export const RANGE_ASK_MODEL = 'claude-haiku-4-5-20251001';
+/**
+ * The Claude model asked. No setting names one yet; a caller may pass `deps.model`. Claude Haiku 5.5 since
+ * 2026-11-21 (Jamin), from Haiku 4.5: US$0.10 in / US$0.50 out per million tokens against US$1 / US$5
+ * (docs/readiness/review-2026-11-21/round2/cost-table.md, from the Anthropic pricing page), and Haiku 4.5
+ * was past its earliest retirement date. Same request: text, structured JSON, thinking disabled, which
+ * Haiku 5.5 accepts at its default effort (medium).
+ */
+export const RANGE_ASK_MODEL = 'claude-haiku-5-5';
 /** Thinking is disabled, so all of this is the JSON answer (about 60 tokens in practice). */
 export const MAX_OUTPUT_TOKENS = 1024;
 
@@ -400,7 +409,7 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
   const breaker = deps.breaker !== undefined ? deps.breaker : deps.provider ? null : RANGE_ASK_BREAKER;
   if (breaker && !breaker.allow(clock())) return { ok: false, reason: 'circuit_open' };
 
-  let reserved: { allowed: boolean };
+  let reserved: { allowed: boolean; refused?: 'monthly' | 'daily' };
   try {
     reserved = reserveMonthlyRangeCall(storePath, cap, clock(), ttl);
   } catch (err) {
@@ -410,7 +419,7 @@ export async function askTypicalRange(identity: RangeIdentity, deps: RangeAskDep
   }
   if (!reserved.allowed) {
     breaker?.abandon();
-    return { ok: false, reason: 'monthly_cap_reached' };
+    return { ok: false, reason: reserved.refused === 'daily' ? 'daily_cap_reached' : 'monthly_cap_reached' };
   }
 
   const model = deps.model ?? RANGE_ASK_MODEL;

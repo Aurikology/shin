@@ -366,6 +366,12 @@ export const LIST_PRICES_USD_PER_MTOK: Readonly<Record<string, ModelPrice>> = {
   'claude-sonnet-5': { input: 2, output: 10 },
   'claude-haiku-4-5': { input: 1, output: 5 },
   /*
+   * The price-range estimate's model since 2026-11-21. Read 2026-11-21 from
+   * https://platform.claude.com/docs/en/about-claude/pricing (docs/readiness/review-2026-11-21/round2/cost-table.md):
+   * this rate is for prompts up to 100,000 tokens; the range ask's prompt is a few hundred.
+   */
+  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
+  /*
    * Gemini, from ai.google.dev/gemini-api/docs/pricing read 2026-09-14. The
    * rows live here rather than beside the adapter because `costUsd` below
    * reads this one table and nothing else: a model absent from it costs

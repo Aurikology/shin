@@ -54,7 +54,54 @@ const ENTITLEMENT_CACHE_MS = 10 * 60 * 1000;
 const ENTITLEMENT_ERROR_CACHE_MS = 60 * 1000;
 /** A device id RevenueCat may be asked about: letters, digits, underscore and hyphen, 8 to 64 long. */
 const PLUS_ID_SHAPE = /^[A-Za-z0-9_-]{8,64}$/;
-const lookupLimiter = new KeyedLimiter([{ ms: 60_000, limit: 120 }]);
+
+/*
+ * THE RevenueCat LOOKUP BUDGET, SPLIT SO A FLOOD CANNOT HIDE A BUYER (abuse review 2026-11-21, finding
+ * 1; gap 49). It was one process-wide 120 a minute, and a fresh made-up id binds its own key on its first
+ * request, so 120 made-up phones a minute from one address used all of it and a shopper who had just
+ * paid was answered "not Plus". Still 120 a minute in all (RevenueCat's own limit was never read, so
+ * the total stays where it was), now in four pools that cannot borrow from each other:
+ *
+ *   subscriber   a phone RevenueCat has ever confirmed as Plus (the plus_seen table). Made-up ids can
+ *                never be in it, so nothing outside pays into it.
+ *   buyer        a phone that says it bought (x-shin-plus: 1) and has counted barcode scans: the
+ *                shopper who met the paywall and paid. A script would have to spend real free scans
+ *                per id to get here.
+ *   new-buyer    a phone that says it bought and has no scans yet (bought from the first screens).
+ *   no-hint      a phone that does not say it bought and was never Plus. The app sends the hint
+ *                whenever the store says Plus (public/js/purchases.js refreshPlus at launch), so these
+ *                are almost all free phones; they get a small pool of their own, and when it is used
+ *                up the answer is the last known one, which for them is "not Plus", the right answer.
+ *
+ * The two hinted pools are also counted per address (IPv4 address, IPv6 /64), so one network cannot
+ * use up the new-buyer pool by itself. Every refusal is counted by pool for /api/health, and the
+ * watch alarms when the three buyer-facing pools refuse (src/watch.ts revenuecat_lookups_capped).
+ */
+const POOL_LIMITS = { subscriber: 50, buyer: 30, newBuyer: 20, noHint: 20 } as const;
+export type LookupPool = keyof typeof POOL_LIMITS;
+const POOL_NAMES: Record<LookupPool, string> = {
+  subscriber: 'revenuecat-subscriber',
+  buyer: 'revenuecat-buyer',
+  newBuyer: 'revenuecat-new-buyer',
+  noHint: 'revenuecat-no-hint',
+};
+function poolLimiters(): Record<LookupPool, KeyedLimiter> {
+  return {
+    subscriber: new KeyedLimiter([{ ms: 60_000, limit: POOL_LIMITS.subscriber }], POOL_NAMES.subscriber),
+    buyer: new KeyedLimiter([{ ms: 60_000, limit: POOL_LIMITS.buyer }], POOL_NAMES.buyer),
+    newBuyer: new KeyedLimiter([{ ms: 60_000, limit: POOL_LIMITS.newBuyer }], POOL_NAMES.newBuyer),
+    noHint: new KeyedLimiter([{ ms: 60_000, limit: POOL_LIMITS.noHint }], POOL_NAMES.noHint),
+  };
+}
+let lookupLimiters = poolLimiters();
+/**
+ * Hinted lookups per address: a shop's Wi-Fi with a few new buyers fits (a buyer is confirmed on the first
+ * lookup); one network cannot take more than 3 of the new-buyer pool's 20 a minute.
+ */
+const HINTED_PER_ADDRESS = [{ ms: 60_000, limit: 3 }, { ms: 10 * 60_000, limit: 10 }, { ms: 24 * 60 * 60_000, limit: 60 }];
+let hintedAddressLimiter = new KeyedLimiter(HINTED_PER_ADDRESS, 'revenuecat-hinted-address');
+/** The in-memory answer cache is trimmed past this many ids (abuse review finding 7). */
+export const ENTITLEMENT_CACHE_MAX = 10_000;
 /** A RevenueCat call that has not answered in this long is a failure (R27); the shopper must not wait on it. */
 const ENTITLEMENT_TIMEOUT_MS = 3_000;
 /** A phone that says it is Plus while the cache says not may force a re-check, once a minute per device (R19). */
@@ -159,6 +206,28 @@ export function setEntitlementFetchForTests(f: FetchLike | null): void {
   entitlementCache.clear();
   hintRecheckAt.clear();
   plusSeenAt.clear();
+  lookupLimiters = poolLimiters();
+  hintedAddressLimiter = new KeyedLimiter(HINTED_PER_ADDRESS, 'revenuecat-hinted-address');
+}
+
+/** How many ids the in-memory RevenueCat answer cache holds now. For the bound test and /api/health. */
+export function entitlementCacheSize(): number {
+  return entitlementCache.size;
+}
+
+/**
+ * Keeps the answer cache bounded however many ids are made up (abuse review finding 7): past
+ * ENTITLEMENT_CACHE_MAX, expired answers go; if it is still over, the oldest-entered go. Dropping an
+ * answer only costs one more lookup for that phone later.
+ */
+function trimEntitlementCache(nowMs: number): void {
+  if (entitlementCache.size <= ENTITLEMENT_CACHE_MAX) return;
+  for (const [id, v] of entitlementCache) if (v.until <= nowMs) entitlementCache.delete(id);
+  while (entitlementCache.size > ENTITLEMENT_CACHE_MAX) {
+    const oldest = entitlementCache.keys().next();
+    if (oldest.done) break;
+    entitlementCache.delete(oldest.value);
+  }
 }
 
 /** Tests shorten the RevenueCat timeout. Null puts the real one back. */
@@ -178,6 +247,8 @@ const lookupHealth = {
   lastFailure: null as string | null,
   lastSuccessAt: null as string | null,
   limiterRefusals: 0,
+  /** Refusals by pool (subscriber, buyer, newBuyer, noHint) and by the per-address cap on hinted lookups. */
+  refusedByPool: { subscriber: 0, buyer: 0, newBuyer: 0, noHint: 0, hintedAddress: 0 },
 };
 
 export interface EntitlementLookupHealth {
@@ -188,18 +259,26 @@ export interface EntitlementLookupHealth {
   readonly lastFailureAt: string | null;
   readonly lastFailure: string | null;
   readonly lastSuccessAt: string | null;
-  /** Lookups skipped because the 120-a-minute ceiling was hit. */
+  /** Lookups skipped because a lookup budget was used up (every pool and the per-address cap together). */
   readonly limiterRefusals: number;
+  /** The same, by pool. `subscriber`, `buyer`, `newBuyer` and `hintedAddress` can hide a paying shopper; `noHint` cannot. */
+  readonly refusedByPool: Readonly<Record<LookupPool | 'hintedAddress', number>>;
+  /** Ids in the in-memory answer cache (bounded at ENTITLEMENT_CACHE_MAX). */
+  readonly cachedAnswers: number;
 }
 
 /** What /api/health reads: a copy of the RevenueCat lookup counters. */
 export function entitlementLookupHealth(): EntitlementLookupHealth {
-  return { ...lookupHealth };
+  return { ...lookupHealth, refusedByPool: { ...lookupHealth.refusedByPool }, cachedAnswers: entitlementCache.size };
 }
 
-/** The total the health watch reads (app/src/watch.ts readRevenueCat): it alarms when failures rise fast. */
-export function revenueCatHealth(): { failures: number } {
-  return { failures: lookupHealth.failures };
+/**
+ * The totals the health watch reads (app/src/watch.ts readRevenueCat): it alarms when failures rise fast,
+ * and when the budget refuses a lookup that could have been a paying shopper's (`buyerRefusals`).
+ */
+export function revenueCatHealth(): { failures: number; buyerRefusals: number } {
+  const r = lookupHealth.refusedByPool;
+  return { failures: lookupHealth.failures, buyerRefusals: r.subscriber + r.buyer + r.newBuyer + r.hintedAddress };
 }
 
 /** The scan store's own small table of devices RevenueCat confirmed as Plus, so a restart in an outage forgets nobody. */
@@ -242,6 +321,54 @@ function recentlyPlus(deviceId: string, nowMs: number): boolean {
     return Number.isFinite(t) && nowMs - t < PLUS_GRACE_MS;
   } catch {
     return false;
+  }
+}
+
+/** True when RevenueCat has ever confirmed this device as Plus (in memory, else the plus_seen table). */
+function everPlus(deviceId: string, nowMs: number): boolean {
+  if (plusSeenAt.has(deviceId)) return true;
+  const store = activeScanStore() ?? openScanStore();
+  try {
+    if (!store.db) return false;
+    store.db.exec(PLUS_SEEN_DDL);
+    const row = store.db.prepare('SELECT seen_at FROM plus_seen WHERE device_id = ?').get(deviceId) as unknown as
+      | { seen_at: string }
+      | undefined;
+    if (!row) return false;
+    const t = Date.parse(row.seen_at);
+    // Warm the memory so the next check (and recentlyPlus) skips the disk.
+    if (Number.isFinite(t) && t <= nowMs) plusSeenAt.set(deviceId, t);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** The same rows `usageFor` counts, any age: a scan the shopper was charged for. */
+const COUNTED_SCAN = `device_id = ? AND kind = 'barcode' AND outcome = 'answered'
+  AND failure_class IS NULL AND resolved_label IS NOT NULL AND is_demo = 0`;
+
+/** True when this device has at least one counted barcode scan. A made-up id has none. */
+function hasCountedScans(deviceId: string): boolean {
+  return firstCountedScanAt(deviceId) !== null;
+}
+
+/**
+ * When this device's first counted barcode scan was answered (ms), or null when it has none. Never
+ * throws; a store that cannot be read answers null. Used for "is this phone new today" (rate-limit.ts,
+ * FRESH_ID_*) and for which RevenueCat pool a hinted lookup comes out of.
+ */
+export function firstCountedScanAt(deviceId: string): number | null {
+  const store = activeScanStore() ?? openScanStore();
+  try {
+    if (!store.db) return null;
+    const row = store.db.prepare(`SELECT MIN(scanned_at) AS first FROM scan WHERE ${COUNTED_SCAN}`).get(deviceId) as unknown as
+      | { first: string | null }
+      | undefined;
+    const t = row?.first ? Date.parse(row.first) : NaN;
+    return Number.isFinite(t) ? t : null;
+  } catch {
+    return null;
   }
 }
 
@@ -309,6 +436,8 @@ export async function isPlus(
   headers: IncomingHttpHeaders,
   env: NodeJS.ProcessEnv = process.env,
   now: Date = new Date(),
+  /** The caller's address key (rate-limit.ts addressKey), or null for a caller on this machine. */
+  address: string | null = null,
 ): Promise<boolean> {
   if (entitlementMode(env) === 'client_trusted') return trustsClientPlus(env) && headerText(headers, PLUS_HEADER) === '1';
   /*
@@ -332,16 +461,24 @@ export async function isPlus(
       for (const [id, at] of hintRecheckAt) if (nowMs - at >= HINT_RECHECK_MS) hintRecheckAt.delete(id);
     }
   }
-  // A safety valve on the lookups themselves: one process-wide ceiling, so a flood of freshly minted
-  // ids cannot turn into a flood of calls to RevenueCat. Over it, the answer is the last known one.
-  if (!lookupLimiter.check('revenuecat', nowMs).allowed) {
+  // A safety valve on the lookups themselves, in pools (see POOL_LIMITS), so a flood of freshly minted
+  // ids cannot turn into a flood of calls to RevenueCat, nor use up the lookups a buyer needs. Over its
+  // pool's budget, the answer is the last known one.
+  const hinted = headerText(headers, PLUS_HEADER) === '1';
+  const pool: LookupPool = everPlus(deviceId, nowMs) ? 'subscriber' : !hinted ? 'noHint' : hasCountedScans(deviceId) ? 'buyer' : 'newBuyer';
+  const refuse = (why: LookupPool | 'hintedAddress'): boolean => {
     lookupHealth.limiterRefusals += 1;
-    if (!lookupAlarmAt || nowMs - lookupAlarmAt > 60_000) {
+    lookupHealth.refusedByPool[why] += 1;
+    if (why !== 'noHint' && (!lookupAlarmAt || nowMs - lookupAlarmAt > 60_000)) {
       lookupAlarmAt = nowMs;
-      console.warn('[plus-lookup-limit] RevenueCat lookups are over 120 a minute; answering from the last known entitlement until it eases');
+      console.warn(`[plus-lookup-limit] the RevenueCat ${why} lookup budget is used up; answering from the last known entitlement until it eases`);
     }
     return cached?.plus ?? recentlyPlus(deviceId, nowMs);
+  };
+  if ((pool === 'buyer' || pool === 'newBuyer') && address !== null && !hintedAddressLimiter.check(address, nowMs).allowed) {
+    return refuse('hintedAddress');
   }
+  if (!lookupLimiters[pool].check('revenuecat', nowMs).allowed) return refuse(pool);
   const key = (settings.REVENUECAT_SECRET_KEY(env) ?? '').trim();
   const doFetch: FetchLike = fetchForEntitlement ?? (globalThis.fetch as unknown as FetchLike);
   lookupHealth.lookups += 1;
@@ -350,7 +487,9 @@ export async function isPlus(
     lookupHealth.consecutiveFailures = 0;
     lookupHealth.lastSuccessAt = new Date().toISOString();
     if (plus) rememberPlus(deviceId, nowMs);
+    entitlementCache.delete(deviceId);
     entitlementCache.set(deviceId, { plus, until: nowMs + ENTITLEMENT_CACHE_MS });
+    trimEntitlementCache(nowMs);
     return plus;
   } catch (err) {
     // R27: counted where the health body can read it, and a subscriber RevenueCat confirmed in the
@@ -360,7 +499,9 @@ export async function isPlus(
     lookupHealth.lastFailureAt = new Date().toISOString();
     lookupHealth.lastFailure = err instanceof Error ? err.message : String(err);
     const plus = (cached?.plus ?? false) || recentlyPlus(deviceId, nowMs);
+    entitlementCache.delete(deviceId);
     entitlementCache.set(deviceId, { plus, until: nowMs + ENTITLEMENT_ERROR_CACHE_MS });
+    trimEntitlementCache(nowMs);
     return plus;
   }
 }
@@ -381,8 +522,9 @@ export async function quotaFor(
   headers: IncomingHttpHeaders,
   env: NodeJS.ProcessEnv = process.env,
   now: Date = new Date(),
+  address: string | null = null,
 ): Promise<Quota> {
-  const plus = await isPlus(deviceId, headers, env, now);
+  const plus = await isPlus(deviceId, headers, env, now, address);
   const limit = plus ? plusScanLimit(env) : freeScanLimit(env);
   const { used, resetsAt } = usageFor(deviceId, limit, now);
   return { limit, used, remaining: limit === null ? null : Math.max(0, limit - used), resetsAt, plus };
@@ -409,13 +551,14 @@ export async function scanLimitRefusal(
   headers: IncomingHttpHeaders,
   env: NodeJS.ProcessEnv = process.env,
   now: Date = new Date(),
+  address: string | null = null,
 ): Promise<ScanLimitRefusal | null> {
   const free = freeScanLimit(env);
   const cap = plusScanLimit(env);
   if (free === null && cap === null) return null;
   const smallest = Math.min(free ?? Infinity, cap ?? Infinity);
   if (usageFor(deviceId, smallest, now).used < smallest) return null;
-  const plus = await isPlus(deviceId, headers, env, now);
+  const plus = await isPlus(deviceId, headers, env, now, address);
   const limit = plus ? cap : free;
   if (limit === null) return null;
   const { used, resetsAt } = usageFor(deviceId, limit, now);

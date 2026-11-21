@@ -147,7 +147,8 @@ export function catalogueFirstOn(env: NodeJS.ProcessEnv = process.env): boolean 
   return !(v === '0' || v === 'off' || v === 'false');
 }
 
-export const RANGE_ASK_DEFAULT_MONTHLY_CAP = 1000;
+/** Claude estimates a UTC month. 10,000 since 2026-11-21 (Jamin), from 1,000, with the move to Haiku 5.5. */
+export const RANGE_ASK_DEFAULT_MONTHLY_CAP = 10_000;
 export const RANGE_ASK_DEFAULT_CEILING_CENTS = 2_000_000;
 
 function wholeOr(raw: string | undefined, fallback: number): number {
@@ -160,7 +161,7 @@ function wholeOr(raw: string | undefined, fallback: number): number {
 /**
  * The monthly cap fails CLOSED: unset or empty is the documented default, but a
  * value that is set and is not a whole number >= 0 ('abc', '-3', '1.5') is 0,
- * so a typo turns the paid ask off rather than opening it to 1000 a month.
+ * so a typo turns the paid ask off rather than opening it to 10,000 a month.
  */
 function capOr(raw: string | undefined, fallback: number): number {
   const t = (raw ?? '').trim();

@@ -60,7 +60,42 @@ export interface RangeStoreState {
   readonly version: 1;
   readonly month: string;
   readonly calls: number;
+  /** The UTC day (`YYYY-MM-DD`) `dayStart` belongs to; absent in a file written before the daily share. */
+  readonly day?: string;
+  /** `calls` as it stood before that day's first ask: today's asks are `calls - dayStart`. */
+  readonly dayStart?: number;
   readonly cache: Readonly<Record<string, CachedRangeEntry>>;
+}
+
+/*
+ * THE MONTH, SPREAD OVER ITS DAYS (abuse review 2026-11-21, finding 5; gap 56). One caller with many
+ * addresses used the whole monthly cap in under two minutes, and every shopper lost the estimate until
+ * the month turned. Now a day may use at most DAILY_SHARE_FACTOR times its even share of what is left:
+ * ceil(2 x (cap - asks before today) / days left in the month, today included). A drain costs about two
+ * days' share, not the month; twice the even share leaves room for a busy day, and a day may always send
+ * DAILY_SHARE_FLOOR (or what is left) so a small cap is not cut to one a day. Kept in the store file,
+ * so a restart does not hand out a fresh day.
+ */
+export const DAILY_SHARE_FACTOR = 2;
+/** A day may always send this many (or what is left of the month, if less), so a small cap is not cut to one a day. */
+export const DAILY_SHARE_FLOOR = 50;
+
+/** `YYYY-MM-DD` in UTC. */
+export function utcDay(nowMs: number): string {
+  return new Date(nowMs).toISOString().slice(0, 10);
+}
+
+/** Days left in this UTC month, today included (1 on the last day). */
+export function daysLeftInMonth(nowMs: number): number {
+  const d = new Date(nowMs);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return last - d.getUTCDate() + 1;
+}
+
+/** The most asks today may send, given the monthly `limit` and the asks sent before today. */
+export function dailyShare(limit: number, callsBeforeToday: number, nowMs: number): number {
+  const left = Math.max(0, limit - callsBeforeToday);
+  return Math.max(Math.min(left, DAILY_SHARE_FLOOR), Math.ceil((DAILY_SHARE_FACTOR * left) / daysLeftInMonth(nowMs)));
 }
 
 /** `YYYY-MM` in UTC. Not local time: two machines have to agree on when the month turns. */
@@ -85,7 +120,7 @@ function isEntry(v: unknown): v is CachedRangeEntry {
 export function readRangeStore(storePath: string, nowMs: number): RangeStoreState {
   const month = utcMonth(nowMs);
   if (!existsSync(storePath)) return empty(month);
-  let parsed: Partial<{ month: unknown; calls: unknown; cache: unknown }>;
+  let parsed: Partial<{ month: unknown; calls: unknown; day: unknown; dayStart: unknown; cache: unknown }>;
   try {
     parsed = JSON.parse(readFileSync(storePath, 'utf8')) as typeof parsed;
   } catch {
@@ -101,6 +136,11 @@ export function readRangeStore(storePath: string, nowMs: number): RangeStoreStat
     parsed.month === month && typeof parsed.calls === 'number' && Number.isFinite(parsed.calls) && parsed.calls >= 0
       ? Math.floor(parsed.calls)
       : 0;
+  const day = utcDay(nowMs);
+  if (parsed.month === month && parsed.day === day && typeof parsed.dayStart === 'number' && Number.isFinite(parsed.dayStart)) {
+    const dayStart = Math.min(calls, Math.max(0, Math.floor(parsed.dayStart)));
+    return { version: 1, month, calls, day, dayStart, cache };
+  }
   return { version: 1, month, calls, cache };
 }
 
@@ -123,19 +163,25 @@ export function monthlyRangeCalls(storePath: string, nowMs: number): { month: st
 
 /**
  * Counts one ask against this month BEFORE it is sent, or refuses it.
- * At or over `limit`: `allowed: false`, nothing written. Otherwise the new
- * count is on disk before the caller is told to go, so a crash mid-call still
- * counted the attempt.
+ * At or over `limit` (`refused: 'monthly'`), or over today's share of what is
+ * left (`refused: 'daily'`, see DAILY_SHARE_FACTOR): `allowed: false`, nothing
+ * written. Otherwise the new count is on disk before the caller is told to go,
+ * so a crash mid-call still counted the attempt.
  */
 export function reserveMonthlyRangeCall(
   storePath: string,
   limit: number,
   nowMs: number,
   ttlMs: number,
-): { allowed: boolean; month: string; calls: number } {
+): { allowed: boolean; month: string; calls: number; refused?: 'monthly' | 'daily' } {
   const s = readRangeStore(storePath, nowMs);
-  if (s.calls >= limit) return { allowed: false, month: s.month, calls: s.calls };
-  const next: RangeStoreState = { ...s, calls: s.calls + 1 };
+  if (s.calls >= limit) return { allowed: false, month: s.month, calls: s.calls, refused: 'monthly' };
+  const day = utcDay(nowMs);
+  const dayStart = s.day === day && s.dayStart !== undefined ? s.dayStart : s.calls;
+  if (s.calls - dayStart >= dailyShare(limit, dayStart, nowMs)) {
+    return { allowed: false, month: s.month, calls: s.calls, refused: 'daily' };
+  }
+  const next: RangeStoreState = { ...s, calls: s.calls + 1, day, dayStart };
   writeRangeStore(storePath, next, nowMs, ttlMs);
   return { allowed: true, month: next.month, calls: next.calls };
 }

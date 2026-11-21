@@ -78,7 +78,7 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
   // -- Catalogue first; Claude, with no web search, is the capped price-range fallback -----
   { env: 'SHIN_CATALOGUE_FIRST', default: "on since 2026-09-28; only '0', 'off' or 'false' turns it off", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
-  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '1000 (asks per UTC month; 0 turns the ask off; the server makes no range ask since 2026-09-28)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
+  { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '10000 (asks per UTC month, raised from 1000 on 2026-11-21 with the move to Claude Haiku 5.5; no day may use more than twice its even share of what is left, at least 50; 0 turns the ask off)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_CEILING_CENTS', default: '2000000 (highest high_cents accepted)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_STORE_PATH', default: 'identify/data/range-ask.json', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   // -- A scan never ends with no result ------------------------------------
@@ -100,9 +100,9 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_PYTHON', default: "'python' on Windows, 'python3' elsewhere (printout intake's PDF reader)", ruling: 'operational' },
   { env: 'REVENUECAT_SECRET_KEY', default: 'unset -> nobody is Plus', ruling: 'operational', secret: true },
   { env: 'SHIN_PLUS_TRUST_CLIENT', default: "unset; '1' believes x-shin-plus when no RevenueCat key is set", ruling: 'operational' },
-  { env: 'SHIN_RATE_DOOR_IP_PER_10MIN', default: '6000 (the address ceiling; each phone has its own 1200)', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_RATE_DOOR_IP_PER_10MIN', default: '6000 (the address ceiling, an IPv6 address counted as its /64; each phone has its own 1200)', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_DOOR_IP_PER_DAY', default: '75000 (the address ceiling; each phone has its own 15000)', ruling: 'Server-side guards and limits' },
-  { env: 'SHIN_FREE_SCANS_PER_IP_DAY', default: '150, only while the free scan limit is on', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_FREE_SCANS_PER_IP_DAY', default: '2000 (raised from 150 on 2026-11-21; an IPv6 address counted as its /64; phones new today also share a fixed 300 and get 3 free scans on an address where 3 phones used up their week today), only while the free scan limit is on', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_SHOPPER_VOICE', default: "unset -> on; 'off' stops typed prices and learned picks from changing any shown answer (they are still stored)", ruling: 'operational' },
   { env: 'SHIN_NETWORK_SALT', default: 'unset -> a random salt made once and kept in <SHIN_DATA_DIR>/network-salt', ruling: 'operational', secret: true },
   { env: 'SHIN_BACKUP_DIR', default: 'unset -> the newest backup is not looked for and health says the backup age is not checked', ruling: 'operational' },

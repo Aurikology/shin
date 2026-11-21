@@ -301,7 +301,7 @@ test('the frame goes to the cheapest Claude with no tools, and the name it reads
   assert.equal(call.images, 1, 'Claude was not sent exactly one frame');
   assert.equal(call.hasTools, false, 'a tools key went to Claude: it must never be offered web search');
   assert.equal(call.grounding, undefined, 'the frame read asked for grounding');
-  assert.equal(call.model, 'claude-haiku-4-5-20251001', 'the frame read is not on the cheapest Claude');
+  assert.equal(call.model, 'claude-haiku-5-5', 'the frame read is not on the cheapest Claude');
   assert.equal(body.outcome, 'named_outside_catalogue', `the frame read did not name the item: ${JSON.stringify(body)}`);
   assert.equal(body.identitySource, 'claude_reading', "the name is not labelled as Claude's reading");
   assert.equal(body.offerManualEntry, false);

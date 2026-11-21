@@ -92,13 +92,13 @@ import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
 import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
-import { deviceFromHeaders, entitlementStartupWarning, freeScanLimit, isPlus, plusScanLimit, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal } from './src/scan-quota.ts';
+import { deviceFromHeaders, entitlementLookupHealth, entitlementStartupWarning, firstCountedScanAt, freeScanLimit, isPlus, plusScanLimit, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal, usageFor } from './src/scan-quota.ts';
 import { inEventTransaction, recordEvent, serialisePayload } from './src/events.ts';
 import { chainsFromData, parseCell, storesNear, type StoreFetcher } from './src/stores.ts';
 import { fileTypedReport, recordShelfPrice, shopperReportField } from './src/shopper-report.ts';
 import { PRICE_MATCH_POLICIES } from './src/price-match.ts';
 import { INVITE_EXEMPT, INVITE_HEADER, INVITE_REFUSAL, inviteAllows, inviteRequired, inviteWho, reportWitness } from './src/invite.ts';
-import { KeyedLimiter, addressWindows, clientAddress, codeWindows, doorDeviceWindows, doorWindows, freeScanAddressWindows, isLocalRequest, networkOf, phoneIdOf } from './src/rate-limit.ts';
+import { DailyBudget, FRESH_ID_FREE_SCANS, FRESH_ID_SPENT_PHONES, FRESH_ID_WINDOW_MS, KeyedLimiter, SpentPhones, addressKey, addressWindows, clientAddress, codeWindows, doorDeviceWindows, doorWindows, freeScanAddressWindows, freeScanNewPhoneWindows, isLocalRequest, limiterRefusals, limiterRefusalsSinceStart, networkOf, phoneIdOf } from './src/rate-limit.ts';
 import { logError } from './src/errlog.ts';
 import { cleanClientError, ClientErrorBudget } from './src/client-errors.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
@@ -916,6 +916,7 @@ let addressLimiter = new KeyedLimiter(addressWindows(), 'paid-address');
 let doorLimiter = new KeyedLimiter(doorWindows(), 'door-address');
 let doorDeviceLimiter = new KeyedLimiter(doorDeviceWindows(), 'door-device');
 let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(), 'free-scan-address');
+let freeScanNewPhoneLimiter = new KeyedLimiter(freeScanNewPhoneWindows(), 'free-scan-new-phone-address');
 
 /*
  * WRONG GUESSES AT A SECRET (security check A5). The invite code ships inside the app and the admin
@@ -937,7 +938,7 @@ let guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
 function wrongGuessRefusal(req: IncomingMessage, what: 'invite' | 'admin'): { retryAfterSeconds: number } | null {
   // A caller on this machine itself (no tunnel header) is the operator or a test, like every other limiter here.
   if (isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
-  const mine = guessAddressLimiter.check(`${what}:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  const mine = guessAddressLimiter.check(`${what}:${limitKeyOf(req)}`);
   if (!mine.allowed) return { retryAfterSeconds: mine.retryAfterSeconds };
   const all = guessAllLimiter.check(what);
   if (!all.allowed) {
@@ -947,8 +948,8 @@ function wrongGuessRefusal(req: IncomingMessage, what: 'invite' | 'admin'): { re
   return null;
 }
 export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
-  claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }]);
-  claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }]);
+  claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }], 'claude-device');
+  claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }], 'claude-network');
   claudeWeeklyLimiters.clear();
   storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
   packAddressLimiter = new KeyedLimiter(PACK_PULL_WINDOWS, 'pack-address');
@@ -959,6 +960,11 @@ export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.e
   doorLimiter = new KeyedLimiter(doorWindows(env), 'door-address');
   doorDeviceLimiter = new KeyedLimiter(doorDeviceWindows(), 'door-device');
   freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(env), 'free-scan-address');
+  freeScanNewPhoneLimiter = new KeyedLimiter(freeScanNewPhoneWindows(), 'free-scan-new-phone-address');
+  spentPhones = new SpentPhones();
+  claudeAddressLimiter = new KeyedLimiter(CLAUDE_ADDRESS_WINDOWS, 'claude-address');
+  eventDeviceBudget = new DailyBudget(EVENTS_PER_DEVICE_DAY, 'events-device');
+  eventAddressBudget = new DailyBudget(EVENTS_PER_ADDRESS_DAY, 'events-address');
   matchTextCodeLimiter = new KeyedLimiter(codeWindows(env));
   matchTextAddressLimiter = new KeyedLimiter(addressWindows(env));
 }
@@ -977,7 +983,7 @@ function matchTextRefusal(req: IncomingMessage): { retryAfterSeconds: number } |
   const who = inviteWho(req.headers[INVITE_HEADER]) ?? 'open';
   const byCode = matchTextCodeLimiter.check(`code:${who}`);
   if (!byCode.allowed) return { retryAfterSeconds: byCode.retryAfterSeconds };
-  const byAddress = matchTextAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  const byAddress = matchTextAddressLimiter.check(`ip:${limitKeyOf(req)}`);
   if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
   return null;
 }
@@ -1004,7 +1010,7 @@ function doorRefusal(req: IncomingMessage, pathname: string): { retryAfterSecond
     const own = doorDeviceLimiter.check(`dev:${phone}`);
     if (!own.allowed) return { retryAfterSeconds: own.retryAfterSeconds };
   }
-  const decision = doorLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  const decision = doorLimiter.check(`ip:${limitKeyOf(req)}`);
   return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
 }
 
@@ -1013,10 +1019,55 @@ function doorRefusal(req: IncomingMessage, pathname: string): { retryAfterSecond
  * nothing until the limits go on. Subscribers are not counted: they paid and they have their own cap.
  */
 async function freeScanAddressRefusal(req: IncomingMessage, device: string): Promise<{ retryAfterSeconds: number } | null> {
-  if (freeScanLimit() === null || isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
-  if (await isPlus(device, req.headers)) return null;
-  const decision = freeScanAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  const free = freeScanLimit();
+  if (free === null || isLocalRequest(req.headers, req.socket.remoteAddress)) return null;
+  const address = limitKeyOf(req);
+  if (await isPlus(device, req.headers, process.env, new Date(), address)) return null;
+  // A phone new today, on an address where phones keep using up their free week, gets a few free
+  // scans there, not a fresh 10 (src/rate-limit.ts, "A NEW PHONE ID MUST NOT BE A NEW WEEK").
+  const now = Date.now();
+  const first = firstCountedScanAt(device);
+  const newToday = first === null || now - first < FRESH_ID_WINDOW_MS;
+  if (newToday && FRESH_ID_FREE_SCANS < free && spentPhones.count(address, now) >= FRESH_ID_SPENT_PHONES) {
+    if (usageFor(device, free).used >= FRESH_ID_FREE_SCANS) {
+      freshIdRefusals += 1;
+      spentPhones.note(address, device, now);
+      const until = (first ?? now) + FRESH_ID_WINDOW_MS;
+      return { retryAfterSeconds: Math.max(1, Math.ceil((until - now) / 1000)) };
+    }
+  }
+  // Phones new today share their own ceiling on the address (the old 150, doubled), under the high one for everybody.
+  if (newToday) {
+    const fresh = freeScanNewPhoneLimiter.check(`ip:${address}`);
+    if (!fresh.allowed) return { retryAfterSeconds: fresh.retryAfterSeconds };
+  }
+  const decision = freeScanAddressLimiter.check(`ip:${address}`);
   return decision.allowed ? null : { retryAfterSeconds: decision.retryAfterSeconds };
+}
+
+/** Phones that used up their free week, by address, for the rule above. Tests replace it with the limiters. */
+let spentPhones = new SpentPhones();
+/** Free scans refused by the new-phone rule since start, for /api/health. */
+let freshIdRefusals = 0;
+
+/** A free phone just used up its week on this address (its 402): it counts towards the new-phone rule there. */
+function noteSpentPhone(req: IncomingMessage, device: string, refusal: { plus?: true } | null): void {
+  if (refusal === null || refusal.plus === true || isLocalRequest(req.headers, req.socket.remoteAddress)) return;
+  spentPhones.note(limitKeyOf(req), device);
+}
+
+/**
+ * The key every per-address limit counts: the IPv4 address, or the IPv6 /64 (src/rate-limit.ts
+ * addressKey; abuse review 2026-11-21, finding 2). One place, so no limiter can count full IPv6
+ * addresses again.
+ */
+function limitKeyOf(req: IncomingMessage): string {
+  return addressKey(clientAddress(req.headers, req.socket.remoteAddress));
+}
+
+/** The address key the RevenueCat lookup budget counts, or null for a caller on this machine. */
+function plusAddressOf(req: IncomingMessage): string | null {
+  return isLocalRequest(req.headers, req.socket.remoteAddress) ? null : limitKeyOf(req);
 }
 
 function paidCallRefusal(req: IncomingMessage, sharedOpenBucket = true): { retryAfterSeconds: number } | null {
@@ -1026,7 +1077,7 @@ function paidCallRefusal(req: IncomingMessage, sharedOpenBucket = true): { retry
   // and one caller could empty it for everybody. The device and network limits and the monthly cap guard those asks.
   const byCode = who === 'open' && !sharedOpenBucket ? { allowed: true as const } : codeLimiter.check(`code:${who}`);
   if (!byCode.allowed) return { retryAfterSeconds: byCode.retryAfterSeconds };
-  const byAddress = addressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+  const byAddress = addressLimiter.check(`ip:${limitKeyOf(req)}`);
   if (!byAddress.allowed) return { retryAfterSeconds: byAddress.retryAfterSeconds };
   return null;
 }
@@ -1665,15 +1716,23 @@ const MAX_NAME_CHARS_TO_CLAUDE = 160;
  * Then the address and invite-code buckets as before. Not a security boundary and in memory, like the
  * rest of rate-limit.ts: the monthly cap is what the bill follows.
  */
-let claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }]);
-let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }]);
+let claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }], 'claude-device');
+let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }], 'claude-network');
+/*
+ * Per address (IPv4 address, IPv6 /64), a day (abuse review 2026-11-21, finding 5; gap 56): a shopper asks
+ * Claude a handful of times a month, so 100 a day is a whole shop's Wi-Fi, and one person on one address
+ * cannot spend more than 100 of the month's asks a day. The month itself is also spread over its days
+ * (identify/src/range-ask-store.ts, the daily share), so even many addresses together cost a day, not the month.
+ */
+const CLAUDE_ADDRESS_WINDOWS = [{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 100 }];
+let claudeAddressLimiter = new KeyedLimiter(CLAUDE_ADDRESS_WINDOWS, 'claude-address');
 const claudeWeeklyLimiters = new Map<number, KeyedLimiter>();
 async function claudeAskRefusal(req: IncomingMessage, device: string | null): Promise<boolean> {
   if (device !== null && device !== UNATTRIBUTED) {
     // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
     if (!isLocalRequest(req.headers, req.socket.remoteAddress) && !claudeDeviceLimiter.check(`device:${device}`).allowed) return true;
     // The weekly allowance applies to asks as it does to scans, for a device that proves it is who it says.
-    const plus = await isPlus(device, req.headers);
+    const plus = await isPlus(device, req.headers, process.env, new Date(), plusAddressOf(req));
     const weekly = plus ? plusScanLimit() : freeScanLimit();
     if (weekly !== null) {
       let limiter = claudeWeeklyLimiters.get(weekly);
@@ -1685,6 +1744,7 @@ async function claudeAskRefusal(req: IncomingMessage, device: string | null): Pr
     }
   }
   if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
+    if (!claudeAddressLimiter.check(`ip:${limitKeyOf(req)}`).allowed) return true;
     if (!claudeNetworkLimiter.check(`net:${networkOf(clientAddress(req.headers, req.socket.remoteAddress))}`).allowed) return true;
   }
   return paidCallRefusal(req, false) !== null;
@@ -1703,7 +1763,15 @@ function noteClaudeCall(r: { ok: boolean; reason?: string; cached?: boolean }): 
 let claudeCapRefused = 0;
 let claudeCapFirstAt: string | null = null;
 let claudeCapLoggedAt = 0;
+/** Asks refused because today's share of the month was used (identify/src/range-ask-store.ts dailyShare), since start. */
+let claudeDailyShareRefused = 0;
+let claudeDailyShareLastAt: string | null = null;
 function noteClaudeCapIfReached(what: string, reason: string): void {
+  if (reason === 'daily_cap_reached') {
+    claudeDailyShareRefused += 1;
+    claudeDailyShareLastAt = new Date().toISOString();
+    return;
+  }
   if (reason !== 'monthly_cap_reached') return;
   claudeCapRefused += 1;
   claudeCapFirstAt ??= new Date().toISOString();
@@ -1730,8 +1798,14 @@ async function claudeCallsThisMonth(): Promise<{ used: number | null; cap: numbe
   return value;
 }
 /** What `/api/health` says about the monthly Claude cap. */
-function claudeCapHealth(): { claudeMonthlyCap: { reached: boolean; refusedAsks: number; since: string | null } } {
-  return { claudeMonthlyCap: { reached: claudeCapRefused > 0, refusedAsks: claudeCapRefused, since: claudeCapFirstAt } };
+function claudeCapHealth(): {
+  claudeMonthlyCap: { reached: boolean; refusedAsks: number; since: string | null };
+  claudeDailyShare: { refusedAsks: number; lastAt: string | null };
+} {
+  return {
+    claudeMonthlyCap: { reached: claudeCapRefused > 0, refusedAsks: claudeCapRefused, since: claudeCapFirstAt },
+    claudeDailyShare: { refusedAsks: claudeDailyShareRefused, lastAt: claudeDailyShareLastAt },
+  };
 }
 
 /**
@@ -2085,6 +2159,56 @@ const MAX_EVENTS_BATCH_BODY_BYTES = 1024 * 1024;
  * same "never a 500 over a log line" contract `/api/event` states above.
  */
 const MAX_EVENTS_PER_BATCH = 200;
+
+/*
+ * HOW MANY EVENTS ONE PHONE AND ONE ADDRESS MAY WRITE IN A DAY (abuse review 2026-11-21, finding 4;
+ * gap 56). One address sent 200 events of 4 KiB per request under made-up phone ids, 0.73 MB a request,
+ * enough to fill the Mac's disk in about two hours, into the same file as the scans and the weekly
+ * counts. A phone's usage queue sends far fewer than 2,000 a day; an address (IPv4, or an IPv6 /64) gets
+ * ten phones' worth, which a shop's Wi-Fi fits. Past either, events are dropped as any bad item is
+ * (counted in `dropped`, never an error the phone shows), and the refusal is counted for /api/health.
+ * Below the free-disk floor nothing is written at all (507), whatever the counts say.
+ */
+const EVENTS_PER_DEVICE_DAY = 2_000;
+const EVENTS_PER_ADDRESS_DAY = 20_000;
+let eventDeviceBudget = new DailyBudget(EVENTS_PER_DEVICE_DAY, 'events-device');
+let eventAddressBudget = new DailyBudget(EVENTS_PER_ADDRESS_DAY, 'events-address');
+let eventDiskFree: ((dir: string) => number | null) | null = null;
+
+/** Tests stand in for the free-disk reading (null puts the real one back). */
+export function setEventDiskFreeForTests(free: ((dir: string) => number | null) | null): void {
+  eventDiskFree = free;
+}
+
+/** Room on the disk that holds the scan store, where events are written. */
+function eventDiskHasRoom(): boolean {
+  return eventDiskFree ? diskHasRoom(dirname(SCAN_DB), eventDiskFree) : diskHasRoom(dirname(SCAN_DB));
+}
+
+/**
+ * Spends today's event allowance for these events (one entry per event, by phone id) and answers, per
+ * event in order, whether it may be written. A caller on this machine itself is not counted.
+ */
+function eventAllowance(req: IncomingMessage, deviceIds: readonly string[]): (deviceId: string) => boolean {
+  if (isLocalRequest(req.headers, req.socket.remoteAddress)) return () => true;
+  const want = new Map<string, number>();
+  for (const d of deviceIds) want.set(d, (want.get(d) ?? 0) + 1);
+  const left = new Map<string, number>();
+  let total = 0;
+  for (const [d, n] of want) {
+    const granted = eventDeviceBudget.take(`dev:${d}`, n);
+    left.set(d, granted);
+    total += granted;
+  }
+  let addressLeft = total === 0 ? 0 : eventAddressBudget.take(`ip:${limitKeyOf(req)}`, total);
+  return (deviceId) => {
+    const mine = left.get(deviceId) ?? 0;
+    if (mine <= 0 || addressLeft <= 0) return false;
+    left.set(deviceId, mine - 1);
+    addressLeft -= 1;
+    return true;
+  };
+}
 
 /**
  * The body was bigger than the route accepts. A value rather than a throw,
@@ -2999,7 +3123,7 @@ export const server = createServer(async (req, res) => {
       // The quota carries the Plus answer, so it takes proof (a bound secret), not just an id nobody has claimed yet.
       if (!owns(quotaDevice) || !provesDevice(quotaDevice, req.headers)) return notYours();
       deviceForLog = quotaDevice;
-      return json(200, await quotaFor(quotaDevice, req.headers));
+      return json(200, await quotaFor(quotaDevice, req.headers, process.env, new Date(), plusAddressOf(req)));
     }
     const outcomePath = /^\/api\/scan\/(\d+)\/outcome$/.exec(url.pathname);
     if (outcomePath) {
@@ -3200,7 +3324,8 @@ export const server = createServer(async (req, res) => {
        * any barcode scan.
        */
       if (gtin && rawGtin && catalogueFirstOn()) {
-        const overLimitFirst = await scanLimitRefusal(device, req.headers);
+        const overLimitFirst = await scanLimitRefusal(device, req.headers, process.env, new Date(), plusAddressOf(req));
+        noteSpentPhone(req, device, overLimitFirst);
         if (overLimitFirst) return json(402, overLimitFirst);
         const overAddress = await freeScanAddressRefusal(req, device);
         // R36: a first-time shopper on a busy shared address meets the Plus screen, never the flood text.
@@ -3521,7 +3646,7 @@ export const server = createServer(async (req, res) => {
         });
         return json(403, { error: 'the Claude read of the pack is a developer-only setting', failure: packRefused });
       }
-      const overLimitPack = await scanLimitRefusal(device, req.headers);
+      const overLimitPack = await scanLimitRefusal(device, req.headers, process.env, new Date(), plusAddressOf(req));
       if (overLimitPack) return json(402, overLimitPack);
       const packStarted = Date.now();
       const telemetry = telemetryFrom(p);
@@ -4135,6 +4260,8 @@ export const server = createServer(async (req, res) => {
       deviceForLog = deviceId;
       const payload = serialisePayload(e.payload);
       if ('why' in payload) return json(400, { error: payload.why });
+      if (!eventDiskHasRoom()) return json(507, { error: 'the server is low on disk space' });
+      if (!eventAllowance(req, [deviceId])(deviceId)) return json(200, { stored: false });
       const id = recordEvent({ deviceId, type, payload: e.payload });
       return json(200, id === null ? { stored: false } : { stored: true });
     }
@@ -4195,11 +4322,11 @@ export const server = createServer(async (req, res) => {
       }
       const events = (body as Record<string, unknown>).events;
       if (!Array.isArray(events)) return json(400, { error: 'events must be an array' });
+      if (!eventDiskHasRoom()) return json(507, { error: 'the server is low on disk space' });
       const batch = events.slice(0, MAX_EVENTS_PER_BATCH);
       let stored = 0;
       let dropped = 0;
-      /* R93: one transaction for the whole batch, so it is one disk sync and not up to 200. */
-      inEventTransaction(() => {
+      const valid: { deviceId: string; type: string; payload: unknown; createdAt: string | undefined }[] = [];
       for (const raw of batch) {
         if (!raw || typeof raw !== 'object') { dropped += 1; continue; }
         const e = raw as Record<string, unknown>;
@@ -4211,12 +4338,15 @@ export const server = createServer(async (req, res) => {
         deviceForLog = deviceId;
         const payload = serialisePayload(e.payload);
         if ('why' in payload) { dropped += 1; continue; }
-        const id = recordEvent({
-          deviceId,
-          type,
-          payload: e.payload,
-          createdAt: typeof e.createdAt === 'string' ? e.createdAt : undefined,
-        });
+        valid.push({ deviceId, type, payload: e.payload, createdAt: typeof e.createdAt === 'string' ? e.createdAt : undefined });
+      }
+      // Abuse review 2026-11-21, finding 4: a day's events per phone and per address, so made-up phones cannot fill the disk.
+      const allowed = eventAllowance(req, valid.map((v) => v.deviceId));
+      /* R93: one transaction for the whole batch, so it is one disk sync and not up to 200. */
+      inEventTransaction(() => {
+      for (const v of valid) {
+        if (!allowed(v.deviceId)) { dropped += 1; continue; }
+        const id = recordEvent(v);
         if (id === null) dropped += 1;
         else stored += 1;
       }
@@ -4246,7 +4376,7 @@ export const server = createServer(async (req, res) => {
       }
       // Each new square can cost an outbound OpenStreetMap lookup; one address gets a bounded number (A7).
       if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
-        const lookups = storesAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+        const lookups = storesAddressLimiter.check(`ip:${limitKeyOf(req)}`);
         if (!lookups.allowed) return tooManyCalls(lookups.retryAfterSeconds);
       }
       const stores = await storesNear(cell, storeFetcherDouble ? { fetch: storeFetcherDouble } : {});
@@ -4362,9 +4492,11 @@ export const server = createServer(async (req, res) => {
      * IS IT UP. Plan item 39c, first half.
      *
      * The one route that answers without an invite code (see `invite.ts`), so
-     * it carries nothing worth having: whether the process is alive, how long
-     * it has been alive, and whether the scan log and the catalogue attached.
-     * No counts, no device, no scan.
+     * what anyone sees carries nothing worth having: whether the process is
+     * alive, how long it has been alive, whether the scan log and the catalogue
+     * attached, the weekly price refresh date and `watch.ok`. No counts, no
+     * device, no scan. The full reading is for this machine and the admin
+     * token (blind review 2026-11-21, finding 13; see the end of this route).
      *
      * WHY THOSE TWO FLAGS AND NOTHING ELSE. A ping that only says the process
      * is running is green through the exact outage this beta is most likely to
@@ -4407,8 +4539,35 @@ export const server = createServer(async (req, res) => {
         claudeCap: { reached: base.claudeMonthlyCap.reached, since: base.claudeMonthlyCap.since },
         claudeCalls: await claudeCallsThisMonth(),
         revenueCat: readRevenueCat(scanQuotaForWatch),
+        refusalsSinceStart: limiterRefusalsSinceStart(),
       });
-      return json(200, withoutFilePaths({ ...base, watch, ...readings }));
+      /*
+       * WHO SEES THE DETAIL (blind review 2026-11-21, finding 13). This route is open to anyone who can
+       * reach the server, and the detail is a map of its weak moments: battery, disk, stale jobs, the
+       * Claude cap, refusal counts. Anyone gets only what the phone and the outside alarms read: ok,
+       * the start time, the two attach flags, the weekly price refresh date, and `watch.ok` (the
+       * uptime monitor's keyword `"watch":{"ok":true` is unchanged). The full body, with every reading
+       * and each problem's words, goes to this machine itself (the dead-man ping reads 127.0.0.1) and
+       * to the admin token.
+       */
+      if (!isLocalRequest(req.headers, req.socket.remoteAddress) && !adminAllows(req.headers[ADMIN_HEADER])) {
+        return json(200, {
+          ok: base.ok,
+          uptimeSeconds: base.uptimeSeconds,
+          startedAt: base.startedAt,
+          scanLog: base.scanLog,
+          catalogueUp: base.catalogueUp,
+          hammerRefreshedAt: base.hammerRefreshedAt,
+          watch: { ok: watch.ok },
+        });
+      }
+      // Abuse review 2026-11-21, finding 6: the refusals R36 counted and the RevenueCat budget, said here.
+      const abuse = {
+        refusals: limiterRefusals(),
+        revenueCatLookups: entitlementLookupHealth(),
+        freeScanNewPhoneRefusals: freshIdRefusals,
+      };
+      return json(200, withoutFilePaths({ ...base, ...abuse, watch, ...readings }));
     }
 
     /*

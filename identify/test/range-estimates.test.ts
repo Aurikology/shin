@@ -95,7 +95,7 @@ test('6.2 a stored row carries item, model, date and category', async () => {
   const got = rows(s);
   assert.equal(got.length, 1);
   assert.equal(got[0]!.item, 'Classic Ketchup');
-  assert.equal(got[0]!.model, 'claude-haiku-4-5-20251001');
+  assert.equal(got[0]!.model, 'claude-haiku-5-5');
   assert.equal(got[0]!.askedAt, new Date(SEPT).toISOString());
   assert.equal(got[0]!.category, 'Condiments');
 });
@@ -127,7 +127,7 @@ for (const [label, make] of TRANSPORT) {
     assert.equal(got[0]!.outcome, 'transport_error');
     assert.equal(got[0]!.item, 'Classic Ketchup');
     assert.equal(got[0]!.category, 'Condiments');
-    assert.equal(got[0]!.model, 'claude-haiku-4-5-20251001');
+    assert.equal(got[0]!.model, 'claude-haiku-5-5');
     assert.equal(got[0]!.raw, null);
     assert.equal(typeof got[0]!.detail, 'string');
   });
