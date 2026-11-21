@@ -465,6 +465,29 @@ blind reviewer: about 5 of 21, 24%), none a blocker.
     peaked near 2 GB). Keeping the same web address means no app update. Next: his pick of host, then port the
     jobs and rerun the load test there, recording free memory.
 
+## G. Launch review round 3, 2026-11-21 evening (question the setup)
+
+Detail and evidence: `docs/readiness/review-2026-11-21/round3/REPORT.md` and `round3/*.jsonl`.
+
+94. **[Jamin]** Laptop open to what runs on it: server and five Claude sessions (two with checks off) share one
+    user that reads every key in config.env; auto-login on, FileVault off, firewall off, SSH and Screen Sharing on.
+95. **[Jamin]** GitHub 2FA off (checked) and GitLab reported off; a push deploys; Aurik pushes too. Which remote the
+    Mac checker follows is unresolved (Mac clone from GitLab, a GitHub push deployed 26cfc00).
+96. **[Jamin]** Outside alarm red on 7 of 7 runs since 2026-11-20 on watch.ok with no problems listed; runs every
+    6 to 9 hours, not 30 minutes. A real outage looks the same.
+97. **[Jamin]** 0 of 17 real phones came back on a second day (30 days); typed search 0% shop price; no answer-rate
+    target; Plus sells only a count (3.1.2); subtitle against 2.3.7.
+98. **[Jamin]** Off-site backup built, repository setting empty: no copy outside the house.
+99. **[Jamin]** `load-test.mjs --spawn` overrides only SHIN_DATA_DIR; with config.env loaded it wrote 42,230 events
+    and 1,749 device keys into live (incident closed, no loss; targeted deletes await his go).
+100. **[Jamin]** Cloudflare CDN large-file clause and hobby wording; home internet provider unrecorded (Rogers
+    forbids servers). Both resolved by gap 93's move plus a file store for the pack.
+101. **[Jamin]** 0 of 12 drills ever run.
+102. **[Jamin]** New topics: no growth plan to 10,000; no insurance; allergen disclaimer; deploy hard-kills the
+    server; no dependency routine; personal Gmail support address built into the app; one Cloudflare account for
+    everything; no bills list; payout bank account unnamed; privacy sentences that change on a host move; gap 93
+    port list incomplete; macOS updates pending.
+
 ## Not covered yet (this list grows when these run)
 
 - **Still open after round 2:** the phone checklist, App Store Connect itself, his employment papers, the Mac's
