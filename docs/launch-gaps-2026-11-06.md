@@ -453,6 +453,18 @@ blind reviewer: about 5 of 21, 24%), none a blocker.
 92. **[Aurik]** Accessibility support not declared for submission; privacy manifest declares fewer data types than
     the store label (premortem).
 
+**Missed by both rounds, found 2026-11-21 evening**
+93. **[Jamin]** The host itself. Both rounds took the 8 GB home Mac as given and reviewed around it. Round 1's
+    "breaks at 512 users" was one run on a day the Mac had room; nobody recorded free memory. With 5 Claude
+    sessions and Spotify open (about 1.9 GB) and Apple's own 2.5 GB, the same Mac broke at 16 users (thread
+    measurement, 105 MB free). The cost table listed "Mac power and home internet: not measured, excluded".
+    Server code is portable (plain Node, settings for every path, Mac-only checks skip off macOS); everything
+    around it is not: every background job is a Mac launchd job, the deploy checker restarts with launchctl,
+    install, harden and boot scripts are macOS only, no Linux or container setup, and the two pack files must sit
+    inside the code folder. A rented server needs about 4 GB memory and 20 GB disk (catalogue over 4 GB, server
+    peaked near 2 GB). Keeping the same web address means no app update. Next: his pick of host, then port the
+    jobs and rerun the load test there, recording free memory.
+
 ## Not covered yet (this list grows when these run)
 
 - **Still open after round 2:** the phone checklist, App Store Connect itself, his employment papers, the Mac's
