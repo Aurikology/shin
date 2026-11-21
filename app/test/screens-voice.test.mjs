@@ -43,7 +43,12 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 const SCREENS = fileURLToPath(new URL('../public/js/screens', import.meta.url));
-const FILES = readdirSync(SCREENS).filter((f) => f.endsWith('.js')).sort();
+// screens/camera/*.js are pieces of camera.js split out on 2026-11-21; they are screen code and
+// held to the same rules, named 'camera/<file>'.
+const FILES = [
+  ...readdirSync(SCREENS).filter((f) => f.endsWith('.js')),
+  ...readdirSync(join(SCREENS, 'camera')).filter((f) => f.endsWith('.js')).map((f) => `camera/${f}`),
+].sort();
 
 /* ------------------------------------------------------------------ *
  * Reading the string literals out of a screen.
@@ -563,17 +568,17 @@ const NOT_SHOWN = [
   { file: 'camera.js', text: '.grabber, .sheet-head', why: 'A CSS selector passed to querySelector. It has a space in it because the selector list does, not because it is a sentence.' },
   { file: 'camera.js', text: 'input, textarea, select', why: 'A CSS selector list used to decide whether a key press belongs to a field.' },
   { file: 'watchlist.js', text: '.empty .face', why: 'A CSS descendant selector passed to querySelector, not a phrase anybody reads.' },
-  { file: 'camera.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
+  { file: 'camera/names.js', text: 'NFKD', why: 'The Unicode normalisation form passed to String.normalize, a constant of the platform rather than a word.' },
   { file: 'camera.js', text: 'a thing pexi has never seen', why: 'A query string sent to the engine on purpose, to make it produce its own honest refusal rather than the app faking one. It is a search term, not a label; translating it would change what is asked.' },
 
   { file: 'camera.js', text: 'Escape', why: 'A KeyboardEvent.key value compared against in the sheet key handler. A platform constant, the same string on a French keyboard.' },
   { file: 'camera.js', text: 'Enter', why: 'A KeyboardEvent.key value: Enter on a role="button" element (the verdict item name, build 6) clicks it. A platform constant, the same string on a French keyboard.' },
   { file: 'camera.js', text: 'refusalSheet: no wording for the refusal reason "', why: 'The message of an Error thrown when the refusal sheet is handed a reason it has no wording for (UX build 4, RULINGS.md "Errors never go unnoticed"); it reaches the console and the page error handler, never the shopper.' },
   { file: 'camera.js', text: 'the price pad was opened for an item with no name or code to show', why: 'The message of an Error thrown when the pad is handed an item with nothing to call it (UX build 5, R-36, RULINGS.md "Errors never go unnoticed"); it reaches the error report, never a shopper.' },
-  { file: 'camera.js', text: 'the catalogue answered barcode', why: 'First half of the message of an Error thrown when a capture lookup returns an item with no name (UX build 5, R-36); reported through the error handler, never shown.' },
-  { file: 'camera.js', text: 'with an item that has no name', why: 'Second half of the Error message above.' },
-  { file: 'camera.js', text: 'the server answered barcode', why: 'First half of the message of an Error thrown when a capture lookup returns a product with no name (UX build 5, R-36); reported through the error handler, never shown.' },
-  { file: 'camera.js', text: 'with a product that has no name', why: 'Second half of the Error message above.' },
+  { file: 'camera/names.js', text: 'the catalogue answered barcode', why: 'First half of the message of an Error thrown when a capture lookup returns an item with no name (UX build 5, R-36); reported through the error handler, never shown.' },
+  { file: 'camera/names.js', text: 'with an item that has no name', why: 'Second half of the Error message above.' },
+  { file: 'camera/names.js', text: 'the server answered barcode', why: 'First half of the message of an Error thrown when a capture lookup returns a product with no name (UX build 5, R-36); reported through the error handler, never shown.' },
+  { file: 'camera/names.js', text: 'with a product that has no name', why: 'Second half of the Error message above.' },
   { file: 'camera.js', text: 'frame capture failed:', why: 'console.error prefix when the camera frame for the pack read could not be taken; the scan goes on and the next step says why (RULINGS "A scan never ends with no result").' },
   { file: 'camera.js', text: 'frame send failed:', why: 'console.error prefix when the frame could not reach the pack read; the fault is also tracked as frame_send_failed.' },
   { file: 'camera.js', text: 'review prompt fault:', why: 'console.error prefix when closing an answer sheet could not feed the platform review prompt; the same fault is tracked as review_fault. Developer-facing only.' },
