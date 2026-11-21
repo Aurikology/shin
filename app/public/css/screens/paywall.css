@@ -252,3 +252,7 @@
   min-height: 44px;
   color: var(--ink-muted);
 }
+
+/* 2026-11-21 (business rank 7): the free scans left, at the foot of the answer sheet (scans-left.js). Quiet: muted, no box. */
+.sheet .scans-left { margin: var(--s-2) 0 0; color: var(--ink-muted); }
+.sheet .scans-left .pw-link { color: var(--ink-muted); }

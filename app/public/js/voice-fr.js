@@ -140,9 +140,9 @@ export const LINES_FR = {
     blunt: () => "Écris ce que c'est. Je le cherche.",
   },
   refuse_unsure: {
-    deadpan: () => "C'est lequel?",
-    warm: () => "C'est lequel? Choisis-le et je donne son prix.",
-    blunt: () => "C'est lequel?",
+    deadpan: () => "C'est lequel ?",
+    warm: () => "C'est lequel ? Choisis-le et je donne son prix.",
+    blunt: () => "C'est lequel ?",
   },
   refuse_unsure_why: {
     deadpan: () => "Le mauvais appariement donnerait le prix d'un autre produit, alors choisis et je le ferai.",
@@ -152,7 +152,7 @@ export const LINES_FR = {
   refuse_category: {
     deadpan: (f) => `Pas ${f.category}`,
     warm: (f) => `Je saute ${f.category}`,
-    blunt: (f) => `${f.category}? Non.`,
+    blunt: (f) => `${f.category} ? Non.`,
   },
   refuse_unavailable: {
     deadpan: () => "Je n'ai pas pu joindre le lecteur",
@@ -261,13 +261,13 @@ export const LINES_FR = {
   },
   correct_gate_seller: {
     deadpan: () => "Nomme le magasin. Un prix sans magasin ne pourra être comparé à rien plus tard.",
-    warm: () => "C'était quel magasin? Un prix tout seul ne pourra être comparé à rien plus tard.",
+    warm: () => "C'était quel magasin ? Un prix tout seul ne pourra être comparé à rien plus tard.",
     blunt: () => "Quel magasin. Un prix sans magasin ne sert à rien plus tard.",
   },
   correct_ask: {
-    deadpan: () => "Qu'est-ce qui est écrit au juste?",
-    warm: () => "Qu'est-ce qui est sur l'étiquette?",
-    blunt: () => "Ça dit quoi?",
+    deadpan: () => "Qu'est-ce qui est écrit au juste ?",
+    warm: () => "Qu'est-ce qui est sur l'étiquette ?",
+    blunt: () => "Ça dit quoi ?",
   },
   correct_thanks: {
     deadpan: () => "Noté. Ça compte à partir de maintenant. Une deuxième étiquette le rend solide.",
@@ -281,8 +281,8 @@ export const LINES_FR = {
   },
 
   price_pad_prompt: {
-    deadpan: () => "Quel est le prix sur la tablette?",
-    warm: () => "Quel est le prix sur la tablette?",
+    deadpan: () => "Quel est le prix sur la tablette ?",
+    warm: () => "Quel est le prix sur la tablette ?",
     blunt: () => "Le prix sur la tablette. Écris-le.",
   },
 
@@ -305,7 +305,7 @@ export const LINES_FR = {
   },
   shop_pick_prompt_noloc: {
     deadpan: () => "Touche le magasin où tu es.",
-    warm: () => "Dans quel magasin es-tu? Touche-le.",
+    warm: () => "Dans quel magasin es-tu ? Touche-le.",
     blunt: () => "Touche ton magasin.",
   },
   shop_none_nearby: {
@@ -336,13 +336,13 @@ export const LINES_FR = {
   },
 
   hint_escalated_barcode: {
-    deadpan: () => "Pas de code-barres à lire? Écris le nom du produit.",
-    warm: () => "Pas de code-barres à lire? Dis-moi plutôt ce que c'est.",
+    deadpan: () => "Pas de code-barres à lire ? Écris le nom du produit.",
+    warm: () => "Pas de code-barres à lire ? Dis-moi plutôt ce que c'est.",
     blunt: () => "Pas de code-barres. Écris le nom.",
   },
   hint_escalated: {
-    deadpan: () => "Pas d'étiquette dessus? Pointe l'objet lui-même, ou écris ce que c'est.",
-    warm: () => "Pas d'étiquette dessus? Pointe l'objet lui-même, ou dis-moi plutôt ce que c'est.",
+    deadpan: () => "Pas d'étiquette dessus ? Pointe l'objet lui-même, ou écris ce que c'est.",
+    warm: () => "Pas d'étiquette dessus ? Pointe l'objet lui-même, ou dis-moi plutôt ce que c'est.",
     blunt: () => "Pas de code-barres là. Essaie l'objet lui-même, ou écris-le.",
   },
 
@@ -376,9 +376,9 @@ export const LINES_FR = {
   },
 
   market_ask: {
-    deadpan: () => "Où fais-tu tes courses? Je le note. Ça ne change pas encore ce que je compare.",
-    warm: () => "Où fais-tu tes courses? Je vais le garder au dossier, même si ça ne change pas encore ce que je compare.",
-    blunt: () => "Tu magasines où? Noté. Ça ne fait rien encore.",
+    deadpan: () => "Où fais-tu tes courses ? Je le note. Ça ne change pas encore ce que je compare.",
+    warm: () => "Où fais-tu tes courses ? Je vais le garder au dossier, même si ça ne change pas encore ce que je compare.",
+    blunt: () => "Tu magasines où ? Noté. Ça ne fait rien encore.",
   },
 
   /**
@@ -445,9 +445,9 @@ export const LINES_FR = {
     blunt: (f) => `${f.scans}. Voilà à quelle fréquence je savais ce que c'était. Savoir n'est pas chiffrer.`,
   },
   you_scans_dropped: {
-    deadpan: (f) => `${f.scans} n'ont pas pu être écrits: ${f.why}. Les chiffres ci-dessus ne les comptent pas.`,
-    warm: (f) => `${f.scans} ne se sont pas rendus au journal: ${f.why}. Les chiffres ci-dessus ne les comptent pas, alors traite-les comme un plancher.`,
-    blunt: (f) => `${f.scans} perdus: ${f.why}. Les chiffres ci-dessus sont courts d'autant.`,
+    deadpan: (f) => `${f.scans} n'ont pas pu être écrits : ${f.why}. Les chiffres ci-dessus ne les comptent pas.`,
+    warm: (f) => `${f.scans} ne se sont pas rendus au journal : ${f.why}. Les chiffres ci-dessus ne les comptent pas, alors traite-les comme un plancher.`,
+    blunt: (f) => `${f.scans} perdus : ${f.why}. Les chiffres ci-dessus sont courts d'autant.`,
   },
   you_scanlog_failed: {
     deadpan: () => "Je n'ai pas pu lire mon propre journal de scans.",
@@ -481,9 +481,9 @@ export const LINES_FR = {
   },
 
   cam_notthis_offer: {
-    deadpan: () => "Pas celui-là?",
-    warm: () => "Pas celui-là? Il y en avait d'autres tout proches.",
-    blunt: () => "Le mauvais? Il y en avait d'autres.",
+    deadpan: () => "Pas celui-là ?",
+    warm: () => "Pas celui-là ? Il y en avait d'autres tout proches.",
+    blunt: () => "Le mauvais ? Il y en avait d'autres.",
   },
   cam_notthis_prompt: {
     deadpan: (f) => `Tout ce que j'ai trouvé pour « ${f.query} ».`,
@@ -841,13 +841,13 @@ export const LINES_FR = {
     blunt: () => "Pas de lampe ici.",
   },
   cam_second_visit: {
-    deadpan: (f) => `La dernière fois: ${f.item}${f.seller ? ` chez ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
+    deadpan: (f) => `La dernière fois : ${f.item}${f.seller ? ` chez ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
     warm: (f) => `La dernière fois tu as scanné ${f.item}${f.seller ? ` chez ${f.seller}` : ''}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
-    blunt: (f) => `Le dernier: ${f.item}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
+    blunt: (f) => `Le dernier : ${f.item}${f.asking ? `, ${f.asking}` : ''}. ${f.word}.`,
   },
   cam_candidate_prompt: {
-    deadpan: () => "C'est lequel?",
-    warm: () => "Lequel de ceux-là est-ce?",
+    deadpan: () => "C'est lequel ?",
+    warm: () => "Lequel de ceux-là est-ce ?",
     blunt: () => "Choisis-en un.",
   },
   refuse_category_repair: {
@@ -859,9 +859,9 @@ export const LINES_FR = {
    * scan de code-barres envoie maintenant sa propre image de caméra aussi
    * (tâche 5), donc "un code-barres n'envoie jamais d'image" n'est plus vrai. */
   cam_privacy_line: {
-    deadpan: () => "Chaque scan envoie une image: le cadre que la caméra voyait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si Photos est ouvert; un code-barres consigne son image dans tous les cas.",
+    deadpan: () => "Chaque scan envoie une image : le cadre que la caméra voyait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si Photos est ouvert; un code-barres consigne son image dans tous les cas.",
     warm: () => "Chaque scan envoie maintenant une image, le cadre que la caméra regardait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si tu as ouvert Photos; un code-barres consigne son image dans tous les cas.",
-    blunt: () => "Chaque scan envoie une image, toujours. Photo: gardée si Photos est ouvert. Code-barres: image consignée dans tous les cas.",
+    blunt: () => "Chaque scan envoie une image, toujours. Photo : gardée si Photos est ouvert. Code-barres : image consignée dans tous les cas.",
   },
   /* D-265: identification par photo fermée, un code-barres n'envoie aucune image. */
   cam_privacy_line_nophoto: {
@@ -875,19 +875,19 @@ export const LINES_FR = {
    * simplement, avec la sortie juste à côté: l'interrupteur. Tout changement
    * de défaut change ce texte, voice.js et consent.ts le même jour. */
   consent_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Les photos sont gardées seulement si tu ouvres ça ci-dessous. La position n'est gardée que si tu l'ouvres.",
-    warm: () => "Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Les photos sont gardées seulement si tu ouvres ça ci-dessous, et la position n'est gardée que si tu l'ouvres.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Les photos sont gardées seulement si tu ouvres ça. La position n'est gardée que si tu l'ouvres.",
+    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Les photos sont gardées seulement si tu ouvres ça ci-dessous. La position n'est gardée que si tu l'ouvres.",
+    warm: () => "Chaque scan est écrit : ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Les photos sont gardées seulement si tu ouvres ça ci-dessous, et la position n'est gardée que si tu l'ouvres.",
+    blunt: () => "Chaque scan est consigné : produit et prix, toujours. Les photos sont gardées seulement si tu ouvres ça. La position n'est gardée que si tu l'ouvres.",
   },
   consent_photos_desc: {
-    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque: une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image du rayon n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées: l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
-    blunt: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé: pas d'image du rayon, et l'image du scan par photo est lue une fois, pas gardée. Ouvert: les deux gardées, liées au scan, pour qu'une mauvaise réponse puisse être vérifiée. Risque: une photo gardée peut montrer ce qui est près de toi.",
+    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image de la tablette n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées : l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque : une photo gardée peut montrer ce qui se trouve autour de toi.",
+    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image de la tablette n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées : l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
+    blunt: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé : pas d'image de la tablette, et l'image du scan par photo est lue une fois, pas gardée. Ouvert : les deux gardées, liées au scan, pour qu'une mauvaise réponse puisse être vérifiée. Risque : une photo gardée peut montrer ce qui est près de toi.",
   },
   consent_location_desc: {
-    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque: même une zone approximative réduit l'endroit où tu magasines.",
+    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque : même une zone approximative réduit l'endroit où tu magasines.",
     warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas. Cette liste reste sur le téléphone, n'est jamais envoyée nulle part, et elle est effacée dès que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
-    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé: rien de gardé. Risque: même une zone approximative réduit l'endroit où tu magasines.",
+    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé : rien de gardé. Risque : même une zone approximative réduit l'endroit où tu magasines.",
   },
   you_ratings_none: {
     deadpan: () => "Aucune pour l'instant. Un pouce sur n'importe quel verdict compte ici.",
@@ -897,9 +897,9 @@ export const LINES_FR = {
   /* RÉÉCRIT 2026-09-14, même raison que cam_privacy_line: un code-barres
    * envoie maintenant aussi son image de caméra. */
   you_data_intro: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
     warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné: produit, prix et image de la caméra, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné : produit, prix et image de la caméra, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
   /* RÉÉCRIT 2026-09-14: "seuls cette application et la personne qui la fait
    * tourner peuvent voir ça" n'était plus toute la vérité une fois que tout
@@ -917,15 +917,15 @@ export const LINES_FR = {
     blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand sur la page Toi.",
   },
   consent_intro_lean: {
-    deadpan: (f) => `Chaque scan est écrit: le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
-    warm: (f) => `Chaque scan est écrit: ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
-    blunt: (f) => `Chaque scan est consigné: produit et prix, toujours.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+    deadpan: (f) => `Chaque scan est écrit : le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+    warm: (f) => `Chaque scan est écrit : ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
+    blunt: (f) => `Chaque scan est consigné : produit et prix, toujours.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
   },
   /* D24: identification par photo fermée, aucune image de caméra ne part avec un code-barres. */
   you_data_intro_nophoto: {
-    deadpan: () => "Chaque scan est écrit: le produit et le prix que tu as vu, toujours, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
     warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné: produit et prix, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
+    blunt: () => "Chaque scan est consigné : produit et prix, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
   /* Un code-barres mal lu (chiffre de contrôle faux): je relis, jamais « introuvable ». */
   cam_misread_hold: {
@@ -947,7 +947,7 @@ export const LINES_FR = {
   paywall_say: {
     deadpan: () => "Voilà les scans gratuits de la semaine. Plus en donne davantage chaque semaine.",
     warm: () => "Ce sont tous les scans gratuits de cette semaine. Avec Plus, tu en as davantage.",
-    blunt: () => "Scans gratuits finis pour la semaine. Plus: davantage chaque semaine.",
+    blunt: () => "Scans gratuits finis pour la semaine. Plus : davantage chaque semaine.",
   },
   /* L'écran épuisé (R-84): la déception vise Pexi, pas la personne. */
   paywall_say_spent: {

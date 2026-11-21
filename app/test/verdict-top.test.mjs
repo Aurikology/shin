@@ -99,7 +99,7 @@ test('the half detent carries the reason in plain words, right beside where the 
 // provenance line (R-56), said once; a source with no words throws instead of falling back (build 6, fail loudly).
 test('every keyed reason reaches the half detent, in both languages', () => {
   const en = (basis) => unesc(halfOf(sheet({ ...F.LOW_CONFIDENCE, basis })).match(/data-vd-reason>([^<]*)</)?.[1]);
-  assert.equal(en('claude_typical'), 'An AI estimate; no shop prices found');
+  assert.equal(en('claude_typical'), "Pexi's AI estimate for this item"); // 2026-11-21: what Pexi knows first
   assert.equal(en('other_size'), 'Same product, other size, scaled');
   assert.equal(en('category_prior'), 'A rough estimate for its category');
   // Amended 2026-11-11 (D-268 B14): "department" was back-office jargon.

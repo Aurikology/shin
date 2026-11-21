@@ -181,7 +181,7 @@ test('in a plain browser the screen says "Subscribe in the app" and offers nothi
   assert.match(root.body.innerHTML, /data-pw-state="web"/);
   assert.match(root.body.innerHTML, /Subscribe in the app/);
   assert.ok(!/data-act="subscribe"|data-act="restore"/.test(root.body.innerHTML), 'a browser was offered a store button');
-  assert.match(root.innerHTML, /Pexi Plus: 100 barcode scans a week \(free: 10\)/);
+  assert.match(root.innerHTML, /Pexi Plus: 100 barcode scans a week\./); // 2026-11-21: the result first, then what Plus is
   assert.match(root.innerHTML, /class="shin-say"/, 'the mascot is not on the screen');
   assert.match(root.innerHTML, /data-act="close"/, 'no close button');
   assert.match(root.innerHTML, /data-pw-terms/);

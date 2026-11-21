@@ -1286,9 +1286,8 @@ export async function launchReturning({ seed = {}, server = {}, ...rest } = {}) 
 export async function onboard(app) {
   assert.equal(app.screen, 'permissions', `expected the permission screen first, got ${app.screen}`);
   await app.tap('[data-act="go"]', 'Permissions Continue');
-  assert.equal(app.screen, 'consent', `expected the consent screen second, got ${app.screen}`);
-  await app.tap('[data-act="go"]', 'Consent Continue');
-  assert.equal(app.screen, 'camera', `expected the camera third, got ${app.screen}`);
+  /* 2026-11-21 (business rank 3): with photo identification off the consent screen had no switch and is gone. */
+  assert.equal(app.screen, 'camera', `expected the camera second, got ${app.screen}`);
 }
 
 /** Point at a barcode and press the scan control, the way a shopper does today. One counted tap. */

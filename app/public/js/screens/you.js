@@ -48,8 +48,10 @@ import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 import { devOn, packReadOn, setPackReadOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
-import { MANAGE_URLS, LEGAL_URLS, REVIEW_URLS } from '../plus-config.js';
+import { MANAGE_URLS, REVIEW_URLS, legalUrl } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
+import { APP_VERSION } from '../version.js';
+import { usageSharingOn, setUsageSharing } from '../usage-setting.js';
 
 /**
  * "Manage subscription": the store's own subscriptions page, or '' for no row.
@@ -130,6 +132,15 @@ function deleteMyDataHref() {
   // sheet are). A fragment with a colon instead reads exactly as clearly here.
   const body = `${t('you_delete_body_head')}\n\n${t('you_delete_body_device')}: ${device?.id ?? t('unknown')}`;
   return `mailto:${DELETE_MY_DATA_EMAIL}?subject=${encodeURIComponent(t('you_delete_subject'))}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * 2026-11-21 readiness review (ops 7, gap 85): "Help and contact", a mail to the same support address
+ * with the app version in it and nothing else, so a shopper whose Plus did not unlock has a way to write.
+ */
+export function contactHref(version = APP_VERSION) {
+  const body = `\n\n${t('you_contact_body_build')}: ${version}`;
+  return `mailto:${DELETE_MY_DATA_EMAIL}?subject=${encodeURIComponent(t('you_contact_subject'))}&body=${encodeURIComponent(body)}`;
 }
 
 /**
@@ -435,9 +446,20 @@ export default {
               <button type="button" class="switch" data-consent="location" role="switch"
                       aria-checked="${consent.location}" aria-label="${escapeHtml(t('you_location'))}"></button>
             </div>
+            ${/* 2026-11-21 (legal 7, apple-rules 8): off stops track.js sending usage events (usage-setting.js). */ ''}
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l">${escapeHtml(t('you_usage'))}</span>
+                <p class="fineprint">${escapeHtml(t('you_usage_desc'))}</p>
+              </div>
+              <button type="button" class="switch${usageSharingOn() ? ' on' : ''}" data-act="usage-sharing" role="switch"
+                      aria-checked="${usageSharingOn()}" aria-label="${escapeHtml(t('you_usage'))}"></button>
+            </div>
           </div>
 
-          <p class="fineprint">${escapeHtml(t('you_no_meter'))}</p>
+          ${/* 2026-11-21: "No scan limit." is true only when the server sets none, so it is drawn hidden and
+               shown by the /api/quota answer below when that answer says there is no limit. */ ''}
+          <p class="fineprint" data-no-meter hidden>${escapeHtml(t('you_no_meter'))}</p>
           <!--
             What used to be three rows here -- "Privacy policy / not written yet",
             "Terms of use / not written yet", "Pricing / not decided yet" -- is now
@@ -453,11 +475,12 @@ export default {
           ${/* D15: the privacy policy and the terms exist (the hosted pages, plus-config.js
                LEGAL_URLS), so this links them instead of saying there are none. */ ''}
           <div class="ilist">
-            <a class="ilist-row" href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
+            ${/* 2026-11-21 (blind 14, ops 18): the pages in the shopper's language, as the agree screen does. */ ''}
+            <a class="ilist-row" href="${escapeHtml(legalUrl('privacy', chosenLocale))}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
               <span class="ilist-l">${escapeHtml(t('paywall_privacy'))}</span>
               ${rowChevron()}
             </a>
-            <a class="ilist-row" href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-legal-terms>
+            <a class="ilist-row" href="${escapeHtml(legalUrl('terms', chosenLocale))}" target="_blank" rel="noopener noreferrer" data-legal-terms>
               <span class="ilist-l">${escapeHtml(t('paywall_terms'))}</span>
               ${rowChevron()}
             </a>
@@ -493,6 +516,11 @@ export default {
 
         <section class="block">
           <div class="ilist">
+            <a class="ilist-row" href="${escapeHtml(contactHref())}" data-contact>
+              <span class="ilist-l">${escapeHtml(t('you_contact'))}</span>
+              <span class="ilist-v">${escapeHtml(t('you_email'))}</span>
+              ${rowChevron()}
+            </a>
             <button type="button" class="ilist-row" data-act="report">
               <span class="ilist-l">${escapeHtml(t('you_report'))}</span>
               <span class="ilist-v">${escapeHtml(t('you_report_fastest'))}</span>
@@ -556,6 +584,8 @@ export default {
        is whole without it, and a failed fetch leaves the row out. */
     void Promise.resolve(ctx.api?.quota?.()).then((q) => {
       if (ac.signal.aborted) return;
+      const noMeter = root.querySelector('[data-no-meter]');
+      if (noMeter && q && typeof q === 'object' && q.limit === null && q.plus !== true) noMeter.hidden = false;
       const text = quotaText(q);
       const row = root.querySelector('[data-quota-row]');
       if (!row || !text) return;
@@ -694,6 +724,13 @@ export default {
         void ctx.api?.postEvent?.({ deviceId: getDeviceId()?.id, type: 'agreement_change', payload: { claude: now } });
         claudeSwitch.setAttribute('aria-checked', String(now));
         claudeSwitch.classList.toggle('on', now);
+        return;
+      }
+      const usageSwitch = e.target.closest('[data-act="usage-sharing"]');
+      if (usageSwitch) {
+        const now = setUsageSharing(!usageSharingOn());
+        usageSwitch.setAttribute('aria-checked', String(now));
+        usageSwitch.classList.toggle('on', now);
         return;
       }
       if (e.target.closest('[data-act="buzz"]')) {

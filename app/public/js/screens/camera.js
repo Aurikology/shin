@@ -2762,8 +2762,7 @@ export default {
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
           <span class="wordmark">pexi<i>.</i></span>
-          <!-- 2026-11-15, Aurik: always says the app is in early access; a tap opens the banner below again (early-access.js). -->
-          <button type="button" class="ea-badge" data-act="early-access"><span>${escapeHtml(t('ea_badge'))}</span></button>
+          <!-- 2026-11-21: the "Early access" badge is gone (Apple 2.2: betas belong on TestFlight); the banner still shows on a first visit (early-access.js). -->
           <!-- W30's Manual Search, a small keyboard button: it opens the same typed-name
                field the type-it route uses. Build 7 R-98: it lives in the top band, where the
                balancing spacer was, so the bottom bar keeps three items. -->

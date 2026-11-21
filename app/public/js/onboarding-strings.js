@@ -231,13 +231,13 @@ export const ONB_FR = {
   onb_welcome_name: 'PEXI',
   onb_promise: 'Scanne n’importe quel produit et sache tout de suite si ça vaut le coup',
 
-  onb_shops_q: 'Où magasines-tu le plus souvent?',
+  onb_shops_q: 'Où magasines-tu le plus souvent ?',
   onb_shops_supermarkets: 'Supermarchés et épiceries',
   onb_shops_bigbox: 'Magasins à grande surface',
   onb_shops_pharmacies: 'Pharmacies et drogueries',
   onb_shops_other: 'Autres détaillants',
 
-  onb_frequency_q: 'Combien de fois par semaine fais-tu des courses?',
+  onb_frequency_q: 'Combien de fois par semaine fais-tu des courses ?',
   onb_frequency_occasional: '0 à 2 fois',
   onb_frequency_occasional_sub: 'Acheteur occasionnel',
   onb_frequency_regular: '3 à 5 fois',
@@ -245,13 +245,13 @@ export const ONB_FR = {
   onb_frequency_frequent: '6 fois ou plus',
   onb_frequency_frequent_sub: 'Chasseur d’aubaines assidu',
 
-  onb_priority_q: 'Quelle est ta priorité principale quand tu magasines?',
+  onb_priority_q: 'Quelle est ta priorité principale quand tu magasines ?',
   onb_priority_lowest: 'Trouver le prix le plus bas',
   onb_priority_clearance: 'Repérer les liquidations',
   onb_priority_balance: 'Équilibre valeur et qualité',
   onb_priority_quick: 'Entrer et sortir vite',
 
-  onb_heard_q: 'Où as-tu entendu parler de nous?',
+  onb_heard_q: 'Où as-tu entendu parler de nous ?',
   onb_heard_tv: 'Télé',
   onb_heard_google: 'Google',
   onb_heard_tiktok: 'TikTok',
@@ -260,7 +260,7 @@ export const ONB_FR = {
   onb_heard_facebook: 'Facebook',
   onb_heard_x: 'X',
 
-  onb_tried_q: 'As-tu déjà essayé d’autres applis de rabais ou de suivi des prix?',
+  onb_tried_q: 'As-tu déjà essayé d’autres applis de rabais ou de suivi des prix ?',
   onb_tried_yes: 'Oui',
   onb_tried_no: 'Non',
 
@@ -269,7 +269,7 @@ export const ONB_FR = {
   onb_trend_with: 'Tu économises régulièrement avec PEXI',
   onb_trend_months: 'Sur 6 mois',
 
-  onb_mode_q: 'Quel rabais minimum fait d’un article une « bonne affaire » pour toi?',
+  onb_mode_q: 'Quel rabais minimum fait d’un article une « bonne affaire » pour toi ?',
   onb_mode_percent: 'Pourcentage (%)',
   onb_mode_amount: 'Montant en dollars ($)',
   onb_threshold_q: 'Fixe ton seuil de rabais',
@@ -278,21 +278,21 @@ export const ONB_FR = {
   onb_threshold_amt: (f) => `${f.n} $ DE RABAIS`,
   onb_recommended: '(Recommandé)',
 
-  onb_loyalty_q: 'Utilises-tu des programmes de fidélité ou des applis de coupons?',
+  onb_loyalty_q: 'Utilises-tu des programmes de fidélité ou des applis de coupons ?',
   onb_loyalty_yes: 'Oui',
   onb_loyalty_no: 'Non',
-  onb_goal_q: 'Quel est ton objectif principal avec PEXI?',
+  onb_goal_q: 'Quel est ton objectif principal avec PEXI ?',
   onb_goal_groceries: 'Économiser sur l’épicerie',
   onb_goal_checkout: 'Éviter de trop payer à la caisse',
   onb_goal_history: 'Suivre l’historique des prix',
 
-  onb_monthly_q: 'Quel est ton objectif d’économies par mois?',
+  onb_monthly_q: 'Quel est ton objectif d’économies par mois ?',
   onb_monthly_amt: (f) => `${f.n},00 $ / mois`,
   onb_monthly_less: 'Moins',
   onb_monthly_more: 'Plus',
   onb_monthly_realistic: 'Objectif réaliste et atteignable',
 
-  onb_alerts_q: 'À quel point veux-tu que tes alertes de rabais soient agressives?',
+  onb_alerts_q: 'À quel point veux-tu que tes alertes de rabais soient agressives ?',
   onb_alerts_conservative: 'Prudentes',
   onb_alerts_conservative_sub: 'Rabais de 30 % et plus',
   onb_alerts_recommended: 'Recommandées',
@@ -306,7 +306,7 @@ export const ONB_FR = {
   onb_compare_with: 'Avec PEXI',
   onb_compare_with_sub: 'Scan instantané du code-barres et un verdict sur le prix',
 
-  onb_frustration_q: 'Quelle est ta plus grande frustration en magasinant?',
+  onb_frustration_q: 'Quelle est ta plus grande frustration en magasinant ?',
   onb_frustration_fake: 'Les faux rabais ou les rabais trompeurs',
   onb_frustration_history: 'L’absence d’historique des prix',
   onb_frustration_units: 'Les prix unitaires qui embrouillent',

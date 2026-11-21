@@ -6,9 +6,12 @@
  * the app is in ... Early Access, that this is currently general items and more products will be
  * posted". Only 27% of 176 real scans had a shop price (Jamin's note, 2026-11-14).
  *
- * The camera is the home screen: a badge beside the wordmark always, and a banner under the top band
- * until the shopper taps Got it. The badge opens the banner again. Remembered in localStorage; storage
- * that throws means the banner shows each visit, which is harmless.
+ * The camera is the home screen: a banner under the top band until the shopper taps Got it. Remembered
+ * in localStorage; storage that throws means the banner shows each visit, which is harmless.
+ *
+ * 2026-11-21 (readiness review, blind 9): the words "early access" and the badge that said them are gone.
+ * Apple guideline 2.2 says betas belong on TestFlight. The banner keeps the point: Pexi knows everyday
+ * groceries best, new prices come every week, more products are coming.
  */
 
 export const EARLY_ACCESS_KEY = 'pexi.earlyAccess.seen';

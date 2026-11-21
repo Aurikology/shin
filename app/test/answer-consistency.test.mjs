@@ -170,7 +170,7 @@ test('D13: a low-confidence answer still answers, drawn hollow, with the plain f
 test('D13: the reason names where the centre came from, in both languages', () => {
   const html = (basis) => distributionSheet({ ...F.LOW_CONFIDENCE, basis });
   // Build 6 (2026-10-13, docs/design/ux-evidence-2026-10-09.md section 13): R-56 and R-69, plain words, specific, with the count.
-  assert.match(html('claude_typical'), /data-vd-reason>An AI estimate; no shop prices found</);
+  assert.match(html('claude_typical'), /data-vd-reason>Pexi(&#39;|')s AI estimate for this item</); // 2026-11-21: what Pexi knows first
   assert.match(html('own_prices'), /data-vd-reason>\d+ prices? found, blended with its category</);
   assert.match(html('other_size'), /data-vd-reason>Same product, other size, scaled</);
 });

@@ -838,10 +838,10 @@ test('R-76 (build 7): the spent line obeys the line limit in every voice', () =>
 
 /* ===================================================================== R-77 */
 
-test('R-77 (keep): the welcome flow stays off, and first launch is permissions, consent, camera', () => {
+test('R-77 (keep): the welcome flow stays off, and first launch is permissions, then the camera (consent left with photos off, 2026-11-21)', () => {
   assert.equal(FLAGS.onboarding, false);
   assert.equal(flow.firstScreen({}), 'permissions');
-  assert.equal(flow.firstScreen({ permissionsSeen: true }), 'consent');
+  assert.equal(flow.firstScreen({ permissionsSeen: true }), 'camera');
   assert.equal(flow.firstScreen({ permissionsSeen: true, consentSeen: true }), 'camera');
 });
 

@@ -4,47 +4,53 @@ Drafted 2026-11-05. Every factual line below is sourced from the code or the rul
 
 ## Store text
 
-**Name:** Pexi
+Rewritten 2026-11-21 from the readiness review (business ranks 2 and 11, premortem 2, legal round 2 finding 4): the name carries search words, the subtitle and description lead with what the shopper gets, nothing promises unlimited scans (Plus is 100 a week), and nothing says prices are typical for all of Canada (most store prices come from one Toronto neighbourhood, live `/api/attribution`). Jamin owns the App Store Connect fields; this is the text to paste.
 
-**Subtitle** (26 of 30):
-
-```
-Is this price a good deal?
-```
-
-**Promotional text** (145 of 170):
+**Name** (27 of 30):
 
 ```
-Scan a barcode or type a product name and see whether the shelf price is great, good, reasonable or bad, judged against typical prices in Canada.
+Pexi: Grocery Price Checker
 ```
 
-**Description** (1,985 of 4,000):
+**Subtitle** (29 of 30):
 
 ```
-Pexi is a price checker for shoppers. Point your camera at a barcode, or type what the product is, and Pexi tells you whether the price is a great price, a good price, a reasonable price or a bad price.
+Scan it. Know if it's a deal.
+```
 
-HOW IT WORKS
-- Scan the barcode on a product with your camera, or use Manual Search to type its name.
-- Enter the price on the shelf tag.
-- Pexi compares it with the prices it holds for that product and for similar products, and gives you a verdict you can read at a glance.
-- When Pexi has no price of its own for a product, it may show a typical price range that an AI model estimated. Estimates can be wrong.
+**Promotional text** (153 of 170):
 
-THINGS YOU CAN DO
-- Tell Pexi whether a verdict was right, and correct it when it was not.
-- Keep a watch list of products.
-- See your past scans and ratings.
-- Choose a light or dark theme and how blunt Pexi's attitude is.
+```
+Scan a barcode, enter the shelf price, and know in seconds if it's a great, good, reasonable or bad price. Check every price in your cart before you pay.
+```
 
-PRICES COME FROM OPEN DATA AND OTHER SHOPPERS
-Product names, sizes and prices come from open data published by other organisations, and from prices that shoppers using Pexi have entered. The data and licences screen in the app credits each source. Pexi is not affiliated with any store or brand. Coverage is limited, so Pexi cannot answer for every product or every store, and prices change.
+**Description** (about 2,200 of 4,000):
+
+```
+Is this a good price? Pexi tells you in seconds, right at the shelf.
+
+Point your camera at a barcode, enter the price on the shelf tag, and Pexi gives you a verdict you can read at a glance: Great price, Good price, Reasonable price or Bad price.
+
+WHAT YOU GET
+- A verdict on the price in your hand, not a flyer to scroll through.
+- The range of prices Pexi has seen for that product, and where those prices come from.
+- Manual Search: no barcode? Type the product name instead.
+- Your own lines: decide how much cheaper counts as a great price for you.
+- A watch list for the products you buy often, and your past scans and ratings.
+- A light or dark theme, and a choice of how blunt Pexi's attitude is.
+
+HOW PEXI KNOWS
+Pexi compares your price with the prices it holds for that product and for similar products, with new prices every week. Prices come from open data published by other organisations and from prices that shoppers using Pexi have entered. When Pexi has no shop price for a product, it shows an estimated range and labels it as an estimate. Tell Pexi when a verdict was wrong and correct the price; the next shopper gets the better answer. The data and licences screen in the app credits each source. Pexi is not affiliated with any store or brand.
 
 PRIVACY
-There is no account and no sign-in. Pexi does not upload photos or camera images. Location is off until you turn it on, and then only a rough area about one kilometre wide is sent. Pexi records what you scan and type and how you use the app, and you can ask for it to be deleted from the You screen. The full details are in the privacy policy.
+No account and no sign-in. Pexi does not upload photos or camera images. Location is off until you turn it on, and then only a rough area about one kilometre wide is sent. Pexi records what you scan and type and how you use the app. You can turn usage data off, and ask for your data to be deleted, on the You screen. The full details are in the privacy policy.
+
+PEXI PLUS
+Pexi is free to use, with 10 barcode scans a week. Pexi Plus gives you 100 barcode scans a week, enough to check your whole cart, for CA$3.99 a month or CA$29.99 a year. The subscription renews automatically unless you cancel it in your Apple ID settings at least 24 hours before the end of the current period.
 
 GOOD TO KNOW
 - Pexi needs an internet connection to answer.
 - Prices and estimates are information only. Check the price at the till.
-- Pexi is free to use. Pexi Plus, an optional subscription for 100 barcode scans a week instead of the free 10, costs CA$3.99 a month or CA$29.99 a year and renews automatically until you cancel it in your Apple ID settings.
 
 Terms of Use: https://xu826jamin.github.io/pexi/terms.html
 Privacy Policy: https://xu826jamin.github.io/pexi/privacy.html
@@ -52,11 +58,25 @@ Privacy Policy: https://xu826jamin.github.io/pexi/privacy.html
 
 The two links above are there because Apple asks an app with auto-renewing subscriptions to link its Terms of Use (EULA) in the App Store metadata, either in the description or in the custom EULA field (App Review Guideline 3.1.2). The Privacy Policy URL field takes the second link as well.
 
-**Keywords** (91 of 100; no spaces after commas; none of the words in the name or subtitle: pexi, is, this, price, a, good, deal):
+Sources for the new lines: "new prices every week" is the weekly price refresh (`mac/hammer-refresh.sh`, the camera banner's own string `ea_body`); "labels it as an estimate" is the answer's basis line (`ui-strings.js` `vd_prov_claude_typical`, `range_word_ai`, `vd_note_claude_estimate`); "turn usage data off" is the You screen switch added 2026-11-21 (`usage-setting.js`); "your own lines" is the You screen's price ranges (`lib/range-picker.js`).
+
+**Keywords** (98 of 100; no spaces after commas; none of the words already in the name or subtitle: pexi, grocery, price, checker, scan, it, know, if, deal):
 
 ```
-grocery,barcode,scanner,compare,cost,Canada,checker,shopper,store,groceries,lookup,estimate
+barcode,scanner,compare,groceries,deals,flyer,sale,cheap,food,shopping,list,cost,lookup,unit,store
 ```
+
+**Screenshot captions** (business rank 1, gap 43; the images are recaptured later on build 10 or newer, in this order; the subscription screen is not in the store set, only in the in-app purchase review screenshot):
+
+| # | What the frame shows | Caption (English) | Caption (French, for the French listing, gap 61) |
+|---|---|---|---|
+| 1 | A big Great price verdict on a familiar item (butter or cereal) at a real shelf price | Scan it. Know if it's a good price. | Scanne-le. Sache si c'est un bon prix. |
+| 2 | The range chart under a verdict, with the shopper's price placed on it | See the range of prices Pexi has seen. | Vois la fourchette de prix que Pexi a vue. |
+| 3 | Manual Search with a typed product name and its matches | No barcode? Type the name. | Pas de code-barres ? Tape le nom. |
+| 4 | The You screen's price ranges (great, good, bad) | Decide what a great price means to you. | Décide ce qu'est un excellent prix pour toi. |
+| 5 | The Saved list with a few products on it | Keep the products you buy often. | Garde les produits que tu achètes souvent. |
+
+No caption carries a savings figure (hard rule 2) or a promise about every product or every province.
 
 **Primary category:** Shopping
 **Secondary category:** Utilities (optional; the store accounts packet, `docs/the-store-accounts-packet.md` section 3d, lists Shopping and Utilities)
@@ -74,7 +94,7 @@ Basis: this build, with `FLAGS.photoId` false (`app/public/js/flags.js:82`), onb
 | Apple data type | Collected | Linked to user | Tracking | Purposes | Evidence |
 |---|---|---|---|---|---|
 | Identifiers: Device ID | Yes | Yes | No | App Functionality, Analytics | Random UUID made on the phone, `app/public/js/device.js:27` (`getDeviceId`) plus a second random secret, `device.js:64`. Sent on every request as headers, `app/public/js/api.js:204-219`, and in bodies. Every scan and event row is keyed by it: `app/src/scans.ts:73-79` (`device_id`), `app/src/migrations.ts:195-201` (`event.device_id`). |
-| Usage Data: Product Interaction | Yes | Yes | No | Analytics, App Functionality | Screens, taps, app opens, visibility, and text the shopper sent (never text deleted or left unsent), sent in batches: `app/public/js/track.js:1-45`, `api.js:892` (`postEventsBatch`), stored by `app/src/events.ts:163` (`recordEvent`) in the `event` table. Not gated by any consent: `track.js` has no consent check. |
+| Usage Data: Product Interaction | Yes | Yes | No | Analytics, App Functionality | Screens, taps, app opens, visibility, and text the shopper sent (never text deleted or left unsent), sent in batches: `app/public/js/track.js:1-45`, `api.js:892` (`postEventsBatch`), stored by `app/src/events.ts:163` (`recordEvent`) in the `event` table. On by default; the You screen's "Share usage data" switch (added 2026-11-21, `app/public/js/usage-setting.js`) stops `track.js` queueing or sending them. |
 | Usage Data: Search History | Yes | Yes | No | App Functionality, Analytics | Typed product names and scanned barcodes become `scan.query_text` and `scan.resolved_code`: `app/server.ts:3470` (`/api/identify`), `scans.ts:73-90`. Lines of camera text from `/api/match-text`, `app/server.ts:3817`, `api.js:452`. |
 | User Content: Other User Content | Yes | Yes | No | App Functionality, Analytics | Shelf price typed by the person, store picked, verdict corrections and good/bad ratings: `app/server.ts:5016` (`/api/scan-price`), `:4508` (`/api/correction`), `:4748` (`/api/scan-rating`). Text recognised from the camera view is sent as lines, `app/public/js/native-text-reader.js` header and `api.js:452`; the image is not sent. |
 | Location: Coarse Location | Yes, only when the person turns location on (off by default) | Yes | No | App Functionality | Location consent default off: `app/public/js/store.js:160`. Grid cell of about 1 km computed on the phone, `app/public/js/geocell.js`; the cell, not the point, is sent: `api.js:85-87`. Server writes nulls into exact-location columns, `app/server.ts` `locationFor`; events and the access log scrub exact pairs, `app/src/events.ts:71`, `app/src/access-log.ts` `scrubUrlPosition`. Cell centre goes to OpenStreetMap Overpass: `app/src/stores.ts:302-318`. |
@@ -137,7 +157,7 @@ Pexi is a price-checking app for shoppers in Canada. There is no account, no sig
 
 The app needs an internet connection and talks to our server to answer. If it ever shows no answer, please retry in a few minutes.
 
-First launch: the first screen, "Before you start", asks for two answers. Tick "I agree to the Terms of Use and the Privacy Policy" (both are linked on the screen), and choose whether Pexi may send product names to Claude, our AI model: "Yes, send product names to Claude" or "No, use broad guesses". Either answer works, the app answers every scan with both, and nothing is preselected. Tap Continue. Next is a Permissions screen for camera and (optionally) location; location is off by default and you can tap Continue with both off. Then a short "Your data" screen, then the camera.
+First launch: the first screen, "Before you start", asks for two answers. Tick "I agree to the Terms of Use and the Privacy Policy" (both are linked on the screen), and choose whether Pexi may send product names to Claude, our AI model: "Yes, send product names to Claude" or "No, use broad guesses". Either answer works, the app answers every scan with both, and nothing is preselected. Tap Continue. Next is a Permissions screen for camera and (optionally) location; location is off by default and you can tap Continue with both off. Then the camera.
 
 Without a barcode or a product in front of you:
 1. On the Permissions screen (the second screen), tap "See a demo scan" for a sample verdict.
@@ -162,7 +182,7 @@ Server and gate facts behind these notes:
 2. **Is the invite gate on, and does the submitted build carry the code?** See the notes above. If the gate is on and the build was made without the code, every request is refused. If the gate is off, any client can reach the server. Test with `curl` against the live host with no header: 401 means on, 200 means off.
 3. **No 18+ checkbox exists in the app.** `RULINGS.md` ("Age gate is a Terms-of-Service checkbox", 2026-09-14) calls for one. I searched `app/public/js` and the screens for a checkbox, "18", "terms accepted" and found none: the first screens are permissions and a data screen with no agreement control. The Terms text I wrote says using Pexi confirms the 18+ requirement, which is the only mechanism there is. Decide whether to add a checkbox before submission, and whether to raise the Apple age rating override to 18+.
 4. **Subscriptions. RESOLVED 2026-11-05 in code, one thing left to check.** Jamin decided to submit Pexi 1.0 with working subscriptions (entitlement `plus`, offering `default`, `pexi_plus_monthly` CA$3.99 a month, `pexi_plus_yearly` CA$29.99 a year). The Pexi Plus screen shows each plan with title, price and billing period from the offering, the renewal terms, Restore Purchases and the Terms and Privacy links, and says plans are unavailable with Try again when the offering fails. The privacy answers, manifest, policy and terms now cover Purchase History through RevenueCat. Still to confirm on the submitted build: that the RevenueCat public iOS key is in `native/config/revenuecat.config.json` when the build is made (an empty key shows no plans, `purchases.js` `ensureConfigured`), and that both products are in the offering and approved for review in App Store Connect.
-5. **Developer-only camera-frame read.** A hidden Developer row can send a camera frame to Anthropic for a barcode nothing else names (`app/public/js/dev-mode.js:48-59`; server refuses unless the device is on the server's developer list, `server.ts:2487-2492`). Shoppers do not get it. If a reviewer opens the app with `?dev=1` it could show; unlikely in a native build. If you want zero risk, remove the row for the store build.
+5. **Developer-only camera-frame read. RESOLVED 2026-11-21:** inside the iPhone and Android app the developer tools do not exist at all (`dev-mode.js` `storeBuild`: `devOn` and `packReadOn` are false whatever is stored or typed), so the store build has no hidden Developer row (Apple 2.5.19). Before that: a hidden Developer row can send a camera frame to Anthropic for a barcode nothing else names (`app/public/js/dev-mode.js:48-59`; server refuses unless the device is on the server's developer list, `server.ts:2487-2492`). Shoppers do not get it. If a reviewer opens the app with `?dev=1` it could show; unlikely in a native build. If you want zero risk, remove the row for the store build.
 6. **The privacy manifest and these answers. RESOLVED 2026-11-05.** `native/ios/App/App/PrivacyInfo.xcprivacy` was rewritten to the table above, row for row (all linked, no Photos or Videos, Purchase History added), and `app/test/paywall-review.test.mjs` fails if the two drift apart.
 7. **IP address.** The server logs it for every request (`access-log.ts:93`). Apple has no IP-address type; I placed it under Other Diagnostic Data. The privacy policy states it in words.
 8. **Judgment calls.** Unrestricted Web Access (No) and Alcohol (Infrequent or Mild) above. I could not check how Apple's current form scores them.

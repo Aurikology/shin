@@ -428,9 +428,10 @@ test('R-84 (fails loudly): a spent screen with a reset time that is present but 
 
 /* ------------------------------------------------------------------ R-85 */
 
-test('R-85 (KEEP): the heading names what Plus buys, "100 barcode scans a week (free: 10)", when opened from You', async () => {
-  const { page, stop } = await open({});
-  assert.match(page, /<h1>Pexi Plus: 100 barcode scans a week \(free: 10\)<\/h1>/);
+test('R-85 (amended 2026-11-21): the heading sells the result, and the steps still name what Plus buys, when opened from You', async () => {
+  const { page, html, stop } = await open({});
+  assert.match(page, /<h1>Check every price in your cart<\/h1>/);
+  assert.match(html, /100 barcode scans every week/);
   stop();
 });
 

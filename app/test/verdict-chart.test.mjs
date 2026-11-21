@@ -270,7 +270,7 @@ test('case 24, suspect: one tap "Did you mean", and the chart still shows', () =
   assert.match(html, /data-verdict-bell/);
   assert.match(html, /data-act="dist-suspect" data-cents="599">Did you mean \$5\.99\?</);
   const fr = inLocale('fr', () => distributionSheet(F.SUSPECT));
-  assert.match(fr, new RegExp(`>Voulais-tu dire 5,99${NB}\\$\\?<`));
+  assert.match(fr, new RegExp(`>Voulais-tu dire 5,99${NB}\\$${NB}\\?<`)); // French spaces before ? (2026-11-21, ops 17)
   // The tap draws the suggested price in place of the one read.
   const fixed = inLocale('en', () => distributionSheet(F.SUSPECT, { typedCents: 599 }));
   assert.match(fixed, /data-vb-you="599"/);

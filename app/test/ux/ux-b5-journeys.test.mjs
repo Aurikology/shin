@@ -49,7 +49,7 @@ function findSave(app) {
 
 /* ----------------------------------------------------------------- J1 */
 
-test('J1 target: first launch to the first verdict is 7 app taps, one of them on the barcode outline (pass: 7)', async () => {
+test('J1 target: first launch to the first verdict is 6 app taps, one of them on the barcode outline (pass: 6; 7 before the consent screen left, 2026-11-21)', async () => {
   const app = await FIRST_RUN();
   await onboard(app);
   app.hub.ready(CODE);
@@ -57,18 +57,18 @@ test('J1 target: first launch to the first verdict is 7 app taps, one of them on
   assert.equal(app.state, 'asking', `tapping the barcode outline did not open the price pad (state=${app.state})`);
   await typePrice(app, ['4', '9', '9']);
   assert.equal(app.atVerdict(), true, `no verdict (screen=${app.screen}, state=${app.state}); log: ${app.log.join(' | ')}`);
-  assert.equal(app.taps, 7, `J1 counted ${app.taps}, target 7. Log: ${app.log.join(' | ')}`);
+  assert.equal(app.taps, 6, `J1 counted ${app.taps}, target 6. Log: ${app.log.join(' | ')}`);
   app.stop();
 });
 
-test('J1 target: first launch with the price skipped is 4 app taps (pass: 4)', async () => {
+test('J1 target: first launch with the price skipped is 3 app taps (pass: 3; 4 before 2026-11-21)', async () => {
   const app = await FIRST_RUN();
   await onboard(app);
   await tapOutline(app, CODE);
   assert.equal(app.state, 'asking', `tapping the barcode outline did not open the pad (state=${app.state})`);
   await app.tap('[data-act="pad-skip"]', 'Skip the price');
   assert.equal(app.atVerdict(), true);
-  assert.equal(app.taps, 4, `J1-skipped counted ${app.taps}, target 4. Log: ${app.log.join(' | ')}`);
+  assert.equal(app.taps, 3, `J1-skipped counted ${app.taps}, target 3. Log: ${app.log.join(' | ')}`);
   app.stop();
 });
 

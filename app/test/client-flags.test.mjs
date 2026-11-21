@@ -50,16 +50,17 @@ test('the four MVP switches exist and are off', () => {
   }
 });
 
-test('onboarding off: a fresh install goes Permissions, Consent, Camera, and never to setup', () => {
+test('onboarding off: a fresh install goes Permissions, Camera (Consent only with photos on), and never to setup', () => {
   /* The camera and location ask is NOT dropped with the welcome flow, which
      it was when this switch first shipped. It is step 24 INSIDE that flow, so
      switching the flow off took it off too and a fresh install was never
      asked; screens/permissions.js is that step standing on its own, and
      `permissionsSeen` is what says this device has been asked. */
   assert.equal(firstScreen({}), 'permissions');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'consent');
+  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'photos off: the consent screen has no switch and is skipped (2026-11-21)');
   assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }), 'camera');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: false }), 'consent');
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: false }, { onboarding: false, photoId: true }), 'consent');
   assert.equal(firstScreen({}, { onboarding: true }), 'onboarding', 'the flag no longer switches the welcome back on');
 });
 

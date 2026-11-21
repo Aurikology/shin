@@ -204,14 +204,16 @@ test('the monthly goal status line is hidden unless it is measured', () => {
 
 /* ------------------------------------------------------------ 3. routing */
 
-test('first launch order with the welcome switched off (the MVP default): permissions, consent, camera', () => {
+test('first launch order with the welcome switched off (the MVP default): permissions, camera', () => {
+  /* 2026-11-21 readiness review (business rank 3): with photo identification off the consent screen has no switch, so the ask goes straight to the camera. */
   /* FLAGS.onboarding is false (docs/mvp-plan.md): no welcome, no setup. The
      camera and location ask is NOT dropped with the flow, which it was when
      this switch first shipped: it is step 24 inside the flow, and
      screens/permissions.js is that step standing on its own. */
   assert.equal(firstScreen({}), 'permissions', 'a fresh install is asked for permissions first');
   assert.equal(firstScreen({ onboarding: { answers: {} } }), 'permissions', 'a half-finished welcome does not bring it back');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'consent', 'consent comes after the ask');
+  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'the camera comes after the ask');
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent', 'with a photo switch to answer, consent still comes after the ask');
   assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }), 'camera', 'setup is never asked for');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }), 'camera');
 });
@@ -238,7 +240,7 @@ test('main.js registers the screen and takes the first screen from the flow', ()
 /* The flow below still runs whole (a replay, or FLAGS.onboarding back on).
    With the welcome switched off, leaving it hands to what `firstScreen` says
    next, which is consent: setup is switched off with it. */
-test('Continue from the first step walks his order and ends at consent, on record', async () => {
+test('Continue from the first step walks his order and ends at the camera, on record', async () => {
   resetStore();
   const seen = [];
   let id = null;
@@ -251,14 +253,14 @@ test('Continue from the first step walks his order and ends at consent, on recor
     const last = r.calls.at(-1);
     assert.equal(last[0], 'replace');
     if (last[1] !== 'onboarding') {
-      assert.equal(last[1], 'consent', 'a fresh install goes to consent after the flow (setup is switched off)');
+      assert.equal(last[1], 'camera', 'a fresh install goes to the camera after the flow (setup and, with photos off, consent are switched off)');
       break;
     }
     id = last[2].step;
   }
   assert.deepEqual(seen, visibleSteps().map((s) => s.id));
   assert.ok(store.get().onboarding.doneAt, 'finishing must be on record');
-  assert.equal(firstScreen(store.get()), 'consent');
+  assert.equal(firstScreen(store.get()), 'camera');
   assert.equal(firstScreen(store.get(), { onboarding: true }), 'setup', 'with the welcome on, setup comes next');
   assert.ok(trackedTypes().includes('onboarding_done'));
 });
@@ -548,7 +550,7 @@ test('a replay is opt-in: first-run behaviour is the same with or without the sw
      switching the flow off would otherwise drop it: screens/permissions.js is
      that step standing on its own. */
   assert.equal(firstScreen({}), 'permissions', 'with the welcome off, a real new user is asked for permissions first');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'consent', 'and consent comes next');
+  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'and the camera comes next (no consent screen while photos are off, 2026-11-21)');
 });
 
 test('a replay runs the whole flow in the same order and lands on the camera', async () => {

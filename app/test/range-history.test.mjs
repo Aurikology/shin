@@ -146,7 +146,7 @@ test('D-241: the typed broad guess is titled with the shopper\'s words, drawn re
   assert.match(html, /data-conf="reading"/);
   assert.match(html, /data-zone=""/, 'a price was placed against the broad bell');
   assert.doesNotMatch(html, VERDICT_WORDS);
-  assert.match(html, /A broad guess/);
+  assert.match(html, /broad guess/);
   assert.match(html, /\$2\.78 to \$36\.02/);
   const peek = html.slice(html.indexOf('sheet-peek'), html.indexOf('sheet-half'));
   assert.match(peek, /data-act="cancel-scan">Scan the barcode</, 'the typed miss lost its Scan the barcode action');
@@ -160,7 +160,7 @@ test('D-241: the typed broad guess speaks French too', () => {
     const words = 'kraft dinner';
     const html = cam.catalogueSheet({ outcome: 'named_outside_catalogue', identity: { name: words }, range: TYPED_MISS.range }, { typed: words });
     assert.match(html, /Scanner le code-barres/);
-    assert.match(html, /Une estimation large/);
+    assert.match(html, /estimation large/);
     assert.match(html, /kraft dinner/);
   } finally {
     setLocale('en');

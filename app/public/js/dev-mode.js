@@ -13,6 +13,21 @@
 
 const KEY = 'shin.dev';
 
+/**
+ * 2026-11-21 (readiness review, apple-rules 9): the App Store or Play build. Apple guideline 2.5.19 bars
+ * hidden or dormant features, so inside the native app (Capacitor reports ios or android) the developer
+ * tools do not exist at all, whatever was stored or typed: no Developer section on You, no pack read
+ * (a camera frame to Claude), no text-match picker. A browser tab, the owner's tool, keeps them.
+ */
+export function storeBuild(win = globalThis.window) {
+  try {
+    const p = win?.Capacitor?.getPlatform?.();
+    return p === 'ios' || p === 'android';
+  } catch {
+    return false;
+  }
+}
+
 function readFlag() {
   try { return globalThis.localStorage?.getItem(KEY) === '1'; } catch { return false; }
 }
@@ -30,6 +45,7 @@ export function captureDevParam(search = globalThis.location?.search ?? '') {
 
 /** Whether developer tools show: `?dev=1` was seen (now or earlier), or the developer switch (tag badge) is on. */
 export function devOn({ tagsOn = false, search = globalThis.location?.search ?? '' } = {}) {
+  if (storeBuild()) return false;
   return Boolean(tagsOn) || readFlag() || new URLSearchParams(search).get('dev') === '1';
 }
 
@@ -46,6 +62,7 @@ const PACK_READ_KEY = 'shin.dev.packRead';
 
 /** Whether this phone sends a scan's camera frame to be read by Claude. False unless switched on in the Developer row. */
 export function packReadOn() {
+  if (storeBuild()) return false;
   try { return globalThis.localStorage?.getItem(PACK_READ_KEY) === '1'; } catch { return false; }
 }
 

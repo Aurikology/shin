@@ -148,9 +148,9 @@ test('3.1 last rungs are drawn: an estimate from the department says similar pro
     assert.equal(between(html, 'data-cat-basis'), 'From similar products in Peanut butters', basis);
   }
   const broad = inLocale('en', () => catalogueSheet(hit(RANGE({ basis: 'fixed_prior', lowCents: 278, highCents: 3602, medianCents: null, n: 0, confidence: 'low' }), { rangeSource: 'fixed_prior' }), { state: TEN_TEN }));
-  assert.equal(between(broad, 'data-cat-basis'), 'A broad guess: Pexi has no prices for items like this yet');
+  assert.match(between(broad, 'data-cat-basis'), /^Pexi(&#39;|')s broad guess for items like this$/); // 2026-11-21: what Pexi knows first
   const fr = inLocale('fr', () => catalogueSheet(hit(RANGE({ basis: 'fixed_prior', lowCents: 278, highCents: 3602, medianCents: null, n: 0 }), { rangeSource: 'fixed_prior' }), { state: TEN_TEN }));
-  assert.equal(between(fr, 'data-cat-basis'), 'Une estimation large : Pexi n’a pas encore de prix pour ce genre d’article');
+  assert.equal(between(fr, 'data-cat-basis'), 'L’estimation large de Pexi pour ce genre d’article');
 });
 
 /* 2026-10-28: docs/decisions.md "Every request ends in a range" says no "Great price" is read off

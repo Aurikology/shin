@@ -123,9 +123,10 @@ test('onboarding.js no longer builds the permission step itself', () => {
 test('with the welcome flow off, a first launch lands on the permission ask', () => {
   const off = { ...FLAGS, onboarding: false };
   assert.equal(firstScreen({}, off), 'permissions');
-  /* Setup goes off with the flow, so the ask is followed by consent and then
-     the camera. That is the order the shipped flag actually produces. */
-  assert.equal(firstScreen({ permissionsSeen: true }, off), 'consent');
+  /* Setup goes off with the flow. With photo identification off too (the shipped flags) consent has no
+     switch and drops out (2026-11-21), so the ask is followed by the camera; with photos on, by consent. */
+  assert.equal(firstScreen({ permissionsSeen: true }, { ...off, photoId: false }), 'camera');
+  assert.equal(firstScreen({ permissionsSeen: true }, { ...off, photoId: true }), 'consent');
   assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }, off), 'camera');
   // `seenIntro` is not consulted at all on this path.
   assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }, off), 'camera');
@@ -194,7 +195,7 @@ test('Continue works with both switches untouched, and marks the screen seen onc
   await r.click(CONTINUE);
   r.cleanup();
   assert.equal(store.permissionsSeen(), true, 'Continue did not put the screen on record');
-  assert.deepEqual(r.calls.at(-1), ['replace', 'consent'], 'Continue must land where the launch order says next');
+  assert.deepEqual(r.calls.at(-1), ['replace', 'camera'], 'Continue must land where the launch order says next (the camera, with photos off: 2026-11-21)');
 });
 
 test('Continue never bounces back into the welcome flow, whatever the flag says', async () => {

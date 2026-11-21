@@ -54,7 +54,8 @@ import market from './screens/market.js';
 import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
-import { refreshPlus } from './purchases.js';
+import { refreshPlus, plusActive } from './purchases.js';
+import { startScansLeft } from './scans-left.js';
 import { hydrateDeviceIdentity } from './device.js';
 import { restoreSetupIfWiped, startSetupBackup } from './storage-backup.js';
 import { applyFlags } from './flags-boot.js';
@@ -130,6 +131,8 @@ const first = firstScreen(store.get());
 const replayUrl = replayUrlFor(location.search, store.get());
 if (replayUrl) history.replaceState({}, '', replayUrl);
 router.start(document.getElementById('screen'), { store, api, shin, build: BUILD_STAMP }, first);
+/* 2026-11-21 (business rank 7): the free scans left, on the answer sheet from 3 left (scans-left.js). */
+startScansLeft({ api, go: router.go, plusActive });
 
 /* Item 11a: if location consent already carries over from an earlier
    session, get a cell warm before the first scan of this one rather than

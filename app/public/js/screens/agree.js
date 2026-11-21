@@ -79,6 +79,8 @@ export default {
             <a href="${escapeHtml(legalUrl('privacy', lang))}" target="_blank" rel="noopener noreferrer" data-agree-privacy>${escapeHtml(t('agree_privacy_link'))}</a>
           </div>
         </div>
+        ${/* 2026-11-21: what the skipped "Your data" screen said, as one line at the moment of collection (Quebec P-39.1 s.8). */ ''}
+        <p class="fineprint" data-agree-data>${escapeHtml(t('agree_data_line'))}</p>
 
         <h2 class="sect-h" id="agree-claude-q">${escapeHtml(t('agree_claude_q'))}</h2>
         <p class="fineprint">${escapeHtml(t('agree_claude_what'))}</p>

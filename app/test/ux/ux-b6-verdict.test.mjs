@@ -396,7 +396,7 @@ const PROV = [
   ['leaf_category', { n: 0, basis: 'leaf_category', confidence: 'medium', dots: [] }, /Typical for its category/],
   ['brand_markup', { n: 0, basis: 'brand_markup', confidence: 'low', dots: [] }, /The brand's usual markup on its category/],
   // The spec's "Pexi's own estimate" is said as AI's (RULINGS.md "Reviews": the shopper can tell where the info comes from).
-  ['claude_typical', { n: 0, basis: 'claude_typical', confidence: 'low', dots: [] }, /An AI estimate; no shop prices found/],
+  ['claude_typical', { n: 0, basis: 'claude_typical', confidence: 'low', dots: [] }, /Pexi(&#39;|')s AI estimate for this item/],
 ];
 
 test('R-56 pass: each source says where the estimate came from in plain words, with count and newest date', () => {

@@ -30,9 +30,9 @@
 import { escapeHtml, on } from '../lib/dom.js';
 import { shinSay, headingWithFace } from '../shin.js';
 import { t } from '../ui-strings.js';
-import { localeTag } from '../lib/locale.js';
+import { localeTag, locale } from '../lib/locale.js';
 import { goBack } from '../lib/pagebar.js';
-import { LEGAL_URLS } from '../plus-config.js';
+import { legalUrl } from '../plus-config.js';
 import * as purchases from '../purchases.js';
 import { track } from '../track.js';
 
@@ -274,7 +274,7 @@ export function spentLines(params = {}) {
   const way = [t('paywall_still_works'), when ? t('paywall_more_scans', { when }) : ''].filter(Boolean).join(' ');
   return `${count}
         <p class="pw-way" data-pw-way>${escapeHtml(way)}</p>
-        <p class="pw-buys" data-pw-buys>${escapeHtml(t('paywall_heading'))}</p>`;
+        <p class="pw-buys" data-pw-buys>${escapeHtml(t('paywall_buys'))}</p>`;
 }
 
 /**
@@ -299,8 +299,8 @@ export function plusSpentPage(params = {}, tag = localeTag()) {
         <p class="pw-way" data-pw-way>${escapeHtml(t('paywall_still_works'))}</p>
         <p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>
         <p class="pw-legal">
-          <a href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
-          <a href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
+          <a href="${escapeHtml(legalUrl('terms', locale()))}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
+          <a href="${escapeHtml(legalUrl('privacy', locale()))}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
         </p>
       </div>`;
 }
@@ -355,8 +355,8 @@ export default {
         <div class="pw-body" data-pw-body aria-live="polite"></div>
         ${spent ? `<p class="pw-out"><button type="button" class="pw-link" data-act="type-name">${escapeHtml(t('paywall_type_name'))}</button></p>` : ''}
         <p class="pw-legal">
-          <a href="${escapeHtml(LEGAL_URLS.terms)}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
-          <a href="${escapeHtml(LEGAL_URLS.privacy)}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
+          <a href="${escapeHtml(legalUrl('terms', locale()))}" target="_blank" rel="noopener noreferrer" data-pw-terms>${escapeHtml(t('paywall_terms'))}</a>
+          <a href="${escapeHtml(legalUrl('privacy', locale()))}" target="_blank" rel="noopener noreferrer" data-pw-privacy>${escapeHtml(t('paywall_privacy'))}</a>
         </p>
       </div>`;
 

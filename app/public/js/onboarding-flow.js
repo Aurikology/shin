@@ -197,7 +197,8 @@ export const MONTHLY = Object.freeze({ start: 100, min: 10, max: 1000, step: 10 
  * the camera. Extracted from main.js so a test can hold the order.
  *
  * WITH `FLAGS.onboarding` OFF the welcome flow and setup both drop out, and
- * the order is Permissions, Consent, Camera.
+ * the order is Permissions, Consent, Camera; with `FLAGS.photoId` also off
+ * (the store build) Consent has no switch and drops out too (2026-11-21).
  *
  * THE PERMISSION SCREEN IS IN THAT ORDER ON PURPOSE, and for one day it was
  * not. The camera and location ask is step 24 INSIDE the welcome flow, so the
@@ -222,6 +223,10 @@ export function firstScreen(s, flags = FLAGS) {
      `seenIntro` is not consulted, which leaves the default voice in place. */
   if (!flags.onboarding) {
     if (!s.permissionsSeen) return 'permissions';
+    /* 2026-11-21 readiness review (business rank 3): with photo identification off the consent screen has
+       no switch on it, only text, so it is skipped. What it said is one line on the agree screen
+       (agree_data_line) and in full in the Privacy Policy linked there. */
+    if (!flags.photoId) return 'camera';
     return s.consentSeen ? 'camera' : 'consent';
   }
   if (!s.onboarding?.doneAt) return 'onboarding';

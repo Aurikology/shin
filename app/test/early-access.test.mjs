@@ -40,22 +40,22 @@ test('storage that throws shows the banner (harmless) and never throws itself', 
   assert.doesNotThrow(() => dismissEarlyAccess(broken));
 });
 
-test('the words exist in English and French and say early access, everyday groceries, more coming', () => {
+test('the words exist in English and French and say everyday groceries, every week, more coming (never early access: 2026-11-21)', () => {
   for (const lang of ['en', 'fr']) {
-    for (const key of ['ea_badge', 'ea_title', 'ea_body', 'ea_ok']) {
+    for (const key of ['ea_title', 'ea_body', 'ea_ok']) {
       assert.equal(typeof TABLES[lang][key], 'string', `${lang}.${key}`);
       assert.ok(TABLES[lang][key].length > 0);
     }
   }
-  assert.match(TABLES.en.ea_badge, /early access/i);
+  assert.doesNotMatch(TABLES.en.ea_title + TABLES.en.ea_body, /early access/i);
   assert.match(TABLES.en.ea_body, /groceries/i);
   assert.match(TABLES.en.ea_body, /more products/i);
 });
 
-test('wiring: the badge sits in the top band, the banner opens on a first visit and from the badge, Got it closes it', () => {
+test('wiring: no badge in the top band (2026-11-21), the banner opens on a first visit, Got it closes it', () => {
   const cam = read('../public/js/screens/camera.js');
   const top = cam.slice(cam.indexOf('<div class="cam-top">'), cam.indexOf('<div class="reticle"'));
-  assert.match(top, /data-act="early-access"/, 'the badge is in the top band, beside the wordmark');
+  assert.doesNotMatch(top, /data-act="early-access"/, 'the Early access badge is back in the top band');
   assert.match(cam, /if \(earlyAccessPending\(\)\) showEarlyAccess\(\)/);
   assert.match(cam, /act === 'early-access'\) \{ showEarlyAccess\(\); return; \}/);
   assert.match(cam, /act === 'early-access-ok'\) \{ dismissEarlyAccess\(\); hideEarlyAccess\(\); return; \}/);

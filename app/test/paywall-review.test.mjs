@@ -148,7 +148,7 @@ test('3.1.2: Terms of Use and Privacy Policy open the hosted pages, and Restore 
 test('3.1.2: the benefit lines say only what Plus gives, 100 barcode scans a week, and make no other claim', async () => {
   const { page, stop } = await open({}, { limit: '5', used: '5', resetsAt: '2026-11-09T12:00:00.000Z' });
   const words = text(page);
-  assert.match(words, /Pexi Plus: 100 barcode scans a week \(free: 10\)/);
+  assert.match(words, /Pexi Plus: 100 barcode scans a week/); // 2026-11-21: the result first, then the 100 (business rank 5)
   assert.doesNotMatch(words, /unlimited|no limit/i, 'Plus is capped at 100 a week; nothing may call it unlimited');
   for (const claim of [/ad[- ]free/i, /\bAI\b/, /\bsaves? (you|money)|\bsavings\b/i,/\bdeals?\b/i, /unlimited (searches|alerts|lists|watch)/i, /premium/i, /exclusive/i, /\bpro\b/i]) {
     assert.doesNotMatch(words, claim, `the paywall claims something Plus does not give: ${claim}`);
@@ -226,8 +226,9 @@ test('every in-app link to the privacy policy or terms is the hosted page', () =
   assert.equal(LEGAL_URLS.terms, HOSTED.terms);
   assert.equal(LEGAL_URLS.privacy, HOSTED.privacy);
   const you = read('../public/js/screens/you.js');
-  assert.match(you, /LEGAL_URLS\.privacy/);
-  assert.match(you, /LEGAL_URLS\.terms/);
+  // 2026-11-21 (blind 14): through legalUrl, which is LEGAL_URLS in English and the -fr pages in French.
+  assert.match(you, /legalUrl\('privacy', chosenLocale\)/);
+  assert.match(you, /legalUrl\('terms', chosenLocale\)/);
   assert.doesNotMatch(you, /LEGAL_URLS_FR/, 'the You screen still links the old French pages');
   const js = readdirSync(here('../public/js'), { recursive: true }).filter((f) => /\.(js|html)$/.test(f) && !/vendor|chunks|\.map$/.test(f));
   for (const f of js) {

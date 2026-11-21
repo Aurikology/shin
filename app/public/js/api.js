@@ -535,7 +535,18 @@ export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPr
   }
   if (res.status === 402) return scanLimitFrom(await res.json().catch(() => null));
   if (!res.ok) throw new Error(`/api/identify returned ${res.status}`);
-  return liftNationalAverage(await res.json());
+  const answer = liftNationalAverage(await res.json());
+  if (gtin && !preview) announceCountedScan();
+  return answer;
+}
+
+/**
+ * A priced barcode scan was answered: the kind the weekly free limit counts (a preview and a typed name are
+ * not). `scans-left.js` listens and asks `/api/quota` how many are left (2026-11-21, business rank 7).
+ * Nothing listens outside a browser, so this is a no-op in Node.
+ */
+function announceCountedScan() {
+  try { globalThis.dispatchEvent?.(new CustomEvent('pexi:scan-counted')); } catch { /* no window, nobody listening */ }
 }
 
 /**
