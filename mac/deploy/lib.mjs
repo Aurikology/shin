@@ -669,3 +669,30 @@ export function healthGood(body, restartAt, before) {
   if (before && before.scanLog === true && body.scanLog !== true) return false;
   return true;
 }
+
+/*
+ * THE DEPLOY GATE'S TEST LIST (review 2026-11-21, old-lists finding 4).
+ *
+ * It used to leave out the price package ("~97 s against ~1 s for the others") although
+ * price/src/estimate.ts computes every verdict, and four folders of tests ran in no gate at all
+ * (mac/test, mac/deploy/test, scripts/test, bench/test). Measured on the PC 2026-11-21: price 601
+ * pass in 100 s, bench 129 pass in 70 s, the three script folders 57 + 93 + 69 pass. All run in the
+ * parallel group after the app suite, which still runs first and alone (see deployer.mjs).
+ *
+ * `covers` names the test folders a job runs; mac/deploy/test/gate.test.mjs fails when a folder of
+ * tests exists that no job covers, so a new folder cannot run nowhere again.
+ */
+export function gateJobs(t) {
+  const pkg = (p) => ({ name: `${p} tests`, cwd: p, cmd: 'npm', args: ['test'], t: t.pkgTest, covers: [`${p}/test`] });
+  const scriptFolders = ['mac/test', 'mac/deploy/test', 'scripts/test'];
+  return {
+    first: { name: 'app tests', cwd: 'app', cmd: 'npm', args: ['test'], t: t.test, covers: ['app/test'] },
+    rest: [
+      { name: 'app typecheck', cwd: 'app', cmd: 'npm', args: ['run', 'typecheck'], t: t.typecheck, covers: [] },
+      ...['spine', 'identify', 'catalogue', 'price', 'bench'].map(pkg),
+      // No package.json owns these, so node runs them from the stage root, one job a folder so they run side by side.
+      // They start shell scripts and processes: on the PC mac/test alone took minutes, so they get the long timeout.
+      ...scriptFolders.map((d) => ({ name: `${d.replace(/\//g, '-')} tests`, cwd: '.', cmd: 'node', args: ['--test', `${d}/*.test.mjs`], t: t.scriptTest ?? t.pkgTest, covers: [d] })),
+    ],
+  };
+}

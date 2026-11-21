@@ -19,8 +19,8 @@
  *     gate needs a fresh yes every launch, so a server that lowers the minimum (or a phone that goes
  *     offline) is never stuck behind a stale one.
  *
- * VERSION. `APP_VERSION` (version.js), `YYYY-MM-DD.N`, compared part by part as numbers. It is bumped
- * by hand for each TestFlight build; the server's SHIN_APP_MIN_VERSION is the same format.
+ * VERSION. `APP_VERSION` (version.js), `YYYY-MM-DD.N`, compared part by part as numbers. A phone build's
+ * is stamped from the Xcode build number (native/scripts/app-version.mjs); the server's SHIN_APP_MIN_VERSION is the same format.
  */
 
 import * as router from './router.js';

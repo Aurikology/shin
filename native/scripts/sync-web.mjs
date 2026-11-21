@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { checkRevenueCatKeys } from './rc-keys.mjs';
+import { readBuildNumber, stampVersionSource, versionFor } from './app-version.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const nativeRoot = path.resolve(__dirname, '..');
@@ -141,6 +142,25 @@ if (!html.includes(marker)) {
 
 cpSync(capacitorBuild, path.join(dest, 'js', 'capacitor.js'));
 
+/*
+ * The update gate's build identity (R13): APP_VERSION in the phone copy is `<date>.<Xcode build number>`,
+ * so it rises with every upload and cannot be forgotten. Bump the build number in Xcode BEFORE running
+ * this, or pass SHIN_BUILD_NUMBER. Only the copy is stamped; app/public/js/version.js is untouched.
+ */
+let appVersion;
+try {
+  const override = (process.env.SHIN_BUILD_NUMBER ?? '').trim();
+  const build = override
+    ? Number(override)
+    : readBuildNumber(readFileSync(path.join(nativeRoot, 'ios', 'App', 'App.xcodeproj', 'project.pbxproj'), 'utf8'));
+  appVersion = versionFor(build);
+  const versionPath = path.join(dest, 'js', 'version.js');
+  writeFileSync(versionPath, stampVersionSource(readFileSync(versionPath, 'utf8'), appVersion));
+} catch (e) {
+  console.error(`[sync-web] cannot set APP_VERSION from the build number: ${e.message}`);
+  process.exit(1);
+}
+
 // A file, not an inline script, so the page's script rule can stay "this app's own files only".
 writeFileSync(
   path.join(dest, 'js', 'native-config.js'),
@@ -181,4 +201,5 @@ writeFileSync(indexPath, html);
 
 console.log(`[sync-web] copied ${source} -> ${dest}`);
 console.log(`[sync-web] injected SHIN_API_BASE=${config.apiBase}`);
+console.log(`[sync-web] APP_VERSION=${appVersion} (from the build number; the update gate judges this)`);
 console.log(`[sync-web] RevenueCat keys: ios ${rcKeys.ios ? 'set' : 'EMPTY'}, android ${rcKeys.android ? 'set' : 'EMPTY'}`);

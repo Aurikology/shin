@@ -18,7 +18,7 @@ import { constants, cpSync, mkdirSync, readFileSync, realpathSync, writeFileSync
 import { pathToFileURL } from 'node:url';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { clean, expire, failingTests, finishDeploy, healthGood, itemLabel, launchctlCall, launchdDomain, launchdTarget, searchAnswered, short, summarizeFailures, addLog } from './lib.mjs';
+import { clean, expire, failingTests, finishDeploy, gateJobs, healthGood, itemLabel, launchctlCall, launchdDomain, launchdTarget, searchAnswered, short, summarizeFailures, addLog } from './lib.mjs';
 import { syncPage } from './sync.mjs';
 import { PACKAGES, PATHS, existsSync, git, logTo, readConfig, run, sleep, tryLock, withState } from './util.mjs';
 
@@ -44,6 +44,7 @@ const T = {
   test: 8 * 60e3,
   typecheck: 5 * 60e3,
   pkgTest: 4 * 60e3,
+  scriptTest: 12 * 60e3,
   restart: 30e3,
   localHealth: 120e3,
   tunnelHealth: 60e3,
@@ -143,14 +144,12 @@ async function prepare(dir, label, runDir, item) {
 async function tests(runDir) {
   const runJob = async (j) => ({
     j,
-    r: await run('npm', j.args, { cwd: join(PATHS.stage, j.cwd), timeoutMs: j.t, logFile: join(runDir, `test-${j.name.replace(' ', '-')}.log`) }),
+    r: await run(j.cmd, j.args, { cwd: join(PATHS.stage, j.cwd), timeoutMs: j.t, logFile: join(runDir, `test-${j.name.replace(' ', '-')}.log`) }),
   });
-  const appTests = await runJob({ name: 'app tests', cwd: 'app', args: ['test'], t: T.test });
-  const rest = [
-    { name: 'app typecheck', cwd: 'app', args: ['run', 'typecheck'], t: T.typecheck },
-    // price tests take ~97 s against ~1 s for the others, so they are left out.
-    ...['spine', 'identify', 'catalogue'].map((p) => ({ name: `${p} tests`, cwd: p, args: ['test'], t: T.pkgTest })),
-  ];
+  // The list lives in lib.mjs (gateJobs) so a test can check that no folder of tests runs in no gate.
+  const gate = gateJobs(T);
+  const appTests = await runJob(gate.first);
+  const rest = gate.rest;
   const results = [appTests, ...(await Promise.all(rest.map(runJob)))];
   const red = results.filter((x) => x.r.code !== 0);
   const passCount = (out) => Number((out.match(/^[ℹ#] pass (\d+)/m) ?? [])[1] ?? 0);

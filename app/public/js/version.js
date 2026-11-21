@@ -12,8 +12,10 @@
  * rule BUILD_STAMP always carried.
  *
  * It is also the build identity the server judges (R13, remote-status.js): SHIN_APP_MIN_VERSION is this
- * same `YYYY-MM-DD.N` format, and a build below it is shown "Please update Pexi". Every build that goes to
- * TestFlight therefore needs this bumped first, or the server cannot tell it from the one before it.
+ * same `YYYY-MM-DD.N` format, and a build below it is shown "Please update Pexi". A PHONE build no longer
+ * needs this bumped by hand: native/scripts/sync-web.mjs stamps the copy in native/www with
+ * `<build date>.<Xcode build number>` (native/scripts/app-version.mjs), so it rises with every upload.
+ * This file's own string is what the web server and a browser report.
  * 2026-11-18.1 is the first build that asks; every build before it reads as older.
  */
 export const APP_VERSION = '2026-11-18.1';
