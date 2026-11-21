@@ -40,16 +40,28 @@ const OFF_TIMEOUT_MS = 4_000;
 const CACHE_MAX = 2_000;
 
 /*
- * R35. Open Food Facts asks every app to name itself in its User-Agent (app name and version) and
- * publishes a read limit of 100 product requests a minute. Both are kept: the name is sent on every
- * call, requests leave at least OFF_MIN_GAP_MS apart (under 100 a minute from this server), a burst
- * that would wait longer than OFF_MAX_WAIT_MS gives up as a miss rather than stacking, and a 429
- * pauses every live lookup until its Retry-After has passed. A miss from any of these is
- * "off_failed", never cached, so the next scan asks again.
+ * R35, corrected 2026-11-21. Open Food Facts asks every app to name itself in its User-Agent in the
+ * form AppName/Version (ContactEmail), and publishes its read limit on
+ * https://openfoodfacts.github.io/openfoodfacts-server/api/ (fetched 2026-11-21), verbatim:
+ *
+ *   "15 req/min/IP address for all read product queries"
+ *   "If these limits are reached, we reserve the right to deny you access to the website and the
+ *    API through IP address ban."
+ *
+ * Every server lookup leaves from the one Mac address, so the whole server shares that 15 a minute.
+ * (This file used to space calls for 100 a minute, a figure the review found nowhere on that page.)
+ * Kept: the name and a contact are sent on every call; requests leave at least OFF_MIN_GAP_MS apart,
+ * which is 12 a minute, under the 15 with headroom; a burst that would wait longer than
+ * OFF_MAX_WAIT_MS gives up as a miss rather than stacking; a 429 pauses every live lookup until its
+ * Retry-After has passed. A miss from any of these is "off_failed" and never cached, so the next scan
+ * asks again. It never fails the shopper's answer: this lookup only runs after the catalogue has
+ * missed (identity only), and the scan path carries on to the saved reading, the frame read or the
+ * typed name exactly as it does for any other miss. Names already learned are answered from the cache
+ * below without a call, so a barcode asked twice costs one call.
  */
-export const OFF_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada)';
-const OFF_MIN_GAP_MS = 600;
-const OFF_MAX_WAIT_MS = 4_000;
+export const OFF_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; useshinapp@gmail.com)';
+const OFF_MIN_GAP_MS = 5_000;
+const OFF_MAX_WAIT_MS = 5_000;
 const OFF_DEFAULT_PAUSE_S = 60;
 const OFF_MAX_PAUSE_S = 300;
 let nextSlotAt = 0;

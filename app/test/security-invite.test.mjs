@@ -49,7 +49,7 @@ test('g2: near-miss codes are refused (prefix, suffix, case, padded)', async () 
 });
 
 test('g3: every route except the health check is behind the gate, GET and POST', async () => {
-  const gets = ['/api/catalogue', '/api/categories', '/api/scenarios', '/api/search?q=cola', '/api/stores?lat=43.6&lon=-79.4', '/api/store-chains', '/api/latency', '/api/attribution', '/api/pack-version', '/api/pack', '/api/quota?deviceId=device-gate-0001', '/api/scans?deviceId=device-gate-0001', '/api/consent?deviceId=device-gate-0001', '/api/admin/tables', '/api/identify?text=cola', '/api/identify/demo', '/api/not-a-route'];
+  const gets = ['/api/catalogue', '/api/categories', '/api/scenarios', '/api/search?q=cola', '/api/stores?lat=43.6&lon=-79.4', '/api/store-chains', '/api/latency', '/api/attribution', '/api/pack-version', '/api/pack', '/api/pack/canada-1-2.bin', '/api/quota?deviceId=device-gate-0001', '/api/scans?deviceId=device-gate-0001', '/api/consent?deviceId=device-gate-0001', '/api/admin/tables', '/api/identify?text=cola', '/api/identify/demo', '/api/not-a-route'];
   const posts = ['/api/identify', '/api/identify/pack', '/api/identify/photo', '/api/match-text', '/api/price', '/api/correction', '/api/scan-rating', '/api/scan-rating/delete', '/api/consent', '/api/event', '/api/events/batch', '/api/scan-price', '/api/scan-call', '/api/scan-pick', '/api/scan/1/outcome', '/api/shelf/frame', '/api/shutter/frame', '/api/identify/demo'];
   const open = [];
   for (const p of gets) {

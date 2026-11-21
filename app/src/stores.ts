@@ -302,6 +302,14 @@ import * as settings from '../../settings/src/index.ts';
 const OVERPASS_URL = settings.SHIN_OVERPASS() ?? 'https://overpass-api.de/api/interpreter';
 
 /**
+ * Overpass asks apps to identify themselves. App name and version, then a contact, the same shape
+ * Open Food Facts asks for (and the same address the store pages publish, docs/store/). The old text
+ * said "shin-beta (price scanner, six testers)": the retired name, a wrong count and no contact
+ * (2026-11-21 review, ops 13).
+ */
+const OVERPASS_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; useshinapp@gmail.com)';
+
+/**
  * The default fetcher, which is the only thing in this file that touches the
  * network.
  *
@@ -314,7 +322,7 @@ async function overpassFetch(query: string): Promise<string> {
   const stop = AbortSignal.timeout(10_000);
   const res = await fetch(OVERPASS_URL, {
     method: 'POST',
-    headers: { 'content-type': 'text/plain', 'user-agent': 'shin-beta (price scanner, six testers)' },
+    headers: { 'content-type': 'text/plain', 'user-agent': OVERPASS_USER_AGENT },
     body: query,
     signal: stop,
   });
@@ -325,7 +333,7 @@ async function overpassFetch(query: string): Promise<string> {
 /**
  * The per-cell cache.
  *
- * A DAY, because shops do not move and the alternative is one call to a
+ * A WEEK (it was a day until 2026-11-21, see below), because shops do not move and the alternative is one call to a
  * volunteer-run API per scan. A cell is at most a kilometre across and six
  * testers will hit the same handful of cells all week, so this is the
  * difference between a few hundred calls a day and a few.
@@ -335,9 +343,17 @@ async function overpassFetch(query: string): Promise<string> {
  * a day would mean an Overpass outage at the wrong moment leaves a tester with
  * no store list until tomorrow.
  */
-const CACHE_MS = 24 * 60 * 60 * 1000;
+/*
+ * RAISED 2026-11-21 (cost 4). Overpass's page (wiki.openstreetmap.org/wiki/Overpass_API, read in the
+ * review) allows 10,000 queries a day and says to divide that by 100 for regular use. Shops do not
+ * move, so a square is kept a WEEK, and the cache holds 20,000 squares (a few small entries each,
+ * well under 100 MB at the very worst) instead of 500, so a repeat area is never asked of Overpass
+ * again while it is in the cache, and busy launch-size traffic does not push squares out in a loop.
+ * An empty answer is still kept only minutes, for the outage reason above.
+ */
+const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const EMPTY_CACHE_MS = 5 * 60 * 1000;
-const CACHE_CEILING = 500;
+const CACHE_CEILING = 20_000;
 const cache = new Map<string, { at: number; stores: NearbyStore[] }>();
 
 /** TEST ONLY, and the server never calls it. Empties the per-cell cache. */
@@ -381,7 +397,8 @@ export async function storesNear(cell: CoarseCell, options: StoresOptions = {}):
 
   // Bounded, because one cache entry per cell any tester has ever stood in is
   // a leak with a nice name. Oldest out first; Map iterates in insertion order.
-  if (cache.size >= CACHE_CEILING) {
+  // A square that is only being refreshed replaces its own entry; it must not push another one out.
+  if (!cache.has(cell.text) && cache.size >= CACHE_CEILING) {
     const oldest = cache.keys().next();
     if (!oldest.done) cache.delete(oldest.value);
   }

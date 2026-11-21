@@ -1,9 +1,10 @@
 /**
- * R35: Open Food Facts asks every app to name itself in its User-Agent and to stay under its read
- * limit (100 product reads a minute). The live lookup does both, and backs off when OFF says 429.
+ * R35: Open Food Facts asks every app to name itself in its User-Agent and to stay under its
+ * published read limit (15 product reads a minute per address, address ban above it; 2026-11-21 review
+ * found the code spaced calls for 100 a minute). The live lookup does both, and backs off when OFF says 429.
  * No network: `setOffFetchForTests` stands in for fetch.
  */
-import { test } from 'node:test';
+import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { lookupOpenFoodFacts, lookupOpenFoodFactsWithReason, setOffFetchForTests, clearOffCacheForTests } from '../src/open-food-facts.ts';
 
@@ -20,6 +21,8 @@ test('the live call names Pexi in the User-Agent', async () => {
   setOffFetchForTests(null);
   assert.ok(seen, 'no headers were sent');
   assert.match(String(seen['user-agent']), /^Pexi-server\/1\.0 \(grocery price scanner/);
+  // Open Food Facts asks for AppName/Version (ContactEmail): a person to write to before they ban an address.
+  assert.match(String(seen['user-agent']), /[\w.]+@[\w.]+\.\w+\)/, 'the User-Agent names no contact address');
 });
 
 test('a 429 pauses live lookups instead of hammering Open Food Facts, and is not cached as "no such product"', async () => {
@@ -47,18 +50,53 @@ test('a 429 pauses live lookups instead of hammering Open Food Facts, and is not
   setOffFetchForTests(null);
 });
 
-test('lookups are spaced under the published read limit', async () => {
+/** Lets every pending promise in the lookup run before the fake clock moves. */
+const settle = async () => {
+  for (let i = 0; i < 20; i += 1) await Promise.resolve();
+};
+
+test('lookups are spaced under the published read limit of 15 a minute, with headroom', async () => {
   clearOffCacheForTests();
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 1_000_000 });
   const times: number[] = [];
   setOffFetchForTests(async () => {
     times.push(Date.now());
     return ok('X');
   });
-  await Promise.all(['0055297000248', '0055297000255', '0055297000262'].map((g) => lookupOpenFoodFacts(g)));
-  setOffFetchForTests(null);
-  assert.equal(times.length, 3);
-  for (let i = 1; i < times.length; i += 1) {
-    const gap = times[i]! - times[i - 1]!;
-    assert.ok(gap >= 550, `calls ${i - 1} and ${i} were ${gap} ms apart`);
+  try {
+    // A shopper scanning a new unknown barcode every second for three minutes: far above the limit.
+    for (let s = 0; s < 180; s += 1) {
+      void lookupOpenFoodFacts(String(1_000_000_000_000 + s));
+      await settle();
+      mock.timers.tick(1_000);
+      await settle();
+    }
+  } finally {
+    setOffFetchForTests(null);
+    mock.timers.reset();
+  }
+  assert.ok(times.length >= 20, `only ${times.length} calls went out in three minutes; the queue is refusing nearly everything`);
+  let worst = 0;
+  for (let i = 0; i < times.length; i += 1) {
+    const inWindow = times.filter((t) => t >= times[i]! && t < times[i]! + 60_000).length;
+    worst = Math.max(worst, inWindow);
+  }
+  assert.ok(worst <= 12, `${worst} calls left inside one minute; Open Food Facts allows 15 a minute per address and bans above it (headroom: 12)`);
+});
+
+test('a lookup over the limit waits its turn for a short while, then answers as an ordinary miss and never throws', async () => {
+  clearOffCacheForTests();
+  mock.timers.enable({ apis: ['setTimeout', 'Date'], now: 2_000_000 });
+  setOffFetchForTests(async () => ok('Y'));
+  try {
+    const results = [0, 1, 2, 3, 4].map((n) => lookupOpenFoodFactsWithReason(String(2_000_000_000_000 + n)));
+    await settle();
+    mock.timers.tick(30_000);
+    const done = await Promise.all(results);
+    assert.ok(done.some((r) => r.product), 'nobody was answered');
+    for (const r of done) assert.ok(r.product || r.miss === 'off_failed', 'a refused lookup must come back as an ordinary miss');
+  } finally {
+    setOffFetchForTests(null);
+    mock.timers.reset();
   }
 });

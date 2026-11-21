@@ -38,6 +38,32 @@ export function packScope(raw: string | null | undefined): PackScope | null {
   return raw === 'grocery' || raw === 'canada' ? raw : null;
 }
 
+/*
+ * THE VERSIONED ADDRESS, /api/pack/<scope>-<version>.bin (2026-11-21, blind 8 and cost 7).
+ *
+ * Cloudflare answered the old address, /api/pack?scope=canada, "cf-cache-status: DYNAMIC": it never
+ * kept it, so every phone and every script pulled the 6.5 MB from the home connection. Cloudflare's
+ * default cache behaviour (developers.cloudflare.com/cache/concepts/default-cache-behavior/, read
+ * 2026-11-21) is: "Cloudflare only caches based on file extension and not by MIME type", it does not
+ * cache HTML or JSON by default, and it caches when Cache-Control is public with max-age above 0. The
+ * default list includes BIN, so a path that ends in .bin, sent with `public, max-age=31536000,
+ * immutable`, is kept at the edge with no dashboard change. The version is in the path, so a rebuilt
+ * pack is a new address and can never be answered with old bytes; a request for any version but the
+ * current one is a 404 that is never kept. The old address stays for phones already installed.
+ */
+const PACK_FILE = /^\/api\/pack\/(grocery|canada)-(\d+-\d+)\.bin$/;
+
+/** The file name of one scope's pack at one version, the last part of the versioned address. */
+export function packFileName(scope: PackScope, version: string): string {
+  return `${scope}-${version}.bin`;
+}
+
+/** The scope and version a versioned pack address names, or null when the path is anything else. */
+export function parsePackFile(pathname: string): { scope: PackScope; version: string } | null {
+  const m = PACK_FILE.exec(pathname);
+  return m ? { scope: m[1] as PackScope, version: m[2]! } : null;
+}
+
 /**
  * One stat() call, no file content read, which is what "cheap" means here:
  * a phone can call this on every app open without it costing anything close
@@ -49,7 +75,9 @@ export function packScope(raw: string | null | undefined): PackScope | null {
  */
 export async function packVersion(
   scope: PackScope,
-): Promise<{ scope: PackScope; version: string; bytes: number } | null> {
+  /** TEST ONLY: a pack file other than the real one. */
+  file: string = PACK_PATH[scope],
+): Promise<{ scope: PackScope; version: string; bytes: number; url: string } | null> {
   /*
    * NULL WHEN THE PACK IS NOT BUILT, rather than a throw, and the reason is
    * that `servePack` twenty lines down has always said so and this function
@@ -69,8 +97,10 @@ export async function packVersion(
    * has.
    */
   try {
-    const info = await stat(PACK_PATH[scope]);
-    return { scope, version: `${Math.trunc(info.mtimeMs)}-${info.size}`, bytes: info.size };
+    const info = await stat(file);
+    const version = `${Math.trunc(info.mtimeMs)}-${info.size}`;
+    // `url` is new (2026-11-21): the cacheable address. Phones already out ignore it and keep using the old one.
+    return { scope, version, bytes: info.size, url: `/api/pack/${packFileName(scope, version)}` };
   } catch {
     return null;
   }
@@ -89,13 +119,18 @@ export async function servePack(
   req: IncomingMessage,
   res: ServerResponse,
   scope: PackScope,
+  /**
+   * `version`: set on the versioned address, which answers only while it names the current pack.
+   * `file`: TEST ONLY, a pack file other than the real one.
+   */
+  opts: { version?: string; file?: string } = {},
 ): Promise<void> {
-  const path = PACK_PATH[scope];
+  const path = opts.file ?? PACK_PATH[scope];
   let info;
   try {
     info = await stat(path);
   } catch {
-    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
     res.end('pack not built');
     return;
   }
@@ -104,11 +139,26 @@ export async function servePack(
     res.end('GET only');
     return;
   }
+  if (opts.version !== undefined && opts.version !== `${Math.trunc(info.mtimeMs)}-${info.size}`) {
+    // A rebuilt pack is a new address. Never the new bytes under the old name, and never kept by anyone.
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
+    res.end('that pack version is no longer current; ask /api/pack-version for the address');
+    return;
+  }
+  /*
+   * ALWAYS THE BROTLI FILE AS STORED, never an uncompressed body from this machine. The 44 MB a script
+   * sees when it asks without accepting compression is Cloudflare unpacking the 6.5 MB at its own edge
+   * (checked live 2026-11-21: with accept-encoding gzip or identity the answer arrives chunked, with
+   * br it arrives with the stored length); the home connection sends 6.5 MB either way, and once the
+   * edge holds the .bin address it sends it once. `vary` keeps any cache from handing the brotli bytes
+   * to a client that cannot read them.
+   */
   res.writeHead(200, {
     'content-type': 'application/octet-stream',
     'content-encoding': 'br',
     'content-length': String(info.size),
     'cache-control': 'public, max-age=31536000, immutable',
+    vary: 'accept-encoding',
   });
   if (req.method === 'HEAD') {
     res.end();

@@ -28,7 +28,7 @@ import {
   type UserCatalogue,
 } from '../catalogue/src/user-catalogue.ts';
 import { shopperSources } from './src/attribution.ts';
-import { packScope, packVersion, servePack } from './src/pack-route.ts';
+import { packScope, packVersion, parsePackFile, servePack } from './src/pack-route.ts';
 import { readAppStatus } from './src/app-status.ts';
 import {
   correctScan,
@@ -929,6 +929,9 @@ let freeScanAddressLimiter = new KeyedLimiter(freeScanAddressWindows(), 'free-sc
 const GUESS_WINDOWS_PER_ADDRESS = [{ ms: 10 * 60_000, limit: 10 }, { ms: 24 * 60 * 60_000, limit: 60 }] as const;
 const GUESS_WINDOWS_ALL = [{ ms: 10 * 60_000, limit: 60 }, { ms: 24 * 60 * 60_000, limit: 300 }] as const;
 let storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
+/* Pulls of the phone product pack that reach this machine, per address (2026-11-21). Cloudflare answering from its own copy never gets here. */
+const PACK_PULL_WINDOWS = [{ ms: 10 * 60_000, limit: 20 }, { ms: 24 * 60 * 60_000, limit: 100 }] as const;
+let packAddressLimiter = new KeyedLimiter(PACK_PULL_WINDOWS, 'pack-address');
 let guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
 let guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
 function wrongGuessRefusal(req: IncomingMessage, what: 'invite' | 'admin'): { retryAfterSeconds: number } | null {
@@ -948,6 +951,7 @@ export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.e
   claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }]);
   claudeWeeklyLimiters.clear();
   storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
+  packAddressLimiter = new KeyedLimiter(PACK_PULL_WINDOWS, 'pack-address');
   guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
   guessAllLimiter = new KeyedLimiter(GUESS_WINDOWS_ALL);
   codeLimiter = new KeyedLimiter(codeWindows(env), 'paid-code');
@@ -4446,10 +4450,22 @@ export const server = createServer(async (req, res) => {
       if (!version) return json(404, { error: 'pack not built', scope });
       return json(200, version);
     }
-    if (url.pathname === '/api/pack') {
-      const scope = packScope(url.searchParams.get('scope'));
+    /*
+     * THE PACK, two addresses (2026-11-21, blind 8 / cost 7). `/api/pack?scope=` is the old one, kept for
+     * phones already installed. `/api/pack/<scope>-<version>.bin` ends in an extension Cloudflare caches by
+     * default, so after the first pull the edge answers and this machine does not. Both are one limit per
+     * address: only a pull that reaches this machine counts, so honest phones served from the edge never
+     * use it, and a script that keeps pulling is slowed.
+     */
+    const packFile = parsePackFile(url.pathname);
+    if (url.pathname === '/api/pack' || packFile) {
+      const scope = packFile ? packFile.scope : packScope(url.searchParams.get('scope'));
       if (!scope) return json(400, { error: 'scope must be grocery or canada' });
-      return servePack(req, res, scope);
+      if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
+        const pulls = packAddressLimiter.check(`ip:${clientAddress(req.headers, req.socket.remoteAddress)}`);
+        if (!pulls.allowed) return tooManyCalls(pulls.retryAfterSeconds);
+      }
+      return servePack(req, res, scope, packFile ? { version: packFile.version } : {});
     }
 
     if (url.pathname.startsWith('/api/')) return json(404, { error: 'no such endpoint' });

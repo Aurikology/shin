@@ -252,8 +252,61 @@ function isEdgePage(res) {
   return /text\/html/i.test(get('content-type') ?? '');
 }
 
-async function edgeFetch(url, init) {
-  const res = await fetch(url, init);
+/*
+ * A DEADLINE ON EVERY CALL (2026-11-21 review, ops 12). A server that took the call and never answered
+ * left a spinner until the phone's own network limit (about a minute, never measured). Now the call
+ * ends, after the deadline below, in the same error a dead network gives (fetch's own TypeError), which
+ * every screen already treats as "no connection" and which the outbox treats as "keep it and try again".
+ *
+ * WHY THESE NUMBERS. They are set against what the server itself is allowed to take, so a slow but
+ * working answer is never cut off: a typed search answers in about 2 s (p95, measured 2026-11-21) but may
+ * wait on the one Claude price-range call, which the server gives up on at 30 s (identify/src/range-ask.ts);
+ * a scan or a typed price can add the catalogue and the 20 s price scan (app/src/own-prices.ts) before
+ * that. 45 s covers the longest single wait the server permits plus the ordinary steps around it, and is
+ * still shorter than the wait a shopper gets today. A picture upload adds the upload itself on a weak
+ * cell connection and the pack read (20 s), so it gets 75 s. The small background calls (the quota
+ * check, event batches, the crash report, the shop lists) are answered from memory or a table in
+ * milliseconds, so 15 s is already generous and keeps them from piling up behind a stuck server.
+ * The clock stops when the answer's head arrives; reading its body is not on it.
+ */
+const DEADLINE_QUICK_MS = 15_000;
+const DEADLINE_DEFAULT_MS = 45_000;
+const DEADLINE_UPLOAD_MS = 75_000;
+const QUICK_PATHS = new Set(['/api/quota', '/api/events/batch', '/api/event', '/api/client-error', '/api/stores', '/api/store-chains', '/api/attribution', '/api/app-status', '/api/consent', '/api/scan-rating']);
+const UPLOAD_PATHS = new Set(['/api/identify/photo', '/api/identify/pack', '/api/shutter/frame', '/api/shelf/frame']);
+
+function deadlineFor(url) {
+  const path = String(url).replace(/^[a-z]+:\/\/[^/]+/i, '').split('?')[0];
+  if (UPLOAD_PATHS.has(path)) return DEADLINE_UPLOAD_MS;
+  if (QUICK_PATHS.has(path)) return DEADLINE_QUICK_MS;
+  return DEADLINE_DEFAULT_MS;
+}
+
+async function edgeFetch(url, init = {}) {
+  const ms = deadlineFor(url);
+  const controller = new AbortController();
+  const outer = init.signal;
+  const forward = () => controller.abort(outer.reason);
+  if (outer) {
+    if (outer.aborted) controller.abort(outer.reason);
+    else outer.addEventListener('abort', forward, { once: true });
+  }
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, ms);
+  let res;
+  try {
+    res = await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    // The deadline passing is "no connection", the error the screens already handle. Anything else is passed on as it was.
+    if (timedOut) throw new TypeError(`Pexi did not answer within ${ms / 1000} s`);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    outer?.removeEventListener?.('abort', forward);
+  }
   if (isEdgePage(res)) throw new PexiBusyError(url, res.status);
   return res;
 }

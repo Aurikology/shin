@@ -256,6 +256,19 @@ function inviteHeaders() {
   return code ? { 'x-shin-invite': code } : {};
 }
 
+/**
+ * Where to download a scope's pack at a version. The versioned address ends in `.bin`, an extension
+ * Cloudflare keeps at its edge by default, so after the first phone the pack comes from Cloudflare and
+ * not from Pexi's own server (2026-11-21, blind 8). The version string is the one `/api/pack-version`
+ * returns. `base` is the server's address when the app runs from a wrapper (api.js's SHIN_API_BASE).
+ * An older server answers the version with no `url` and still serves `/api/pack?scope=`, so a caller
+ * with no version gets that.
+ */
+export function packUrl(scope, version, base = globalThis.window?.SHIN_API_BASE ?? '') {
+  if (typeof version === 'string' && /^\d+-\d+$/.test(version)) return `${base}/api/pack/${scope}-${version}.bin`;
+  return `${base}/api/pack?scope=${encodeURIComponent(scope)}`;
+}
+
 export async function checkForUpdate(scope, versionUrl) {
   const stored = await storedVersion(scope);
   try {
@@ -265,6 +278,8 @@ export async function checkForUpdate(scope, versionUrl) {
     return {
       upToDate: stored != null && stored === info.version,
       remoteVersion: info.version,
+      // Where to download it: the cacheable address when the server named one, else the old one.
+      remoteUrl: typeof info.url === 'string' ? packUrl(scope, info.version) : packUrl(scope, null),
       storedVersion: stored,
     };
   } catch {
@@ -284,7 +299,8 @@ export async function checkForUpdate(scope, versionUrl) {
 export async function primePack(scope, fileUrl, version) {
   let db;
   try {
-    const res = await fetch(fileUrl, { headers: inviteHeaders() });
+    // No address given: the cacheable one for this version (packUrl), or the old one with no version.
+    const res = await fetch(fileUrl || packUrl(scope, version), { headers: inviteHeaders() });
     if (!res.ok) return false;
     const buffer = await res.arrayBuffer();
     parsePack(buffer); // throws before anything is written if corrupt
