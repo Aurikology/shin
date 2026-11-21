@@ -1139,6 +1139,9 @@ async function priceIdentity(
   );
   verdict = shownVerdict(est, row.code);
   conflict = est?.trace.conflict ?? null;
+  // Design case 9 (review 2026-11-21, Coca-Cola "710 ml" priced as the 6-pack): when the shops sell this barcode as
+  // another pack than the catalogue's size, the verdict prices that pack, and the answer names it, never the catalogue's.
+  if (conflict && verdict && est?.trace.size) identity = { ...identity, size: est.trace.size };
   // D-233: the pool the verdict ladder set aside as too wide, and whether that left it too thin to judge.
   const wide = est?.trace.widePool ?? null;
   const thin = est?.trace.tooThin ?? null;

@@ -332,6 +332,17 @@ export function multipleOf(cents, centreCents) {
   return String(Math.round(m * 100) / 100);
 }
 
+/**
+ * D-270 A8 (bug sweep 2026-11-11): whether "3x the typical price" may be said beside a pinned price. Only
+ * beside a measured bell: not Claude's range, not an answer Pexi is not sure of (a prior, an assumed size,
+ * few prices), and not a shaded band wider than 2.25x (the width the confidence calls "Not fully confident").
+ * The price itself is always drawn.
+ */
+export function multipleShown(verdict) {
+  if (!verdict || verdict.basis === 'claude_typical' || verdict.confidence === 'low') return false;
+  return !(verdict.p10Cents > 0 && verdict.p90Cents / verdict.p10Cents > 2.25);
+}
+
 /** The zone's tier in the colour system (tokens.css binds `data-tier`). */
 export const ZONE_TIER = Object.freeze({ great: 'good', good: 'good', reasonable: 'fair', bad: 'walk_away' });
 
@@ -656,7 +667,8 @@ export function bellSvg(verdict, { format = (c) => String(c), formatEstimate = n
   if (g.shopper) {
     const s = g.shopper;
     const anchor = s.pinned === 'high' ? 'end' : s.pinned === 'low' ? 'start' : 'middle';
-    const text = [format(s.cents), s.pinned ? multiple : ''].filter(Boolean).join(', ');
+    // D-270 A8: the multiple reads as measured, so it is said only beside a measured bell (multipleShown).
+    const text = [format(s.cents), s.pinned && multipleShown(verdict) ? multiple : ''].filter(Boolean).join(', ');
     const half = labelWidth(text, YOU_SIZE) / 2;
     const labelX = s.pinned === 'high' ? W - 2 : s.pinned === 'low' ? 2 : r1(Math.min(W - 2 - half, Math.max(2 + half, s.x)));
     // D-244: pinned at an end, the label runs inward across the curve, so it sits above the peak instead.

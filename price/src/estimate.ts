@@ -68,6 +68,7 @@ import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 import { SHOPPER_VOICE_BELOW_SHOPS, SHOPPER_VOICE_FLOOR_FRESH_DAYS, SHOPPER_VOICE_FLOOR_RATIO } from './shopper-prices.ts';
+import { readPacks, sameSize } from './pack-size.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
 // extension, and every server path that imports this file would pay for that at startup.
 type FillFromName = (typeof import('../../catalogue/src/size-fill.ts'))['fillFromName'];
@@ -279,7 +280,20 @@ export interface ClaudeAskContext {
 }
 
 export type ClaudeAnswer =
-  | { readonly ok: true; readonly lowCents: number; readonly highCents: number; readonly currency: string }
+  | {
+      readonly ok: true;
+      readonly lowCents: number;
+      readonly highCents: number;
+      readonly currency: string;
+      /**
+       * D-270 A7: what one price in the range buys, as Claude stated it ("one 500 mL bottle", "per kg").
+       * A rate is scaled to the item's size (or, with no size, is no shelf price and the next rung answers);
+       * a pack size is scaled to the item's size (or, with none, the size is noted as assumed).
+       */
+      readonly unit?: string | null;
+      /** D-270 A7: Claude's own confidence in its range; `low` widens the bell. */
+      readonly confidence?: 'low' | 'medium' | 'high' | null;
+    }
   | { readonly ok: false; readonly reason: string };
 
 export interface EstimateDeps {
@@ -628,6 +642,8 @@ interface Product {
   readonly store: string;
   /** Its catalogue row's department; null with no row or a source that names none. */
   readonly department: string | null;
+  /** The provinces its shops' prices were seen in (gap 72: Project Hammer is one Toronto neighbourhood); empty when none is known. */
+  readonly provinces: ReadonlySet<string>;
 }
 
 /**
@@ -702,6 +718,7 @@ function buildProducts(
       newestAge: Math.min(...shops.map((s) => s.age)),
       store: newest.store,
       department: c?.department ?? null,
+      provinces: new Set(shops.map((s) => province(s.region)).filter((p): p is string => p !== null)),
     });
   }
   return out;
@@ -1034,6 +1051,27 @@ function perUnitLabel(q: ComparisonQuantity): PerUnitLabel {
   return q.label === '100 g' ? 'per 100 g' : q.label === '100 ml' ? 'per 100 ml' : 'each';
 }
 
+/**
+ * D-270 A7: what one price in Claude's range buys. A rate ("per kg", "$/lb", "per 100 g") is a price per
+ * that quantity; a pack ("one 500 mL bottle", "6 x 355 mL cans") is a price for that size; "each" and
+ * anything unread is neither, and the range is read as the item's own price, as before.
+ */
+export function claudeUnit(unit: string | null | undefined): { rate: ComparisonQuantity } | { pack: ComparisonQuantity } | null {
+  if (!unit) return null;
+  const t = unit.toLowerCase().replace(/(\d),(\d)/g, '$1.$2');
+  const rate = /(?:\bper\b|\/)\s*(\d+(?:\.\d+)?)?\s*(fl\.?\s*oz|[a-z]+)\b/.exec(t);
+  if (rate) {
+    const q = toComparison(rate[1] ? Number(rate[1]) : 1, rate[2]);
+    if (q && q.family !== 'count') return { rate: q };
+  }
+  const p = parseQuantity(t);
+  if (p) {
+    const q = toComparison(p.value, p.unit);
+    if (q && q.family !== 'count') return { pack: q };
+  }
+  return null;
+}
+
 async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | 'timeout'> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const t = new Promise<'timeout'>((resolve) => {
@@ -1193,11 +1231,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const ownAny = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
   const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
   const barcodeMid = ownByBarcode.length > 0 ? medianOf(ownByBarcode.map((r) => Math.log(r.cents))) : null;
-  const ownAll =
+  let ownAll =
     barcodeMid === null
       ? ownAny
       : ownAny.filter((r) => !r.nameJoined || Math.abs(Math.log(r.cents) - barcodeMid) <= Math.log(NAME_JOIN_AGREE));
-  const ownByNameOnly = ownAll.length > 0 && ownByBarcode.length === 0;
   const ownNewest = [...ownAll].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0))[0] ?? null;
 
   /* ---- identity: the catalogue first, else the store's own product name (design case 2) */
@@ -1227,31 +1264,52 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   if (item.weighed) {
     target = toComparison(1, perLb ? 'lb' : 'kg');
     sizeText = perLb ? '1 lb' : '1 kg';
-  } else {
-    const given = sizeFromText(str(item.size));
-    const pick = given ?? (selfCat?.size ? { q: selfCat.size, text: selfCat.sizeText ?? sizeLabel(selfCat.size) } : null) ??
-      (ownNewest?.size ? { q: ownNewest.size, text: ownNewest.sizeText! } : null) ?? sizeFromName(name);
-    target = pick?.q ?? null;
-    sizeText = pick?.text ?? null;
   }
 
-  /* ---- design case 9: the catalogue and the store row disagree on the size */
+  /*
+   * ---- which pack the shops' prices are for (price/src/pack-size.ts; review 2026-11-21, Coca-Cola 710 ml
+   * answered with the 6-pack's $7.99). Rows of another pack are another product's prices and leave the own
+   * prices and the dots. Design case 9: when the shops sell the barcode as another size than the catalogue's
+   * (or the one given), that size prices it, noted and logged.
+   */
   let conflict: EstimateTrace['conflict'] = null;
-  if (!item.weighed && selfCat?.size) {
-    const store = ownAll.find((r) => r.size !== null);
-    if (store?.size) {
-      const a = selfCat.size;
-      const b = store.size;
-      const r = a.family === b.family ? b.baseValue / a.baseValue : 0;
-      if (r < 1 / 1.05 || r > 1.05) {
-        conflict = { barcode: barcode!, catalogueSize: selfCat.sizeText ?? sizeLabel(a), storeSize: store.sizeText ?? sizeLabel(b) };
-        notes.add('identity_conflict');
-        // The store row's size is used for the price.
-        target = b;
-        sizeText = store.sizeText ?? sizeLabel(b);
-      }
+  let unitHeld = false;
+  if (!item.weighed) {
+    const given = sizeFromText(str(item.size));
+    const own = given ?? (selfCat?.size ? { q: selfCat.size, text: selfCat.sizeText ?? sizeLabel(selfCat.size) } : null);
+    const packs = readPacks(ownAll, own?.q ?? null);
+    ownAll = packs.keep;
+    // Boss check 2026-11-21: the shops sell the barcode as a bigger pack, but the shelf price the shopper typed
+    // sits nearer one unit's price than the pack's (below pack median / sqrt(count), pack-size.ts's own cut):
+    // the shopper holds the catalogue's size. Those rows are the pack's prices, not this item's, so none of them
+    // stands as its own price; the catalogue's size is priced like for like by the rungs below, not sure.
+    const ratio = own && packs.conflict && packs.size && packs.size.family === own.q.family ? packs.size.baseValue / own.q.baseValue : 0;
+    const packCents = ownAll.filter((r) => !r.sale && r.size).map((r) => r.cents);
+    if (ratio > 1 && packCents.length > 0 && shopper && Number.isInteger(shopper.cents) && shopper.cents > 0 && shopper.cents < medianOf(packCents) / Math.sqrt(ratio)) {
+      unitHeld = true;
+      ownAll = [];
+      notes.add('identity_conflict');
+      target = own!.q;
+      sizeText = own!.text;
+    } else if (own && packs.conflict && packs.size) {
+      const storeSize = packs.sizeText ?? sizeLabel(packs.size);
+      conflict = { barcode: barcode!, catalogueSize: own.text, storeSize };
+      notes.add('identity_conflict');
+      target = packs.size;
+      sizeText = storeSize;
+    } else if (own) {
+      target = own.q;
+      sizeText = own.text;
+    } else if (packs.size) {
+      target = packs.size;
+      sizeText = packs.sizeText ?? sizeLabel(packs.size);
+    } else {
+      const fromName = sizeFromName(name);
+      target = fromName?.q ?? null;
+      sizeText = fromName?.text ?? null;
     }
   }
+  const ownByNameOnly = ownAll.length > 0 && ownAll.every((r) => r.nameJoined);
 
   /* ---- products and category pools */
   const products = buildProducts(rows, cat, deps.categoryOfUnbarcoded).filter((p) => p.key !== selfKey);
@@ -1308,6 +1366,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let claudeSigma: number | null = null;
   let priorStats: Stats | null = null;
   let scaled = false;
+  /** The products the centre stood on, when it stood on a pool (gap 72: are any priced in the shopper's province?). */
+  let basisMembers: readonly Product[] | null = null;
 
   if (ownShops.length > 0) {
     const muOwn = weightedMedian(ownWeighted);
@@ -1327,21 +1387,30 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   /* ---- same product, other sizes; the bigger pack is a side note only (design call 2) */
   const pKey = productKey(name, brand);
   const sameProduct = pKey && target ? scoped.filter((p) => p.barcoded && p.size?.family === target!.family && productKey(p.name, p.brand) === pKey) : [];
+  // D-270 A11: a price from another province than the shopper's (when known and the product has none from it).
+  const elsewhere = (p: Product): boolean => wantRegion !== null && p.provinces.size > 0 && !p.provinces.has(wantRegion);
   let biggerPack: Verdict['biggerPack'] = null;
+  let biggerPackPerUnit: number | null = null;
   if (target) {
     let best: { perUnit: number; p: Product } | null = null;
     for (const p of sameProduct) {
       if (p.size!.baseValue / target.baseValue <= BAND_HIGH) continue;
+      // D-270 A11: offered as the cheaper way to buy today, so a current price (the range card's window) from the shopper's province.
+      if (p.newestAge > WINDOW_DAYS || elsewhere(p)) continue;
       const perUnit = (p.cents * target.perQuantity) / p.size!.baseValue;
       if (!best || perUnit < best.perUnit) best = { perUnit, p };
     }
-    if (best) biggerPack = { quantity: best.p.sizeText ?? sizeLabel(best.p.size!), perUnitCents: Math.round(best.perUnit), store: best.p.store };
+    if (best) {
+      biggerPack = { quantity: best.p.sizeText ?? sizeLabel(best.p.size!), perUnitCents: Math.round(best.perUnit), store: best.p.store };
+      biggerPackPerUnit = best.perUnit;
+    }
   }
   if (basis === null) {
     const pts = poolPoints(sameProduct, target, true);
     if (pts.length > 0) {
       const s = statsOf(pts)!;
       basis = 'other_size';
+      basisMembers = sameProduct;
       mu = s.mu;
       n = s.n;
       evidenceAge = s.newestAge;
@@ -1378,6 +1447,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       tried.push({ rung, outcome: 'too_wide', n: stats.n, detail: tag, ...(rung === 'parent_category' ? parentFlag : {}) });
     } else if (stats) {
       basis = rung;
+      basisMembers = rung === 'leaf_category' ? leafMembers : parentMembers;
       mu = stats.mu;
       n = stats.n;
       evidenceAge = stats.newestAge;
@@ -1425,6 +1495,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
           }
           if (s && s.n >= MIN_CATEGORY_PRODUCTS) {
             basis = 'brand_markup';
+            basisMembers = inTree(path[i]!);
             mu = s.mu + ratio;
             n = ratios.length;
             evidenceAge = s.newestAge;
@@ -1513,31 +1584,71 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         claudeTrace = { ok: false, reason: 'unusable_range' };
         tried.push({ rung: 'claude_typical', outcome: 'failed', n: 0, detail: 'unusable_range' });
       } else {
-        claudeTrace = got;
-        const lo = Math.log(got.lowCents);
-        const hi = Math.log(got.highCents);
-        basis = 'claude_typical';
-        mu = (lo + hi) / 2;
-        claudeSigma = (hi - lo) / (2 * Z10);
-        n = 0;
-        notes.add('claude_estimate');
-        tried.push({ rung: 'claude_typical', outcome: 'used', n: 0 });
+        // D-270 A7: Claude's unit is carried. A rate is scaled to this size, and with no size it is not a shelf
+        // price, so the next rung answers; a pack is scaled to this size, and with no size the size is assumed.
+        const u = claudeUnit(got.unit);
+        let factor = 1;
+        let unusable: string | null = null;
+        let assumed = false;
+        if (u && 'rate' in u) {
+          if (target && target.family === u.rate.family) factor = target.baseValue / u.rate.baseValue;
+          else unusable = 'unit_is_rate';
+        } else if (u && 'pack' in u) {
+          if (target && target.family === u.pack.family) factor = sameSize(target, u.pack) ? 1 : target.baseValue / u.pack.baseValue;
+          else if (!target) assumed = true;
+        }
+        if (unusable) {
+          claudeTrace = { ok: false, reason: unusable };
+          tried.push({ rung: 'claude_typical', outcome: 'failed', n: 0, detail: unusable });
+        } else {
+          claudeTrace = got;
+          const lo = Math.log(got.lowCents * factor);
+          const hi = Math.log(got.highCents * factor);
+          basis = 'claude_typical';
+          mu = (lo + hi) / 2;
+          claudeSigma = (hi - lo) / (2 * Z10);
+          // Claude unsure of its own range: the bell says so (the confidence is already "Not fully confident").
+          if (got.confidence === 'low') claudeSigma *= WIDEN;
+          n = 0;
+          scaled = factor !== 1;
+          notes.add('claude_estimate');
+          if (assumed) notes.add('size_assumed');
+          tried.push({ rung: 'claude_typical', outcome: 'used', n: 0 });
+        }
       }
     }
   }
 
-  /* ---- the priors: always drawable */
+  /*
+   * ---- the priors: always drawable. D-270 A6: a sized item's prior is its pool scaled to its size (same
+   * unit family, any pack size), never the median of whatever sizes the pool holds; with no size, or too few
+   * products to scale, it is per item at any size and says the size was assumed (and is wider for it).
+   */
   const widest = path[0] ?? null;
   const widestMembers = widest ? inTree(widest) : null;
-  const categoryPrior = widestMembers ? statsOf(poolPoints(widestMembers, null, false)) : null;
+  const departmentMembers = itemDept ? scoped.filter((p) => p.department === itemDept) : null;
+  const priorOf = (members: readonly Product[] | null): { stats: Stats | null; scaled: boolean } => {
+    if (!members) return { stats: null, scaled: false };
+    if (target) {
+      const s = statsOf(poolPoints(members, target, false));
+      if (s && s.n >= MIN_PRIOR_PRODUCTS) return { stats: s, scaled: true };
+    }
+    return { stats: statsOf(poolPoints(members, null, false)), scaled: false };
+  };
+  const categoryPriorOf = priorOf(widestMembers);
+  const categoryPrior = categoryPriorOf.stats;
   // Only products the catalogue places in the department: one with no known department is never in it.
-  const departmentPrior = itemDept ? statsOf(poolPoints(scoped.filter((p) => p.department === itemDept), null, false)) : null;
+  const departmentPriorOf = priorOf(departmentMembers);
+  const departmentPrior = departmentPriorOf.stats;
   if (basis === null) {
     if (categoryPrior && categoryPrior.n >= MIN_PRIOR_PRODUCTS) {
       basis = 'category_prior';
       mu = categoryPrior.mu;
       n = categoryPrior.n;
       priorStats = categoryPrior;
+      basisMembers = widestMembers;
+      scaled = categoryPriorOf.scaled;
+      if (!categoryPriorOf.scaled) notes.add('size_assumed');
       tried.push({ rung: 'category_prior', outcome: 'used', n, detail: widest! });
     } else {
       const outcome = !widest ? 'not_applicable' : widestMembers === null ? 'mixed_departments' : 'too_few';
@@ -1547,6 +1658,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         mu = departmentPrior.mu;
         n = departmentPrior.n;
         priorStats = departmentPrior;
+        basisMembers = departmentMembers;
+        scaled = departmentPriorOf.scaled;
+        if (!departmentPriorOf.scaled) notes.add('size_assumed');
       } else {
         mu = Math.log(EMPTY_PRIOR.centreCents);
         n = 0;
@@ -1554,6 +1668,25 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       tried.push({ rung: 'department_prior', outcome: departmentPrior ? 'used' : 'too_few', n, ...(itemDept ? { detail: itemDept } : {}) });
     }
   }
+
+  /*
+   * ---- D-270 A9: an item seen only on sale. Its regular price is never below what shops sold it for on
+   * sale, so a centre from its category, Claude or a prior is raised to its dearest sale price; and with no
+   * regular price of its own the answer is not sure (the confidence below).
+   */
+  const saleOnly = basis !== 'own_prices' && ownAll.length > 0 && ownAll.every((r) => r.sale);
+  if (saleOnly) {
+    const dearestSale = Math.max(...latestPerShop(ownAll).map((r) => r.cents));
+    if (Math.log(dearestSale) > mu) mu = Math.log(dearestSale);
+  }
+
+  /*
+   * ---- D-270 A10, gap 72: a centre that stood only on prices from another province than the shopper's.
+   * Most store prices are one Toronto neighbourhood's (Project Hammer, region ON). A pool none of whose
+   * products was priced in the shopper's province (when it is known, and some province is known for the
+   * pool) is noted `other_region`: wider, and one step less sure below. Still an answer.
+   */
+  if (basisMembers && basisMembers.length > 0 && basisMembers.every(elsewhere)) notes.add('other_region');
 
   /*
    * ---- D-233: too thin. A pool was set aside as too wide and Claude did not
@@ -1639,6 +1772,12 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   // D-258: "Few prices behind this" and "Fairly sure" never sit side by side. One or two prices (one or
   // two shops) still answer and still set the centre; the confidence says how thin that is.
   if (notes.has('few_prices')) confidence = 'low';
+  // D-270 A10, gap 72: prices only from another province are one step less sure ("Certain" becomes "Fairly sure").
+  if (notes.has('other_region')) confidence = confidence === 'high' ? 'medium' : 'low';
+  // D-270 A9: no regular price of its own.
+  if (saleOnly) confidence = 'low';
+  // The shops and the shopper disagree on which pack this barcode is: whatever answered, it is not sure.
+  if (unitHeld) confidence = 'low';
 
   /* ---- the numbers */
   const centreCents = Math.max(1, Math.round(Math.exp(mu)));
@@ -1651,6 +1790,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let perUnit: Verdict['perUnit'] = null;
   if (item.weighed) perUnit = { label: perLb ? 'per lb' : 'per kg', centreCents };
   else if (target) perUnit = { label: perUnitLabel(target), centreCents: Math.round((centreCents * target.perQuantity) / target.baseValue) };
+  // D-270 A11: the bigger pack is offered only when it works out cheaper than this one.
+  if (biggerPack && target && biggerPackPerUnit !== null && biggerPackPerUnit >= (centreCents * target.perQuantity) / target.baseValue) biggerPack = null;
 
   // Newest first; a row dated only by its load day after every dated one (D-267 A9).
   const dots: Dot[] = [...ownAll]
@@ -1689,7 +1830,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     confidence,
     n,
     perUnit,
-    scaledTo: scaled && target ? (item.weighed ? (perLb ? '1 lb' : '1 kg') : sizeText ?? sizeLabel(target)) : null,
+    // The pack priced is said whenever it is not plainly the item's own: scaled to it, or the shops' pack (case 9).
+    scaledTo: (scaled || conflict !== null) && target ?(item.weighed ? (perLb ? '1 lb' : '1 kg') : sizeText ?? sizeLabel(target)) : null,
     dots,
     biggerPack,
     shopper: placed,

@@ -60,8 +60,9 @@ export function onceAsk(askRange: RangeAsk | undefined, categoryName: string | n
     settled: () => done,
     askClaude: async (id: ClaudeIdentity): Promise<ClaudeAnswer> => {
       const r = await ask({ name: id.name, brand: id.brand, size: id.size, category: categoryName ?? id.category, market: id.market });
+      // D-270 A7: the unit and Claude's confidence travel with the range, so a per-kg range is never judged as a pack's price.
       return r.ok
-        ? { ok: true, lowCents: r.range.lowCents, highCents: r.range.highCents, currency: r.range.currency }
+        ? { ok: true, lowCents: r.range.lowCents, highCents: r.range.highCents, currency: r.range.currency, unit: r.range.unit, confidence: r.range.confidence }
         : { ok: false, reason: r.reason };
     },
   };

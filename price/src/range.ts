@@ -60,6 +60,7 @@ import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 // width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
 import { flagWide } from './width-flag.ts';
+import { readPacks, rowSize } from './pack-size.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 
 /* ------------------------------------------------------------ thresholds */
@@ -343,6 +344,9 @@ interface Obs {
   readonly seenOn: string;
   /** Seen while the shop listed it out of stock (`in_stock = 0`): still a real price (D-267 A4). */
   readonly outOfStock: boolean;
+  /** The shop's own size for the row (pack-size.ts `rowSize`), or null. */
+  readonly size: ComparisonQuantity | null;
+  readonly sizeText: string | null;
 }
 
 /** Hosts reserved for documentation and tests: a row linking there came from a test double. */
@@ -373,15 +377,16 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
   // A price file older than the printout and sale columns reads them as absent.
   const have = new Set((db.prepare('PRAGMA table_info(observation)').all() as { name: string }[]).map((c) => c.name));
   const col = (name: string) => (have.has(name) ? name : `NULL AS ${name}`);
+  // A product's own rows carry their shop size (pack-size.ts); the category pools never read it.
+  const own = codes !== null;
   const rows = db
     .prepare(
-      `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url,
+      `SELECT code, seller, region, store_name, store_osm, price_cents, seen_on, url, ${own ? `${col('seller_name')}, ${col('parsed_size')},` : ''}
               ${col('is_sale')}, ${col('capture_tile_id')}, ${col('price_verified')}, ${col('in_stock')}, ${col('seen_on_unknown')}
          FROM observation
         WHERE ${where} AND kind = 'regular' AND currency = ?`,
     )
     .all(...(codes ?? []), currency) as Record<string, unknown>[];
-  const own = codes !== null;
   const out: Obs[] = [];
   for (const r of rows) {
     if (r.is_sale === 1) continue;
@@ -409,7 +414,17 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
     if (readAge(age, r.seen_on_unknown) > windowDays) continue;
     // The shop, not the publisher: Open Prices publishes many shops under one seller string.
     const place = (r.store_osm ?? r.store_name ?? r.region ?? '') as string;
-    out.push({ key: codeKey(r.code), seller: r.seller, shop: `${r.seller}|${String(place).toLowerCase().trim()}`, cents, seenOn: seen, outOfStock: r.in_stock === 0 });
+    const sized = own ? rowSize(typeof r.parsed_size === 'string' ? r.parsed_size : null, typeof r.seller_name === 'string' ? r.seller_name : null) : null;
+    out.push({
+      key: codeKey(r.code),
+      seller: r.seller,
+      shop: `${r.seller}|${String(place).toLowerCase().trim()}`,
+      cents,
+      seenOn: seen,
+      outOfStock: r.in_stock === 0,
+      size: sized?.q ?? null,
+      sizeText: sized?.text ?? null,
+    });
   }
   return out;
 }
@@ -644,7 +659,13 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   // Step 1: this product.
   let best = 0;
   if (barcode) {
-    const shops = latestPerShop(readObservations(sources.prices, spellings(barcode), currency, input.asOf, windowDays));
+    // Only the rows of the pack the shops sell this barcode as (pack-size.ts, as the verdict ladder reads them):
+    // a 6-pack listing is never a price of the bottle, nor the bottle of the 6-pack.
+    // When the shops sell it as another pack than the size asked for, those are that pack's prices, never this
+    // size's: the category answers at this size (catalogue-first asks for the shops' pack when it names it).
+    const packs = readPacks(readObservations(sources.prices, spellings(barcode), currency, input.asOf, windowDays), target);
+    const ownRows = packs.conflict ? [] : packs.keep;
+    const shops = latestPerShop(ownRows);
     best = shops.length;
     if (shops.length >= MIN_OWN_SHOPS) {
       tried.push({ basis: 'this_product', category: null, n: shops.length, outcome: 'used' });

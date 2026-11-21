@@ -832,6 +832,36 @@ function dedupeListings(ranked: readonly Fused[]): Fused[] {
   return out;
 }
 
+/**
+ * A BARE ROW NEVER LEADS ITS SIZED TWIN (review 2026-11-21 premortem 6; gap 74). "kraft dinner" put a row
+ * named "Kraft dinner" with no brand and no size ahead of the 225 g box; "ketchup" put a bare "Ketchup" ahead
+ * of "Ketchup 750ml". A shelf price cannot be judged without a size, so a row with neither brand nor size
+ * moves to just after the first row below it that reads the same (brand and name, sizes left out) and
+ * carries a size. Nothing else moves; a bare row with no sized twin keeps its place.
+ */
+function sizedBeforeBare(ranked: readonly Fused[]): Fused[] {
+  const hasSize = (r: Row) => (r.size_value !== null && r.size_value > 0) || (r.quantity ?? '').trim() !== '';
+  const bare = (r: Row) => !hasSize(r) && !(r.brands ?? '').trim();
+  const reads = (r: Row) => {
+    const name = r.name_en ?? r.name;
+    return shownWords(`${r.brands ?? ''} ${readTypedSize(name)?.rest ?? name}`);
+  };
+  const out = [...ranked];
+  const moved = new Set<Fused>();
+  for (let i = 0; i < out.length; i += 1) {
+    const m = out[i]!;
+    if (moved.has(m) || !bare(m.row)) continue;
+    const key = reads(m.row);
+    const twin = out.findIndex((o, j) => j > i && hasSize(o.row) && reads(o.row) === key);
+    if (twin === -1) continue;
+    out.splice(i, 1);
+    out.splice(twin, 0, m); // `twin` shifted down by one with the removal: this lands just after it.
+    moved.add(m);
+    i -= 1;
+  }
+  return out;
+}
+
 /** The words a label reads, accent folded and lower-cased, in order, each said once ("Oreo Oreo / OREO" -> "oreo"). */
 function shownWords(text: string): string {
   const words = text
@@ -944,6 +974,31 @@ export function toBaseSize(
   const spec = SIZE_UNIT_BASE[unit.trim().toLowerCase()];
   if (!spec) return null;
   return { value: value * spec.factor, base: spec.base };
+}
+
+/**
+ * A size typed in the words ("heinz ketchup 750 ml", "cheerios 500g", "kraft dinner 12 x 200 g"), with the
+ * words left over (gap 74, review 2026-11-21 old-lists 3: the size was searched as two more words, so
+ * "heinz ketchup 750 ml" answered the 1.25 L first and no 750 ml row). Only units SIZE_UNIT_BASE knows;
+ * null when there is none, or nothing but a size was typed.
+ */
+const TYPED_SIZE = /(?:^|\s)(?:(\d+)\s*[x×*]\s*)?(\d+(?:[.,]\d+)?)\s*([a-z]+)\b\.?/gi;
+function readTypedSize(text: string): { value: number; unit: string; rest: string } | null {
+  TYPED_SIZE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = TYPED_SIZE.exec(text))) {
+    const unit = m[3]!.toLowerCase();
+    const each = Number(m[2]!.replace(',', '.'));
+    const pack = m[1] ? Number(m[1]) : 1;
+    if (!SIZE_UNIT_BASE[unit] || !Number.isFinite(each) || each <= 0 || !(pack > 0)) continue;
+    const rest = `${text.slice(0, m.index)} ${text.slice(m.index + m[0].length)}`.replace(/\s+/g, ' ').trim();
+    return { value: each * pack, unit, rest };
+  }
+  return null;
+}
+function sizeInText(text: string): { value: number; unit: string; rest: string } | null {
+  const s = readTypedSize(text);
+  return s && s.rest ? s : null;
 }
 
 function sizeAgreesWith(row: Row, query: SearchQuery): boolean | null {
@@ -1462,17 +1517,26 @@ export class Catalogue {
      * corrected answer is kept only when it is better: something where there
      * was nothing, or every word matched where only some had.
      */
-    let text = typed;
+    /*
+     * Gap 74 (review 2026-11-21): a size typed in the words is a size, not two more words. With no size pinned
+     * by the caller, it is read out of the text and pinned (`pinTier` lifts the rows that agree), and the words
+     * left are searched. A caller that pinned a size keeps its own words and pin, as before.
+     */
+    const typedSize = query.sizeValue === undefined ? sizeInText(typed) : null;
+    const pinned: SearchQuery = typedSize ? { ...query, sizeValue: typedSize.value, sizeUnit: typedSize.unit } : query;
+    const words = typedSize ? typedSize.rest : typed;
+    let text = words;
     let textResult = this.#textSearch(text, query.sources);
     let correction: { correctedFrom: string; correctedTo: string } | null = null;
     if (textResult.hits.length === 0 || textResult.wordsMatched === 'some') {
-      const fixed = this.#correctedText(typed);
+      const fixed = this.#correctedText(words);
       if (fixed !== null) {
         const retry = this.#textSearch(fixed, query.sources);
         if (retry.hits.length > 0 && (textResult.hits.length === 0 || retry.wordsMatched !== 'some')) {
           text = fixed;
           textResult = retry;
-          correction = { correctedFrom: typed, correctedTo: fixed };
+          // The size typed stays in what the shopper is shown ("heinz ketchup 750 ml", not "heinz ketchup").
+          correction = { correctedFrom: typed, correctedTo: typedSize && typed.includes(words) ? typed.replace(words, fixed) : fixed };
         }
       }
     }
@@ -1558,7 +1622,9 @@ export class Catalogue {
     const byScore =
       (score: (m: Fused) => number) =>
       (a: Fused, b: Fused) =>
-        pinTier(b.row, query) - pinTier(a.row, query) ||
+        // A size typed in the words pins like a caller's (gap 74); the band below still reads the caller's own
+        // pins only, so a typed size reorders the list and never makes a typed search "confident" on its own.
+        pinTier(b.row, pinned) - pinTier(a.row, pinned) ||
         score(b) - score(a) ||
         b.row.sold_in_canada - a.row.sold_in_canada;
 
@@ -1615,20 +1681,29 @@ export class Catalogue {
      * two names they happened to type.
      */
     const asked = normalizeName(text);
+    /*
+     * GAP 74 (review 2026-11-21, old-lists 3). "ketchup" answered a bag of Doritos Ketchup first: Open Food
+     * Facts names that bag "Ketchup" in English, so it was named exactly like the ketchups, got the same lift,
+     * and won on the words. The two pieces of evidence now stack: a row named exactly AND placed with the
+     * kind (in the ring, or filed only higher up the ring's own line, "en:condiments" for a ketchup ring) is
+     * lifted twice, ahead of a row that has only one of them. A row with neither is never demoted, so the
+     * D-018 cases (an exact uncategorised row against labelled ones) rank as before.
+     */
+    const ringLine = ringSource ? new Set(pathOf(ringSource.row).map((t) => t.toLowerCase())) : null;
+    const onTheLine = (row: Row): boolean => {
+      const p = pathOf(row);
+      return ringLine !== null && p.length > 0 && p.every((t) => ringLine.has(t.toLowerCase()));
+    };
     // Membership is settled once, not inside the comparator, so a pool of sixty
     // costs sixty path reads rather than one per comparison.
-    const ofTheKind = new Set(
-      pool
-        .filter((m) =>
-          (rankingTag ? inRing(m.row, rankingTag) : false) ||
-          normalizeName(m.row.name_en ?? m.row.name) === asked ||
-          (m.row.name_fr !== null && normalizeName(m.row.name_fr) === asked))
-        .map((m) => m.row.code),
-    );
-    const ranked =
-      ofTheKind.size > 0
-        ? [...pool].sort(byScore((m) => baseScore(m) * (ofTheKind.has(m.row.code) ? RING_BOOST : 1)))
-        : pool;
+    const lift = new Map<string, number>();
+    for (const m of pool) {
+      const placed = rankingTag ? inRing(m.row, rankingTag) : false;
+      const named = normalizeName(m.row.name_en ?? m.row.name) === asked || (m.row.name_fr !== null && normalizeName(m.row.name_fr) === asked);
+      const boost = (placed || named ? RING_BOOST : 1) * (named && (placed || onTheLine(m.row)) ? RING_BOOST : 1);
+      if (boost !== 1) lift.set(m.row.code, boost);
+    }
+    const ranked = sizedBeforeBare(lift.size > 0 ? [...pool].sort(byScore((m) => baseScore(m) * (lift.get(m.row.code) ?? 1))) : pool);
 
     const limit = query.limit ?? 5;
     const candidates = ranked
