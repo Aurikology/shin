@@ -116,8 +116,7 @@ import {
 } from './src/grounded-record.ts';
 import { dailyLatency } from './src/latency.ts';
 import { defaultPricesPath, lookupOwnPricesAsync, lookupOwnPricesByBarcode, OWN_DATA_SOURCE, type OwnMatch } from './src/own-prices.ts';
-import { checkPricesAtStart, notePricesOpened, notePricesState, pricesHealth } from './src/prices-health.ts';
-import { startBarcodePool, workerThreadsFrom, type BarcodePool } from './src/barcode-pool.ts';
+import { checkPricesAtStart, notePricesOpened, pricesHealth } from './src/prices-health.ts';
 import { claudeOutcomes, clientCrashes, collectWatch, readRevenueCat, retentionMarks } from './src/watch.ts';
 import * as scanQuotaForWatch from './src/scan-quota.ts';
 
@@ -188,14 +187,11 @@ let catalogueWhyNot = 'not attempted yet';
  * file is missing the guard is OFF, logs `[category-fault] taxonomy_unavailable`,
  * and `/api/health` says "category check off". It never blocks or changes an answer.
  */
-const CATEGORY_TAXONOMY_PATH = fileURLToPath(new URL('../catalogue/data/off-categories.json', import.meta.url));
 let categoryGuard: CategoryGuard = createCategoryGuard({
-  taxonomyPath: CATEGORY_TAXONOMY_PATH,
+  taxonomyPath: fileURLToPath(new URL('../catalogue/data/off-categories.json', import.meta.url)),
   baselinePath: fileURLToPath(new URL('../catalogue/category-baseline.json', import.meta.url)),
   faultsFile: defaultFaultsFile(),
 });
-/** The guard built above; a test that swaps it in `setCategoryGuardForTests` also keeps scans off the barcode threads. */
-const shippedCategoryGuard = categoryGuard;
 
 /**
  * The swallowed-error counters `/api/health` adds (category-check.ts, A7). `gapsDropped` is the misses
@@ -212,18 +208,11 @@ function faultHealth(): {
 } {
   const worker = searchService?.gaps?.() ?? { dropped: 0, why: '' };
   const here = activeGapLog();
-  // Gap 54: barcode scans are priced on worker threads, whose fault counts live in their own memory.
-  const off = barcodePool?.faults() ?? { catalogue: {}, range: {} };
-  const summed = (a: Record<string, number>, b: Record<string, number>): Record<string, number> => {
-    const out = { ...a };
-    for (const [k, v] of Object.entries(b)) out[k] = (out[k] ?? 0) + v;
-    return out;
-  };
   return {
     gapsDropped: worker.dropped + (here?.dropped ?? 0),
     gapsDroppedWhy: worker.why || here?.droppedWhy || '',
-    rangeFaults: summed(rangeFaults(), off.range),
-    catalogueFaults: summed(catalogueFaults(), off.catalogue),
+    rangeFaults: rangeFaults(),
+    catalogueFaults: catalogueFaults(),
     // Requirements 3.9, 5.1, 5.6 (customer-data-faults.ts): `{}` when none.
     customerDataFaults: customerDataFaults(),
   };
@@ -350,74 +339,6 @@ const VECTOR_ROW_CEILING = 90_000;
 let embeddedRows = 0;
 let vectorsOn = false;
 
-/*
- * WORKER THREADS, gaps 54 and 67 (load test on the Mac M1, 8 cores, 2026-11-21). With typed search
- * alone the server broke at 512 continuous users, and at 256 once barcode scans were in the mix:
- * connections reset, p95 1.5 to 2.8 s, while the process used under 2 of 8 cores. The search ran on
- * one worker thread and the barcode answer (the lookup, the range ladder, the verdict's estimate)
- * ran on this one. Now each can have a pool of SHIN_WORKER_THREADS threads, so 3 on an 8-core Mac
- * means this thread, 3 search threads and 3 barcode threads. OFF unless set to a positive number:
- * every search thread loads its own spelling vocabulary, and the memory of that on the real
- * 4.3M-row catalogue has not been measured (src/barcode-pool.ts `workerThreadsFrom`).
- */
-function workerThreadsEach(): number {
-  return workerThreadsFrom(settings.SHIN_WORKER_THREADS());
-}
-
-/** The barcode threads (src/barcode-pool.ts), started with the catalogue; null until then or with no catalogue. */
-let barcodePool: BarcodePool | null = null;
-/** The `fastLookup` the catalogue was attached with; a test double put in its place keeps scans on this thread. */
-let attachedLookup: { byGtin(code: string): unknown } | null = null;
-
-function startBarcodeThreads(size: number): void {
-  try {
-    // The corrections file's shopper-price table is made on this thread (the writer) before any
-    // worker opens the file read-only to read it.
-    shopperVoiceFor(currentCorrectionStore().db, '0', new Date().toISOString().slice(0, 10));
-    barcodePool = startBarcodePool({
-      size,
-      cataloguePath: CATALOGUE_DB,
-      pricesPath: PRICES_DB_PATH,
-      taxonomyPath: CATEGORY_TAXONOMY_PATH,
-      onGuardUse: (use) => categoryGuard.check(use),
-      onPricesState: (state, openError) => {
-        if (openError) logError({ where: 'identify.catalogue_first.prices', deviceId: null, scanId: null, err: new Error(openError) });
-        notePricesState(state, PRICES_DB_PATH);
-      },
-      onFault: (err) => logError({ where: 'identify.barcode_worker', deviceId: null, scanId: null, err }),
-    });
-    console.log(`worker threads: ${size} for search, ${size} for barcode scans`);
-  } catch (err) {
-    barcodePool = null;
-    console.error(`barcode threads not started, scans are answered on the request thread: ${err instanceof Error ? err.message : String(err)}`);
-  }
-}
-
-/**
- * The barcode threads, when this scan may use them: only with the shipped wiring. Every test seam
- * (a fake catalogue, a fake searcher or Claude provider, a swapped category guard) answers on this
- * thread exactly as before, so the seams keep testing the code they always tested.
- */
-function barcodeThreads(): BarcodePool | null {
-  if (!barcodePool || catalogueFirstTest) return null;
-  if (fastLookup === null || fastLookup !== attachedLookup || categoryGuard !== shippedCategoryGuard) return null;
-  return barcodePool;
-}
-
-/** TEST ONLY: stop the search and barcode threads so a test process can exit. */
-export async function closeWorkerThreadsForTests(): Promise<void> {
-  const pool = barcodePool;
-  barcodePool = null;
-  await pool?.close();
-  const s = searchService as unknown as { close?: () => Promise<number> } | null;
-  await s?.close?.();
-}
-
-/** TEST ONLY: the barcode threads, to drive a crash through the route. */
-export function barcodePoolForTests(): BarcodePool | null {
-  return barcodePool;
-}
-
 async function attachCatalogue(): Promise<void> {
   try {
     const [{ openCatalogueReadOnly }, { Catalogue }, { defaultEmbedder }, { startCatalogueService }] =
@@ -450,12 +371,7 @@ async function attachCatalogue(): Promise<void> {
     // D40: the embedding model is pre-loaded only when meaning search is on. With
     // it off nothing embeds a query, and the load used to log a Protobuf failure
     // for a model that is not on the answer path.
-    // Gaps 54 and 67: a pool of search threads, not one, and the barcode answer on threads of its own.
-    const threads = workerThreadsEach();
-    searchService = startCatalogueService(CATALOGUE_DB, { warm: vectorsOn, size: Math.max(1, threads) }) as unknown as SearchService;
-    attachedLookup = fastLookup;
-    if (threads > 0) startBarcodeThreads(threads);
-    else console.log('worker threads: off (SHIN_WORKER_THREADS unset or 0), one search thread and barcode scans on the request thread');
+    searchService = startCatalogueService(CATALOGUE_DB, { warm: vectorsOn }) as unknown as SearchService;
 
     catalogueWhyNot = '';
     console.log(
@@ -1680,38 +1596,6 @@ async function catalogueFirstBarcode(
   /** D-270: absent for a scanned or picked barcode; a barcode a loose text match supplied passes `guess`. */
   identity?: Identity,
 ): Promise<Awaited<ReturnType<typeof answerBarcodeFromCatalogue>>> {
-  /*
-   * Gaps 54 and 67: a barcode the catalogue holds is priced on a barcode thread, with the same
-   * inputs this thread would use (src/barcode-worker.ts). Anything it does not answer (a miss, whose
-   * next steps are network calls kept here, or a worker fault) is answered below exactly as before.
-   */
-  const threads = barcodeThreads();
-  const store = threads ? currentCorrectionStore() : null;
-  // An in-memory corrections store cannot be read from another thread: those scans stay here.
-  if (threads && store && !(store.db && store.path === ':memory:')) {
-    const sortName = sortByName(searchService);
-    const off = await threads.answer(
-      {
-        canonical,
-        country: market.country,
-        currency: market.currency ?? 'CAD',
-        asOf: new Date().toISOString().slice(0, 10),
-        region: market.region ?? null,
-        shopper,
-        nationalAverage: market.knowsNationalAverage === true,
-        hasAskRange: askRange !== undefined,
-        hasSortName: sortName !== undefined,
-        shopperVoiceOff: shopperVoiceOff(),
-        // No store open here means no shoppers' prices there either.
-        correctionsPath: store.db ? store.path : null,
-        ...(identity ? { identity } : {}),
-      },
-      { ...(askRange ? { askRange } : {}), ...(sortName ? { sortName } : {}) },
-    );
-    if (off.done) return off.done;
-    // A job that died after its Claude ask was made does not make a second paid ask for the same scan.
-    if (off.askSpent) askRange = undefined;
-  }
   return withCatalogueFirstDeps(askRange, market, device, shopper, nameElsewhere, (deps) =>
     answerBarcodeFromCatalogue(canonical, identity ? { ...deps, identity } : deps),
   );

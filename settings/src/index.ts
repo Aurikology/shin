@@ -91,7 +91,6 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_BIND_HOST', default: "unset -> loopback only (127.0.0.1 and ::1); '0.0.0.0' or '::' opens the LAN on purpose", ruling: 'operational' },
   { env: 'SHIN_CATALOGUE', default: 'data/catalogue.db (repo-relative)', ruling: 'operational' },
   { env: 'SHIN_VECTORS', default: 'unset -> decided from embedded row count', ruling: 'operational' },
-  { env: 'SHIN_WORKER_THREADS', default: 'unset, empty or 0 -> OFF: one search thread, barcode scans on the request thread. A positive whole number N (max 32) -> N threads in EACH of the catalogue search pool and the barcode pool (gaps 54, 67); off by default until the memory of N spelling vocabularies is measured on the Mac', ruling: 'operational' },
   { env: 'SHIN_USER_CATALOGUE', default: 'derived from SHIN_SCANS, or data/user-catalogue.db', ruling: 'operational' },
   { env: 'SHIN_SCANS', default: 'data/scans.db', ruling: 'operational' },
   { env: 'SHIN_PRICES', default: 'price/data/prices.db', ruling: 'operational' },
@@ -219,9 +218,6 @@ export function SHIN_BIND_HOST(env: NodeJS.ProcessEnv = process.env): string | u
 }
 export function SHIN_CATALOGUE(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CATALOGUE');
-}
-export function SHIN_WORKER_THREADS(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return raw(env, 'SHIN_WORKER_THREADS');
 }
 export function SHIN_VECTORS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_VECTORS');
