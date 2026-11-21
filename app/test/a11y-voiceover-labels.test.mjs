@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
-const SCREENS = ['camera', 'paywall', 'you', 'pastscans', 'watchlist'];
+const SCREENS = ['camera', 'camera/pad', 'paywall', 'you', 'pastscans', 'watchlist'];
 
 /** The <button ...> ... </button> chunks of a source file, with ${...} template holes kept as text. */
 function buttons(src) {
@@ -43,7 +43,8 @@ for (const name of SCREENS) {
 }
 
 test('the keypad point key says what it is, not "dot" or "comma"', () => {
-  const src = read('../public/js/screens/camera.js');
+  // The pad markup moved to screens/camera/pad.js on 2026-11-21 (the camera.js split).
+  const src = read('../public/js/screens/camera/pad.js');
   assert.match(src, /key\('\.', ` aria-label="\$\{escapeHtml\(t\('cam_decimal_point'\)\)\}"`, padSeparator\(\)\)/);
   const ui = read('../public/js/ui-strings.js');
   assert.match(ui, /cam_decimal_point:\s*'Decimal point'/);
