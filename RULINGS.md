@@ -471,7 +471,10 @@ CA$3.99/month, CA$29.99/year, set in each store's own product config, not the ap
 10 a week free, 100 a week with Pexi Plus, rolling 7 days (`SHIN_FREE_SCANS_PER_WEEK=10`,
 `SHIN_PLUS_SCANS_PER_WEEK=100`); typed searches are free and uncounted. Both switch on only once a
 test purchase works end to end, so no tester hits the wall against a subscribe button that can't
-yet take a purchase. · 2026-11-05 · *"turn on 10 scans per week for free and 100 scans per week for
+yet take a purchase. The free limit was found on early (2026-11-17); on 2026-11-21 Jamin chose to
+switch it off again until a test purchase works (Aurik's question of 2026-11-18). The paywall no longer
+advertises that typing is free; typing stays free and uncounted. · 2026-11-21 · Jamin, on the launch
+review's recommended options: *"do all the recommended"* · 2026-11-05 · *"turn on 10 scans per week for free and 100 scans per week for
 pro"* (replaces 5 a week for the beta, 3 at public launch, Plus unlimited, which Claude set
 2026-09-23 under *"For now, you decide the most reasonable for price and free scans"*) · log:
 docs/decisions.md#Free 10 scans a week, Plus 100
@@ -484,7 +487,10 @@ is superseded: the catalogue now answers first and Claude, with no web search, i
 fallback (catalogue-first ruling, 2026-09-28). Shin is never designed to lose money every month: a cost model
 that runs negative is a red flag, answered by researching every way to cut it (one search per
 query, a free database first, what to charge, how many scans to give, other model providers),
-not by accepting it. · 2026-09-22 · Jamin · *"this pricing model is a huge red flag for us. With
+not by accepting it. The Claude price-range fallback runs on Claude Haiku 5.5 (`claude-haiku-5-5`, about a
+tenth of Haiku 4.5's price) with a monthly cap of 10,000 asks, plus per-address and per-device daily caps so
+one person cannot use up the month. · 2026-11-21 · Jamin, on the launch review's recommended options: *"do all
+the recommended"* · 2026-09-22 · Jamin · *"this pricing model is a huge red flag for us. With
 this model we will be in the negatives every month. I want you to research all possible avenues
 these are some but not limited to these examples: how do we fine tune grounding with google search
 to only search once per query, how can we reduce costs in other ways by first searching a free
