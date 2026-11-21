@@ -75,16 +75,22 @@ export function checkPricesAtStart(file: string, say: (line: string) => void = (
  * it did not open). Cheap: one lookup in sqlite_master. Never throws.
  */
 export function notePricesOpened(db: DatabaseSync | null, file: string): void {
-  path = file;
-  let state: PricesDbState;
-  if (db === null) state = existsSync(file) ? 'unopenable' : 'missing';
-  else {
-    try {
-      state = hasObservation(db) ? 'ok' : 'no_observation_table';
-    } catch {
-      state = 'unopenable';
-    }
+  notePricesState(pricesStateOf(db, file), file);
+}
+
+/** The state `notePricesOpened` counts, for a handle opened elsewhere (the barcode worker thread). Never throws. */
+export function pricesStateOf(db: DatabaseSync | null, file: string): PricesDbState {
+  if (db === null) return existsSync(file) ? 'unopenable' : 'missing';
+  try {
+    return hasObservation(db) ? 'ok' : 'no_observation_table';
+  } catch {
+    return 'unopenable';
   }
+}
+
+/** Counts one scan priced against the prices file in `state`, worked out on another thread (gap 54). */
+export function notePricesState(state: PricesDbState, file: string): void {
+  path = file;
   if (state !== 'ok') faults[state] = (faults[state] ?? 0) + 1;
 }
 

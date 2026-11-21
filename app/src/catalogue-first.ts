@@ -665,7 +665,8 @@ export function categoryRef(tag: string | null | undefined, path: readonly strin
   return { tag, name: '' };
 }
 
-function isRow(v: unknown): v is CatalogueRow {
+/** Exported for barcode-worker.ts, which answers only the barcodes this calls a catalogue row. */
+export function isRow(v: unknown): v is CatalogueRow {
   return !!v && typeof v === 'object' && typeof (v as CatalogueRow).code === 'string' && typeof (v as CatalogueRow).name === 'string';
 }
 

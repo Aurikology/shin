@@ -8,14 +8,23 @@
  * Options:
  *   --steps 1,4,16,64,128,256   concurrent users, one step each, in order
  *   --seconds 6                 length of each step
- *   --mix search=5,status=3,health=1,events=1   weights of the request types (see MIX below)
- *   --invite CODE               the x-shin-invite code, when the server has SHIN_INVITE_CODE set
+ *   --mix search=5,status=3,health=1,events=1   weights of the request types: search, barcode, preview, status, health, events
+ *   --catalogue PATH            where "barcode" requests take their barcodes from, opened read-only;
+ *                               default SHIN_CATALOGUE, else catalogue/data/catalogue.db
+ *   --barcodes FILE             or a text file of barcodes, one a line, instead of a catalogue
+ *   --invite CODE              the x-shin-invite code, when the server has SHIN_INVITE_CODE set
  *   --port 4199                 (--spawn) the port for the throwaway server
  *   --keep                      (--spawn) leave the throwaway data directory behind
  *
  * WHAT IT SENDS. Only routes that cost nothing and cannot spend money: typed-name search, the app
- * status check, health, and a ten-event usage batch from a made-up device. Never an identify or
- * price call (those reach Gemini and are paid), never a purchase route.
+ * status check, health, a ten-event usage batch from a made-up device, and (gap 54) a barcode scan,
+ * `GET /api/identify?gtin=`, with real barcodes sampled from the catalogue. A barcode scan is sent
+ * WITHOUT the x-shin-claude consent header, so the one paid call that route can make (Claude's price
+ * range) is never made, and every barcode is one the catalogue holds, so no Open Food Facts lookup is
+ * made either. Each scan writes its scan row, as a real one does, and is priced in full (range ladder
+ * and verdict). "preview" is the cheap naming request the app sends the moment a barcode is read,
+ * `GET /api/identify?gtin=&preview=1` (no scan row, no price ladder); a real scan is one of each.
+ * Never a price or photo call, never a purchase route.
  *
  * WHAT "BREAKS" MEANS. A step is broken when any of these is true, and the first broken step is
  * the answer to "where does it break":
@@ -40,10 +49,11 @@
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir, cpus, platform, release } from 'node:os';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 import { randomUUID } from 'node:crypto';
 
@@ -82,13 +92,42 @@ const WEIGHTS = {};
 for (const part of mixSpec.split(',')) {
   const [k, v] = part.split('=');
   const n = Number(v);
-  if (!['search', 'status', 'health', 'events'].includes(k) || !Number.isFinite(n) || n < 0) {
-    fail(2, `--mix item "${part}" is not one of search, status, health, events with a number`);
+  if (!['search', 'barcode', 'preview', 'status', 'health', 'events'].includes(k) || !Number.isFinite(n) || n < 0) {
+    fail(2, `--mix item "${part}" is not one of search, barcode, preview, status, health, events with a number`);
   }
   WEIGHTS[k] = n;
 }
 const TOTAL_WEIGHT = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
 if (TOTAL_WEIGHT <= 0) fail(2, '--mix has no weight');
+
+/* Real barcodes for "barcode" requests (gap 54): a file, or a random sample of the catalogue's Canadian
+   rows read through a read-only handle that is closed before the run starts. None found fails loudly. */
+function loadBarcodes() {
+  const file = option('barcodes', '');
+  if (typeof file === 'string' && file) {
+    const codes = readFileSync(file, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => /^\d{8,14}$/.test(l));
+    if (codes.length === 0) fail(2, `--barcodes ${file} holds no barcodes`);
+    return codes;
+  }
+  const fromOption = option('catalogue', '');
+  const path = (typeof fromOption === 'string' && fromOption) || process.env.SHIN_CATALOGUE || join(HERE, '..', '..', 'catalogue', 'data', 'catalogue.db');
+  if (!existsSync(path)) fail(2, `"barcode" is in the mix but there is no catalogue at ${path}: pass --catalogue PATH or --barcodes FILE`);
+  const db = new DatabaseSync(path, { readOnly: true });
+  try {
+    const { lo, hi } = db.prepare('SELECT min(rowid) AS lo, max(rowid) AS hi FROM product').get();
+    const one = db.prepare('SELECT code FROM product WHERE rowid >= ? AND sold_in_canada = 1 AND length(code) BETWEEN 8 AND 14 LIMIT 1');
+    const codes = new Set();
+    for (let i = 0; i < 4000 && codes.size < 2000; i += 1) {
+      const r = one.get(lo + Math.floor(Math.random() * (hi - lo + 1)));
+      if (r && /^\d+$/.test(r.code)) codes.add(r.code);
+    }
+    if (codes.size === 0) fail(2, `the catalogue at ${path} gave no Canadian barcodes`);
+    return [...codes];
+  } finally {
+    db.close();
+  }
+}
+const BARCODES = WEIGHTS.barcode > 0 || WEIGHTS.preview > 0 ? loadBarcodes() : [];
 
 /* ------------------------------------------------------------------ requests */
 const QUERIES = ['milk', 'neilson milk 2 L', 'butter', 'cheddar cheese', 'orange juice', 'tomato sauce', 'bread', 'ground beef', 'kraft dinner', 'yogurt'];
@@ -100,6 +139,8 @@ function once(kind, user) {
   let method = 'GET';
   let body = null;
   if (kind === 'search') path = `/api/search?q=${encodeURIComponent(QUERIES[Math.floor(Math.random() * QUERIES.length)])}&limit=3`;
+  else if (kind === 'barcode') path = `/api/identify?gtin=${BARCODES[Math.floor(Math.random() * BARCODES.length)]}`;
+  else if (kind === 'preview') path = `/api/identify?gtin=${BARCODES[Math.floor(Math.random() * BARCODES.length)]}&preview=1`;
   else if (kind === 'status') path = '/api/app-status';
   else if (kind === 'health') path = '/api/health';
   else {
@@ -110,6 +151,7 @@ function once(kind, user) {
     }));
     body = JSON.stringify({ events });
   }
+  // Never x-shin-claude: without the shopper's yes a barcode scan makes no paid model call.
   const headers = { 'x-shin-device': user.id, 'x-shin-device-key': user.key };
   if (invite) headers['x-shin-invite'] = invite;
   if (body !== null) { headers['content-type'] = 'application/json'; headers['content-length'] = Buffer.byteLength(body); }
@@ -190,14 +232,28 @@ function stopServer() {
 process.on('exit', stopServer);
 
 console.log(`machine: ${platform()} ${release()} ${cpus()[0]?.model ?? '?'} x${cpus().length}, node ${process.version}`);
-console.log(`target: ${baseUrl}${spawnIt ? ' (throwaway server, rate limits lifted)' : ''}; mix ${mixSpec}; ${seconds}s per step`);
+console.log(`target: ${baseUrl}${spawnIt ? ' (throwaway server, rate limits lifted)' : ''}; mix ${mixSpec}; ${seconds}s per step${BARCODES.length ? `; ${BARCODES.length} catalogue barcodes` : ''}`);
 
 if (spawnIt) {
   dataDir = mkdtempSync(join(tmpdir(), 'pexi-load-'));
+  /*
+   * Every place the server WRITES goes in the throwaway folder. SHIN_DATA_DIR alone did not do it:
+   * scans, gaps, corrections and the rest default to repo folders (app/data, price/data), and a
+   * barcode scan writes its scan row, so a run from the live checkout wrote load-test scans into the
+   * live scans file. The path settings are the ones the test suite's data guard knows; only the
+   * catalogue and the prices file, which the server only reads, keep pointing at the real ones.
+   */
+  const { pathSettings } = await import(pathToFileURL(join(APP_DIR, 'test', 'setup', 'data-paths.mjs')).href);
+  const readOnlyKept = new Set(['SHIN_CATALOGUE', 'SHIN_PRICES']);
+  const writes = {};
+  for (const s of await pathSettings()) if (!readOnlyKept.has(s.env)) writes[s.env] = join(dataDir, s.name);
+  const catalogueOption = option('catalogue', '');
   child = spawn(process.execPath, ['server.ts'], {
     cwd: APP_DIR,
     env: {
       ...process.env,
+      ...writes,
+      ...(typeof catalogueOption === 'string' && catalogueOption ? { SHIN_CATALOGUE: catalogueOption } : {}),
       PORT: String(port),
       SHIN_DATA_DIR: dataDir,
       SHIN_RATE_DOOR_IP_PER_10MIN: '100000000',
@@ -225,7 +281,7 @@ async function catalogueUp() {
   });
 }
 const hasCatalogue = await catalogueUp();
-if (hasCatalogue !== true && WEIGHTS.search > 0) {
+if (hasCatalogue !== true && (WEIGHTS.search > 0 || WEIGHTS.barcode > 0 || WEIGHTS.preview > 0)) {
   console.log(`WARNING: this server has ${hasCatalogue === false ? 'NO catalogue loaded' : 'an unreadable health answer'}, so "search" requests are answered as "no match" without a lookup. Search numbers below are a floor, not the real cost. With --spawn, point SHIN_CATALOGUE=<path to catalogue.db> in the environment to test with one.`);
 }
 

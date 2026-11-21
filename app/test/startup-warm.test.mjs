@@ -18,13 +18,14 @@ const SERVICE = read('../../catalogue/src/service.ts');
 const SERVER = read('../server.ts');
 
 test('D40: the service sends no warm job when told warm is false', () => {
-  assert.match(SERVICE, /opts: \{ warm\?: boolean \} = \{\}/);
-  assert.match(SERVICE, /opts\.warm === false \? Promise\.resolve\(undefined\) : send/);
+  // Gaps 54 and 67: the service became a pool (`size`), and the warm job goes to every worker in it.
+  assert.match(SERVICE, /opts: \{ warm\?: boolean; size\?: number \} = \{\}/);
+  assert.match(SERVICE, /opts\.warm === false \? Promise\.resolve\(undefined\) : Promise\.all\(slots\.map\(\(s\) => send/);
 });
 
 test('D40: the server decides meaning search first and starts the service with that answer', () => {
   const vectors = SERVER.indexOf('vectorsOn =\n');
-  const start = SERVER.indexOf('startCatalogueService(CATALOGUE_DB, { warm: vectorsOn })');
+  const start = SERVER.indexOf('startCatalogueService(CATALOGUE_DB, { warm: vectorsOn, size: ');
   assert.ok(vectors > 0 && start > vectors, 'the service must start after vectorsOn is known');
   assert.doesNotMatch(SERVER, /startCatalogueService\(CATALOGUE_DB\)/);
 });
