@@ -326,6 +326,21 @@ backend verdict rows are tested once after it is live, not twice.
 
 ## E. Launch review, 2026-11-21 (Jamin's PC)
 
+**Fix pass status, 2026-11-21 evening** (Jamin: "fix all things you can fix", "do all the recommended"):
+- **Fixed and pushed:** 36, 37 (pages published to GitHub Pages 03a665b, 9746071; Terms dated 2026-11-21), 38, 45, 46,
+  48, 49, 50 (scripts/funnel-report.mjs), 53 (scripts; Mac re-run pending), 55 (Cloudflare HIT seen), 56, 57, 58
+  (dead-man job installed in code; needs SHIN_DEADMAN_URL from Jamin's sign-up), 65, 66, 68, 69 (Haiku 5.5, cap
+  10,000; live call pending on the Mac), 71, 73, 74, 84, 85, 86, 87, 90, 91; the Coca-Cola six-pack case (47).
+  Commits a031ae6, 8c5ad14, f252d8e, fae83f9, eb29318, c12ddf8, a156678, f1a3fd0, 856789e.
+- **Partly:** 43 and 44 (listing text and captions written in docs/store/listing.md; paste into App Store Connect and
+  recapture screenshots), 54 and 67 (worker threads merged OFF by default until the Mac measures memory), 61 (French
+  links fixed; French listing not in App Store Connect), 72 (one confidence step outside Ontario; no provincial
+  scaling), 80 (listing fixed; App Store Connect text unseen), 81 (procedures described; app French still off),
+  82 (switch built, ON by default: Law 25 default question put to Jamin), 83 (state read in health; decision Jamin's),
+  89 (report and checklist line; target to set after launch), 92 (manifest fixed; accessibility answers in App Store Connect).
+- **Jamin only:** 39, 41, 42, 51, 52, 59, 60, 62, 63, 64, 76, 77, 78, 79, 88; App Store Connect for 16 to 23.
+- **Phone or Aurik:** 40 (phone checklist). **Not started:** 75 (price-match cashier line, a feature).
+
 Evidence per item: `docs/readiness/review-2026-11-21/` (REPORT.md, and the job's .jsonl named in brackets).
 Items 16, 17, 19 to 23 above are still unconfirmed: App Store Connect was not visible (Chrome not signed in).
 
