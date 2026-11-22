@@ -1,5 +1,18 @@
 apply plugin: 'com.android.application'
 
+// Upload-key signing for Google Play App Signing. The path to a keystore.properties file (keys:
+// storeFile, storePassword, keyAlias, keyPassword) comes from the gradle property
+// pexiKeystoreProperties (-PpexiKeystoreProperties=...) or the env var PEXI_KEYSTORE_PROPERTIES.
+// The file lives OUTSIDE the repo. If neither is set, or the file is missing, release builds are
+// left unsigned exactly as before, so nobody else's build changes.
+def pexiKeystorePath = project.findProperty('pexiKeystoreProperties') ?: System.getenv('PEXI_KEYSTORE_PROPERTIES')
+def pexiKeystoreFile = pexiKeystorePath ? file(pexiKeystorePath) : null
+def pexiKeystore = new Properties()
+def pexiSigning = pexiKeystoreFile != null && pexiKeystoreFile.isFile()
+if (pexiSigning) {
+    pexiKeystoreFile.withInputStream { pexiKeystore.load(it) }
+}
+
 android {
     namespace = "com.getpexi.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,8 +29,21 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (pexiSigning) {
+            upload {
+                storeFile file(pexiKeystore['storeFile'])
+                storePassword pexiKeystore['storePassword']
+                keyAlias pexiKeystore['keyAlias']
+                keyPassword pexiKeystore['keyPassword']
+            }
+        }
+    }
     buildTypes {
         release {
+            if (pexiSigning) {
+                signingConfig signingConfigs.upload
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

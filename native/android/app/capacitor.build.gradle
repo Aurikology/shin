@@ -17,6 +17,7 @@ dependencies {
     implementation project(':capacitor-haptics')
     implementation project(':capacitor-text-zoom')
     implementation project(':revenuecat-purchases-capacitor')
+    implementation project(':capacitor-secure-storage-plugin')
 
 }
 

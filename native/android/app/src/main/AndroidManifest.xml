@@ -47,6 +47,14 @@
          drive the Vibrator, which needs this. CONFIRM goes through the web view
          and needs nothing. -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Location: the You/permissions switch ("for store prices") asks the web view for a position.
+         Capacitor's web chrome client only shows the system prompt when these are declared here;
+         without them the switch turns on and nothing is ever asked or sent. Only a rough area about
+         1 km wide leaves the phone (geocell.js), and location stays off until the person turns it on. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>

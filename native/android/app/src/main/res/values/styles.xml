@@ -18,5 +18,7 @@
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ splash: the launcher icon (Pexi mascot) on the icon's own near-black. -->
+        <item name="windowSplashScreenBackground">#0B0C0E</item>
     </style>
 </resources>

@@ -69,9 +69,12 @@ export function resolveRange({ from, to, now = new Date() }) {
  */
 export const SYNTHETIC_QUERIES = ['zzqxwv'];
 
+/** Our own test phones by id: the Android emulator used for the first Android build (2026-11-22). */
+export const TEST_DEVICES = ['bfea081b-fdea-4040-9f80-be66e076fb3b'];
+
 /** One row of counts. Probes, our own test runs and demo scans are out of every number. */
 export function funnelSql({ from, toExclusive, today }) {
-  const real = `device_id NOT LIKE 'probe-%' AND device_id NOT IN (SELECT device_id FROM scan WHERE kind = 'text' AND lower(trim(query_text)) IN (${SYNTHETIC_QUERIES.map((q) => `'${q}'`).join(', ')}))`;
+  const real = `device_id NOT LIKE 'probe-%' AND device_id NOT IN (${TEST_DEVICES.map((d) => `'${d}'`).join(', ')}) AND device_id NOT IN (SELECT device_id FROM scan WHERE kind = 'text' AND lower(trim(query_text)) IN (${SYNTHETIC_QUERIES.map((q) => `'${q}'`).join(', ')}))`;
   return `
 WITH seen AS (
   SELECT device_id, created_at AS t FROM event WHERE ${real}
