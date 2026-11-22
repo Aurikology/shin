@@ -1172,14 +1172,20 @@ function marketOfContext(ctx: ScanContext) {
   // The code the client sent wins; the name is the fallback for an older client.
   // The region is read as sent: it only means something with a country, and
   // `marketFromLocation` drops it otherwise. Unknown stays unknown.
+  const market = marketFromLocation({
+    country: countryCodeOf(ctx.countryCode) ?? countryCodeOf(ctx.market),
+    region: ctx.region ?? null,
+    currency: ctx.currency ?? null,
+  });
   return {
-    ...marketFromLocation({
-      country: countryCodeOf(ctx.countryCode) ?? countryCodeOf(ctx.market),
-      region: ctx.region ?? null,
-      currency: ctx.currency ?? null,
-    }),
-    // The Statistics Canada rung runs only for a client that can say where its answer came from.
-    knowsNationalAverage: (ctx.knows ?? '').split(',').some((k) => k.trim() === 'national_average'),
+    ...market,
+    // The Statistics Canada rung runs only for a client that can say where its answer came from, and only
+    // outside the US: it is a Canadian average in Canadian dollars. Found 2026-11-22 by the scenario check
+    // (scripts/scenarios): a US shopper was shown the Canadian national average labelled USD.
+    knowsNationalAverage:
+      (ctx.knows ?? '').split(',').some((k) => k.trim() === 'national_average') &&
+      market.country !== 'US' &&
+      market.currency !== 'USD',
   };
 }
 
