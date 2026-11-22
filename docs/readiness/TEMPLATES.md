@@ -3,7 +3,7 @@
 Used by `RUNBOOK.md` (R18, R19, R21, R22, R53, R57, R62, R64, R78, R87). **A person sends every reply; the system never
 does.** Replies are short, plain and friendly. Replace the <angle brackets>. Reply in the shopper's language when you can
 (French versions need Aurik, `needs-jamin.md`). Never paste a device id, key or database row into a reply. Keep the
-support address as the only sender: `useshinapp@gmail.com`.
+support address as the only sender: `usepexiapp@gmail.com`.
 
 Part A is for shoppers. Part B is the fact sheets and replies for retailers, partners, press and investors.
 
@@ -158,7 +158,7 @@ ads"). A data licence is a separate decision.
   good, about average or high, with the cheapest and dearest recorded shop prices named and dated.
 - **Cost.** Free for 10 barcode scans a week. Pexi Plus is CA$3.99 a month or CA$29.99 a year for 100 scans a week.
 - **Privacy.** No account, no name or email, no ads. A random ID on the phone; deletion from inside the app.
-- **Who.** Published by Jamin Xu (Ontario) with Aurik. Spokesperson: Jamin Xu, `useshinapp@gmail.com`.
+- **Who.** Published by Jamin Xu (Ontario) with Aurik. Spokesperson: Jamin Xu, `usepexiapp@gmail.com`.
 - **Screenshots and logo.** `docs/store/screenshots/` (confirm the set is current before sending).
 - **What not to say.** No savings figure, no accuracy figure (neither is measured). Anything outside this page: ask Jamin.
 

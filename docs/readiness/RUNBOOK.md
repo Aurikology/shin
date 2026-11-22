@@ -147,7 +147,7 @@ message to a person or signs in to an account on its own.
 
 # Tier 2: money or paying users
 
-**R18 Support mail (`useshinapp@gmail.com`) sits unread.**
+**R18 Support mail (`usepexiapp@gmail.com`) sits unread.**
 - Find out: nobody today. After Jamin's step (`needs-jamin.md`): the inbox forwards to both founders with a phone notification, and an auto-reply gives the response time.
 - Who: Jamin and Aurik; one named reader per week (`HANDOVER.md`).
 - Steps: 1. Read newest first; sort in this order: Apple notices, legal or regulator letters, data requests (start the 30-day clock, `docs/privacy/data-requests.md`), "I paid" and refunds, press and partners, the rest. 2. Answer with `TEMPLATES.md`. 3. A person sends every reply; the system never does. 4. Friday: the weekly check in `HANDOVER.md`. Tried once in drill 12.

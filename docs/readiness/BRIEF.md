@@ -45,7 +45,7 @@ Consciously accepting a risk, written down with its named cost, also counts as r
 - **People:**
   - Jamin: founder, university student, one person. Starts a 16-month full-time AMD internship on May 3, 2027.
   - Aurik: partner. French translation, testing, App Store paperwork.
-  - Support email: useshinapp@gmail.com, which carries the old "Shin" name, banned from public view. Who reads it
+  - Support email: usepexiapp@gmail.com since 2026-11-22 (the old-name useshinapp@gmail.com stays open for older builds and forwards here). Who reads it
     is unknown.
 - **Read before you write** (they hold what is already known, so do not just restate them):
   - `docs/security-check/FINDINGS.md`

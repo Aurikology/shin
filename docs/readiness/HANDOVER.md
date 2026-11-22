@@ -17,7 +17,7 @@ worse. Not to change the product. `RUNBOOK.md` has the steps for each thing that
 | Anthropic console | The Claude key, balance and limits | Jamin | None | Jamin fills in |
 | GitHub | The repo's alarm workflow, the legal pages host (`xu826jamin.github.io/pexi`, ASSUMED, check `docs/store/listing.md`) | Jamin | None | Jamin fills in |
 | GitLab | The deploy source for the Mac, comms with Aurik | Jamin | Jamin fills in | Jamin fills in |
-| Gmail: `useshinapp@gmail.com` | Support inbox, vendor notices | Jamin | Reader, if forwarded (`needs-jamin.md`) | Jamin fills in |
+| Gmail: `usepexiapp@gmail.com` | Support inbox, vendor notices | Jamin | Reader, if forwarded (`needs-jamin.md`) | Jamin fills in |
 | Tailscale | Remote access to the Mac | Jamin | Jamin fills in | Jamin fills in |
 | The Mac (user `worker`) | The server, the databases, the backups, `config.env` | Jamin | Login only if Jamin chooses (see "what a stand-in may do") | Jamin fills in |
 | Google Cloud (the old Gemini project) | Nothing live; to be closed (R90) | Jamin | None | Jamin fills in |
@@ -61,7 +61,7 @@ Fill in the date each time.
 3. **Disk.** `df -h /` shows more than 10 GB free. (R10)
 4. **Backup.** `ls -lt "$SHIN_BACKUP_DIR" | head -3`: the newest is from last night. (R52)
 5. **Prices fresh.** The newest price date in health is within 14 days; the Sunday refresh log shows it ran. (R71)
-6. **Inbox.** Read `useshinapp@gmail.com`. Reply with `TEMPLATES.md`. Anything legal, regulator or press goes to Jamin the same day. (R18)
+6. **Inbox.** Read `usepexiapp@gmail.com`. Reply with `TEMPLATES.md`. Anything legal, regulator or press goes to Jamin the same day. (R18)
 7. **Reviews, refunds, rating.** App Store Connect: Ratings and Reviews, Sales and Trends. Reply to every review of 3 stars or less. (R20)
 8. **Numbers.** Write one line in the log below: scans this week, share of scans that showed a shop price, new Plus,
    refunds, rating. (R24)

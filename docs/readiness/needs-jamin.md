@@ -92,7 +92,8 @@ Connect API key file lives. Printed recovery codes for every account go somewher
 ### Accounts and alerts (R01, R02, R18, R20, R32, R40, R69, R90)
 
 - Cloudflare: turn auto-renew on for `anjiawenda.com` (renews 2027-08-19) or pay several years.
-- Gmail `useshinapp@gmail.com`: forward to both founders with a phone notification, and set an auto-reply giving the response time.
+- Gmail `usepexiapp@gmail.com`: forward to both founders with a phone notification, and set an auto-reply giving the response time.
+- Old Gmail `useshinapp@gmail.com` (older app builds and old store pages still name it): forward everything to `usepexiapp@gmail.com`. Personal contact anywhere Pexi asks for the owner is `jymnxu@gmail.com` (Jamin 2026-11-22).
 - Anthropic console: a low-balance email and a monthly spend limit.
 - Tailscale: disable key expiry on the Mac, and log in once from a phone on cellular.
 - Google Cloud: delete the old Gemini key and close the billing project before 2027-01-01.
