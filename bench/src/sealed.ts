@@ -51,8 +51,8 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { codeKey } from './data.ts';
 
@@ -95,13 +95,31 @@ export function keysSha256(b: Pick<SealedBatch, 'created' | 'keys'>): string {
 
 export type History = 'existed' | 'never' | 'unknown';
 
+/**
+ * Canonical form of a path whose tail may not exist yet: realpath the nearest
+ * existing ancestor (resolving any symlink in it, e.g. macOS's /tmp -> /private/tmp
+ * and /var -> /private/var) and rejoin the rest unresolved. `git rev-parse
+ * --show-toplevel` always answers with the OS's canonicalized cwd, so a path
+ * compared against it has to be canonicalized the same way or `relative()`
+ * sees two different trees and walks "../.." back out of the repository.
+ */
+function canonical(path: string): string {
+  let dir = resolve(path);
+  const tail: string[] = [];
+  while (!existsSync(dir) && dirname(dir) !== dir) {
+    tail.unshift(basename(dir));
+    dir = dirname(dir);
+  }
+  return join(realpathSync(dir), ...tail);
+}
+
 /** Whether git history shows a file ever existed at this path. 'unknown' when git or the repo is not available. */
 export function gitHistory(path: string): History {
   try {
     let dir = dirname(resolve(path));
     while (!existsSync(dir) && dirname(dir) !== dir) dir = dirname(dir);
     const top = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    const rel = relative(top, resolve(path)).replace(/\\/g, '/');
+    const rel = relative(top, canonical(path)).replace(/\\/g, '/');
     if (rel.startsWith('..')) return 'unknown';
     const out = execFileSync('git', ['-C', top, 'log', '--all', '--format=%H', '--', rel], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     return out.trim() ? 'existed' : 'never';
@@ -127,7 +145,7 @@ function repoOf(path: string): { top: string; rel: (p: string) => string } | nul
     let dir = dirname(resolve(path));
     while (!existsSync(dir) && dirname(dir) !== dir) dir = dirname(dir);
     const top = execFileSync('git', ['-C', dir, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    return { top, rel: (p: string) => relative(top, resolve(p)).split('\\').join('/') };
+    return { top, rel: (p: string) => relative(top, canonical(p)).split('\\').join('/') };
   } catch {
     return null;
   }
