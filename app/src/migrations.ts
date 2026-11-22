@@ -944,6 +944,19 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       `);
     },
   },
+  {
+    version: 23,
+    name: 'a scan records the market its answer was shaped for (country and currency), so the miss and wrong-range rates can be split by market',
+    apply(db) {
+      /*
+       * Before this the request resolved the market, shaped the answer for it, and threw it away, so the scan log
+       * could not say which market a no-result or a wrong range came from. Both columns are nullable: NULL on every
+       * row written before this and on any scan whose request resolved no market. NULL means unknown, never CA.
+       */
+      addColumnIfMissing(db, 'scan', 'country', 'TEXT');
+      addColumnIfMissing(db, 'scan', 'currency', 'TEXT');
+    },
+  },
 ];
 
 /**

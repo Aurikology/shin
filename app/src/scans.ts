@@ -267,6 +267,12 @@ export interface ScanInput {
    * and get `new Date().toISOString()`.
    */
   readonly scannedAt?: string;
+  /**
+   * The market the answer was shaped for: ISO country ('CA', 'US') and currency ('CAD', 'USD'), as the
+   * request resolved them. Migration 23. Null when no market was resolved; never defaulted to a guess.
+   */
+  readonly country?: string | null;
+  readonly currency?: string | null;
 
   /*
    * THE COMPLETE SCAN RECORD, plan item 9, added 2026-09-11.
@@ -435,6 +441,9 @@ export interface ScanRow {
   source: string | null;
   outcome: string;
   failure_class: string | null;
+  /** The market the answer was shaped for (migration 23); null when none was resolved. */
+  country: string | null;
+  currency: string | null;
   corrected_code: string | null;
   scanned_at: string;
   category: string | null;
@@ -834,8 +843,9 @@ export function recordScan(input: ScanInput): number | null {
                            answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read,
                            estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log,
                            verdict_tier, verdict_zone,
+                           country, currency,
                            consent_photos, consent_location)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  COALESCE((SELECT photos FROM consent WHERE device_id = ?), 0),
                  COALESCE((SELECT location FROM consent WHERE device_id = ?), 0))`,
       )
@@ -876,6 +886,8 @@ export function recordScan(input: ScanInput): number | null {
         input.estimateSigmaLog ?? null,
         input.verdictTier ?? null,
         input.verdictZone ?? null,
+        input.country ?? null,
+        input.currency ?? null,
         // Consent as it stands at insert (5.1, "consent on each row"); no row means never answered, which is off.
         input.deviceId,
         input.deviceId,

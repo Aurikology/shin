@@ -1450,6 +1450,9 @@ async function typedFromOwnData(
     source: OWN_DATA_SOURCE,
     outcome: named ? 'answered' : 'refused',
     failureClass: named ? null : 'not_in_catalogue',
+    // The market this typed answer was priced for; null when the caller carried no market context.
+    country: verdictCtx?.market.country ?? null,
+    currency: verdictCtx?.market.currency ?? null,
     ...(barcodeAnswer && barcodeAnswer.answer.outcome === 'catalogue_hit'
       ? {
           answerPath: barcodeAnswer.record.answerPath,
@@ -1931,6 +1934,8 @@ function finishCatalogueScan(s: {
   priced?: { cents: number | null; region: string | null; storeName: string | null };
   /** `requestNetworkHash` of this request: kept with a typed price so the voice can ask for two networks (F1). */
   networkHash?: string | null;
+  /** The market the answer was shaped for, written on the scan row (migration 23). Omitted means unknown. */
+  market?: { country: string | null; currency: string | null };
 }): { scanId: number | null; body: Record<string, unknown> } {
   const { answer, record, where } = s;
   // A barcode the catalogue was asked about and does not hold is the most
@@ -1948,6 +1953,8 @@ function finishCatalogueScan(s: {
     source: 'catalogue',
     outcome: record.outcome,
     failureClass: record.failureClass,
+    country: s.market?.country ?? null,
+    currency: s.market?.currency ?? null,
     answerPath: record.answerPath,
     rangeSource: record.rangeSource,
     rangeBasis: record.rangeBasis,
@@ -3269,12 +3276,16 @@ export const server = createServer(async (req, res) => {
       }
 
       if (rawGtin && !gtin) {
+        // Refused before any pricing, but the request still named its market: kept so no-result can be split by market.
+        const invalidMarket = marketOfContext(contextFrom(pick));
         const invalidScanId = recordScan({
           deviceId: device,
           kind: 'barcode',
           query: rawGtin,
           outcome: 'refused',
           failureClass: 'invalid_barcode',
+          country: invalidMarket.country,
+          currency: invalidMarket.currency,
           appVersion: telemetry.appVersion,
           platform: telemetry.platform,
           latencyMs: Date.now() - identifyStarted,
@@ -3367,6 +3378,7 @@ export const server = createServer(async (req, res) => {
             telemetry,
             where,
             startedAt: identifyStarted,
+            market,
             priced: { cents: readShelfCents(pick('shelfPriceCents')), region: market.region ?? null, storeName: where.storeName ?? pickText('storeName') ?? null },
             networkHash: requestNetworkHash(req.headers, req.socket.remoteAddress),
           });
@@ -3427,10 +3439,14 @@ export const server = createServer(async (req, res) => {
        * there too. They are capped (60 lines of 200 characters, inside the 8 KiB
        * body cap) before they get this far.
        */
+      // The same market `matchTextVerdict` shaped the answer for (it derives it from the same posted fields).
+      const matchMarket = marketOfContext(contextFrom((key) => posted[key]));
       const matchScanId = recordScan({
         deviceId: device,
         kind: 'text',
         query: read.lines.join('\n'),
+        country: matchMarket.country,
+        currency: matchMarket.currency,
         source: 'catalogue',
         outcome: matched.candidates.length > 0 ? 'answered' : 'refused',
         failureClass: matched.candidates.length > 0 ? null : 'not_in_catalogue',
@@ -3718,6 +3734,7 @@ export const server = createServer(async (req, res) => {
         telemetry,
         where,
         startedAt: packStarted,
+        market,
         priced: { cents: readShelfCents(p.shelfPriceCents), region: market.region ?? null, storeName: where.storeName ?? (typeof p.storeName === 'string' ? p.storeName : null) },
         networkHash: requestNetworkHash(req.headers, req.socket.remoteAddress),
       });
