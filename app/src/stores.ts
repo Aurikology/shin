@@ -307,7 +307,7 @@ const OVERPASS_URL = settings.SHIN_OVERPASS() ?? 'https://overpass-api.de/api/in
  * said "shin-beta (price scanner, six testers)": the retired name, a wrong count and no contact
  * (2026-11-21 review, ops 13).
  */
-const OVERPASS_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; useshinapp@gmail.com)';
+const OVERPASS_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; usepexiapp@gmail.com)';
 
 /**
  * The default fetcher, which is the only thing in this file that touches the

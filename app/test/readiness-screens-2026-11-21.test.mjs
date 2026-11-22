@@ -65,7 +65,7 @@ test('1. the Plus heading sells the result, not a count', () => {
 });
 
 test('1. the seller line and the renewal terms Apple and the legal review need are unchanged', () => {
-  assert.equal(TABLES.en.paywall_seller, 'Sold by Jamin Xu (Pexi). Contact: useshinapp@gmail.com. Refunds are handled by Apple.');
+  assert.equal(TABLES.en.paywall_seller, 'Sold by Jamin Xu (Pexi). Contact: usepexiapp@gmail.com. Refunds are handled by Apple.');
   assert.match(TABLES.en.paywall_renews, /renews automatically unless you cancel at least 24 hours before the end of the current period/);
   assert.equal(TABLES.en.you_manage_sub, 'Manage or cancel subscription');
 });
@@ -130,7 +130,7 @@ you = (await import('../public/js/screens/you.js')).default;
 
 test('6. the You screen has a Contact row that writes to the support address', () => {
   const html = renderYou('en');
-  assert.match(html, /href="mailto:useshinapp@gmail\.com\?subject=[^"]+" data-contact/);
+  assert.match(html, /href="mailto:usepexiapp@gmail\.com\?subject=[^"]+" data-contact/);
   assert.match(html, />Help and contact</);
 });
 

@@ -94,7 +94,7 @@ test('D15: no line says there is no privacy policy; the real pages are linked; o
   assert.doesNotMatch(html, /no privacy policy|no terms page/i);
   assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/privacy\.html"/);
   assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/terms\.html"/);
-  assert.match(html, /mailto:useshinapp@gmail\.com/);
+  assert.match(html, /mailto:usepexiapp@gmail\.com/);
   assert.ok(!html.includes('privacy@shin.app'));
   const policy = read('../../docs/store/privacy.html');
   assert.ok(policy.includes(youModule.DELETE_MY_DATA_EMAIL), 'the policy and the You page disagree on the deletion address');

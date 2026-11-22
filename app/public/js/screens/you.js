@@ -118,10 +118,10 @@ export function quotaText(q) {
  *
  * THE ADDRESS IS THE PRIVACY POLICY'S OWN (D15, 2026-10-06). It used to be a
  * named placeholder at a made-up domain, while the privacy policy page told
- * people to write to useshinapp@gmail.com for the same request. One address,
+ * people to write to usepexiapp@gmail.com for the same request. One address,
  * everywhere: this one, and a test reads the policy to keep it so.
  */
-export const DELETE_MY_DATA_EMAIL = 'useshinapp@gmail.com';
+export const DELETE_MY_DATA_EMAIL = 'usepexiapp@gmail.com';
 
 function deleteMyDataHref() {
   const device = getDeviceId();

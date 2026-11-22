@@ -59,7 +59,7 @@ const CACHE_MAX = 2_000;
  * typed name exactly as it does for any other miss. Names already learned are answered from the cache
  * below without a call, so a barcode asked twice costs one call.
  */
-export const OFF_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; useshinapp@gmail.com)';
+export const OFF_USER_AGENT = 'Pexi-server/1.0 (grocery price scanner, Canada; usepexiapp@gmail.com)';
 const OFF_MIN_GAP_MS = 5_000;
 const OFF_MAX_WAIT_MS = 5_000;
 const OFF_DEFAULT_PAUSE_S = 60;

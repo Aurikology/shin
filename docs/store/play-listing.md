@@ -49,7 +49,7 @@ Privacy Policy: https://xu826jamin.github.io/pexi/privacy.html
 ```
 
 **Category:** Shopping. **Tags (pick in Console):** Shopping, Utilities, Lifestyle if offered.
-**Contact email:** useshinapp@gmail.com. **Privacy policy URL:** https://xu826jamin.github.io/pexi/privacy.html
+**Contact email:** usepexiapp@gmail.com. **Privacy policy URL:** https://xu826jamin.github.io/pexi/privacy.html
 **App icon:** the Pexi mascot on near-black; Play needs a 512 by 512 PNG, use `native/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` (1024 square, scale down) or export it from the same file.
 **Phone screenshots (4, 1080 by 2160, real captures from the Android build in `docs/store/play-screenshots/`):**
 
@@ -74,7 +74,7 @@ Source for every answer: `docs/store/privacy.html` only (effective 2026-11-21). 
 |---|---|---|
 | Does the app collect or share user data? | Yes | "Pexi records what you scan or type, what it answered, and how you use the app." |
 | Is all data encrypted in transit? | Yes | "The app talks to Pexi's server over an encrypted HTTPS connection." |
-| Can users request deletion? | Yes | "You can ask to see, or delete, the records tied to your device. Open the You screen and tap Delete my data, which prepares an email to useshinapp@gmail.com that includes your device identifier." Deletion URL for the form: the privacy policy page, or the email address. |
+| Can users request deletion? | Yes | "You can ask to see, or delete, the records tied to your device. Open the You screen and tap Delete my data, which prepares an email to usepexiapp@gmail.com that includes your device identifier." Deletion URL for the form: the privacy policy page, or the email address. |
 | Sold to anyone? Used for ads? | No / No | "Pexi does not sell your data and does not share it with advertisers or data brokers." and "Pexi does not show ads, does not use advertising or analytics companies". |
 | Personal info (name, email, address, phone, user IDs, other) | Not collected | "Pexi has no account, no sign-in, and does not ask for your name, email address, phone number or payment details." |
 | Location: approximate | Collected, optional, shared (JUDGMENT: Overpass). Purpose: App functionality. | "Rough location, only if you turn it on... rounds it on the phone to a grid square about one kilometre wide. Only the grid square is sent." Sharing: "OpenStreetMap's Overpass service receives the centre point of your rough grid square, only when location is on." |

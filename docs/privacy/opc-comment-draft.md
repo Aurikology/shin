@@ -31,4 +31,4 @@ Thank you for the chance to comment.
 
 Jamin Xu
 Publisher, Pexi
-useshinapp@gmail.com
+usepexiapp@gmail.com

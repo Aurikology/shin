@@ -9,7 +9,7 @@
  * What stays "shin" is internal and is not read by a person: file names (shin.js), CSS
  * classes (.shin-say, .cam-shin), localStorage keys and events (shin.theme, shin:locale),
  * request headers (x-shin-invite), environment names (SHIN_*), the package id, the cache
- * and database names, and the real mailbox useshinapp@gmail.com. Renaming a storage key
+ * and database names, and the real mailbox usepexiapp@gmail.com. Renaming a storage key
  * would wipe a person's data, so those are listed below by name and nothing else is.
  *
  * Two rules, both over every text file under public/ (comments stripped, so a developer
@@ -117,7 +117,7 @@ test('the scan is real: it flags each way the old name can appear, and passes th
     ["localStorage.getItem('shin.theme'); // Shin's note", 'x.js'],
     ['.shin-say { color: red; } /* the Shin face */', 'x.css'],
     ["headers['x-shin-invite'] = code; window.SHIN_API_BASE;", 'x.js'],
-    ['<a href="mailto:useshinapp@gmail.com">useshinapp@gmail.com</a>', 'x.html'],
+    ['<a href="mailto:usepexiapp@gmail.com">usepexiapp@gmail.com</a>', 'x.html'],
     ['the verdict shines', 'x.html'],
   ];
   for (const [src, name] of good) {

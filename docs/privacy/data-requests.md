@@ -1,6 +1,6 @@
 # Someone asks to see or delete their Pexi data
 
-For: Jamin Xu, person in charge of privacy (the privacy policy names him and `useshinapp@gmail.com`).
+For: Jamin Xu, person in charge of privacy (the privacy policy names him and `usepexiapp@gmail.com`).
 Written for 2am. Every legal requirement below names the exact section it comes from. What is a fact
 from the code says which file and line. What is a guess says **ASSUMED**.
 
@@ -15,7 +15,7 @@ from the code says which file and line. What is a guess says **ASSUMED**.
 
 ## 1. How a request reaches you
 
-- **From the app.** You screen, "Delete my data" opens an email to `useshinapp@gmail.com` with the subject
+- **From the app.** You screen, "Delete my data" opens an email to `usepexiapp@gmail.com` with the subject
   "Delete my Pexi data" and the phone's device id already in the body (`app/public/js/screens/you.js:119-129`,
   `ui-strings.js:785-789`). This is the normal route.
 - **By email without the id.** The privacy policy lets people write to the address themselves

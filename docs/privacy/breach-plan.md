@@ -1,6 +1,6 @@
 # If Pexi's data gets out: the breach plan
 
-For: Jamin Xu, person in charge of privacy (the policy names him, `useshinapp@gmail.com`). Under the Quebec Act the
+For: Jamin Xu, person in charge of privacy (the policy names him, `usepexiapp@gmail.com`). Under the Quebec Act the
 person with the highest authority holds this role unless they hand it to someone in writing (P-39.1 s. 3.1,
 https://www.legisquebec.gouv.qc.ca/en/pdf/cs/P-39.1%20.pdf), and nobody else is named in this repo, so it is you.
 Written for 2am. No secret value is written here, only where each one lives and how to replace it.
@@ -110,7 +110,7 @@ https://laws-lois.justice.gc.ca/eng/regulations/SOR-2018-64/FullText.html):
 4. how many people, or roughly;
 5. what you did to reduce the harm;
 6. what you have done or will do to tell the people;
-7. a name and contact details of the person who can answer the Commissioner's questions (you, `useshinapp@gmail.com`).
+7. a name and contact details of the person who can answer the Commissioner's questions (you, `usepexiapp@gmail.com`).
 
 New facts later can be sent in (s. 2(2)).
 
@@ -150,7 +150,7 @@ Contents (both laws agree on the substance; PIPEDA regulations s. 3, Quebec regu
    today is that the server answers a request about an id only when it carries that phone's secret
    (`app/src/device-key.ts:1-30`); the secret travels in a header, not in the address (**ASSUMED** not written to the
    logs, not checked), and a phone that never sent its secret is still open by id alone;
-6. who to contact for more (`useshinapp@gmail.com`).
+6. who to contact for more (`usepexiapp@gmail.com`).
 
 How: the notice must be conspicuous and given directly (PIPEDA s. 10.1(5)), by "email or any other form of communication that
 a reasonable person would consider appropriate" (PIPEDA regs s. 4). **Pexi holds no email or phone number for its users, so
@@ -161,7 +161,7 @@ Practical options, **ASSUMED to meet that test, none checked with the regulators
 
 - a dated notice at the top of the privacy policy page and the Pexi site;
 - the App Store "What's New" text of the next release, and the in-app You screen if a release can carry it;
-- an email to everyone who has written to `useshinapp@gmail.com` (they gave an address).
+- an email to everyone who has written to `usepexiapp@gmail.com` (they gave an address).
 
 Hold the notice back **only** if giving it would hamper a criminal investigation (P-39.1 s. 3.5, the part about investigations; PIPEDA s. 10.1(3)
 "unless otherwise prohibited by law").
