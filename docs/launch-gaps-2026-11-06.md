@@ -464,6 +464,17 @@ blind reviewer: about 5 of 21, 24%), none a blocker.
     inside the code folder. A rented server needs about 4 GB memory and 20 GB disk (catalogue over 4 GB, server
     peaked near 2 GB). Keeping the same web address means no app update. Next: his pick of host, then port the
     jobs and rerun the load test there, recording free memory.
+    **Priced 2026-11-21 (vendor pages, read that day):** 8 GB plans with a Canadian site: OVHcloud VPS-2 (4 cores,
+    75 GB) about $12/month, currency shown as "$" (page data says CAD, unlabelled) and city not on the page
+    (probably Beauharnois, Quebec, secondhand); Vultr Toronto 4 cores 160 GB US$40; AWS Lightsail Montreal 2 cores
+    160 GB US$44; DigitalOcean Toronto 4 cores 160 GB US$48 (4 GB tiers US$20 to 24). Skipped: Oracle Always Free
+    (reclaims instances idle under 20% for 7 days), Hetzner (no Canada site, US 8 GB EUR 62.99), Fly.io (volume
+    based, more rework, about US$37 for 4 GB, inferred). Recommendation: OVH VPS-2; confirm currency and city on the
+    order page first (a Quebec site changes the privacy line "Pexi's server ... outside Quebec"); Vultr Toronto if
+    he wants a larger vendor. Move the 6.8 MB pack to Cloudflare R2 (free tier, no egress charge) to clear the CDN
+    large-file clause (round 3). Server needs no code change (plain Node, built-in node:sqlite, no native add-ons,
+    so x86 or ARM Linux). Needs him: sign up and pay, add our SSH key. Then: port jobs (1 to 2 days), load test
+    there (VPS cores are slower than the M1), run alongside the Mac, switch the tunnel hostname on his go.
 
 ## G. Launch review round 3, 2026-11-21 evening (question the setup)
 
