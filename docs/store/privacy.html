@@ -25,7 +25,7 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <p class="top-links"><a href="index.html">Pexi Support</a> | <a href="terms.html">Terms of Use</a> | <a href="privacy-fr.html" lang="fr">Version française</a></p>
 
 <h1>Pexi Privacy Policy</h1>
-<p class="meta">Effective 2026-11-21. This policy covers version 1.0 of the Pexi iPhone app and the server it talks to.</p>
+<p class="meta">Effective 2026-11-21. This policy covers version 1.0 of the Pexi app for iPhone and Android and the server it talks to.</p>
 
 <h2>Who we are</h2>
 <p>Pexi is published by Jamin Xu, an individual developer. Jamin Xu is the person in charge of the protection of personal information for Pexi, including for the purposes of Quebec's privacy law. Questions, access requests and deletion requests go to him at <a href="mailto:useshinapp@gmail.com">useshinapp@gmail.com</a>.</p>
@@ -39,18 +39,18 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <li>This version of Pexi does not upload photos or camera images.</li>
 <li>Product names go to Anthropic's Claude AI only if you said yes when you first opened Pexi. If you said no, Pexi answers with a broad-guess range instead.</li>
 <li>Pexi deletes what it records on a stated schedule. See "How long Pexi keeps it" below.</li>
-<li>If you subscribe to Pexi Plus, Apple processes the payment and RevenueCat, a subscription service, records the purchase against the same random identifier. Pexi never sees your card or Apple ID details.</li>
+<li>If you subscribe to Pexi Plus, Apple (on iPhone) or Google Play (on Android) processes the payment and RevenueCat, a subscription service, records the purchase against the same random identifier. Pexi never sees your card, Apple ID or Google account details.</li>
 <li>Pexi does not show ads, does not use advertising or analytics companies (RevenueCat is used only to manage subscriptions), and does not track you across other companies' apps or websites.</li>
 </ul>
 
 <h2>What Pexi collects</h2>
-<p><strong>A random device identifier.</strong> Your phone generates it and keeps it on the phone, in the phone's secure Keychain and in the app's own storage, together with a second random secret that proves later requests come from the same phone. Both are sent to Pexi's server with the requests the app makes. The Keychain can outlast the app, so reinstalling Pexi on the same phone keeps the same identifier and your scan count.</p>
+<p><strong>A random device identifier.</strong> Your phone generates it and keeps it on the phone, in the phone's secure storage (the Keychain on iPhone, Android's encrypted storage on Android) and in the app's own storage, together with a second random secret that proves later requests come from the same phone. Both are sent to Pexi's server with the requests the app makes. On iPhone the Keychain can outlast the app, so reinstalling Pexi on the same phone keeps the same identifier and your scan count. On Android, deleting the app normally removes the identifier, so a reinstall usually starts with a new one.</p>
 <p><strong>What you scan or type.</strong> When you scan a barcode, Pexi sends the barcode digits. When you type a product name, Pexi sends the text you typed. While the camera is open, Pexi's app reads text that is visible in the camera view using text recognition that runs on your phone, and sends the recognised lines of text (not the image) to Pexi's server to find matching products. These are stored with the answer Pexi gave, whether Pexi answered or could not, any correction you made, and the time.</p>
 <p><strong>Prices, stores and ratings you enter.</strong> If you type the price you saw on a shelf, choose a store, tell Pexi a verdict was wrong, or rate a verdict, that is stored with the scan. When you type a price or pick a product, Pexi also stores a scrambled one-way code of your network (never your IP address) to keep fake prices out, and removes it together with your device identifier.</p>
 <p><strong>How you use the app.</strong> Pexi records when the app is opened, which screens you visit, buttons you tap, errors the app hits, and text you send, such as a search. Text you delete or leave unsent is not recorded; Pexi records only that a search was left unfinished. This is recorded whether or not you have turned location on.</p>
 <p><strong>Your first-run answers.</strong> Pexi records that you agreed to the Terms and this policy, your choice about Claude, and when you made or changed them.</p>
 <p><strong>Technical details of each request.</strong> The app version, the platform, how long an answer took, and your language and market setting. Pexi's server also logs, for every request, the time, the web address requested, the response status, your IP address, the country the request came from, and your phone's user agent text.</p>
-<p><strong>Purchase history, only if you subscribe.</strong> Pexi Plus is sold through Apple's in-app purchase system. The purchase is made with Apple, and RevenueCat records which plan you bought, when it renews and whether it is active, under your random device identifier as the app user identifier. The app checks your subscription with RevenueCat each time it opens, and Pexi's server asks RevenueCat whether Pexi Plus is active for your device identifier, so the weekly scan limit can be lifted. Tapping Restore Purchases contacts RevenueCat and Apple.</p>
+<p><strong>Purchase history, only if you subscribe.</strong> Pexi Plus is sold through Apple's in-app purchase system on iPhone and Google Play Billing on Android. The purchase is made with Apple or Google, and RevenueCat records which plan you bought, when it renews and whether it is active, under your random device identifier as the app user identifier. The app checks your subscription with RevenueCat each time it opens, and Pexi's server asks RevenueCat whether Pexi Plus is active for your device identifier, so the weekly scan limit can be lifted. Tapping Restore Purchases contacts RevenueCat and Apple or Google.</p>
 <p><strong>Rough location, only if you turn it on.</strong> Location is off by default. If you turn it on, your phone works out your position and rounds it on the phone to a grid square about one kilometre wide. Only the grid square is sent. Pexi's server stores the grid square, not your exact position, and discards any exact coordinates a request might carry. Pexi uses the grid square to suggest nearby shops, and the shop you pick is stored with the scan.</p>
 
 <h2>What Pexi does not collect in this version</h2>
@@ -76,11 +76,12 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <li><strong>Anthropic</strong> (the maker of the Claude AI model), only if you said yes, receives a product's name, brand, size, category and country when Pexi has no price for it, so the model can estimate a typical price range. If you typed the name and Pexi did not recognise it, your typed words are the name it receives. It does not receive images, your device identifier or your location. The estimate is generated by an AI model and is saved by Pexi. You can change your answer at any time on the You screen; saying no stops new requests.</li>
 <li><strong>OpenStreetMap's Overpass service</strong> receives the centre point of your rough grid square, only when location is on, to find shops nearby.</li>
 <li><strong>Cloudflare</strong> carries traffic between the app and Pexi's server, so it handles your requests in transit, including the device identifier they carry.</li>
-<li><strong>Apple</strong> provides the App Store, handles downloads, and processes Pexi Plus payments. Pexi receives no card or Apple ID details from Apple.</li>
+<li><strong>Apple</strong> provides the App Store, handles downloads, and processes Pexi Plus payments on iPhone. Pexi receives no card or Apple ID details from Apple.</li>
+<li><strong>Google</strong> provides Google Play, handles downloads, and processes Pexi Plus payments on Android. Pexi receives no card or Google account details from Google.</li>
 </ul>
-<p>RevenueCat (revenuecat.com) is different from the list above: the app contacts it each time it opens, and Pexi's server contacts it to check whether Pexi Plus is active. It receives your random device identifier as the app user identifier, together with the purchase information from Apple described under purchase history.</p>
+<p>RevenueCat (revenuecat.com) is different from the list above: the app contacts it each time it opens, and Pexi's server contacts it to check whether Pexi Plus is active. It receives your random device identifier as the app user identifier, together with the purchase information from Apple or Google described under purchase history.</p>
 <p>Pexi does not sell your data and does not share it with advertisers or data brokers.</p>
-<p><strong>Same protection from every service.</strong> Pexi shares user data only with the services named here, and each of them provides the same or equal protection of that data as this policy states and as Apple's App Store Review Guidelines require.</p>
+<p><strong>Same protection from every service.</strong> Pexi shares user data only with the services named here, and each of them provides the same or equal protection of that data as this policy states and as Apple's App Store Review Guidelines and Google Play's policies require.</p>
 <p><strong>Outside your province.</strong> Pexi's server and most of these services are outside Quebec, and some are outside Canada, including in the United States and the European Union, where privacy law differs. Pexi limits what each one receives to what is listed above.</p>
 
 <h2>How long Pexi keeps it</h2>
@@ -89,7 +90,7 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <li><strong>Usage events:</strong> 12 months, then deleted.</li>
 <li><strong>Scans, ratings and prices you entered:</strong> after 24 months your device identifier is removed from them. What remains is a product, a price or an answer that is no longer tied to your phone, and Pexi keeps it to answer other shoppers.</li>
 </ul>
-<p>Backups of the server can hold a copy for longer until they are replaced. You can ask for deletion sooner, as described below. Deleting the app does not delete what the server already holds, and on an iPhone the identifier stays in the Keychain, so a reinstall brings it back. To have the records tied to your device deleted, use Delete my data on the You screen.</p>
+<p>Backups of the server can hold a copy for longer until they are replaced. You can ask for deletion sooner, as described below. Deleting the app does not delete what the server already holds, and on an iPhone the identifier stays in the Keychain, so a reinstall brings it back. On Android, a reinstall usually starts with a new identifier, and the records tied to the old one stay on the server until they are deleted on the schedule above. To have the records tied to your device deleted, use Delete my data on the You screen.</p>
 
 <h2>Your choices and your rights</h2>
 <ul>
