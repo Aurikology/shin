@@ -1,0 +1,35 @@
+name: us-ip-probe
+# One-off, manual only: do US retailers answer a barcode search with a price from a US cloud address?
+# See scripts/us-ip-probe.mjs. Never scheduled.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium outside the repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw" && cd "$RUNNER_TEMP/pw"
+          npm init -y >/dev/null
+          npm i --no-save playwright@1.49.0 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+      - name: Probe
+        env:
+          PLAYWRIGHT_DIR: ${{ runner.temp }}/pw
+          PROBE_OUT: ${{ runner.temp }}/probe-out
+        run: |
+          mkdir -p "$PROBE_OUT"
+          node scripts/us-ip-probe.mjs | tee "$PROBE_OUT/results.jsonl"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: us-ip-probe
+          path: ${{ runner.temp }}/probe-out
+          retention-days: 7
