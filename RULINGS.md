@@ -2,6 +2,20 @@
 This file outranks every other file in the repo, including docs/jamin-gemini-rules.md and the Google Doc "Shin Full Walkthrough" (docs/decisions.md, "One list of current rulings outranks every other file").
 To change an entry: rewrite it here, move the old text to docs/decisions.md, then run node scripts/checks.mjs.
 Process rows (git, commits, claiming, lanes, hooks, comms channel) live in CLAUDE.md, not here; one entry per live ruling below.
+## What everything is built toward
+### Barcodes with price ranges for as many US and Canadian items as possible
+This is the central source of truth for what gets built. The goal is barcodes with prices for as
+many items as possible in the United States and Canada, so that Pexi knows the price range of each
+item. The worst outcome is a shopper getting no result; the second worst is a bad result (a wrong
+product, a wrong size or a misleading range). Work is ranked by how much it reduces those two,
+measured per market: the share of scans that get no result, and the share whose range is wrong
+against a known real price. Anything that moves neither number waits. · 2026-11-22 · *"we need to
+get barcodes with prices for as many items as possible in the u.s. and canada. we need to be able to
+know the range of the price for each item. the worst thing we can do i to give the user no result
+and the second worse thing we can do is to give the user a bad result. this should be the central
+source of truth for the things we are building"*
+Retired wording: none
+Governs: every price, catalogue and scan build; the per-market no-result and bad-result numbers
 ## Scanning and Gemini
 ### Catalogue first; Claude, with no web search, is the capped price-range fallback
 Shin names a product from its own catalogue: a barcode by lookup; anything else by reading every
