@@ -132,7 +132,7 @@ function launchArgs(start) {
       seenIntro: true, consentSeen: true, permissionsSeen: true,
       onboarding: { doneAt: '2026-10-01T00:00:00.000Z', answers: {} },
       consent: { photos: start.consent.photos, location: start.consent.location, updatedAt: '2026-10-01T00:00:00.000Z' },
-      agreement: { at: '2026-11-06T00:00:00.000Z', version: 1, claude: start.claude },
+      agreement: { at: '2026-11-06T00:00:00.000Z', version: 2, claude: start.claude, usage: true },
     };
   }
   if (start.plus) seed['shin.plus'] = '1';
