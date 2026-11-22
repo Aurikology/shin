@@ -14,15 +14,16 @@ test('item 9: a fresh install must answer, and only a current, whole answer coun
   assert.equal(needsAgreement({ agreement: null }), true);
   assert.equal(needsAgreement({ agreement: { at: 'x', version: AGREEMENT_VERSION } }), true, 'no Claude answer passed');
   assert.equal(needsAgreement({ agreement: { at: 'x', version: 0, claude: false } }), true, 'an old version passed');
-  assert.equal(needsAgreement({ agreement: agreementRecord(false) }), false, 'a no is a whole answer');
-  assert.equal(needsAgreement({ agreement: agreementRecord(true) }), false);
-  assert.equal(agreementRecord(undefined).claude, false, 'anything but a yes reads as no');
+  assert.equal(needsAgreement({ agreement: { at: 'x', version: 1, claude: true } }), true, 'the version 1 screen (tick box and Claude question) is asked again');
+  assert.equal(needsAgreement({ agreement: { at: 'x', version: AGREEMENT_VERSION, claude: false } }), false, 'switching Claude off on You is a whole record');
+  assert.equal(needsAgreement({ agreement: agreementRecord() }), false);
+  assert.equal(agreementRecord().claude, true, 'one agreement covers Claude');
 });
 
-test('item 9: nothing on the screen is chosen for the person, and the button starts off', () => {
+test('item 9 (2026-11-22): one button, nothing pre-chosen by a box, and the screen cannot be skipped', () => {
   const screen = read('../public/js/screens/agree.js');
-  assert.ok(!/<input[^>]*\schecked/.test(screen), 'a box is pre-ticked');
-  assert.match(screen, /data-act="agree-go" disabled/);
+  assert.ok(!/<input/.test(screen), 'a box or a radio is back');
+  assert.match(screen, /data-act="agree-go"/);
   assert.ok(!screen.includes('onb_skip_all'), 'the screen can be skipped');
 });
 

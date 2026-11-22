@@ -20,11 +20,18 @@ const plans = [
   { id: 'yearly', priceString: 'CA$29.99', title: 'Pexi Plus Yearly', period: 'year' },
 ];
 
-test('the plans paywall names the seller, a contact and who refunds', () => {
+test('the plans paywall names the seller, a contact and who refunds, and the refunder matches the store', () => {
   const words = text(paywallBody('plans', { plans }));
   assert.match(words, /Sold by Jamin Xu \(Pexi\)/);
   assert.match(words, /useshinapp@gmail\.com/);
   assert.match(words, /Refunds are handled by Apple/);
+  const android = text(paywallBody('plans', { plans, platform: 'android' }));
+  assert.match(android, /Sold by Jamin Xu \(Pexi\)\. Contact: useshinapp@gmail\.com\. Refunds are handled by Google Play\./);
+  assert.doesNotMatch(android, /Apple/);
+  const web = text(paywallBody('plans', { plans, platform: 'web' }));
+  assert.match(web, /useshinapp@gmail\.com/);
+  assert.doesNotMatch(web, /Refunds are handled by (Apple|Google)/);
+  assert.match(web, /Refunds are handled by the store you bought from/);
 });
 
 test('the seller line has a French twin naming the same seller and contact', () => {
@@ -33,6 +40,10 @@ test('the seller line has a French twin naming the same seller and contact', () 
   assert.match(fr, /Jamin Xu \(Pexi\)/);
   assert.match(fr, /useshinapp@gmail\.com/);
   assert.match(fr, /Apple/);
+  assert.match(TABLES.fr.paywall_seller_android, /Google Play/);
+  assert.doesNotMatch(TABLES.fr.paywall_seller_android, /Apple/);
+  assert.match(TABLES.fr.paywall_seller_android, /useshinapp@gmail\.com/);
+  assert.match(TABLES.fr.paywall_seller_web, /useshinapp@gmail\.com/);
 });
 
 test('the You row is labelled "Manage or cancel subscription", French too', () => {

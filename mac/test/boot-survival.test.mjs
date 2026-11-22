@@ -57,8 +57,10 @@ function setup({ agents = ['server', 'tunnel', 'backup', 'checker'], config } = 
     writeFileSync(join(bin, n), FAKE);
     chmodSync(join(bin, n), 0o755);
   }
+  // The live app folder, like ~/shin-live on the real Mac: it holds app/ and NO mac/ (the scripts live beside
+  // this script, in the checkout).
   const repo = join(dir, 'repo');
-  mkdirSync(join(repo, 'mac'), { recursive: true });
+  mkdirSync(join(repo, 'app'), { recursive: true });
   const home = join(dir, 'home');
   const agentDir = join(home, 'Library', 'LaunchAgents');
   mkdirSync(agentDir, { recursive: true });
@@ -123,7 +125,11 @@ test('install: ten rendered daemons as the service user, old agents moved aside,
   for (const n of ['server', 'checker', 'integrity', 'backup', 'offsite', 'logrotate', 'hammer', 'restoretest', 'expiry', 'deadman']) assert.ok(names.includes(`com.shin.${n}.plist`), `missing ${n}`);
   const server = readFileSync(join(t.daemons, 'com.shin.server.plist'), 'utf8');
   assert.match(server, /<key>UserName<\/key>\s*<string>worker<\/string>/);
-  assert.match(server, new RegExp(posix(t.repo).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '/mac/run-server\\.sh'));
+  // 2026-11-22 incident: the scripts come from the folder holding this script, never from the live app folder.
+  assert.match(server, /<string>[^<]*\/mac\/run-server\.sh<\/string>/);
+  assert.doesNotMatch(server, new RegExp(posix(t.repo).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '/mac/'));
+  assert.match(server, new RegExp(posix(t.repo).replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') + '/app</string>'));
+  for (const n of readdirSync(t.daemons)) assert.doesNotMatch(readFileSync(join(t.daemons, n), 'utf8'), /__[A-Z_]+__/, n);
   assert.doesNotMatch(server, /__[A-Z_]+__/);
   assert.match(readFileSync(join(t.daemons, 'com.shin.checker.plist'), 'utf8'), /<string>\/opt\/homebrew\/bin\/node<\/string>/);
   for (const a of ['server', 'checker', 'backup']) assert.ok(!existsSync(join(t.agentDir, `com.shin.${a}.plist`)), `${a} agent still in place`);
@@ -133,6 +139,24 @@ test('install: ten rendered daemons as the service user, old agents moved aside,
   const startNew = c.findIndex((x) => /^launchctl bootstrap system .*com\.shin\.server\.plist$/.test(x));
   assert.ok(stopOld >= 0 && startNew > stopOld, `old server agent must stop before the daemon starts (${stopOld}, ${startNew})`);
   assert.equal(c.filter((x) => x.startsWith('plutil -lint')).length >= 9, true, 'every plist validated');
+});
+
+test('install: a path a daemon names is missing (no live app folder) -> refused before ANY change, old agents keep running', () => {
+  const t = setup();
+  rmSync(join(t.repo, 'app'), { recursive: true, force: true });
+  const r = t.sh();
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /do not exist.*NOTHING was changed/s);
+  assert.match(r.out, /com\.shin\.server: .*\/app/);
+  assert.deepEqual(readdirSync(t.daemons), []);
+  assert.deepEqual(readdirSync(t.sudoers), []);
+  assert.deepEqual(t.calls().filter((x) => MUTATING.test(x)), []);
+  assert.ok(existsSync(join(t.agentDir, 'com.shin.server.plist')), 'old server agent untouched');
+  assert.match(readFileSync(t.cfg, 'utf8'), /SHIN_LAUNCHD_DOMAIN=gui/);
+  // The same check runs in --dry-run, so the Mac sees it before anyone types a password.
+  const d = t.sh(['--dry-run'], { FAKE_UID: '501' });
+  assert.notEqual(d.status, 0);
+  assert.match(d.out, /NOTHING was changed/);
 });
 
 test('install: the sudoers rule is narrow, validated by visudo BEFORE it is installed, and mode 440', () => {

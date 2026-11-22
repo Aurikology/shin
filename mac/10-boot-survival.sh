@@ -165,9 +165,35 @@ fi
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/shin-boot.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
 
+# __SHIN_MAC_DIR__ is THIS folder (the git checkout's mac/, beside config.env); __SHIN_REPO_DIR__ is the live app
+# folder from config.env. On the real Mac they differ (2026-11-22: ~/shin/mac and ~/shin-live, which has no mac/),
+# and rendering the scripts under the live folder crash-looped the server for a minute until --rollback.
 render() {
-  sed -e "s|__SHIN_REPO_DIR__|$REPO|g" -e "s|__SHIN_USER__|$SVC_USER|g" -e "s|__SHIN_HOME__|$HOME_DIR|g" -e "s|__NODE_BIN__|$NODE|g" "$1"
+  sed -e "s|__SHIN_REPO_DIR__|$REPO|g" -e "s|__SHIN_MAC_DIR__|$SCRIPT_DIR|g" -e "s|__SHIN_USER__|$SVC_USER|g" -e "s|__SHIN_HOME__|$HOME_DIR|g" -e "s|__NODE_BIN__|$NODE|g" "$1"
 }
+
+# Every file or folder a rendered daemon names under this folder or the live app folder must already exist (log
+# files excepted: step 1 makes their folder). Checked for ALL daemons BEFORE anything is changed, so a wrong path
+# stops the install with the old agents still running instead of after the server agent is stopped.
+preflight_paths() {
+  _missing=''
+  for _l in $LABELS; do
+    _src="$SCRIPT_DIR/launchd-daemons/com.shin.$_l.plist"
+    [ -f "$_src" ] || continue
+    render "$_src" | sed -n 's|.*<string>\([^<]*\)</string>.*|\1|p' > "$WORK/paths.$_l"
+    while IFS= read -r _p; do
+      case "$_p" in "$SCRIPT_DIR"/*|"$SCRIPT_DIR"|"$REPO"/*|"$REPO") ;; *) continue ;; esac
+      case "$_p" in */logs/*) continue ;; esac
+      [ -e "$_p" ] || _missing="$_missing
+   com.shin.$_l: $_p"
+    done < "$WORK/paths.$_l"
+  done
+  if [ -n "$_missing" ]; then
+    die "these paths do not exist, so the daemons would not start; NOTHING was changed:$_missing"
+  fi
+  say "== 0. every path the daemons name exists (scripts in $SCRIPT_DIR, live app in $REPO)"
+}
+preflight_paths
 
 retire_agent() { # retire_agent <label>: stop the login-time copy and move its plist aside (reversible)
   _agent="$AGENT_DIR/$1.plist"
@@ -187,8 +213,8 @@ put_daemon() { # put_daemon <rendered file> <label>
 }
 
 say "== 1. log folders (a daemon cannot start if its log folder is missing)"
-run mkdir -p "$REPO/mac/logs" "$HOME_DIR/.shin-deploy/logs"
-[ -n "$OWNER_ROOT" ] && run chown "$SVC_USER" "$REPO/mac/logs" "$HOME_DIR/.shin-deploy/logs"
+run mkdir -p "$SCRIPT_DIR/logs" "$HOME_DIR/.shin-deploy/logs"
+[ -n "$OWNER_ROOT" ] && run chown "$SVC_USER" "$SCRIPT_DIR/logs" "$HOME_DIR/.shin-deploy/logs"
 
 say "== 2. the sudoers rule that lets the deployer restart the server"
 printf '# Managed by mac/10-boot-survival.sh. One narrow rule: the deploy account restarts the system-domain server job.\n%s ALL=(root) NOPASSWD: /bin/launchctl kickstart -k system/com.shin.server, /bin/launchctl print system/com.shin.server, /bin/launchctl list\n' "$SVC_USER" > "$WORK/shin-deploy"

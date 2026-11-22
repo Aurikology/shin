@@ -99,7 +99,7 @@ test('both launchd templates run the dead-man job every 60 seconds through run-j
   for (const dir of ['launchd', 'launchd-daemons']) {
     const xml = readFileSync(join(MAC, dir, 'com.shin.deadman.plist'), 'utf8');
     assert.match(xml, /<key>Label<\/key>\s*<string>com\.shin\.deadman<\/string>/, dir);
-    assert.match(xml, /<string>__SHIN_REPO_DIR__\/mac\/run-job\.sh<\/string>\s*<string>deadman<\/string>/, dir);
+    assert.match(xml, /<string>(__SHIN_REPO_DIR__\/mac|__SHIN_MAC_DIR__)\/run-job\.sh<\/string>\s*<string>deadman<\/string>/, dir);
     assert.match(xml, /<key>StartInterval<\/key>\s*<integer>60<\/integer>/, dir);
   }
 });

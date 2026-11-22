@@ -590,6 +590,18 @@ Legal review of the Gemini branch happens before launch, not before build, and i
 · 2026-09-14 · log: docs/decisions.md#Twelve rulings on the Gemini branch, answered together (item 6)
 Retired wording: none
 Governs: to fill
+### One agreement opens the app; no free trial at launch
+The first screen has one button, "Agree and continue", and nothing in the app opens until it is
+pressed. Pressing it agrees to the Terms of Use and the Privacy Policy, to Pexi recording scans and
+app use, and to product names going to Anthropic's Claude for price estimates; each of the last two
+is named in its own plain line above the button (Apple 5.1.2 explicit permission for an outside AI,
+Quebec Law 25 purpose stated), and each can be turned off later on the You screen. Agreement version
+2 asks every install once. Pexi Plus has no free trial or introductory offer at launch: the free
+weekly scans are the trial (Quebec's free-period notice rule not needed). · 2026-11-22 · Jamin: *"have
+everythign we need under one single: 'i agree to all terms and services' and the only way someone
+can get into this app is by accepting that"*; trial: "No trial at launch"
+Retired wording: `Free for the first 3 days`
+Governs: app/public/js/screens/agree.js, app/public/js/ui-strings.js (agree_*), docs/store/privacy*.html, App Store Connect subscription offers
 ## Design and screens
 ### V1 verdict screen mechanics
 The price verdict is an animated normal distribution chart of this item's estimated prices, with the
