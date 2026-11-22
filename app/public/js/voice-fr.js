@@ -906,15 +906,15 @@ export const LINES_FR = {
    * collecter est devenu le but; ce qui est collecté sert aussi à répondre à
    * d'autres personnes et à entraîner Pexi. */
   consent_footer: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand sur la page Toi.",
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand dans Réglages.",
     warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand sur la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand dans Réglages.",
   },
   /* D24: une seule décision quand l'identification par photo est fermée. */
   consent_footer_one: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand sur la page Toi.",
+    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand dans Réglages.",
     warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer ce choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand sur la page Toi.",
+    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand dans Réglages.",
   },
   consent_intro_lean: {
     deadpan: (f) => `Chaque scan est écrit : le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,

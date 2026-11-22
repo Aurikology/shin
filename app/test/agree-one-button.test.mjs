@@ -70,7 +70,7 @@ test('the screen is one button: no tick box, no Claude question, and the button 
   assert.match(html, /privacy\.html/);
   assert.match(html, /Anthropic/);
   assert.match(html, /improve/i);
-  assert.match(html, /You screen/);
+  assert.match(html, /in Settings/); // Amended 2026-11-22: the You tab is Settings
   assert.doesNotMatch(html, /—/, 'an em dash');
 });
 

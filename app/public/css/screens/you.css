@@ -323,3 +323,52 @@
 .agree-links { display: flex; gap: 20px; flex-wrap: wrap; }
 .agree-links a { color: inherit; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
 .agree-line { margin: 0; }
+
+/* ------------------------------------------------ Progress, 2026-11-22 --
+   screens/progress.js. Cal AI's Progress tab in Pexi's tokens: two cards, a
+   chart panel with range chips, a recent list with Bought switches. */
+.prog-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.prog-card, .prog-panel {
+  background: var(--surface);
+  border: 1.5px solid var(--hairline);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+}
+.prog-card-h { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.prog-big { margin: 6px 0 2px; font-family: var(--f-display); font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.prog-card-under .prog-big { color: var(--brand); }
+.prog-card-sub { margin: 0; font-size: 13px; color: var(--ink-muted); }
+.prog-panel { margin-bottom: 8px; }
+.prog-panel-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.prog-panel-top .sect-h { margin: 0; font-size: 16px; }
+.prog-pill { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--raised); color: var(--ink); }
+.prog-chart { display: block; width: 100%; height: auto; margin: 12px 0 4px; }
+.prog-line { stroke: var(--brand); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.prog-area { fill: var(--brand); opacity: .12; }
+.prog-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2; }
+.prog-axis { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 11px; color: var(--ink-muted); }
+.prog-ranges { margin-top: 12px; }
+.prog-vs { margin: 12px 0 0; padding: 10px 12px; border-radius: var(--r-sm); font-size: 14px; line-height: 1.4; background: var(--raised); color: var(--ink); }
+.prog-vs-good { border-left: 3px solid var(--good, #1f9d55); }
+.prog-vs-bad { border-left: 3px solid var(--bad, #d64545); }
+.prog-empty { margin: 12px 0; font-size: 14px; color: var(--ink-muted); }
+.prog-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.prog-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.prog-row + .prog-row { border-top: 1px solid var(--hairline); }
+.prog-row-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.prog-row-t b { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.prog-row-t span { font-size: 13px; color: var(--ink-muted); }
+.prog-tier { font-style: normal; font-weight: 600; color: var(--ink); }
+.prog-bought {
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--hairline);
+  background: transparent;
+  color: var(--ink-muted);
+  font: 600 13px var(--f-ui);
+  cursor: pointer;
+}
+.prog-bought.on { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.prog-links { margin-bottom: 8px; }

@@ -1613,15 +1613,15 @@ const LINES_EN = {
    * narrower, more reassuring claim.
    */
   consent_footer: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change either choice any time on the You page.',
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change either choice any time in Settings.',
     warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change either choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time on the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time in Settings.',
   },
   /* One choice left when photo identification is off (D24): "either choice" had nothing to be either of. */
   consent_footer_one: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change this choice any time on the You page.',
+    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change this choice any time in Settings.',
     warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change this choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time on the You page.',
+    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time in Settings.',
   },
   /*
    * Item 9, the two route-declined failures (`THROTTLE_REASONS` in camera.js).

@@ -15,6 +15,7 @@ test('D-268 D22: the scan button in the page bar carries the barcode glyph, not 
     const html = pageBar(active);
     const btn = html.match(/<button[^>]*class="mini-shutter"[^>]*>([\s\S]*?)<\/button>/);
     assert.ok(btn, 'no mini-shutter button in the bar');
-    assert.match(btn[1], /<svg[\s\S]*aria-hidden="true"[\s\S]*<path d="M3 8V5/, `the scan button is empty on ${active}: ${btn[1]}`);
+    // Amended 2026-11-22: Aurik, "the plus is where they can click to open their camera again": the glyph is a +.
+    assert.match(btn[1], /<svg[\s\S]*aria-hidden="true"[\s\S]*<path d="M12 5v14M5 12h14"/, `the scan button is empty on ${active}: ${btn[1]}`);
   }
 });

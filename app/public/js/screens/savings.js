@@ -119,6 +119,7 @@ export default {
       if (e.target.closest('[data-act="retry"]')) { store.reload(); paint(); return; }
       if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'you'); return; }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
       if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
     }, ac.signal);

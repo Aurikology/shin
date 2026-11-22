@@ -210,9 +210,10 @@ test('Savings Overview: Total Saved and Monthly Goal Progress stay hidden until 
   assert.match(html, /Monthly Goal Progress/);
 });
 
-test('Savings Overview is a registered screen, reachable from the You screen', () => {
-  assert.match(read('../public/js/main.js'), /licences, savings[,\]]/); // Amended 2026-11-22: guide registered after it
+// Amended 2026-11-22: Progress replaces the Savings overview row in Settings; the screen stays registered (deep link).
+test('Savings Overview is still a registered screen, and Settings sends the shopper to Progress instead', () => {
+  assert.match(read('../public/js/main.js'), /licences, savings[,\]]/);
   const you = read('../public/js/screens/you.js');
-  assert.match(you, /data-act="savings"/);
-  assert.match(you, /ctx\.go\('savings'\)/);
+  assert.doesNotMatch(you, /data-act="savings">/);
+  assert.match(read('../public/js/lib/pagebar.js'), /item\('progress'/);
 });

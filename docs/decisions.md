@@ -3174,3 +3174,27 @@ Cost: first launch to first verdict is 8 taps through Skip (J1), was 6 this morn
 **Reverses if:** completion of the five screens is under 60% on the first testers (R-77's figure), or
 Jamin rules the welcome off again. Gender is personal information: the privacy policy (Jamin's files)
 must name it before a store build ships it; asked in comms 2026-11-22.
+
+## Settings is only settings, one Pexi voice, and Progress shows the shopper's record grow
+**Date:** 2026-11-22 · **Status:** active · **Who:** Aurik (reverses "Shin's attitude is the user's choice", 2026-09-03)
+
+Aurik: *"we need to fix the settings tab. It should only be settings and take out the other word. also
+remove the Deadpan,blunt, etc versions of pexi ... A way the user can track its scans ... a feature where
+the user can see how much they saved. like a track progress sector"*, with Cal AI's Progress tab.
+
+- **Settings:** titled "Settings" (no kicker), the tab and every "You page" line say Settings; no
+  voice picker; the week line and the activity rows moved to Progress; the Savings overview row is gone.
+- **One voice:** the default (Deadpan). A phone that had picked Warm or Blunt returns to it at boot. The
+  three voices' strings stay in voice.js (not deleted), so this reverses by restoring the picker.
+- **Progress** (`screens/progress.js`, `lib/progress.js`): scans this week and all time; the total under
+  the typical price on scans marked Bought; that total as a line (30D / 6M / All); "You paid N% less
+  (more) than the typical shopper on your buys"; recent scans with a Bought switch; links to every past
+  scan and the saved items. The bar is Progress | + (camera) | Settings; Saved lives inside Progress.
+- **The number follows RULINGS "No savings claim ships until it is measured"** (Competition Act
+  s.74.01): the honest spread (typical minus paid), sure answers only (high, medium), Bought rows only,
+  never the word "saved". "The typical price" is the centre of the verdict's range, what an average
+  shopper pays: the honest form of "saving more than the average person". No streak (RULINGS, killed).
+- Bought rows survive the hundred-row history cap (up to 400 more), so the total never shrinks unseen.
+
+**Reverses if:** fewer than 1 in 5 testers mark anything Bought in their first week (then the total
+should count every sure scan under the typical price, labelled as found rather than paid).

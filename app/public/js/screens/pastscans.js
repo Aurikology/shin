@@ -392,6 +392,7 @@ export default {
       // pushes an entry on every `go`, so Saved is already the previous entry.
       if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'watchlist'); return; }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
       if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="retry"]')) { phase = store.reload() ? 'error' : 'ready'; repaint(); return; }

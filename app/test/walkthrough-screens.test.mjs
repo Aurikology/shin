@@ -61,30 +61,37 @@ function withFlags(patch, fn) {
 
 /* ------------------------------------------------------------------ D14 */
 
-test('D14: You shows only this phone\'s numbers, from one source, and never asks for the fleet-wide log', () => {
+// Amended 2026-11-22: the week line and this phone's scan count moved from You (now Settings) to Progress
+// (Aurik: "A way the user can track its scans"). The rule stands: only this phone's numbers, one source.
+async function progressMarkup() {
+  const screen = (await import('../public/js/screens/progress.js')).default;
+  const root = stubRoot();
+  const stop = screen.render(root, { go() {}, params: {} });
+  stop?.();
+  return root.innerHTML;
+}
+
+test('D14: Progress shows only this phone\'s numbers, from one source, and Settings never asks for the fleet-wide log', async () => {
   storage.clear();
   store.reset();
   store.recordVerdict({ kind: 'verdict', tier: 'fair' }, {});
-  const html = youMarkup();
-  // The header line and the "Yours this week" row both read the one weekly object.
-  assert.match(html, /1 scanned this week/);
-  assert.match(html, /<span class="ilist-v">1 scan<\/span>/);
-  // N: "named" and "I could call" are an instrument, not something a shopper reads.
+  const html = await progressMarkup();
+  assert.match(html, /<p class="prog-big">1<\/p>/);
   assert.doesNotMatch(html, /named|I could call/);
-  assert.doesNotMatch(html, /Nothing scanned this week/);
   for (const fleet of [t('you_scans_named_row'), t('you_week_two_row'), t('you_corrections_row'), t('you_reading_scan_log')]) {
     assert.ok(!html.includes(fleet), `a fleet-wide row is back: ${fleet}`);
+    assert.ok(!youMarkup().includes(fleet), `a fleet-wide row is back on Settings: ${fleet}`);
   }
   assert.doesNotMatch(read('../public/js/screens/you.js'), /api\.scans\(/);
+  assert.doesNotMatch(read('../public/js/screens/progress.js'), /api\.scans\(/);
 });
 
-test('D14: an empty week says nothing scanned and counts zero from the same object', () => {
+test('D14: an empty week counts zero, and says how to start', async () => {
   storage.clear();
   store.reset();
-  const html = youMarkup();
-  assert.match(html, /Nothing scanned this week/);
-  assert.match(html, /<span class="ilist-v">0 scans<\/span>/);
-  assert.doesNotMatch(html, /named|I could call/);
+  const html = await progressMarkup();
+  assert.match(html, /<p class="prog-big">0<\/p>/);
+  assert.ok(html.includes(t('prog_empty')), 'the empty record does not say how to start');
 });
 
 /* ------------------------------------------------------------------ D15 */
@@ -176,7 +183,7 @@ test('D27: the Buzz caption sits directly under the Buzz row, before any other r
   // Amended 2026-11-22: the You regroup put Scanning (torch, haptics) before Pexi Plus, so the next row after the
   // caption is the theme; the rule is unchanged, the caption sits between its switch's row start and any other row.
   const row = html.lastIndexOf('consent-row', buzz);
-  const savings = html.indexOf('data-act="savings"');
+  const savings = html.indexOf('data-act="plus"'); // Amended 2026-11-22: the Savings row left Settings; Pexi Plus is the next group's row
   assert.ok(buzz > 0 && caption > row && caption < buzz && savings > buzz, 'the caption is displaced from the row it explains');
   const between = html.slice(row, buzz);
   assert.ok(!/data-act="(savings|market|welcome|licences|report)"/.test(between), 'another row sits between Buzz and its caption');

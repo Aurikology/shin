@@ -223,7 +223,7 @@ function voiceValues() {
 test('8. the French interface says tu, never vous', () => {
   const bad = frenchValues().filter(([, s]) => /\b(vous|votre|vos)\b/i.test(s));
   assert.deepEqual(bad, []);
-  assert.match(TABLES.fr.agree_change_later, /Toi/);
+  assert.match(TABLES.fr.agree_change_later, /Réglages/); // Amended 2026-11-22: the You tab is Settings (Réglages)
 });
 
 test('8. one French word for scan: no numérisation, no balayage', () => {

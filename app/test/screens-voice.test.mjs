@@ -620,6 +620,7 @@ const NOT_SHOWN = [
   { file: 'consent.js', text: 'Your data', why: 'The registered title. consent_title is what the tab and the announcement print; this literal is the screen\'s name in the source.' },
   { file: 'onboarding.js', text: 'Welcome', why: 'The registered title, translated through onb_title. Same split as every other screen.' },
   { file: 'permissions.js', text: 'Permissions', why: 'The registered title, translated through perm_title. Same split as every other screen.' },
+  { file: 'progress.js', text: 'Progress', why: 'The registered title of the Progress tab (2026-11-22), translated through prog_title. Same split as every other screen.' },
   { file: 'guide.js', text: 'How Pexi works', why: 'The registered title of the new-user walkthrough (2026-11-22), translated through guide_title. Same split as every other screen.' },
   { file: 'correct.js', text: 'Report a wrong price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
   { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },

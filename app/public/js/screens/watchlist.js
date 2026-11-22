@@ -442,6 +442,7 @@ export default {
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
       // No branch for data-act="watchlist": the bar draws it as the page you
       // are already on, so pressing it must not push a second entry for it.
+      if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="pastscans"]')) { ctx.go('pastscans'); return; }
       if (e.target.closest('[data-act="removed"]')) { ctx.go('removed'); return; }

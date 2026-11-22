@@ -225,6 +225,7 @@ export default {
       // You is the only way in, so the browser's own back already lands there.
       if (e.target.closest('[data-act="back"]')) { goBack(ctx, 'you'); return; }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
       if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }

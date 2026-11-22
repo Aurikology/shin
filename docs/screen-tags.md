@@ -176,6 +176,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a115 | Please update Pexi (this build is too old) | The server sets SHIN_APP_MIN_VERSION above this build. Covers the whole app with an Update Pexi link to the App Store. | `app/public/js/remote-status.js` |
 | a116 | How Pexi works, the new-user walkthrough | First launch, after the permission screen and before the camera, once. Again from You, Help, How Pexi works. Or ?s=guide. | `app/public/js/screens/guide.js` |
 | a117 | Welcome: choose your gender | Welcome flow, second screen (Aurik 2026-11-22). Optional: Prefer not to say, and Skip the rest. | `app/public/js/screens/onboarding.js` |
+| a118 | Progress: scans, under the typical price, chart, Bought | The Progress tab in the bar on any list screen, or the X on the camera. Or ?s=progress. | `app/public/js/screens/progress.js` |
 
 ## Not tagged, with reason
 

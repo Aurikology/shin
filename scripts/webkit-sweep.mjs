@@ -77,7 +77,7 @@ try {
   if ((await screen()) !== 'camera') throw new Error(`setup did not reach the camera (on ${await screen()}); nothing would be measured`);
   const seen = new Set();
   for (let r = 0; r < ROUNDS; r++) {
-    for (const tab of ['Saved', 'You', 'Scan']) {
+    for (const tab of ['Saved', 'Progress', 'Settings', 'Scan']) { // 2026-11-22: the bar is Progress | + | Settings
       const here = await screen();
       const labels = await p.evaluate(() => [...document.querySelectorAll('#screen button, #screen [role=button], #screen a[href]')]
         .filter((e) => e.offsetParent && !e.disabled).map((e) => (e.getAttribute('aria-label') || e.innerText || '').trim()).filter(Boolean)).catch(() => []);

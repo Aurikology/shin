@@ -226,34 +226,17 @@ export default {
      */
     root.innerHTML = `
       <div class="page page-list">
+        ${/* 2026-11-22 (Aurik): "It should only be settings and take out the other word". */ ''}
         <header class="page-head">
-          <p class="kicker">${escapeHtml(t('you_kicker'))}</p>
           <h1>${escapeHtml(t('you_title'))}</h1>
         </header>
 
-        <section class="block block-week">
-          ${shinSay(weekState, weekKey, { scanned: weekly.scanned }, { size: 64, anim: weekAnim })}
-        </section>
-
         ${/* 2026-11-22 (Aurik: "the setting screen needs improvement because theres no flow"): one long
              "Settings" block held eleven unrelated controls, so the page is grouped the way a shopper looks
-             for things, most-used first: your Pexi, prices, scanning, look and language, Pexi Plus, your
+             for things, most-used first: prices, scanning, look and language, Pexi Plus, your
              activity, privacy, then help. Every control and caption is the one it was; only the grouping and
-             the order changed, and the haptics row became a switch. */ ''}
-        <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_your_shin'))}</h2>
-          <div class="atts atts-row ilist" role="radiogroup" aria-label="${escapeHtml(t('you_attitude_group'))}">
-            ${PERSONALITIES.map((q) => personalityCopy(q.id)).map(
-              (p) => `<button type="button" class="att${p.id === personality() ? ' on' : ''}"
-                        role="radio" aria-checked="${p.id === personality()}" data-who="${escapeHtml(p.id)}">
-                <span class="att-face">${faceSvg('fair', { size: 'face-row', who: p.id })}</span>
-                <span class="att-t"><b>${escapeHtml(p.name)}</b><span>${escapeHtml(p.blurb)}</span><span class="att-sample">${escapeHtml(p.sample)}</span></span>
-                ${rowCheck()}
-              </button>`,
-            ).join('')}
-          </div>
-        </section>
-
+             the order changed, and the haptics row became a switch. Later the same day (Aurik): the Deadpan / Warm / Blunt picker is gone ("remove the
+             Deadpan,blunt, etc versions of pexi"), and the week line and your activity moved to Progress. */ ''}
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_prices_h'))}</h2>
           <!--
@@ -387,10 +370,7 @@ export default {
               <span class="ilist-l">${escapeHtml(t('paywall_title'))}</span>
               ${rowChevron()}
             </button>
-            <button type="button" class="ilist-row" data-act="savings">
-              <span class="ilist-l">${escapeHtml(t('you_savings'))}</span>
-              ${rowChevron()}
-            </button>
+            ${/* 2026-11-22: no Savings overview row; Progress is where the shopper's record grows (screens/progress.js). */ ''}
             <div class="ilist-row" data-quota-row hidden><span class="ilist-l" data-quota-text></span></div>
             ${/* D29: the store page is a dead end anywhere but the Android store build, so no row. */ manageUrl ? `<a class="ilist-row" href="${escapeHtml(manageUrl)}" target="_blank" rel="noopener noreferrer" data-manage-sub>
               <span class="ilist-l">${escapeHtml(t('you_manage_sub'))}</span>
@@ -399,30 +379,6 @@ export default {
           </div>
         </section>
 
-        <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_activity_h'))}</h2>
-          ${/* D14: only this phone's own numbers, from the same `weekly` object the
-               header line above reads, so the two can never disagree. The server's
-               fleet-wide scan log (every device's scans, hit rates, returns) is not
-               a shopper's business and is no longer fetched here. */ ''}
-          <div class="ilist" data-scanlog>
-            <div class="ilist-row">
-              <span class="ilist-l">${escapeHtml(t('you_yours_this_week'))}</span>
-              <span class="ilist-v">${escapeHtml(unreadable ? '?' : t('you_scan_count', { n: String(weekly.scanned) }))}</span>
-            </div>
-          </div>
-          <div class="ilist">
-            <div class="ilist-row">
-              <span class="ilist-l">${escapeHtml(t('you_ratings_rated'))}</span>
-              <span class="ilist-v">${ratedCounts.total}</span>
-            </div>
-          </div>
-          <p class="fineprint">${
-            ratedCounts.total === 0
-              ? escapeHtml(t('you_ratings_none'))
-              : `${escapeHtml(t('you_rated_right', { n: ratedCounts.up }))} · ${escapeHtml(t('you_rated_wrong', { n: ratedCounts.down }))}`
-          }</p>
-        </section>
 
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_data_h'))}</h2>
@@ -763,6 +719,7 @@ export default {
         return;
       }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
+      if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
       // No branch for data-act="you": the bar marks it as the current page, and
       // pressing the page you are on must not push a second entry for it.

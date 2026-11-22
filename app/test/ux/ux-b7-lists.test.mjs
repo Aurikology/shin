@@ -421,10 +421,11 @@ const labelsOf = (bar) => ({
   scan: /class="mini-shutter"[^>]*aria-label="([^"]*)"/.exec(bar)?.[1] ?? null,
 });
 
-test('R-98 (keep): the page bar has Saved and You as single-word visible labels', () => {
-  for (const active of ['watchlist', 'you']) {
+// Amended 2026-11-22: Aurik's Cal AI tab bar, Progress | + | Settings; Saved moved inside Progress.
+test('R-98 (keep): the page bar has Progress and Settings as single-word visible labels', () => {
+  for (const active of ['progress', 'you']) {
     const { visible } = labelsOf(pagebar.pageBar(active));
-    assert.deepEqual(visible, ['Saved', 'You']);
+    assert.deepEqual(visible, ['Progress', 'Settings']);
   }
 });
 

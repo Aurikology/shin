@@ -26,6 +26,7 @@ import { startThemeColourSync } from './lib/theme.js';
 import { startTextSizeSync } from './lib/text-size.js';
 import { startKeyboardFit } from './lib/keyboard-fit.js';
 import { startPressHaptics } from './lib/haptics.js';
+import { personality, setPersonality, DEFAULT_PERSONALITY } from './voice.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
@@ -56,6 +57,7 @@ import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
 import guide from './screens/guide.js';
+import progress from './screens/progress.js';
 import { landing } from './guide-state.js';
 import { refreshPlus, plusActive } from './purchases.js';
 import { startScansLeft } from './scans-left.js';
@@ -69,7 +71,7 @@ import { startRemoteStatus } from './remote-status.js';
 applyFlags();
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings, guide]) {
+for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings, guide, progress]) {
   router.register(s);
 }
 
@@ -100,6 +102,9 @@ startTextSizeSync();
 startKeyboardFit();
 /* 2026-11-22 (Aurik, "add haptics to presses"): a light tap on every press, app-wide (lib/haptics.js). */
 startPressHaptics(document);
+/* 2026-11-22 (Aurik): one Pexi. The Deadpan / Warm / Blunt picker is gone from Settings, so a phone that chose
+   another voice returns to the default rather than keeping one it can no longer change. */
+if (personality() !== DEFAULT_PERSONALITY) setPersonality(DEFAULT_PERSONALITY);
 
 /**
  * Item 6b: the consent screen sits between the attitude picker and the

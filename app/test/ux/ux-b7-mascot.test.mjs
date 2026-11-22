@@ -311,11 +311,10 @@ function renderYou() {
   return root.innerHTML;
 }
 
-test('R-58 (build 7): the You picker shows one sample line under each voice', () => {
+// Amended 2026-11-22: Aurik removed the Deadpan / Warm / Blunt picker ("remove the Deadpan,blunt, etc versions of pexi"); one voice, the default.
+test('R-58 (2026-11-22): Settings shows no voice picker and no voice sample lines', () => {
   const html = renderYou();
-  const text = stripTags(html);
-  const missing = IDS.filter((id) => !text.includes(stripTags(personalityCopy(id).sample)));
-  assert.deepEqual(missing, [], `You shows no sample line for: ${missing.join(', ')}. It shows the blurb ("${personalityCopy('deadpan').blurb}") instead.`);
+  for (const id of IDS) assert.ok(!html.includes(`data-who="${id}"`), `Settings still offers ${id}`);
 });
 
 test('R-58 (keep): the sample lines already obey the line limit', () => {
@@ -327,13 +326,11 @@ test('R-58 (keep): the sample lines already obey the line limit', () => {
 
 /* ===================================================================== R-75 */
 
-test('R-75 (keep): the picker is in You, three choices in one radio group, none behind a disclosure', () => {
-  const html = renderYou();
-  for (const id of IDS) assert.ok(html.includes(`data-who="${id}"`), `You has no ${id} choice`);
-  const group = html.slice(html.indexOf('atts atts-row'), html.indexOf('data-who="blunt"') + 400);
-  assert.match(group, /role="radiogroup"/);
-  assert.ok(!/<details|\shidden(?=[\s>=])|aria-expanded="false"/.test(group), 'the picker is behind a disclosure: more than 2 taps');
-  assert.ok(/<details|\shidden(?=[\s>=])/.test('<details><summary>x</summary>') && /\shidden(?=[\s>=])/.test('<div hidden>'), 'control: the disclosure matcher must see a disclosure');
+// Amended 2026-11-22: Aurik removed the Deadpan / Warm / Blunt picker ("remove the Deadpan,blunt, etc versions of pexi"); one voice, the default.
+test('R-75 (2026-11-22): no picker anywhere a shopper goes, and a stored other voice returns to the default at boot', () => {
+  assert.ok(!renderYou().includes('atts atts-row'), 'the picker is back in Settings');
+  const main = readFileSync(new URL('../../public/js/main.js', import.meta.url), 'utf8');
+  assert.match(main, /if \(personality\(\) !== DEFAULT_PERSONALITY\) setPersonality\(DEFAULT_PERSONALITY\);/);
 });
 
 test('R-75 (keep): the picker is not on the first run, and the default voice applies from the first scan', () => {
@@ -638,7 +635,7 @@ test('R-71 (keep): the mascot is shown on aim hint, working step, verdict, save 
   for (const [name, src] of [['Saved', 'js/screens/watchlist.js'], ['Past scans', 'js/screens/pastscans.js'], ['Removed', 'js/screens/removed.js']]) {
     assert.match(read(src), /faceBlock\('asleep'|shinSay\(/, `${name} empty state has no mascot`);
   }
-  assert.match(renderYou(), /data-who="deadpan"[\s\S]*?class="face/, 'the picker shows no faces');
+  // Amended 2026-11-22: Aurik removed the Deadpan / Warm / Blunt picker ("remove the Deadpan,blunt, etc versions of pexi"); one voice, the default. The picker is no longer one of the places.
   assert.equal(typeof removedScreen.default.render, 'function');
 });
 

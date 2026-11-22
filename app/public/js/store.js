@@ -455,7 +455,7 @@ export function recordVerdict(result, query, extra = null) {
   update((s) => ({
     ...s,
     scanCount: s.scanCount + 1,
-    history: [{ id, at: new Date().toISOString(), result, query, ...(extra ?? {}) }, ...s.history].slice(0, 100),
+    history: capHistory([{ id, at: new Date().toISOString(), result, query, ...(extra ?? {}) }, ...s.history]),
   }));
   return id;
 }
@@ -467,6 +467,23 @@ export function recordVerdict(result, query, extra = null) {
  * `answer` are replaced whole. A row that has gone (removed, or past the
  * hundred cap) is left alone and nothing is written.
  */
+/**
+ * The newest hundred rows, plus up to 400 older rows the shopper marked Bought (2026-11-22, Progress):
+ * a purchase is the shopper's own record of money spent, and dropping it at the hundred cap would
+ * make their Progress total shrink for no reason they could see.
+ */
+export function capHistory(rows) {
+  return [...rows.slice(0, 100), ...rows.slice(100).filter((h) => h?.bought === true).slice(0, 400)];
+}
+
+/**
+ * Progress (2026-11-22): the shopper marks a scan Bought, or unmarks it. Saved on the row, with when,
+ * so the chart can place it. A row that has gone is left alone.
+ */
+export function setBought(id, on) {
+  patchHistory(id, on ? { bought: true, boughtAt: new Date().toISOString() } : { bought: false, boughtAt: null });
+}
+
 export function patchHistory(id, patch) {
   if (!id || !state.history.some((h) => h.id === id)) return;
   update((s) => ({
