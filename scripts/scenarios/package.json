@@ -1,0 +1,6 @@
+{
+  "name": "shin-scenario-check",
+  "private": true,
+  "type": "module",
+  "description": "The scenario check (scenario-check.mts): enumerates data-state scenarios, finds real examples of each, asks the local server the way the phone does and reports numbers per scenario. A package.json so the .ts files here are read as ES modules by the typecheck, as Node already reads them."
+}

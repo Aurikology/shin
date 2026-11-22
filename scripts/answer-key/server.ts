@@ -65,6 +65,8 @@ export interface StartOptions {
   pricesPath: string | null;
   /** Builds a synthetic catalogue in-process (the test). Called AFTER every setting is in the environment and BEFORE any repo module is imported, because price/src/store.ts reads SHIN_PRICES at import time. */
   buildInjected?: ((tempDir: string) => Promise<{ catalogue: unknown; db: unknown }>) | null;
+  /** Runs once the temp folder and every setting exist and before any repo module is imported: put files into the temp folder here (the scenario check copies a corrections file in). */
+  seedTemp?: ((tempDir: string) => void) | null;
 }
 
 export async function startAnswerKeyServer(opts: StartOptions): Promise<Running> {
@@ -169,6 +171,8 @@ export async function startAnswerKeyServer(opts: StartOptions): Promise<Running>
     else meter.otherOutbound.push(host);
     return Promise.reject(new Error(`answer-key run: outbound fetch to ${host} refused`));
   }) as typeof fetch;
+
+  opts.seedTemp?.(tempDir);
 
   // 7. A synthetic catalogue is built now: the environment is complete and no repo module is imported yet.
   const injected = opts.buildInjected ? await opts.buildInjected(tempDir) : null;
