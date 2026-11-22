@@ -34,6 +34,16 @@
  *     `price_without_discount` always agreed with each other in this pull;
  *     nothing here fabricates a comparison the API does not already assert.
  *
+ * ADDED 2026-11-22, US dollars. The import now makes one pass per currency,
+ * CAD then USD (`CURRENCIES`). The CAD measurements above are the 2026-09
+ * snapshot and are left as measured. USD has 48,403 rows, counted 2026-11-22
+ * via https://prices.openfoodfacts.org/api/v1/prices?currency=USD&size=1
+ * (field `total`). Each row keeps the currency the API reports for it. The
+ * ONLINE-row country default above now follows the currency the pass fetched
+ * under (USD -> US, CAD -> CA, `defaultCountry`); the CAD measurements above
+ * describe a CAD-only pull, where that default was always CA. A USD barcode
+ * the catalogue does not hold is stored unjoined, as any other unknown one is.
+ *
  * `joinMethod` is always `'gtin'` or `'none'`, never `'name'`: this source
  * never offers a brand-and-size fallback the way walmart.ca's search does, it
  * either carries a barcode that lands in the catalogue or it does not. `code`
@@ -53,12 +63,12 @@
 import { DatabaseSync } from 'node:sqlite';
 import { openPrices, recordObservation, recordAttempt, PRICES_DB_PATH } from './store.ts';
 import { requireSourceUse } from './registry.ts';
+import * as settings from '../../settings/src/index.ts';
 import type { JoinMethod } from './store.ts';
 
-const CATALOGUE = new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(
-  /^\/([A-Za-z]:)/,
-  '$1',
-);
+const CATALOGUE =
+  settings.SHIN_CATALOGUE() ??
+  new URL('../../catalogue/data/catalogue.db', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 /* PRICES_DB_PATH lives in store.ts, behind SHIN_PRICES, so every package that
  * opens this database resolves the same path the same way. */
 const PRICES = PRICES_DB_PATH;
@@ -114,16 +124,32 @@ interface ApiItem {
   readonly location: ApiLocation | null;
 }
 
-interface ApiPage {
+export interface ApiPage {
   readonly items: readonly ApiItem[];
   readonly page: number;
   readonly pages: number;
   readonly total: number;
 }
 
+/** The currencies this file imports, one pass each. A row keeps the currency the API reports for it. */
+export const CURRENCIES = ['CAD', 'USD'] as const;
+
+/**
+ * The country an ONLINE row (no osm address) is given: the market of the
+ * currency the pass asked for. Inferred, not read from the row, and used only
+ * when the location carries no country of its own.
+ */
+export function defaultCountry(currency: string): string {
+  return currency === 'USD' ? 'US' : 'CA';
+}
+
+export function pageUrl(currency: string, page: number): string {
+  return `${API}?currency=${currency}&size=${PAGE_SIZE}&page=${page}`;
+}
+
 /** One retry: this is a plain public API, not something behind bot detection like walmart.ca. */
-async function fetchPage(page: number): Promise<ApiPage> {
-  const url = `${API}?currency=CAD&size=${PAGE_SIZE}&page=${page}`;
+export async function fetchPage(currency: string, page: number): Promise<ApiPage> {
+  const url = pageUrl(currency, page);
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       /* R35: Open Food Facts asks every client to name itself. The 400 ms gap between pages is the rate limit. */
@@ -134,7 +160,7 @@ async function fetchPage(page: number): Promise<ApiPage> {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as ApiPage;
     } catch (e) {
-      if (attempt === 1) throw new Error(`openprices page ${page} failed: ${String(e)}`);
+      if (attempt === 1) throw new Error(`openprices ${currency} page ${page} failed: ${String(e)}`);
       await sleep(2000);
     }
   }
@@ -258,160 +284,232 @@ function storeNameAndCity(item: ApiItem): { storeName: string | null; storeCity:
   };
 }
 
+/** Counters for one import run, shared by every currency pass. */
+export interface RunTally {
+  pulled: number;
+  skippedNoBarcode: number;
+  joined: number;
+  unjoined: number;
+  discounted: number;
+  regularAlso: number;
+  products: Set<string>;
+  locations: Set<string>;
+  minDate: string | null;
+  maxDate: string | null;
+  /* One crawl_attempt row per barcode per run, not per price row: the table's
+   * grain is "did we ask about this code today", and this feed can hand back
+   * the same barcode many times in one pull. */
+  attempts: Map<string, { candidates: number; matched: boolean }>;
+}
+
+export function newTally(): RunTally {
+  return {
+    pulled: 0,
+    skippedNoBarcode: 0,
+    joined: 0,
+    unjoined: 0,
+    discounted: 0,
+    regularAlso: 0,
+    products: new Set(),
+    locations: new Set(),
+    minDate: null,
+    maxDate: null,
+    attempts: new Map(),
+  };
+}
+
+/**
+ * Store one API row. `fetchedUnder` is the currency this pass asked the API
+ * for; it decides only the country of an ONLINE row (see `defaultCountry`).
+ * The row's own `currency` is what gets stored, so a USD row is never relabelled.
+ * A barcode the catalogue does not hold is stored unjoined (`code` null,
+ * joinMethod 'none'), exactly as before.
+ */
+export function importItem(
+  db: DatabaseSync,
+  cat: DatabaseSync,
+  item: ApiItem,
+  fetchedUnder: string,
+  t: RunTally,
+): void {
+  t.pulled += 1;
+
+  if (item.product_code === null) {
+    t.skippedNoBarcode += 1;
+    return;
+  }
+
+  const want = pad13(item.product_code);
+  const has = isCatalogued(cat, want);
+  const code = has ? want : null;
+  const joinMethod: JoinMethod = has ? 'gtin' : 'none';
+  /* US-dollar rows that miss the catalogue keep their barcode (rejoin.ts joins them once a name arrives, and the
+   * coverage script counts by it). Canadian rows are left exactly as they were: estimate.ts reads page_gtin. */
+  const pageGtin = !has && fetchedUnder !== 'CAD' ? want : null;
+
+  t.products.add(want);
+  if (has) t.joined += 1;
+  else t.unjoined += 1;
+
+  const region = regionOf(item);
+  if (region !== null) t.locations.add(region);
+  const storeOsm = storeOsmOf(item);
+  const { storeName, storeCity } = storeNameAndCity(item);
+
+  if (t.minDate === null || item.date < t.minDate) t.minDate = item.date;
+  if (t.maxDate === null || item.date > t.maxDate) t.maxDate = item.date;
+
+  const country =
+    item.location?.osm_address_country_code ??
+    /* ONLINE listings carry no osm address at all. Defaulted from the currency
+     * the pass fetched under (USD -> US, CAD -> CA), not because any location
+     * said so - see the header. */
+    defaultCountry(fetchedUnder);
+
+  const name = item.product_name ?? item.product?.product_name ?? '(unnamed)';
+  const brand = item.product?.brands ?? null;
+  const imageUrl = item.product?.image_url ?? null;
+  const kind = item.price_is_discounted ? 'promotional' : 'regular';
+  if (item.price_is_discounted) t.discounted += 1;
+
+  recordObservation(db, {
+    code,
+    seller: SELLER,
+    sellerSku: String(item.id),
+    sellerName: name,
+    sellerBrand: brand,
+    priceCents: cents(item.price),
+    kind,
+    unitPriceCents: null,
+    unitLabel: item.price_per ?? null,
+    currency: item.currency,
+    country,
+    region,
+    joinMethod,
+    pageGtin,
+    seenOn: item.date,
+    url: null,
+    imageUrl,
+    /* This source photographs a price tag, not a shelf: the API carries
+     * no stock field at all, so every row here is "not observed", never
+     * a guessed yes. See the header and ObservationRow.inStock. */
+    inStock: null,
+    storeName,
+    storeCity,
+    storeOsm,
+  });
+
+  /* Mirror crawl.ts's wasPrice handling: a discounted row that also names
+   * its pre-discount price is two facts, and storing only the sale price
+   * would make "how much cheaper" unrecoverable from this table later. */
+  if (item.price_is_discounted && item.price_without_discount !== null) {
+    t.regularAlso += 1;
+    recordObservation(db, {
+      code,
+      seller: SELLER,
+      sellerSku: `${item.id}#was`,
+      sellerName: name,
+      sellerBrand: brand,
+      priceCents: cents(item.price_without_discount),
+      kind: 'regular',
+      unitPriceCents: null,
+      unitLabel: item.price_per ?? null,
+      currency: item.currency,
+      country,
+      region,
+      joinMethod,
+      pageGtin,
+      seenOn: item.date,
+      url: null,
+      imageUrl,
+      inStock: null,
+      storeName,
+      storeCity,
+      storeOsm,
+    });
+  }
+
+  const a = t.attempts.get(want) ?? { candidates: 0, matched: has };
+  a.candidates += 1;
+  t.attempts.set(want, a);
+}
+
+/** Write one crawl_attempt per barcode seen in the run. */
+export function recordAttempts(db: DatabaseSync, t: RunTally, today: string): void {
+  for (const [code, a] of t.attempts) {
+    recordAttempt(db, code, SELLER, today, a.matched ? 'matched' : 'no_barcode_match', a.candidates, null);
+  }
+}
+
+/**
+ * WEEKLY REFRESH MARK, same idea as hammer.ts's: mac/openprices-refresh.sh writes it as its LAST step,
+ * so it moves only when both currency passes finished. A stale or missing mark means a refresh failed.
+ */
+export const OPENPRICES_REFRESHED_KEY = 'openprices_refreshed_at';
+
+export function markRefreshed(db: DatabaseSync, at: Date = new Date()): string {
+  const iso = at.toISOString();
+  db.prepare('INSERT OR REPLACE INTO store_meta (key, value) VALUES (?, ?)').run(OPENPRICES_REFRESHED_KEY, iso);
+  return iso;
+}
+
 async function main(): Promise<void> {
-  const cat = new DatabaseSync(CATALOGUE, { readOnly: true });
+  if (process.argv[2] === '--mark-refreshed') {
+    const mdb = openPrices(PRICES);
+    console.log(`openprices: refresh marked at ${markRefreshed(mdb)}`);
+    mdb.close();
+    return;
+  }
+  const cat =new DatabaseSync(CATALOGUE, { readOnly: true });
   const db = openPrices(PRICES, { enforceSources: true });
   // Requirement 4.8: the database refuses unregistered sellers, and no automated
   // reader runs without a recorded basis or on a source whose basis forbids one.
   requireSourceUse(db, SELLER, 'automated');
   const today = new Date().toISOString().slice(0, 10);
+  const t = newTally();
 
-  let pulled = 0;
-  let skippedNoBarcode = 0;
-  let joined = 0;
-  let unjoined = 0;
-  let discounted = 0;
-  let regularAlso = 0;
-  const products = new Set<string>();
-  const locations = new Set<string>();
-  let minDate: string | null = null;
-  let maxDate: string | null = null;
-
-  /* One crawl_attempt row per barcode per run, not per price row: the table's
-   * grain is "did we ask about this code today", and this feed can hand back
-   * the same barcode many times in one pull. */
-  const attempts = new Map<string, { candidates: number; matched: boolean }>();
-
-  const first = await fetchPage(1);
-  const pages = Math.max(1, first.pages);
-  let page = 1;
-  let batch: ApiPage = first;
-
-  for (;;) {
-    for (const item of batch.items) {
-      pulled += 1;
-
-      if (item.product_code === null) {
-        skippedNoBarcode += 1;
-        continue;
-      }
-
-      const want = pad13(item.product_code);
-      const has = isCatalogued(cat, want);
-      const code = has ? want : null;
-      const joinMethod: JoinMethod = has ? 'gtin' : 'none';
-
-      products.add(want);
-      if (has) joined += 1;
-      else unjoined += 1;
-
-      const region = regionOf(item);
-      if (region !== null) locations.add(region);
-      const storeOsm = storeOsmOf(item);
-      const { storeName, storeCity } = storeNameAndCity(item);
-
-      if (minDate === null || item.date < minDate) minDate = item.date;
-      if (maxDate === null || item.date > maxDate) maxDate = item.date;
-
-      const country =
-        item.location?.osm_address_country_code ??
-        /* ONLINE listings carry no osm address at all. Defaulted to CA because
-         * the query itself asked for currency=CAD, not because any location
-         * said so - see the header. */
-        'CA';
-
-      const name = item.product_name ?? item.product?.product_name ?? '(unnamed)';
-      const brand = item.product?.brands ?? null;
-      const imageUrl = item.product?.image_url ?? null;
-      const kind = item.price_is_discounted ? 'promotional' : 'regular';
-      if (item.price_is_discounted) discounted += 1;
-
-      recordObservation(db, {
-        code,
-        seller: SELLER,
-        sellerSku: String(item.id),
-        sellerName: name,
-        sellerBrand: brand,
-        priceCents: cents(item.price),
-        kind,
-        unitPriceCents: null,
-        unitLabel: item.price_per ?? null,
-        currency: item.currency,
-        country,
-        region,
-        joinMethod,
-        seenOn: item.date,
-        url: null,
-        imageUrl,
-        /* This source photographs a price tag, not a shelf: the API carries
-         * no stock field at all, so every row here is "not observed", never
-         * a guessed yes. See the header and ObservationRow.inStock. */
-        inStock: null,
-        storeName,
-        storeCity,
-        storeOsm,
-      });
-
-      /* Mirror crawl.ts's wasPrice handling: a discounted row that also names
-       * its pre-discount price is two facts, and storing only the sale price
-       * would make "how much cheaper" unrecoverable from this table later. */
-      if (item.price_is_discounted && item.price_without_discount !== null) {
-        regularAlso += 1;
-        recordObservation(db, {
-          code,
-          seller: SELLER,
-          sellerSku: `${item.id}#was`,
-          sellerName: name,
-          sellerBrand: brand,
-          priceCents: cents(item.price_without_discount),
-          kind: 'regular',
-          unitPriceCents: null,
-          unitLabel: item.price_per ?? null,
-          currency: item.currency,
-          country,
-          region,
-          joinMethod,
-          seenOn: item.date,
-          url: null,
-          imageUrl,
-          inStock: null,
-          storeName,
-          storeCity,
-          storeOsm,
-        });
-      }
-
-      const a = attempts.get(want) ?? { candidates: 0, matched: has };
-      a.candidates += 1;
-      attempts.set(want, a);
+  /* One pass per currency (`--currency USD` runs just that one). A failed page throws and stops the run, loudly. */
+  const onlyAt = process.argv.indexOf('--currency');
+  const only = onlyAt === -1 ? null : (process.argv[onlyAt + 1] ?? '').toUpperCase();
+  if (only !== null && !(CURRENCIES as readonly string[]).includes(only)) {
+    throw new Error(`--currency must be one of ${CURRENCIES.join(', ')}`);
+  }
+  for (const currency of CURRENCIES.filter((c) => only === null || c === only)) {
+    const before = t.pulled;
+    const first = await fetchPage(currency, 1);
+    const pages = Math.max(1, first.pages);
+    let page = 1;
+    let batch: ApiPage = first;
+    for (;;) {
+      for (const item of batch.items) importItem(db, cat, item, currency, t);
+      if (page >= pages) break;
+      page += 1;
+      await sleep(DELAY_MS);
+      batch = await fetchPage(currency, page);
     }
-
-    if (page >= pages) break;
-    page += 1;
-    await sleep(DELAY_MS);
-    batch = await fetchPage(page);
+    console.log(`  ${currency}: ${t.pulled - before} rows over ${pages} pages (API total ${first.total})`);
   }
 
-  for (const [code, a] of attempts) {
-    recordAttempt(db, code, SELLER, today, a.matched ? 'matched' : 'no_barcode_match', a.candidates, null);
-  }
-
+  recordAttempts(db, t, today);
   cat.close();
 
   console.log('');
-  console.log(`  rows pulled              ${pulled}`);
-  console.log(`  skipped, no barcode      ${skippedNoBarcode}  (CATEGORY rows, not products)`);
-  console.log(`  joined to catalogue      ${joined}`);
-  console.log(`  stored unjoined          ${unjoined}`);
-  console.log(`  discounted rows          ${discounted}`);
-  console.log(`  also recorded a regular  ${regularAlso}  (had price_without_discount)`);
-  console.log(`  distinct products        ${products.size}`);
-  console.log(`  distinct locations       ${locations.size}`);
-  console.log(`  date spread              ${minDate} to ${maxDate}`);
+  console.log(`  rows pulled              ${t.pulled}`);
+  console.log(`  skipped, no barcode      ${t.skippedNoBarcode}  (CATEGORY rows, not products)`);
+  console.log(`  joined to catalogue      ${t.joined}`);
+  console.log(`  stored unjoined          ${t.unjoined}`);
+  console.log(`  discounted rows          ${t.discounted}`);
+  console.log(`  also recorded a regular  ${t.regularAlso}  (had price_without_discount)`);
+  console.log(`  distinct products        ${t.products.size}`);
+  console.log(`  distinct locations       ${t.locations.size}`);
+  console.log(`  date spread              ${t.minDate} to ${t.maxDate}`);
   console.log('');
   db.close();
 }
 
 if (import.meta.filename === process.argv[1]) {
-  void main();
+  main().catch((e) => {
+    console.error(`openprices: FAILED: ${String(e)}`);
+    process.exit(1);
+  });
 }

@@ -217,6 +217,20 @@ export interface OwnLookupSources {
   readonly preloadedPriceNames?: readonly PriceNameRow[];
   /** R15: told when the other thread failed and the scan fell back to the main thread. */
   readonly onFault?: (err: unknown) => void;
+  /**
+   * The shopper's market currency. Prices of any other currency are left out, so a US shopper is never
+   * shown a Canadian-dollar price and a Canadian shopper is never shown a US-dollar one. Blank or null
+   * reads as CAD, the same default the range estimate uses. Left undefined, nothing is filtered (older
+   * callers and tests that never named a market).
+   */
+  readonly currency?: string | null;
+}
+
+/** Only the prices in the shopper's currency; see `OwnLookupSources.currency`. */
+export function inMarketCurrency(list: readonly OwnPrice[], currency: string | null | undefined): OwnPrice[] {
+  if (currency === undefined) return [...list];
+  const want = (currency ?? '').trim().toUpperCase() || 'CAD';
+  return list.filter((p) => p.currency.trim().toUpperCase() === want);
 }
 
 export interface OwnLookup {
@@ -673,7 +687,7 @@ export function lookupOwnPrices(typed: string, sources: OwnLookupSources = {}): 
       let got = priced.get(c);
       if (!got) {
         try {
-          got = c.prices();
+          got = inMarketCurrency(c.prices(), sources.currency);
         } catch {
           got = [];
         }
@@ -897,8 +911,9 @@ export function lookupOwnPricesByBarcode(code: string, sources: OwnLookupSources
       unavailable.push('user_catalogue');
     }
 
-    if (all.length === 0) return { match: null, searched, unavailable };
-    const list = latestPerStoreRegion(dropWildPooled(all));
+    const inMarket = inMarketCurrency(all, sources.currency);
+    if (inMarket.length === 0) return { match: null, searched, unavailable };
+    const list = latestPerStoreRegion(dropWildPooled(inMarket));
     if (list.length === 0) return { match: null, searched, unavailable };
     return {
       match: {

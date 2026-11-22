@@ -1391,6 +1391,7 @@ async function typedFromOwnData(
       const id = pluId ?? pickCandidate(resolution!.row!);
       named = { name: id.name, brand: id.brand, size: id.size, code: id.barcode };
       const own = lookupOwnPricesByBarcode(id.barcode, {
+        currency: verdictCtx?.market.currency ?? 'CAD',
         pricesDbPath: defaultPricesPath(),
         userCatalogueDb: userCatalogue?.db ?? null,
         userCataloguePath: USER_CATALOGUE_PATH,
@@ -1399,6 +1400,7 @@ async function typedFromOwnData(
       if (own) match = { name: id.name, brand: id.brand, size: id.size, code: id.barcode, score: 1, prices: own.prices };
     } else {
       match = (await lookupOwnPricesAsync(text, {
+        currency: verdictCtx?.market.currency ?? 'CAD',
         pricesDbPath: defaultPricesPath(),
         userCatalogueDb: userCatalogue?.db ?? null,
         userCataloguePath: USER_CATALOGUE_PATH,
