@@ -78,7 +78,7 @@ export const FLAGS = {
   centsFirstPad: true,
   feed: false,
   placeholderLabels: false,
-  onboarding: false,
+  onboarding: true, // Aurik 2026-11-22: on again, as the concise five-screen flow (onboarding-flow.js FLOW)
   photoId: false,
   languages: false,
   market: false,

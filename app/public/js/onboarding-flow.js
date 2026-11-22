@@ -109,7 +109,7 @@ export const STEPS = Object.freeze([
   { n: 5, id: 'priority', kind: 'choice', key: 'priority',
     options: ['lowest', 'clearance', 'balance', 'quick'] },
   { n: 6, id: 'heard', kind: 'choice', key: 'heardFrom',
-    options: ['tv', 'google', 'tiktok', 'instagram', 'friend', 'facebook', 'x'] },
+    options: ['appstore', 'tiktok', 'instagram', 'google', 'friend', 'facebook', 'x', 'tv'] },
   { n: 7, id: 'tried', kind: 'choice', key: 'triedOtherApps', options: ['yes', 'no'] },
   { n: 8, id: 'trend', kind: 'figure', needs: ['savings_trend'] },
   { n: 9, id: 'mode', kind: 'choice', key: 'dealThresholdMode', options: ['percent', 'amount'] },
@@ -139,7 +139,30 @@ export const STEPS = Object.freeze([
   /* His 31 (30 is the camera, which the flow hands over to): a demo of the scan
      wait. The bar fills over the wait's own stage lines; it states no saving. */
   { n: 31, id: 'evaluating', kind: 'evaluating', stages: 3 },
+  /* Aurik, 2026-11-22: Cal AI's "Choose your gender", kept optional (Apple 5.1.1: no personal data required
+     that the app does not need), so "Prefer not to say" is an answer and Skip still works. */
+  { n: 32, id: 'gender', kind: 'choice', key: 'gender', options: ['female', 'male', 'other', 'prefer_not'] },
 ]);
+
+/**
+ * THE FLOW A NEW SHOPPER WALKS, Aurik 2026-11-22: "keep it informational as well as concise, and
+ * remember, we are a price-checking app ... only choose what is necessary. We also need user data."
+ * Cut to five screens on his answer the same day ("build the Cal AI style with a 5 screen cut"), which
+ * keeps the UX evidence's R-77 ceiling (five steps or fewer). The welcome with its promise and Get
+ * started; three questions that are the user data (who, how often, where); and the camera and location
+ * ask. The how-it-works cards come right after, as the walkthrough (screens/guide.js), and then the
+ * camera. The deal threshold keeps the founder's defaults (R-78) and is changed in You, Prices.
+ * Everything else in STEPS stays built and out of the flow.
+ */
+export const FLOW = Object.freeze(['welcome', 'gender', 'frequency', 'shops', 'permissions']);
+
+/* The list the app walks. Only a test changes it (setFlow), to hold the screens that stay built outside FLOW. */
+let activeFlow = FLOW;
+/** Test hook: walk `ids` instead of FLOW; no argument puts FLOW back. Returns the list now walked. */
+export function setFlow(ids = FLOW) {
+  activeFlow = Object.freeze([...ids]);
+  return activeFlow;
+}
 
 /** Whether a step is in the flow right now. */
 export function isVisible(step, { figures = PUBLISHED_FIGURES, capabilities = CAPABILITIES } = {}) {
@@ -149,9 +172,10 @@ export function isVisible(step, { figures = PUBLISHED_FIGURES, capabilities = CA
   return true;
 }
 
-/** The steps a user will actually walk, in his order. */
+/** The steps a user will actually walk, in FLOW's order (2026-11-22; before, all of STEPS in Jamin's order). */
 export function visibleSteps(opts = {}) {
-  return STEPS.filter((s) => isVisible(s, opts));
+  const flow = opts.flow ?? activeFlow;
+  return flow.map((id) => STEPS.find((s) => s.id === id)).filter((s) => s && isVisible(s, opts));
 }
 
 export function stepById(id) {
@@ -230,8 +254,11 @@ export function firstScreen(s, flags = FLAGS) {
     return s.consentSeen ? 'camera' : 'consent';
   }
   if (!s.onboarding?.doneAt) return 'onboarding';
-  if (!s.seenIntro) return 'setup';
-  if (!s.consentSeen) return 'consent';
+  /* 2026-11-22: the concise flow asks for the camera and location itself (its last step), and setup's
+     attitude picker is not asked on a first launch: the default voice stands and You changes it. A flow
+     skipped before its permission step still gets the permission screen. Consent only while photos exist. */
+  if (!s.permissionsSeen) return 'permissions';
+  if (flags.photoId && !s.consentSeen) return 'consent';
   return 'camera';
 }
 

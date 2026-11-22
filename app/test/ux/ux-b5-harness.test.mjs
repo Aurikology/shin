@@ -1240,7 +1240,7 @@ export const KD = {
 
 /** A store that has finished first-run: the camera is the first screen. */
 /* 2026-11-22: and has seen the new-user walkthrough (guide-state.js), so a launch lands on the camera. */
-export const RETURNING = { 'shin.v1': { seenIntro: true, consentSeen: true, permissionsSeen: true }, 'pexi.guide.seen': '1' };
+export const RETURNING = { 'shin.v1': { seenIntro: true, consentSeen: true, permissionsSeen: true, onboarding: { doneAt: '2026-10-01T00:00:00.000Z', answers: {} } }, 'pexi.guide.seen': '1' };
 
 /**
  * A verdict-bell answer with the shopper's price placed in it. `cents` is the
@@ -1285,7 +1285,11 @@ export async function launchReturning({ seed = {}, server = {}, ...rest } = {}) 
 
 /** Permissions Continue, Consent Continue. Two counted taps. */
 export async function onboard(app) {
-  assert.equal(app.screen, 'permissions', `expected the permission screen first, got ${app.screen}`);
+  /* 2026-11-22: the five-screen welcome is on. Its fastest way through is Skip on the first screen (R-77), which
+     still leaves the camera ask to the permission screen. */
+  assert.equal(app.screen, 'onboarding', `expected the welcome first, got ${app.screen}`);
+  await app.tap('[data-act="skip"]', 'Welcome Skip');
+  assert.equal(app.screen, 'permissions', `expected the permission screen second, got ${app.screen}`);
   await app.tap('[data-act="go"]', 'Permissions Continue');
   /* 2026-11-21 (business rank 3): with photo identification off the consent screen had no switch and is gone. */
   /* 2026-11-22 (Aurik, "set up the app walk through for new users"): the walkthrough stands before the first
@@ -1444,9 +1448,10 @@ if (isMain) {
     app.stop();
   });
 
-  test('harness control: the real app boots to the permissions screen on a fresh install, and a tap is counted once', async () => {
+  // Amended 2026-11-22: the five-screen welcome is on, so a fresh install opens it.
+  test('harness control: the real app boots to the welcome on a fresh install, and a tap is counted once', async () => {
     const app = await launchApp();
-    assert.equal(app.screen, 'permissions', `a fresh install should open the permission screen; got ${app.screen}. errors: ${app.errors.map(String).join('; ')}`);
+    assert.equal(app.screen, 'onboarding', `a fresh install should open the welcome; got ${app.screen}. errors: ${app.errors.map(String).join('; ')}`);
     assert.equal(app.taps, 0);
     assert.equal(app.has('[data-no-such-control]'), false);
     assert.throws(() => app.find('[data-no-such-control]'), /nothing on screen matches/);

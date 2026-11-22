@@ -74,11 +74,12 @@ test('1. the seller line and the renewal terms Apple and the legal review need a
 
 test('2. with photo identification off, the permission ask goes straight to the camera', async () => {
   const { firstScreen } = await import('../public/js/onboarding-flow.js');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'camera');
+  assert.equal(firstScreen({ permissionsSeen: true, onboarding: { doneAt: 'x' } }), 'camera'); // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW)
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: false }), 'camera');
   // A photo switch is a real choice, so with photo identification on the screen still asks.
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent');
-  assert.equal(firstScreen({}), 'permissions', 'the permission ask stays first');
+  assert.equal(firstScreen({}, { onboarding: false, photoId: false }), 'permissions', 'the permission ask stays first with the welcome off');
+  assert.equal(firstScreen({}), 'onboarding', 'with the welcome on (2026-11-22) the flow is first and asks for permissions as its last step');
 });
 
 test('2. the agree screen carries one line saying what scans are used for, both languages', () => {

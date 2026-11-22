@@ -377,3 +377,7 @@
   .onb-switch::after,
   .onb-prep li .onb-tick { transition: none; }
 }
+/* The bar measured 0 px wide at 390 (2026-11-22 Playwright): `.linky` is full width, so Skip the rest took the
+   whole row. Skip sizes to its words and the bar takes the rest, as Cal AI's does. */
+.onb .onb-top > .onb-skip { width: auto; }
+.onb .onb-top > .onb-bar { flex: 1 1 auto; min-width: 48px; }

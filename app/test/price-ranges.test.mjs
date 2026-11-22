@@ -147,6 +147,8 @@ function renderStep(stepId) {
 
 test('Evaluating Deal is a welcome step in his order, with his text and a progress bar, and no saving', () => {
   resetStore();
+  // Amended 2026-11-22: the screen stays built outside the five-screen FLOW, so it is walked on the full list.
+  flow.setFlow(flow.STEPS.filter((s) => s.id !== 'gender').map((s) => s.id));
   const ids = flow.visibleSteps().map((s) => s.id);
   assert.equal(ids.at(-1), 'evaluating', 'the evaluating screen is not the last welcome step');
   assert.equal(ids.at(-2), 'tip_accuracy');
@@ -163,6 +165,7 @@ test('Evaluating Deal is a welcome step in his order, with his text and a progre
   const text = r.html.replace(/<[^>]*>/g, ' ');
   assert.doesNotMatch(text, /\$|saved|save |savings|off\b/i, 'the demo printed a dollar or saving figure');
   assert.doesNotMatch(text, /[1-9]\d*\s*%/, 'the demo printed a percentage other than its own bar');
+  flow.setFlow();
 });
 
 /* ------------------------------------------------------------------- W32 */

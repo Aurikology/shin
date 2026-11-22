@@ -3152,3 +3152,25 @@ add haptics to presses. Also the setting screen needs imrpovement because theres
 
 **Reverses if:** testers report the press taps as noise (drop `startPressHaptics`, keep the three
 events), or the J1 tap count is ruled more important than the walkthrough.
+
+## The welcome is back, as Cal AI's onboarding cut to five screens
+**Date:** 2026-11-22 · **Status:** active · **Who:** Aurik (reverses `FLAGS.onboarding` off, Jamin 2026-09-21)
+
+Aurik, with Cal AI's onboarding screens attached: *"tweak them to mirror Pexi ... keep it informational
+as well as concise ... we are a price-checking app ... only choose what is necessary. We also need user
+data."* Pushed back once with the UX evidence (R-77: a returning welcome flow is five screens or fewer;
+R-78: the first run asks nothing but the camera); his answer: *"build the Cal AI style with a 5 screen cut"*.
+
+The flow (`onboarding-flow.js` FLOW): welcome (mascot, "Know a good price before you pay.", Get
+started, Skip), gender (optional: Prefer not to say), how often you go grocery shopping, where you
+usually shop, camera and location. Then the four how-it-works cards (screens/guide.js), then the camera.
+Each question carries a why-we-ask line; Continue waits for an answer, Skip the rest never waits.
+Answers go to the store and the events queue the moment they are tapped. Setup's attitude picker is no
+longer asked on a first run (R-75 holds: default voice, changed in You). The other 26 built steps stay
+in STEPS, out of the flow; test/onboarding.test.mjs still walks all of them.
+
+Cost: first launch to first verdict is 8 taps through Skip (J1), was 6 this morning.
+
+**Reverses if:** completion of the five screens is under 60% on the first testers (R-77's figure), or
+Jamin rules the welcome off again. Gender is personal information: the privacy policy (Jamin's files)
+must name it before a store build ships it; asked in comms 2026-11-22.

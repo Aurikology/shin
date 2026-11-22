@@ -45,6 +45,9 @@ const strings = await import('../public/js/onboarding-strings.js');
 const { t } = await import('../public/js/ui-strings.js');
 
 const { STEPS, PUBLISHED_FIGURES, realFigure, visibleSteps, isVisible, nextStepId, firstScreen } = flow;
+/* 2026-11-22: the app walks the five-screen FLOW (test/onboarding-concise.test.mjs holds it). This file holds
+   every screen that stays built, so it walks all of STEPS, the list the app walked before. */
+flow.setFlow(STEPS.map((s) => s.id));
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -116,11 +119,13 @@ function withFigures(figures, fn) {
 
 test('the flow is his numbered list, in his order', () => {
   /* His 1 to 29, then his 31 ("Evaluating Deal..."); his 30 is the camera. */
-  assert.deepEqual(STEPS.map((s) => s.n), [...Array.from({ length: 29 }, (_, i) => i + 1), 31]);
+  // Amended 2026-11-22: Aurik's gender step is appended as 32; his list is the first 30.
+  assert.deepEqual(STEPS.slice(0, 30).map((s) => s.n), [...Array.from({ length: 29 }, (_, i) => i + 1), 31]);
+  assert.equal(STEPS[30].id, 'gender');
   assert.deepEqual(STEPS.slice(0, 7).map((s) => s.id),
     ['welcome', 'promise', 'shops', 'frequency', 'priority', 'heard', 'tried']);
   assert.deepEqual(STEPS.slice(22).map((s) => s.id),
-    ['trial', 'permissions', 'plans', 'tip_scan', 'tip_eval', 'tip_fix', 'tip_accuracy', 'evaluating']);
+    ['trial', 'permissions', 'plans', 'tip_scan', 'tip_eval', 'tip_fix', 'tip_accuracy', 'evaluating', 'gender']);
 });
 
 test('today the walked steps are his list minus the figure steps and sign-in', () => {
@@ -204,28 +209,32 @@ test('the monthly goal status line is hidden unless it is measured', () => {
 
 /* ------------------------------------------------------------ 3. routing */
 
+// Amended 2026-11-22: the flag is on now, so the switched-off order is asked for by name (OFF).
+const OFF = { onboarding: false, photoId: false };
 test('first launch order with the welcome switched off (the MVP default): permissions, camera', () => {
   /* 2026-11-21 readiness review (business rank 3): with photo identification off the consent screen has no switch, so the ask goes straight to the camera. */
   /* FLAGS.onboarding is false (docs/mvp-plan.md): no welcome, no setup. The
      camera and location ask is NOT dropped with the flow, which it was when
      this switch first shipped: it is step 24 inside the flow, and
      screens/permissions.js is that step standing on its own. */
-  assert.equal(firstScreen({}), 'permissions', 'a fresh install is asked for permissions first');
-  assert.equal(firstScreen({ onboarding: { answers: {} } }), 'permissions', 'a half-finished welcome does not bring it back');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'the camera comes after the ask');
+  assert.equal(firstScreen({}, OFF), 'permissions', 'a fresh install is asked for permissions first');
+  assert.equal(firstScreen({ onboarding: { answers: {} } }, OFF), 'permissions', 'a half-finished welcome does not bring it back');
+  assert.equal(firstScreen({ permissionsSeen: true }, OFF), 'camera', 'the camera comes after the ask');
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent', 'with a photo switch to answer, consent still comes after the ask');
-  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }), 'camera', 'setup is never asked for');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }), 'camera');
+  assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }, OFF), 'camera', 'setup is never asked for');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }, OFF), 'camera');
 });
 
-test('first launch order with the welcome switched on: onboarding, setup, consent, camera', () => {
-  const on = { onboarding: true };
+// Amended 2026-11-22: the concise flow asks for permissions itself and setup is not asked on a first launch.
+test('first launch order with the welcome switched on: onboarding, then permissions if it was skipped, then the camera', () => {
+  const on = { onboarding: true, photoId: false };
   assert.equal(firstScreen({}, on), 'onboarding');
   assert.equal(firstScreen({ onboarding: { answers: {} } }, on), 'onboarding', 'answers without a finish do not count');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'setup');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true }, on), 'consent');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }, on), 'camera');
-  assert.equal(firstScreen({ onboarding: { skippedAt: 'x', doneAt: 'y' }, seenIntro: true, consentSeen: true }, on), 'camera');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'permissions', 'a flow skipped before its permission step still asks');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }, on), 'camera', 'setup is not asked');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }, { onboarding: true, photoId: true }), 'consent', 'consent only while photos exist');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: true }, on), 'camera');
+  assert.equal(firstScreen({ onboarding: { skippedAt: 'x', doneAt: 'y' }, permissionsSeen: true }, on), 'camera');
 });
 
 test('main.js registers the screen and takes the first screen from the flow', () => {
@@ -253,7 +262,8 @@ test('Continue from the first step walks his order and ends at the camera, on re
     const last = r.calls.at(-1);
     assert.equal(last[0], 'replace');
     if (last[1] !== 'onboarding') {
-      assert.equal(last[1], 'camera', 'a fresh install goes to the camera after the flow (setup and, with photos off, consent are switched off)');
+      // Amended 2026-11-22: a fresh install meets the how-it-works walkthrough before the camera (guide-state.js).
+      assert.equal(last[1], 'guide', 'a fresh install goes to the walkthrough, then the camera, after the flow');
       break;
     }
     id = last[2].step;
@@ -261,7 +271,7 @@ test('Continue from the first step walks his order and ends at the camera, on re
   assert.deepEqual(seen, visibleSteps().map((s) => s.id));
   assert.ok(store.get().onboarding.doneAt, 'finishing must be on record');
   assert.equal(firstScreen(store.get()), 'camera');
-  assert.equal(firstScreen(store.get(), { onboarding: true }), 'setup', 'with the welcome on, setup comes next');
+  assert.equal(firstScreen(store.get(), { onboarding: true, photoId: false }), 'camera', 'with the welcome on, setup is not asked (2026-11-22)');
   assert.ok(trackedTypes().includes('onboarding_done'));
 });
 
@@ -549,8 +559,8 @@ test('a replay is opt-in: first-run behaviour is the same with or without the sw
      consent is the second. The ask is step 24 INSIDE the welcome flow, so
      switching the flow off would otherwise drop it: screens/permissions.js is
      that step standing on its own. */
-  assert.equal(firstScreen({}), 'permissions', 'with the welcome off, a real new user is asked for permissions first');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'and the camera comes next (no consent screen while photos are off, 2026-11-21)');
+  assert.equal(firstScreen({}, OFF), 'permissions', 'with the welcome off, a real new user is asked for permissions first');
+  assert.equal(firstScreen({ permissionsSeen: true }, OFF), 'camera', 'and the camera comes next (no consent screen while photos are off, 2026-11-21)');
 });
 
 test('a replay runs the whole flow in the same order and lands on the camera', async () => {

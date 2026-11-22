@@ -337,12 +337,12 @@ test('R-75 (keep): the picker is in You, three choices in one radio group, none 
 });
 
 test('R-75 (keep): the picker is not on the first run, and the default voice applies from the first scan', () => {
-  assert.equal(FLAGS.onboarding, false, 'the welcome flow must stay off, and Setup is part of it');
-  for (const s of [{}, { permissionsSeen: true }, { permissionsSeen: true, consentSeen: true }]) {
+  // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW); Setup is no longer part of it, so the rule (no picker on the first run) holds with it on.
+  for (const s of [{}, { permissionsSeen: true }, { permissionsSeen: true, consentSeen: true }, { onboarding: { doneAt: 'x' } }, { onboarding: { doneAt: 'x' }, permissionsSeen: true }]) {
     assert.notEqual(flow.firstScreen(s), 'setup', `first launch with ${JSON.stringify(s)} lands on the personality picker`);
   }
   assert.equal(flow.firstScreen({}, { ...FLAGS, onboarding: true }), 'onboarding', 'control: with the flag on a fresh install does see the flow');
-  assert.equal(flow.firstScreen({ onboarding: { doneAt: 'x' } }, { ...FLAGS, onboarding: true }), 'setup', 'control: the matcher can see Setup when the flow is on');
+  assert.notEqual(flow.firstScreen({ onboarding: { doneAt: 'x' } }, { ...FLAGS, onboarding: true }), 'setup', 'the flow hands to Setup');
   storage.clear();
   store.reset();
   assert.equal(personality(), 'deadpan');
@@ -838,11 +838,14 @@ test('R-76 (build 7): the spent line obeys the line limit in every voice', () =>
 
 /* ===================================================================== R-77 */
 
-test('R-77 (keep): the welcome flow stays off, and first launch is permissions, then the camera (consent left with photos off, 2026-11-21)', () => {
-  assert.equal(FLAGS.onboarding, false);
-  assert.equal(flow.firstScreen({}), 'permissions');
-  assert.equal(flow.firstScreen({ permissionsSeen: true }), 'camera');
-  assert.equal(flow.firstScreen({ permissionsSeen: true, consentSeen: true }), 'camera');
+// Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW), within R-77's ceiling: welcome, gender, how often, where, the ask; Skip on the first screen.
+test('R-77 (keep): the welcome flow is five screens with Skip on the first, then the walkthrough and the camera', () => {
+  assert.equal(FLAGS.onboarding, true);
+  assert.deepEqual(flow.visibleSteps().map((s) => s.id), ['welcome', 'gender', 'frequency', 'shops', 'permissions']);
+  assert.equal(flow.firstScreen({}), 'onboarding');
+  assert.equal(flow.firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }), 'camera');
+  assert.equal(flow.firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: false }), 'camera');
+  assert.match(readFileSync(new URL('../../public/js/screens/onboarding.js', import.meta.url), 'utf8'), /welcome \? `<button type="button" class="linky onb-notnow" data-act="skip">/, 'no Skip on the first screen');
 });
 
 /** A flow that is on must be at most five steps, or the build refuses it. Pure so it can be shown to fail. */
@@ -852,7 +855,8 @@ function welcomeViolation(flagOn, stepCount) {
 }
 
 test('R-77 (keep): if the welcome flow is ever switched on it must be five steps or fewer (the guard has gone red)', () => {
-  assert.match(welcomeViolation(true, flow.visibleSteps().length) ?? '', /allows 5/, 'control: the guard must flag today\'s step count if the flag were on');
+  // Amended 2026-11-22: the control is the whole built list (31 screens), which the guard must refuse.
+  assert.match(welcomeViolation(true, flow.visibleSteps({ flow: flow.STEPS.map((s) => s.id) }).length) ?? '', /allows 5/, 'control: the guard must flag the full list');
   assert.equal(welcomeViolation(true, 5), null, 'control: five steps is allowed');
   assert.equal(welcomeViolation(FLAGS.onboarding, flow.visibleSteps().length), null, 'FLAGS.onboarding was switched on with more than 5 steps');
 });

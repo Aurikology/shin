@@ -61,7 +61,10 @@ async function fresh() {
   await p.goto(BASE); await p.waitForTimeout(1500);
   // The first screen (agree.js, one "Agree and continue" button since 2026-11-22).
   if (await p.locator('[data-act="agree-go"]').count()) await p.locator('[data-act="agree-go"]').click();
-  for (let i = 0; i < 8; i++) { // 8 since 2026-11-22: the walkthrough is Next x3 then Start scanning
+  for (let i = 0; i < 12; i++) { // 12 since 2026-11-22: the five-screen welcome, then the walkthrough's Next x3 and Start scanning
+    // 2026-11-22: the welcome's questions wait for an answer, so pick the first option before Continue.
+    const opt = p.locator('#screen .onb-opt:visible').first();
+    if (await opt.count()) await opt.click().catch(() => {});
     const c = p.locator('#screen button:visible', { hasText: /Continue|Get started|Start|Allow|OK|Next/ }).first();
     if (!(await c.count())) break;
     await c.click().catch(() => {}); await p.waitForTimeout(600);

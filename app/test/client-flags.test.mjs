@@ -45,8 +45,10 @@ const api = await import('../public/js/api.js');
 const { t } = await import('../public/js/ui-strings.js');
 const youModule = await import('../public/js/screens/you.js');
 
-test('the four MVP switches exist and are off', () => {
-  for (const k of ['onboarding', 'photoId', 'languages', 'market']) {
+// Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW); the other three stay off.
+test('the four MVP switches exist; photo ID, languages and market are off, the welcome is on', () => {
+  assert.equal(FLAGS.onboarding, true, 'FLAGS.onboarding is not on');
+  for (const k of ['photoId', 'languages', 'market']) {
     assert.equal(FLAGS[k], false, `FLAGS.${k} is not off`);
   }
 });
@@ -57,9 +59,10 @@ test('onboarding off: a fresh install goes Permissions, Camera (Consent only wit
      switching the flow off took it off too and a fresh install was never
      asked; screens/permissions.js is that step standing on its own, and
      `permissionsSeen` is what says this device has been asked. */
-  assert.equal(firstScreen({}), 'permissions');
-  assert.equal(firstScreen({ permissionsSeen: true }), 'camera', 'photos off: the consent screen has no switch and is skipped (2026-11-21)');
-  assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }), 'camera');
+  // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW), so the off order is asked for by name.
+  assert.equal(firstScreen({}, { onboarding: false, photoId: false }), 'permissions');
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: false }), 'camera', 'photos off: the consent screen has no switch and is skipped (2026-11-21)');
+  assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }, { onboarding: false, photoId: false }), 'camera');
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: false }, { onboarding: false, photoId: true }), 'consent');
   assert.equal(firstScreen({}, { onboarding: true }), 'onboarding', 'the flag no longer switches the welcome back on');
@@ -107,13 +110,14 @@ function youMarkup(win) {
   return root.innerHTML;
 }
 
-test('You: no language row, no market row and no welcome replay while those are off; Manage subscription is there', () => {
+// Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW), so the welcome replay row is drawn again (You, Help).
+test('You: no language row and no market row while those are off; the welcome replay is there; Manage subscription is there', () => {
   applyFlags();
   const html = youMarkup();
   assert.ok(html.length > 500, 'the You screen did not render');
   assert.ok(!html.includes('data-locale='), 'the language row is still drawn');
   assert.ok(!html.includes('data-act="market"'), 'the market picker row is still drawn');
-  assert.ok(!html.includes('data-act="welcome"'), 'the welcome replay row is still drawn');
+  assert.ok(html.includes('data-act="welcome"'), 'the welcome replay row is gone while the welcome is on');
   /* D29: in a plain browser the store page is a dead end, so no Manage row. */
   assert.ok(!html.includes('data-manage-sub'), 'Manage subscription is drawn outside the store builds');
   assert.match(html, /data-quota-row hidden/, 'the quota row must wait for the server');

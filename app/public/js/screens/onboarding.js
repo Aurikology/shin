@@ -36,6 +36,7 @@ import { panelHtml, paintPanel, tapPermission, fillDemoSlot } from '../permissio
 import { FLAGS } from '../flags.js';
 import { locale as currentLocale } from '../lib/locale.js';
 import { planFacts } from '../plus-config.js';
+import { landing } from '../guide-state.js';
 
 const DEPS = { store, track };
 
@@ -75,7 +76,9 @@ function questionKey(step) {
 function choiceBody(step, answers) {
   const value = answers[step.key];
   const chosen = (opt) => (step.multi ? Array.isArray(value) && value.includes(opt) : value === opt);
-  const heading = `<h1 id="onb-q">${escapeHtml(t(questionKey(step)))}</h1>`;
+  const heading = `<h1 id="onb-q">${escapeHtml(t(questionKey(step)))}</h1>`
+    /* 2026-11-22 (Aurik's Cal AI references): one plain line under each question saying why it is asked. */
+    + (hasString(`onb_${step.id}_why`) ? `<p class="onb-why">${escapeHtml(t(`onb_${step.id}_why`))}</p>` : '');
   const hint = step.multi ? `<p class="onb-hint">${escapeHtml(t('onb_multi_hint'))}</p>` : '';
   const optsHtml = step.options.map((o) => optionHtml(step, o, chosen(o))).join('');
   const group = step.multi
@@ -256,10 +259,12 @@ function trialBody() {
 function bodyFor(step, answers, replay) {
   switch (step.kind) {
     case 'welcome':
-      return `${face('pleased', 168)}<h1 class="onb-brand">${escapeHtml(t('onb_welcome_name'))}<i aria-hidden="true">.</i></h1>`;
+      return `${face('pleased', 168)}<h1 class="onb-brand">${escapeHtml(t('onb_welcome_name'))}<i aria-hidden="true">.</i></h1>
+        <p class="onb-sub onb-welcome-line">${escapeHtml(t('onb_welcome_line'))}</p>`;
     case 'info':
       return step.id === 'thanks'
-        ? `${face('proud', 120)}<h1>${escapeHtml(t('onb_thanks_title'))}</h1><p class="onb-sub">${escapeHtml(t('onb_thanks_sub'))}</p>`
+        ? `${face('proud', 120)}<h1>${escapeHtml(t('onb_thanks_title'))}</h1><p class="onb-sub">${escapeHtml(t('onb_thanks_sub'))}</p>
+          <div class="onb-privacy"><b>${escapeHtml(t('onb_thanks_privacy_title'))}</b><span>${escapeHtml(t('onb_thanks_privacy'))}</span></div>`
         : `${face('idle', 120)}<h1>${escapeHtml(t('onb_promise'))}</h1>`;
     case 'choice': return choiceBody(step, answers);
     case 'threshold': return thresholdBody(answers, replay);
@@ -311,23 +316,30 @@ export default {
     track('onboarding_step', replay ? { step: step.id, n: step.n, replay: true } : { step: step.id, n: step.n });
 
     const pct = Math.round(((index + 1) / total) * 100);
-    const ctaLabel = step.kind === 'trial' ? t('onb_trial_try') : t(last ? 'onb_finish' : 'onb_continue');
+    const ctaLabel = step.kind === 'trial' ? t('onb_trial_try')
+      : step.kind === 'welcome' ? t('onb_get_started') : t(last ? 'onb_finish' : 'onb_continue');
+    /* 2026-11-22: a question's Continue waits for an answer (Cal AI's grey button); "Skip the rest" never does,
+       so nothing here blocks the app. A replay never waits. */
+    const answered = (v) => (Array.isArray(v) ? v.length > 0 : v !== undefined && v !== null && v !== '');
+    const waits = step.kind === 'choice' && !replay && !answered(answers[step.key]);
+    const welcome = step.kind === 'welcome';
     const showNotNow = step.kind === 'plans';
 
     root.innerHTML = `
       <div class="page onb onb-${escapeHtml(step.kind)}" data-step="${escapeHtml(step.id)}">
-        <div class="onb-top">
+        ${welcome ? '' : `<div class="onb-top">
           ${index > 0
             ? `<button type="button" class="onb-back" data-act="back" aria-label="${escapeHtml(t('nav_back'))}">&larr;</button>`
             : '<span class="onb-back-gap"></span>'}
           <div class="onb-bar" role="progressbar" aria-valuemin="1" aria-valuemax="${total}"
                aria-valuenow="${index + 1}" aria-label="${escapeHtml(t('onb_progress', { n: String(index + 1), total: String(total) }))}"><i style="transform:scaleX(${pct / 100})"></i></div>
           <button type="button" class="linky onb-skip" data-act="skip">${escapeHtml(t('onb_skip_all'))}</button>
-        </div>
+        </div>`}
         <div class="onb-body">${bodyFor(step, answers, replay)}</div>
         <div class="page-foot">
-          <button type="button" class="cta" data-act="next">${escapeHtml(ctaLabel)}</button>
+          <button type="button" class="cta" data-act="next"${waits ? ' disabled' : ''}>${escapeHtml(ctaLabel)}</button>
           ${showNotNow ? `<button type="button" class="linky onb-notnow" data-act="notnow">${escapeHtml(t('onb_not_now'))}</button>` : ''}
+          ${/* R-77: Skip on the first screen too, where Cal AI puts its sign-in line. */ welcome ? `<button type="button" class="linky onb-notnow" data-act="skip">${escapeHtml(t('onb_skip_all'))}</button>` : ''}
         </div>
       </div>`;
 
@@ -341,7 +353,7 @@ export default {
       if (nextId) ctx.replace('onboarding', replay ? { step: nextId, replay: 1 } : { step: nextId });
       // The end lands where a normal launch would: the camera for someone who
       // has finished everything, and never a flag flipped back.
-      else ctx.replace(firstScreen(store.get()));
+      else ctx.replace(landing(firstScreen(store.get()), globalThis.localStorage, store.get())); // then the walkthrough (guide.js)
     }
 
     /**
@@ -452,6 +464,8 @@ export default {
             el.setAttribute('aria-checked', String(chosen));
           }
         }
+        const cta = root.querySelector('[data-act="next"]');
+        if (cta) cta.disabled = !answered(answersNow()[step.key]);
         return;
       }
 

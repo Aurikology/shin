@@ -27,26 +27,41 @@ export const ONB_EN = {
 
   /* 1 and 2 */
   onb_welcome_name: 'PEXI',
+  onb_welcome_line: 'Know a good price before you pay.',
+  onb_get_started: 'Get started',
   onb_promise: 'Scan any product and instantly know if it’s worth it',
 
+  /* 2026-11-22, the concise flow (onboarding-flow.js FLOW): gender, and why each question is asked. */
+  onb_gender_q: 'Choose your gender',
+  onb_gender_why: 'This helps us understand who shops with Pexi.',
+  onb_gender_female: 'Female',
+  onb_gender_male: 'Male',
+  onb_gender_other: 'Other',
+  onb_gender_prefer_not: 'Prefer not to say',
+  onb_frequency_why: 'Pexi learns how often you shop, to check the prices you see most.',
+  onb_shops_why: 'We use it to bring in prices from the shops you visit.',
+  onb_priority_why: 'This helps Pexi show you what matters to you first.',
+  onb_heard_why: 'This helps us reach more shoppers like you.',
+  onb_tried_why: 'This helps us make Pexi better than what you have used.',
+
   /* 3 */
-  onb_shops_q: 'Where do you shop most often?',
+  onb_shops_q: 'Where do you usually shop?',
   onb_shops_supermarkets: 'Supermarkets & Groceries',
   onb_shops_bigbox: 'Big Box Stores',
   onb_shops_pharmacies: 'Pharmacies & Drugstores',
   onb_shops_other: 'Other Retailers',
 
   /* 4 */
-  onb_frequency_q: 'How often do you go shopping per week?',
-  onb_frequency_occasional: '0–2 times',
+  onb_frequency_q: 'How often do you go grocery shopping?',
+  onb_frequency_occasional: 'Once a week or less',
   onb_frequency_occasional_sub: 'Occasional shopper',
-  onb_frequency_regular: '3–5 times',
+  onb_frequency_regular: '2 to 3 times a week',
   onb_frequency_regular_sub: 'Regular shopper',
-  onb_frequency_frequent: '6+ times',
-  onb_frequency_frequent_sub: 'Frequent bargain hunter',
+  onb_frequency_frequent: '4 or more times a week',
+  onb_frequency_frequent_sub: 'Frequent shopper',
 
   /* 5 */
-  onb_priority_q: 'What is your main shopping priority?',
+  onb_priority_q: 'What matters most when you shop?',
   onb_priority_lowest: 'Finding Lowest Price',
   onb_priority_clearance: 'Spotting Clearance Deals',
   onb_priority_balance: 'Value & Quality Balance',
@@ -54,6 +69,7 @@ export const ONB_EN = {
 
   /* 6 */
   onb_heard_q: 'Where did you hear about us?',
+  onb_heard_appstore: 'App Store',
   onb_heard_tv: 'TV',
   onb_heard_google: 'Google',
   onb_heard_tiktok: 'TikTok',
@@ -63,7 +79,7 @@ export const ONB_EN = {
   onb_heard_x: 'X',
 
   /* 7 */
-  onb_tried_q: 'Have you tried other deal finding or price tracking apps?',
+  onb_tried_q: 'Have you tried other price-checking apps?',
   onb_tried_yes: 'Yes',
   onb_tried_no: 'No',
 
@@ -77,7 +93,7 @@ export const ONB_EN = {
   onb_mode_q: 'What minimum discount threshold makes an item a ‘Good Deal’ for you?',
   onb_mode_percent: 'Percentage (%)',
   onb_mode_amount: 'Dollar Amount ($)',
-  onb_threshold_q: 'Set your target deal threshold',
+  onb_threshold_q: 'What counts as a deal for you?',
   onb_threshold_label: 'Deal threshold',
   onb_threshold_pct: (f) => `${f.n}% OFF`,
   onb_threshold_amt: (f) => `$${f.n} OFF`,
@@ -130,8 +146,10 @@ export const ONB_EN = {
   onb_potential_saved: (f) => `$${f.n} saved`,
 
   /* 18 */
-  onb_thanks_title: 'Thank you for trusting us!',
-  onb_thanks_sub: 'Now let’s personalize PEXI for you...',
+  onb_thanks_title: 'Thank you for trusting us',
+  onb_thanks_sub: 'Now let’s set Pexi up for you.',
+  onb_thanks_privacy_title: 'Your privacy matters to us',
+  onb_thanks_privacy: 'Your answers stay tied to this phone, never to your name, and you can turn data sharing off in You.',
 
   /* 19, a figure step: each line is its own slot */
   onb_social_title: (f) => `Join over ${f.n} smart shoppers like you`,
@@ -229,29 +247,43 @@ export const ONB_FR = {
   onb_replay_row: 'Revoir l’accueil',
 
   onb_welcome_name: 'PEXI',
+  onb_welcome_line: 'Sache si c’est un bon prix avant de payer.',
+  onb_get_started: 'Commencer',
+  onb_gender_q: 'Choisis ton genre',
+  onb_gender_why: 'Ça nous aide à comprendre qui magasine avec Pexi.',
+  onb_gender_female: 'Femme',
+  onb_gender_male: 'Homme',
+  onb_gender_other: 'Autre',
+  onb_gender_prefer_not: 'Je préfère ne pas le dire',
+  onb_frequency_why: 'Pexi apprend à quelle fréquence tu magasines, pour vérifier les prix que tu vois le plus.',
+  onb_shops_why: 'On s’en sert pour ajouter les prix des magasins où tu vas.',
+  onb_priority_why: 'Ça aide Pexi à te montrer d’abord ce qui compte pour toi.',
+  onb_heard_why: 'Ça nous aide à rejoindre d’autres gens comme toi.',
+  onb_tried_why: 'Ça nous aide à rendre Pexi meilleure que ce que tu as déjà utilisé.',
   onb_promise: 'Scanne n’importe quel produit et sache tout de suite si ça vaut le coup',
 
-  onb_shops_q: 'Où magasines-tu le plus souvent ?',
+  onb_shops_q: 'Où magasines-tu d’habitude ?',
   onb_shops_supermarkets: 'Supermarchés et épiceries',
   onb_shops_bigbox: 'Magasins à grande surface',
   onb_shops_pharmacies: 'Pharmacies et drogueries',
   onb_shops_other: 'Autres détaillants',
 
-  onb_frequency_q: 'Combien de fois par semaine fais-tu des courses ?',
-  onb_frequency_occasional: '0 à 2 fois',
+  onb_frequency_q: 'À quelle fréquence fais-tu l’épicerie ?',
+  onb_frequency_occasional: 'Une fois par semaine ou moins',
   onb_frequency_occasional_sub: 'Acheteur occasionnel',
-  onb_frequency_regular: '3 à 5 fois',
+  onb_frequency_regular: '2 à 3 fois par semaine',
   onb_frequency_regular_sub: 'Acheteur régulier',
-  onb_frequency_frequent: '6 fois ou plus',
-  onb_frequency_frequent_sub: 'Chasseur d’aubaines assidu',
+  onb_frequency_frequent: '4 fois ou plus par semaine',
+  onb_frequency_frequent_sub: 'Acheteur fréquent',
 
-  onb_priority_q: 'Quelle est ta priorité principale quand tu magasines ?',
+  onb_priority_q: 'Qu’est-ce qui compte le plus quand tu magasines ?',
   onb_priority_lowest: 'Trouver le prix le plus bas',
   onb_priority_clearance: 'Repérer les liquidations',
   onb_priority_balance: 'Équilibre valeur et qualité',
   onb_priority_quick: 'Entrer et sortir vite',
 
   onb_heard_q: 'Où as-tu entendu parler de nous ?',
+  onb_heard_appstore: 'App Store',
   onb_heard_tv: 'Télé',
   onb_heard_google: 'Google',
   onb_heard_tiktok: 'TikTok',
@@ -260,7 +292,7 @@ export const ONB_FR = {
   onb_heard_facebook: 'Facebook',
   onb_heard_x: 'X',
 
-  onb_tried_q: 'As-tu déjà essayé d’autres applis de rabais ou de suivi des prix ?',
+  onb_tried_q: 'As-tu déjà essayé d’autres applis pour vérifier les prix ?',
   onb_tried_yes: 'Oui',
   onb_tried_no: 'Non',
 
@@ -272,7 +304,7 @@ export const ONB_FR = {
   onb_mode_q: 'Quel rabais minimum fait d’un article une « bonne affaire » pour toi ?',
   onb_mode_percent: 'Pourcentage (%)',
   onb_mode_amount: 'Montant en dollars ($)',
-  onb_threshold_q: 'Fixe ton seuil de rabais',
+  onb_threshold_q: 'C’est quoi, une aubaine, pour toi ?',
   onb_threshold_label: 'Seuil de rabais',
   onb_threshold_pct: (f) => `${f.n} % DE RABAIS`,
   onb_threshold_amt: (f) => `${f.n} $ DE RABAIS`,
@@ -317,8 +349,10 @@ export const ONB_FR = {
   onb_potential_days: (f) => `${f.n} jours`,
   onb_potential_saved: (f) => `${f.n} $ économisés`,
 
-  onb_thanks_title: 'Merci de nous faire confiance!',
-  onb_thanks_sub: 'Personnalisons maintenant PEXI pour toi...',
+  onb_thanks_title: 'Merci de nous faire confiance',
+  onb_thanks_sub: 'Maintenant, préparons Pexi pour toi.',
+  onb_thanks_privacy_title: 'Ta vie privée compte pour nous',
+  onb_thanks_privacy: 'Tes réponses restent liées à ce téléphone, jamais à ton nom, et tu peux arrêter le partage de données dans Toi.',
 
   onb_social_title: (f) => `Joins plus de ${f.n} acheteurs futés comme toi`,
   onb_social_rating: (f) => `Note de ${f.v} étoiles`,

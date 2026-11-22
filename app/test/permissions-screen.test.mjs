@@ -139,12 +139,13 @@ test('the ask comes BEFORE consent, which is where step 24 sits inside the flow'
     'answering consent must not excuse the permission ask');
 });
 
-test('with the flow on, nothing about the order changed, and the ask stays inside it', () => {
+// Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW): the flow's last step is the ask, and only a flow skipped before it lands here.
+test('with the flow on, the ask stays inside it, and a flow skipped before the ask lands here', () => {
   const on = { ...FLAGS, onboarding: true };
   assert.equal(firstScreen({}, on), 'onboarding');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'setup');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'permissions');
   // Never sent to the standalone screen while the flow is the one asking.
-  assert.notEqual(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true }, on), 'permissions');
+  assert.notEqual(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: true }, on), 'permissions');
 });
 
 test('main.js registers the screen, and the flow module is what reads the flags', () => {
@@ -157,11 +158,13 @@ test('main.js registers the screen, and the flow module is what reads the flags'
 
 /* ------------------------ 3. the flag that makes this screen the live one */
 
-test('the welcome flow is OFF, which is the state that routes here', () => {
+// Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW): this screen is now the fallback for a flow skipped before its permission step.
+test('the welcome flow is ON, and this screen is routed to only when the flow was skipped before the ask', () => {
   /* Shipped false on 2026-09-22 with no permission ask behind it, which is
      the hole this screen fills. Back to true and the screen is simply not
      routed to, while step 24 asks again from inside the flow. */
-  assert.equal(FLAGS.onboarding, false);
+  assert.equal(FLAGS.onboarding, true);
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }), 'permissions');
 });
 
 /* --------------------------------------- 4. one place for the camera answer */
