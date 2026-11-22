@@ -65,7 +65,7 @@ Connect API key file lives. Printed recovery codes for every account go somewher
 
 ### Decisions to write down (each one line in `RULINGS.md`, in your words)
 
-1. **R08**: FileVault on with a named person who can type the disk password after a restart, or off with the theft risk accepted.
+1. **R08**: ruled 2026-11-21, not a launch concern — launch hosting is a paid server subscription, not this Mac (RULINGS.md, "Launch hosting moves off the Mac"). FileVault stays optional for the beta period only.
 2. **R43**: is Quebec in the launch (French on) or not.
 3. **R48**: if Apple objects to "None" for alcohol, accept 13+ (prepared default) or hide liquor products. Answers: `docs/store/listing.md`.
 4. **R67**: offline limit accepted as a launch limit.
@@ -195,9 +195,11 @@ A Claude session on the Mac cannot type your password. At the Mac, in Terminal a
 `sh mac/10-boot-survival.sh --dry-run`, then `sudo sh mac/10-boot-survival.sh`, then `sudo sh mac/10-boot-survival.sh --verify`.
 Later `sudo sh mac/11-planned-restart.sh` (macOS 27.2.1) and `sudo sh mac/12-harden.sh`. Each has a `--dry-run` and an undo.
 
-### 2. Turn FileVault on and keep the recovery key (R08, D1)
+### 2. Turn FileVault on and keep the recovery key (R08, D1) — optional, beta only
 
-System Settings > Privacy and Security > FileVault > Turn On. Pick "create a recovery key" (not iCloud), write it on paper or
+Not required for launch (RULINGS.md, "Launch hosting moves off the Mac"): the Mac stops being the
+server once launch moves to a paid subscription. Do this only if you want the beta-period Mac's disk
+encrypted anyway. System Settings > Privacy and Security > FileVault > Turn On. Pick "create a recovery key" (not iCloud), write it on paper or
 in your password manager, NOT on this Mac. Your password is needed. Decision attached: with FileVault on, a power cut stops the
 Mac at the unlock screen until someone unlocks it (crashes and planned restarts come back by themselves). If nobody can ever
 unlock it and uptime matters more than the encrypted disk, leave FileVault off and say so; the plain statement is in

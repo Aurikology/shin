@@ -738,6 +738,14 @@ own Mac rather than a paid hosted API service. The GitLab repo is mirrored to Gi
 to both remotes. · 2026-09-17 · log: docs/jamin-gemini-rules.md#walkthrough-rulings-2026-09-1617-his-notes-and-comments-on-the-google-doc-walkthrough · 2026-09-03: *"i changed my mind. Create a shin repo on this laptop and then create a shin group in gitlab and invite aurik"* · 2026-09-12: *"instead of Hosted API with HTTPS, catalogue, backups, migrations. can i host on my mac."* · 2026-09-14: *"reuse what can be used"* · 2026-09-26: *"shin's gitlab should be mirror to github"*
 Retired wording: `gitlab.com/jaminke/shin`
 Governs: to fill
+### Launch hosting moves off the Mac; the Mac's disk security is a beta-only concern
+At launch the server runs on a paid server subscription, not this Mac, so FileVault and the rest of
+the Mac's R08-style disk-security and boot-survival hardening are not a launch requirement. They
+still matter for keeping the beta itself reachable while the Mac is the host, which is why
+`mac/10-boot-survival.sh` stays installed; nothing about this ruling undoes that. · 2026-11-21 ·
+*"well be using a server subsciption when we launch so the mac is not a concern"* · log: to fill
+Retired wording: none
+Governs: docs/readiness/needs-jamin.md#R08, mac/README.md
 ### Server-side guards and limits
 The vision identification call gets a 1,800ms timeout, exactly one retry (only on rate-limit/5xx/
 no-status, never on timeout or malformed response), and a 2,000-calls-per-process-per-UTC-day cap
