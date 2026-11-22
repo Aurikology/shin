@@ -53,5 +53,57 @@ test('Claude guess is on record and not run; its sample is fixed by the seed', (
     claudeSample(pred, 5).map((p) => p.key),
     claudeSample([...pred].reverse(), 5).map((p) => p.key),
   );
-  assert.equal(baselines().length, 3);
+  assert.equal(baselines().length, 4);
+});
+
+/* ---------------------------------------------------------------- price_tree */
+
+import { priceTreeModel } from '../src/baselines.ts';
+import { readCatalogueInfo, codeKey, type Observation } from '../src/data.ts';
+import type { TrainContext, Query } from '../src/harness.ts';
+import { products, LEAVES } from './fixture.ts';
+
+function treeCtx(rows: readonly Observation[]): TrainContext {
+  return { fold: 'by_product', observations: rows, prices: null as never, catalogue };
+}
+function queryFor(code: string): Query {
+  const key = codeKey(code);
+  return { key, code: key, asOf: '2026-09-20', info: readCatalogueInfo(catalogue, [key]).get(key) ?? null };
+}
+
+test('price_tree: trains only on the rows it is handed and answers a range from the product group', () => {
+  const leafC = products().filter((p) => p.leaf === LEAVES[2].tag);
+  const keysC = new Set(leafC.map((p) => codeKey(p.code)));
+  const train = obs.filter((o) => o.key !== null && !keysC.has(o.key));
+  const predict = priceTreeModel().fit(treeCtx(train));
+  const a = products().find((p) => p.leaf === LEAVES[0].tag)!;
+  const inA = predict(queryFor(a.code));
+  assert.ok(inA && inA.lowCents <= inA.midCents && inA.midCents <= inA.highCents && inA.lowCents > 0);
+  // Leaf C has no training row: its answer can only come from the parent group, built from leaves A and B (prices up to ~5 times lower).
+  const c = leafC[0]!;
+  const inC = predict(queryFor(c.code));
+  assert.ok(inC);
+  const cTruth = obs.filter((o) => o.key === codeKey(c.code) && !o.isSale).map((o) => o.cents);
+  assert.ok(inC.midCents < Math.min(...cTruth), `parent answer ${inC.midCents} must not have seen leaf C prices ${Math.min(...cTruth)}`);
+  // With the leaf C rows added, the same query moves up: the tree reads exactly what it is given.
+  const withC = priceTreeModel().fit(treeCtx(obs))(queryFor(c.code));
+  assert.ok(withC && withC.midCents > inC.midCents);
+});
+
+test('price_tree: no category data or no training prices is an explicit no-answer, not a guess', () => {
+  const predict = priceTreeModel().fit(treeCtx(obs));
+  assert.equal(predict({ key: '99999999999', code: '99999999999', asOf: '2026-09-20', info: null }), null);
+  const empty = priceTreeModel();
+  const none = empty.fit(treeCtx([]))(queryFor(products()[0]!.code));
+  assert.equal(none, null);
+  assert.equal((empty.report!() as { answeredBy: Record<string, number> }).answeredBy.no_tree, 1);
+});
+
+test('price_tree: scored on the folds through the harness (leak audits stay in force)', () => {
+  const f = splitByProduct(obs, pred, sales, noSealed(), 0.5, 1);
+  assert.ok(isFold(f));
+  const run = evaluate(priceTreeModel(), f, { catalogue });
+  assert.equal(run.ran, true);
+  assert.ok(run.scores && run.scores.scored > 0);
+  assert.ok((run.extra as { answeredBy: Record<string, number> }).answeredBy.answered! > 0);
 });

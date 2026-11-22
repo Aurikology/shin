@@ -20,7 +20,8 @@
  */
 
 import { priceRangeFor } from '../../price/src/range.ts';
-import { latestPerShop, lowerMedian, readCatalogueInfo, type Observation } from './data.ts';
+import { latestPerShop, lowerMedian, readCatalogueInfo, spellings, type Observation } from './data.ts';
+import { buildTreeFrom, readBrands, treeRangeFor, type TreeCatalogueItem, type TreePricedRow } from '../../price/src/price-tree-range.ts';
 import type { Model, Query } from './harness.ts';
 import type { Interval } from './score.ts';
 import { rng } from './audit.ts';
@@ -101,6 +102,50 @@ export function categoryMedianModel(): Model {
   };
 }
 
+/**
+ * price_tree: the built-but-unwired price tree (price/src/price-tree.ts) read as a range, for comparison only.
+ * NOT a required baseline: it is a candidate, so the gate compares it with the required ones. Trained ONLY on
+ * `ctx.observations` (the training fold): the tree is built from training prices, and a query is answered from
+ * its category path and brand tier, never from the query's own date or any held-out row. Answers at the
+ * reference chain's price level (a query carries no shop). Returns null (an explicit no-answer) when the item
+ * has no category data or no group with TREE_MIN_ITEMS priced items.
+ */
+export function priceTreeModel(): Model {
+  let used: Record<string, number> = {};
+  return {
+    name: 'price_tree',
+    description: 'the price tree (price-tree.ts, not wired): group of category path + brand tier, shrunk toward its parents, middle half of the group; at the reference chain level',
+    claimedCoverage: 0.5,
+    runnable: true,
+    fit(ctx) {
+      used = { answered: 0, no_tree: 0, no_category: 0, group_too_small: 0 };
+      const rows: TreePricedRow[] = [];
+      const keys = new Set<string>();
+      for (const o of ctx.observations) {
+        if (o.isSale || !o.key) continue;
+        rows.push({ key: o.key, chain: o.seller, cents: o.cents });
+        keys.add(o.key);
+      }
+      const info = readCatalogueInfo(ctx.catalogue, keys);
+      const brands = readBrands(ctx.catalogue, spellings, keys);
+      const items = new Map<string, TreeCatalogueItem>();
+      for (const [key, ci] of info) items.set(key, { key, path: ci.path, brands: brands.get(key) ?? null });
+      const tree = buildTreeFrom(items, rows);
+      return (q: Query): Interval | null => {
+        const brandText = readBrands(ctx.catalogue, spellings, [q.key]).get(q.key) ?? null;
+        const r = treeRangeFor(tree, q.info?.path ?? [], brandText);
+        if (!r.ok) {
+          used[r.reason] = (used[r.reason] ?? 0) + 1;
+          return null;
+        }
+        used.answered!++;
+        return { lowCents: r.lowCents, highCents: r.highCents, midCents: r.midCents };
+      };
+    },
+    report: () => ({ answeredBy: { ...used } }),
+  };
+}
+
 /* --------------------------------------------------- Claude, on record */
 
 export interface ClaudeGuessRequest {
@@ -150,5 +195,5 @@ export function claudeGuessModel(): Model {
 }
 
 export function baselines(): Model[] {
-  return [categoryRangeModel(), categoryMedianModel(), claudeGuessModel()];
+  return [categoryRangeModel(), categoryMedianModel(), claudeGuessModel(), priceTreeModel()];
 }
