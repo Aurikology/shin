@@ -17,3 +17,4 @@ jamin · Jamin's PC · US prices step 4 Flipp weekly flyers (Jamin 'build it'): 
 jamin · Jamin's PC · ON HOLD 2026-11-22 (Jamin: 'put these on hold'): US prices after step 1 (27cf159 live, no US data loaded). Next when resumed: Kroger developer API (his key), Walmart via Impact once an App Store link exists. Flipp dropped (0/200).
 jamin · Jamin's PC · Price tree side-by-side eval (Jamin 2026-11-22 'go'): price tree as a method in bench/src/run.ts and as a variant in price/src/claude-share.ts scan replay; no live wiring; lane C:\shin-lanes\price-tree-eval
 jamin · Jamin's PC · Scan log records market country+currency (Jamin 2026-11-22 'fix this'); lane C:\shin-lanes\scan-market
+jamin · Jamin's PC · Scenario test: every data-state x input x market scenario, end to end on a sandboxed server (Jamin 2026-11-22); lane C:\shin-lanes\scenario-test
