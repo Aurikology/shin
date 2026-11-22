@@ -26,6 +26,7 @@
  * NOT VERIFIED HERE: how it looks. The Playwright walk at 390 x 844 is.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -367,7 +368,7 @@ test('case 28, a better answer later: the bell eases on log price; the axis word
 /* ================================================= every route ends in the bell == */
 
 test('every route that receives a verdict draws the bell before any refusal or failure sheet', () => {
-  const src = read('../public/js/screens/camera.js');
+  const src = cameraSource();
   const cat = src.slice(src.indexOf('function showCatalogue('), src.indexOf('function showCatalogue(') + 700);
   assert.match(cat, /if \(usableVerdict\(answer\?\.verdict\)\) \{[\s\S]*showDistribution\(answer\.verdict/);
   const own = src.slice(src.indexOf('function showOwnData('), src.indexOf('function showOwnData(') + 700);
@@ -431,6 +432,6 @@ test('motion: CSS resting on the final state, all of it off under prefers-reduce
   assert.doesNotMatch(settle, /translateX|translate\(/);
   assert.match(bellSvg(usableVerdict(F.GOOD), {}), /class="vb-curve"[^>]*pathLength="1"/);
   // A later answer under reduced motion is redrawn, not tweened.
-  const src = read('../public/js/screens/camera.js');
+  const src = cameraSource();
   assert.match(src, /if \(!from \|\| reduced \|\| typeof requestAnimationFrame !== 'function'\) \{\s*host\.innerHTML = distBell\(toV, \{ report \}\);/);
 });

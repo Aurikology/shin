@@ -23,6 +23,7 @@
  * wiring is there and cannot be quietly deleted.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -30,7 +31,7 @@ import { refusalSheet, observationCard } from '../public/js/screens/camera.js';
 import { say } from '../public/js/voice.js';
 import * as store from '../public/js/store.js';
 
-const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+const CAMERA = cameraSource();
 const CORRECTIONS = readFileSync(new URL('../public/js/corrections.js', import.meta.url), 'utf8');
 
 /**

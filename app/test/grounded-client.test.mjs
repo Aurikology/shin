@@ -39,6 +39,7 @@
  */
 
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -673,7 +674,7 @@ test('the setup screen asks for both lines and stores them where the price line 
 });
 
 test('the verdict sheet actually reaches the grounded block', () => {
-  const camera = read('../public/js/screens/camera.js');
+  const camera = cameraSource();
   assert.match(camera, /import \{ mountGrounded \} from '\.\.\/grounded\.js';/);
   assert.match(camera, /data-grounded-slot/, 'the sheet has no container to mount into.');
   // Both mount sites: the scan itself, and the repaint the save does.

@@ -31,13 +31,14 @@
  * `price-only.test.mjs` makes.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { pricePadSheet, observationCard } from '../public/js/screens/camera.js';
 import { t } from '../public/js/ui-strings.js';
 
-const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+const CAMERA = cameraSource();
 
 /** The locale swap the rest of the suite uses. */
 function inLocale(id, fn) {

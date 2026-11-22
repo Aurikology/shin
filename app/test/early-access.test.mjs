@@ -9,6 +9,7 @@
  * camera's wiring is source-asserted (this folder's convention).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -53,7 +54,7 @@ test('the words exist in English and French and say everyday groceries, every we
 });
 
 test('wiring: no badge in the top band (2026-11-21), the banner opens on a first visit, Got it closes it', () => {
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   const top = cam.slice(cam.indexOf('<div class="cam-top">'), cam.indexOf('<div class="reticle"'));
   assert.doesNotMatch(top, /data-act="early-access"/, 'the Early access badge is back in the top band');
   assert.match(cam, /if \(earlyAccessPending\(\)\) showEarlyAccess\(\)/);

@@ -17,6 +17,7 @@
  * verified here.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -41,7 +42,7 @@ globalThis.fetch = async (url, init = {}) => {
   return { ok: true, status: 200, json: async () => ({ product: null }) };
 };
 const api = await import('../public/js/api.js');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 const STRINGS = read('../public/js/ui-strings.js');
 
 /* ------------------------------------------------------------ mode and hint */

@@ -9,6 +9,7 @@
  * You screen still drawing the language and market rows).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +20,7 @@ const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 
 function between(text, from, to, what) {
   const a = text.indexOf(from);

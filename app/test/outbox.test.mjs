@@ -4,6 +4,7 @@
  * a rating is sent or queued. Pure parts run on a fake clock; the wiring is source-asserted.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -113,6 +114,6 @@ test('wiring: ratings, their undo and single events go through the outbox; the t
   assert.match(api, /export function postScanRating[\s\S]*?postKept\('\/api\/scan-rating'/);
   assert.match(api, /export function deleteScanRating[\s\S]*?postKept\('\/api\/scan-rating\/delete'/);
   assert.match(api, /export function postEvent[\s\S]*?postKept\('\/api\/event'/);
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   assert.match(cam, /res\?\.stored === true \|\| res\?\.queued === true/);
 });

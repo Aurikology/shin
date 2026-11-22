@@ -47,6 +47,7 @@
  * need people and a device.
  */
 import { test } from 'node:test';
+import { cameraSource } from '../camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -354,7 +355,7 @@ test('R-35: You has a visible "Pexi Plus" row, and tapping it opens the paywall'
 });
 
 test('R-35: the camera reaches You in 1 tap and You reaches the paywall in 1 more, a registered screen', () => {
-  const camera = stripComments(read('../../public/js/screens/camera.js'));
+  const camera = stripComments(cameraSource());
   assert.match(camera, /act === 'you'\) \{ ctx\.go\('you'\)/, 'the camera no longer has a one-tap route to You');
   const main = read('../../public/js/main.js');
   assert.match(main, /for \(const s of \[[^\]]*\bpaywall\b[^\]]*\]\)/, 'the paywall is not registered');

@@ -16,11 +16,12 @@
  * the click dispatch.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const CAMERA = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8')
+const CAMERA = cameraSource()
   .replace(/\r\n/g, '\n');
 
 const START = 'async function startCamera(video) {';

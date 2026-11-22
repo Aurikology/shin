@@ -21,6 +21,7 @@
  * NOT VERIFIED HERE: layout. There is no browser in this suite.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -276,7 +277,7 @@ test('not in the catalogue: one primary action, into the existing type-it route,
 });
 
 test('the camera hands "typeit" to the one typed-search flow it already has, and a carried price is not asked twice', () => {
-  const src = read('../public/js/screens/camera.js');
+  const src = cameraSource();
   // One text route sheet, one submit, one runTypedSearch: nothing new was built beside them.
   assert.equal((src.match(/function textRouteSheet\(/g) ?? []).length, 1);
   assert.equal((src.match(/async function runTypedSearch\(/g) ?? []).length, 1);
@@ -459,7 +460,7 @@ test('the sheets are rendered in French too, not only their strings', () => {
 /* =============================================================== routing == */
 
 test('the camera routes kind "catalogue" to this sheet, before the older barcode branches, and never to /api/price', () => {
-  const src = read('../public/js/screens/camera.js');
+  const src = cameraSource();
   const lookup = src.slice(src.indexOf('async function catalogueLookup('), src.indexOf('function sameCode('));
   const at = lookup.indexOf("if (id?.kind === 'catalogue') return { catalogue: id };");
   assert.ok(at > 0, 'catalogueLookup does not recognise the catalogue answer');

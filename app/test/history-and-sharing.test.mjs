@@ -18,6 +18,7 @@
  * blob is then replaced and `reload()` brings the same store module back healthy.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -38,7 +39,7 @@ const { say } = await import('../public/js/voice.js');
 const { t } = await import('../public/js/ui-strings.js');
 
 const read = (rel) => readFileSync(new URL(`../public/${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('js/screens/camera.js');
+const CAMERA = cameraSource();
 
 function stubRoot() {
   return {

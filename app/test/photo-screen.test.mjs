@@ -14,6 +14,7 @@
  * is there and cannot be quietly deleted.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -21,7 +22,7 @@ import { identify, identifyPhoto, identifyDemo, needsShrinking, nextShrinkScale,
 import { say, refusalLabel } from '../public/js/voice.js';
 import { refusalSheet, retryCountdownLine } from '../public/js/screens/camera.js';
 
-const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+const CAMERA = cameraSource();
 
 /* -------------------------------------------------------------- fetch stub */
 

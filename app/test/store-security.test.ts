@@ -3,6 +3,7 @@
  * the invite gate off. Each test is the attack, sent over HTTP against the real server.
  */
 import { test, before, after } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, existsSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -175,7 +176,7 @@ test('item 6: a source map in the public folder is not served', async () => {
 });
 
 test('item 6: the refusal sheet escapes the category labels and the engine\'s explanation', () => {
-  const source = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const source = cameraSource();
   assert.ok(source.includes('<li>${escapeHtml(c)}</li>'));
   assert.ok(source.includes('<p class="detail">${escapeHtml(categoryWhy)}</p>'));
 });

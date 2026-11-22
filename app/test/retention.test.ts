@@ -3,6 +3,7 @@
  * the periods the privacy policy states. Runs on temp databases.
  */
 import { test, after } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -46,7 +47,7 @@ test('item 7: a typed search that was sent keeps its text', () => {
 });
 
 test('item 7: the phone no longer sends the words of an abandoned search', () => {
-  const camera = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const camera = cameraSource();
   assert.ok(!camera.includes('text: abandonedText'));
   assert.ok(camera.includes("track('typed_search', { abandoned: true })"));
 });

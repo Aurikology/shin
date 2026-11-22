@@ -10,6 +10,7 @@
  * price string hard-coded in place of the store's).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +21,7 @@ const storage = makeStorage();
 installBrowser({ doc: makeDocument(), storage });
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 
 /** A slice between two literal markers that fails loudly rather than running away. */
 function between(text, from, to, what) {

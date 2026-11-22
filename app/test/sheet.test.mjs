@@ -19,6 +19,7 @@
  * because that order is exactly what the browser lays out.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -608,7 +609,7 @@ test('candidateRow leads the title with the brand, and falls back to category in
 });
 
 test('the photo and typed candidate lists build a row through the same function', () => {
-  const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const CAMERA = cameraSource();
   const photoSite = /const mapped = id\.candidates\.map\(\(c\) => \{[\s\S]{0,200}?candidateRow\(/;
   const notThisSite = /notThisResults = \(found\.candidates \?\? \[\]\)[\s\S]{0,300}?candidateRow\(/;
   assert.match(CAMERA, photoSite, 'the photo candidate list no longer builds its row through candidateRow');

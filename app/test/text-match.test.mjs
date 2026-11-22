@@ -17,6 +17,7 @@
  * NOT VERIFIED HERE: a real text reader (none exists yet), and layout.
  */
 import { test, beforeEach } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -223,7 +224,7 @@ test('zero candidates shows the one type-the-name action, which is the camera\'s
   assert.deepEqual(actions, ['manual-search'], 'the empty state must offer exactly the existing typed-name route');
   assert.match(html, new RegExp(`>${t('cat_type_name')}</button>`));
   // And the camera answers that act with the field it already had.
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   assert.match(cam, /if \(act === 'manual-search'\) \{ openManualSearch\(\); return; \}/);
 });
 
@@ -271,7 +272,7 @@ test('tapping a candidate hands its barcode to the camera, and the rows clear', 
 });
 
 test('the camera runs the ordinary barcode scan with the picked barcode', () => {
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   const wire = cam.slice(cam.indexOf('textMatch = mountTextMatch({'), cam.indexOf('textMatch = mountTextMatch({') + 600);
   assert.match(wire, /send: \(lines\) => ctx\.api\.matchText\(lines\)/);
   assert.match(wire, /onPick: \(code\) => \{\s*if \(dead \|\| cam\.dataset\.state !== 'idle'\) return;/);

@@ -19,12 +19,13 @@
  * has no runtime dependencies and these are template literals.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import { pricePadSheet, searchCandidateSheet } from '../public/js/screens/camera.js';
 
-const CAMERA = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+const CAMERA = cameraSource();
 const API = readFileSync(new URL('../public/js/api.js', import.meta.url), 'utf8');
 
 const item = (extra = {}) => ({ id: 'x', text: 'Test item 500 g', category: 'grocery', ...extra });

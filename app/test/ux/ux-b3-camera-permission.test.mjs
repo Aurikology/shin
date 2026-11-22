@@ -49,6 +49,7 @@
  * whether WebKit persists the decision.
  */
 import { test } from 'node:test';
+import { cameraSource } from '../camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -225,7 +226,7 @@ test('R-11 (KEEP): the priming ask names granted, denied or unavailable and stop
 });
 
 test('R-11 (KEEP): the camera screen still tells a denied permission from a missing camera', () => {
-  const camera = read('../../public/js/screens/camera.js');
+  const camera = cameraSource();
   assert.match(camera, /err\.name === 'NotAllowedError' \? 'denied' : 'unavailable'|reason === 'denied'/, 'the denied / unavailable split is gone from the camera screen');
   assert.match(camera, /camera_denied/);
 });

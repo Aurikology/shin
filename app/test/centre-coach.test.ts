@@ -8,6 +8,7 @@
  */
 
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -57,7 +58,7 @@ test('a centre line waits to earn its place like every other line', () => {
 
 const VOICE = readFileSync(fileURLToPath(new URL('../public/js/voice.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const VOICE_FR = readFileSync(fileURLToPath(new URL('../public/js/voice-fr.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const SCREEN = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
+const SCREEN = cameraSource().replace(/\r\n/g, '\n');
 
 function block(src: string, key: string): string {
   const at = src.indexOf(`  ${key}: {`);

@@ -5,13 +5,14 @@
  * eye cannot show: the drawn outlines are buttons that report their code, and the screen no longer fires on its own.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const ATTACH = read('../public/js/eye-attach.js');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 const CSS = read('../public/css/screens/camera.css');
 
 test('every outline the eye draws is a button that reports the code it is drawn on', () => {

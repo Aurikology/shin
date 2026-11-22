@@ -10,6 +10,7 @@
  * would change ("1.5 CAD", "$2").
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -152,7 +153,7 @@ test('the sheet is drawn in French when the locale is French', () => {
 
 /* ============================================ the catch branch of proceed == */
 
-const camera = read('../public/js/screens/camera.js');
+const camera = cameraSource();
 const catchStart = camera.indexOf("console.error('scan failed:', err);");
 const catchEnd = camera.indexOf('setState(\'result\');', catchStart);
 const catchBranch = catchStart > 0 && catchEnd > catchStart ? camera.slice(catchStart, catchEnd) : '';

@@ -25,6 +25,7 @@
  * sheet sits at 390 px is a walk on a phone, not a claim of this file.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -362,7 +363,7 @@ test('when it was checked is said in French too', async () => {
 
 /* ================================================== the branch in the camera == */
 
-const camera = read('../public/js/screens/camera.js');
+const camera = cameraSource();
 const branchStart = camera.indexOf("if (result.kind === 'gemini') {");
 const branchEnd = camera.indexOf("} else if (result.kind === 'verdict') {", branchStart);
 const branch = branchStart > 0 && branchEnd > branchStart ? camera.slice(branchStart, branchEnd) : '';

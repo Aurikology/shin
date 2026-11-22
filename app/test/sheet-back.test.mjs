@@ -14,6 +14,7 @@
  * the Playwright measurement in the lane report is the one against a real engine.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -158,7 +159,7 @@ test('D-242: leaving for another screen from an open sheet replaces its entry, s
 });
 
 test('D-242: the camera opens and closes the entry from its one state switch', () => {
-  const src = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+  const src = cameraSource().replace(/\r\n/g, '\n');
   const body = src.slice(src.indexOf('function setState(next) {'), src.indexOf('function trackScanAbandonedIfMidScan'));
   assert.match(body, /syncSheetHistory\(next, sheetUp\)/, 'setState does not hand the sheet to the router');
   const sync = src.slice(src.indexOf('function syncSheetHistory'), src.indexOf('function setState(next) {'));

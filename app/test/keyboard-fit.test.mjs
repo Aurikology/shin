@@ -11,6 +11,7 @@
  * Runs against fake windows; a real keyboard on a real iPhone is still owed (needs a build).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { keyboardHeight, startKeyboardFit, KEYBOARD_MIN_PX } from '../public/js/lib/keyboard-fit.js';
@@ -113,7 +114,7 @@ test('the frame, the page bar and the shop list follow the space above the keybo
   assert.match(rule[1], /min-height:\s*0/);
   assert.match(css, /html\[data-keyboard="open"\]\s*\.page-bar\s*\{[^}]*display:\s*none/,
     'the page bar steps aside so the field and its list get the room');
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   assert.doesNotMatch(cam, /max-height:42vh/, 'vh ignores the keyboard; the shop list is sized from --app-h');
   assert.match(cam, /max-height:calc\(var\(--app-h, 100dvh\) \* 0\.42\)/);
 });

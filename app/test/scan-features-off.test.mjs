@@ -5,6 +5,7 @@
  * closure (the convention in this folder); the pad's own markup is rendered for real.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +16,7 @@ installBrowser({ doc: makeDocument(), storage: makeStorage() });
 
 const camera = await import('../public/js/screens/camera.js');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 const ATTACH = read('../public/js/eye-attach.js');
 
 test('the price pad has no "Find a better buy" choice, and its mode is validation', () => {

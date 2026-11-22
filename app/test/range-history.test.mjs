@@ -21,6 +21,7 @@
  * inside it (back-to-camera.test.mjs); the sheet and the snapshot are run.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -33,7 +34,7 @@ const cam = await import('../public/js/screens/camera.js');
 const store = await import('../public/js/store.js');
 const { setLocale } = await import('../public/js/lib/locale.js');
 
-const SRC = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const SRC = cameraSource().replace(/\r\n/g, '\n');
 
 /** The fixed bell as the server sends it (D-239's Panasonic Batteries). */
 const BROAD = { lowCents: 278, highCents: 3602, medianCents: null, n: 0, basis: 'fixed_prior', category: null, currency: 'CAD', unit: null };

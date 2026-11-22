@@ -9,6 +9,7 @@
  * same way the You screen already picks you_data_intro_nophoto.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +18,7 @@ import { say } from '../public/js/voice.js';
 import { LINES_FR } from '../public/js/voice-fr.js';
 import { FLAGS } from '../public/js/flags.js';
 
-const camera = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8');
+const camera = cameraSource();
 const VOICES = ['deadpan', 'warm', 'blunt'];
 
 test('D-265: photo scanning is off in this build, so the line the camera shows must not claim a picture is sent', () => {

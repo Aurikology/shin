@@ -23,6 +23,7 @@
  * NOT verified here: it needs a phone.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +33,7 @@ import { LINES_FR } from '../public/js/voice-fr.js';
 import { captureAllowed } from '../public/js/screens/camera.js';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 const CSS = read('../public/css/screens/camera.css');
 const TOKENS = read('../public/css/tokens.css');
 const VOICE = read('../public/js/voice.js');

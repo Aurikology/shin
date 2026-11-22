@@ -30,6 +30,7 @@
  * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-touch.test.mjs
  */
 import { test } from 'node:test';
+import { cameraSource } from '../camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 
@@ -517,7 +518,7 @@ test('R-14 (keep): the X is 44 x 44 and stays on every sheet that offers a way b
   const s = declaredSize(x, '', 'phone 390x844');
   assert.equal(s.h, 44);
   assert.equal(s.w, 44);
-  const camera = readFileSync(new URL('screens/camera.js', JS_DIR), 'utf8');
+  const camera = cameraSource();
   for (const fn of ['verdictSheet', 'refusalSheet', 'pricePadSheet', 'searchCandidateSheet', 'textRouteSheet', 'workingSheet', 'distributionSheet']) {
     const start = camera.search(new RegExp(`\\nfunction ${fn}\\(`));
     assert.ok(start > -1, `camera.js no longer defines ${fn}`);
@@ -548,7 +549,7 @@ test('R-12 (keep): the bottom bar is anchored to the bottom and its top edge is 
 
 test('R-12 (build 7): the scan control stays centred on the bar as the camera renders it today', () => {
   // The bar's children in markup order, minus the shutter, which camera.js removes while FLAGS.photoId is off.
-  const camera = readFileSync(new URL('screens/camera.js', JS_DIR), 'utf8');
+  const camera = cameraSource();
   const barStart = camera.indexOf('<div class="cam-bar">');
   const barEnd = camera.indexOf('</div>`;', barStart);
   assert.ok(barStart > -1 && barEnd > barStart, 'cannot find the .cam-bar markup in camera.js');

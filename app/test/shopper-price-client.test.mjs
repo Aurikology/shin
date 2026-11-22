@@ -10,12 +10,13 @@
  * card builders rendered, and the closure's wiring asserted by source.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 const CORRECT = read('../public/js/screens/correct.js');
 
 /* ------------------------------------------------------------ the stub -- */

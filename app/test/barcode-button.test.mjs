@@ -26,6 +26,7 @@
  * pointed at).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +36,7 @@ const read = (rel) =>
 
 const EYE = read('../src/eye/camera.ts');
 const ATTACH = read('../public/js/eye-attach.js');
-const SCREEN = read('../public/js/screens/camera.js');
+const SCREEN = cameraSource();
 const STRINGS = read('../public/js/ui-strings.js');
 const CSS = read('../public/css/screens/camera.css');
 

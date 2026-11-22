@@ -18,6 +18,7 @@
  * request leaves on a real phone is NOT verified here.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -123,7 +124,7 @@ test('the price call carries the thresholds and lets the caller win', async () =
 
 /* ------------------------------------------------ the flow, from the source */
 
-const SCREEN = read('../public/js/screens/camera.js');
+const SCREEN = cameraSource();
 
 /* Reversed premise, 2026-11-14 (RULINGS.md "The shopper learns Pexi does not know a product before typing a
    price"): the name preview (about half a second) runs before the pad, so an unknown barcode says so and

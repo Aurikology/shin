@@ -3,6 +3,7 @@
  * is everywhere a verdict is, and the French pages exist and link back.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 
@@ -37,7 +38,7 @@ test('item 9: the phone says yes only with a yes on file', () => {
 });
 
 test('item 10: every verdict word on a screen has the label beside it', () => {
-  const camera = read('../public/js/screens/camera.js');
+  const camera = cameraSource();
   assert.equal((camera.match(/data-vd-estimate/g) ?? []).length, 3, 'a verdict sheet lost its label');
   for (const f of ['pastscans', 'watchlist']) assert.match(read(`../public/js/screens/${f}.js`), /data-vd-estimate/);
   assert.match(read('../public/js/screens/share.js'), /card\.estimate/);

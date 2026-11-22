@@ -18,6 +18,7 @@
  * device and is reported as not verified.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -104,7 +105,7 @@ test('the sheet offers no price, no product name and no way to answer from the p
 });
 
 test('the camera stops on the marker and never sends it on to be priced', () => {
-  const cam = read('../public/js/screens/camera.js');
+  const cam = cameraSource();
   // The lookup returns the marker only when the request itself failed...
   assert.match(cam, /return id === null \? identifyOffline\(code\) : null;/);
   // ...and the caller shows the sheet and returns before `proceed` is reached.

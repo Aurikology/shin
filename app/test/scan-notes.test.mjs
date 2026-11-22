@@ -5,6 +5,7 @@
  * source-asserted (the convention in this folder).
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +19,7 @@ const notes = await import('../public/js/scan-notes.js');
 const camera = await import('../public/js/screens/camera.js');
 const { t, TABLES } = await import('../public/js/ui-strings.js');
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 
 test('readPreview: not_in_catalogue and priceKnown false are misses, priceKnown true is not, no answer says nothing', () => {
   const p = (extra) => ({ kind: 'catalogue', preview: true, ...extra });

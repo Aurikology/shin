@@ -16,6 +16,7 @@
  * templates where they are pure. Each assertion failed on the code before the fix.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -28,7 +29,7 @@ const { say, personality, setPersonality, PERSONALITIES } = await import('../pub
 const { t, setLocale } = await import('../public/js/ui-strings.js');
 
 const read = (rel) => readFileSync(new URL(`../public/${rel}`, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('js/screens/camera.js');
+const CAMERA = cameraSource();
 const CSS = read('css/screens/camera.css');
 const EYE = read('js/eye-attach.js');
 

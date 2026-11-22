@@ -13,6 +13,7 @@
  * Run once against the client before the change and seen to fail.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { makeDocument, makeStorage, installBrowser } from './mini-dom.mjs';
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
-const CAMERA = read('../public/js/screens/camera.js');
+const CAMERA = cameraSource();
 
 async function renderSection(wire) {
   const doc = makeDocument();

@@ -8,6 +8,7 @@
  * "no usual price".
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -29,7 +30,7 @@ test('D-268 D20: a saved row with a usual but no shelf price says the usual, nev
 });
 
 test('D-268 D20: the save stores the usual the sheet showed (rounded), so the row and sheet agree', () => {
-  const cam = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const cam = cameraSource();
   const save = cam.slice(cam.indexOf("if (act === 'dist-save') {"), cam.indexOf("// D-240, range-save"));
   assert.match(save, /usualCents: v \? roundEstimateCents\(v\.centreCents\) : null/, 'the dist-save stores the unrounded centre');
 });

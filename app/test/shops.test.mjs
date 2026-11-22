@@ -26,6 +26,7 @@
  * is handed the fixture rows that `storesNear` would have returned.
  */
 import { test, beforeEach } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -384,7 +385,7 @@ test('the camera screen and the shortlist both ask the OS for a position, and bo
   // collected. Checked by source, the way price-only.test.mjs checks the
   // click wiring, because the closure this lives in has no DOM here to mount.
   const { readFileSync } = await import('node:fs');
-  const camera = readFileSync(new URL('../public/js/screens/camera.js', import.meta.url), 'utf8');
+  const camera = cameraSource();
   assert.ok(camera.includes('refreshCell'), 'camera.js no longer asks the OS for a position on its own');
   assert.match(
     camera,

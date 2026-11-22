@@ -28,6 +28,7 @@
  * Run: node --test --test-global-setup=test/setup/global.mjs test/ux/ux-b7-lists.test.mjs
  */
 import { test, mock } from 'node:test';
+import { cameraSource } from '../camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -200,7 +201,7 @@ test('R-93 (keep): removal asks no confirmation, because it is undoable', () => 
 /* ===================================================================== R-94 */
 
 test('R-94 (keep): the camera\'s plain acknowledgements and its undo stay at 4 seconds', () => {
-  const camera = read('screens/camera.js');
+  const camera = cameraSource();
   const fours = camera.match(/\},\s*4000\)/g) ?? [];
   assert.ok(fours.length >= 2, `expected the toast timers at 4000 ms, found ${fours.length}`);
   const at = camera.indexOf('toastSlot._timer = setTimeout');
@@ -289,7 +290,7 @@ test('R-94 (build 7): an undo without a restore function throws, and a failing r
 });
 
 test('R-94 (build 7): the camera\'s own undo toast also holds its 4 seconds while pressed', () => {
-  const camera = read('screens/camera.js');
+  const camera = cameraSource();
   const at = camera.indexOf('toastSlot._timer = setTimeout');
   assert.ok(at > -1, 'cannot find the toast timer in camera.js');
   const near = camera.slice(Math.max(0, at - 1500), at + 1500);
@@ -434,7 +435,7 @@ test('R-98 (build 7): the scan control on the page bar is also a single word', (
 });
 
 test('R-98 (build 7): the camera bar keeps three items, as the pages do', () => {
-  const camera = read('screens/camera.js');
+  const camera = cameraSource();
   const start = camera.indexOf('<div class="cam-bar">');
   const end = camera.indexOf('</div>`;', start);
   const buttons = [...camera.slice(start, end).matchAll(/<button type="button" class="([^"]+)"/g)].map((m) => m[1].split(' ')[0]);
@@ -444,7 +445,7 @@ test('R-98 (build 7): the camera bar keeps three items, as the pages do', () => 
 });
 
 test('R-98 (keep): the camera bar labels are Saved and You, one word each', () => {
-  const camera = read('screens/camera.js');
+  const camera = cameraSource();
   const labels = [...camera.matchAll(/class="nav-label"[^>]*>\$\{escapeHtml\(t\('([a-z_]+)'\)\)\}/g)].map((m) => m[1]);
   assert.deepEqual(labels, ['nav_saved', 'nav_you']);
 });

@@ -5,11 +5,12 @@
  * screens/camera.js, the way the other camera suites pin source-level rules.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const SRC = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8');
+const SRC = cameraSource();
 const start = SRC.indexOf('async function runTypedSearch');
 const typedBody = start < 0 ? '' : SRC.slice(start, start + 14000);
 

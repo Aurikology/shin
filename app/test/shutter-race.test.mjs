@@ -5,11 +5,12 @@
  * Source-asserted, the convention for code inside camera.js's render closure.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const src = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8');
+const src = cameraSource();
 const shoot = src.slice(src.indexOf('function shoot()'), src.indexOf('async function proceed('));
 
 test('a live eye returns from shoot() before the stand-in timer is scheduled', () => {

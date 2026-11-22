@@ -41,6 +41,7 @@
  * assertion below would pass against text it was never meant to see.
  */
 import { test } from 'node:test';
+import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -111,7 +112,7 @@ test('the verdict has a visible close back to the camera at landing, not only Do
   );
 });
 
-const src = readFileSync(fileURLToPath(new URL('../public/js/screens/camera.js', import.meta.url)), 'utf8')
+const src = cameraSource()
   .replace(/\r\n/g, '\n');
 
 /** A slice between two literal markers, which FAILS rather than returning the
