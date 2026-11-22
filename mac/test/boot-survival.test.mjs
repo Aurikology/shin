@@ -117,12 +117,12 @@ test('install without root is refused, nothing changes', () => {
   assert.deepEqual(readdirSync(t.daemons), []);
 });
 
-test('install: ten rendered daemons as the service user, old agents moved aside, server agent stopped BEFORE the daemon starts', () => {
+test('install: eleven rendered daemons as the service user, old agents moved aside, server agent stopped BEFORE the daemon starts', () => {
   const t = setup();
   const r = t.sh();
   assert.equal(r.status, 0, r.out);
   const names = readdirSync(t.daemons).sort();
-  for (const n of ['server', 'checker', 'integrity', 'backup', 'offsite', 'logrotate', 'hammer', 'restoretest', 'expiry', 'deadman']) assert.ok(names.includes(`com.shin.${n}.plist`), `missing ${n}`);
+  for (const n of ['server', 'checker', 'integrity', 'backup', 'offsite', 'logrotate', 'hammer', 'restoretest', 'expiry', 'deadman', 'openprices']) assert.ok(names.includes(`com.shin.${n}.plist`), `missing ${n}`);
   const server = readFileSync(join(t.daemons, 'com.shin.server.plist'), 'utf8');
   assert.match(server, /<key>UserName<\/key>\s*<string>worker<\/string>/);
   // 2026-11-22 incident: the scripts come from the folder holding this script, never from the live app folder.
