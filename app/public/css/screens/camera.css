@@ -2688,3 +2688,46 @@
   color: var(--ink);
   resize: vertical;
 }
+
+
+/* ------------------------------------------- Cal AI's camera, 2026-11-22 --
+   Top: an X to Progress and a ? to How Pexi works, the torch's old shape.
+   Bottom: the mode strip on its own row inside the bar (the bar's 132px holds
+   44 + 8 + 56), then torch | barcode | (shutter) | a balancing gap. */
+.cam-round {
+  width: var(--tap); height: var(--tap);
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+.cam-round:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.cam-bar { flex-wrap: wrap; align-content: center; row-gap: 8px; }
+.cam-chips {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.cam-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: rgba(255,255,255,.82);
+  font: 600 13px var(--f-ui);
+  cursor: pointer;
+}
+.cam-chip.on { background: #fff; border-color: #fff; color: #111; }
+.cam-chip:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.cam-bar-gap { width: var(--tap); height: var(--tap); flex: none; }

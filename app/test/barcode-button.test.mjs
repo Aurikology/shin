@@ -137,7 +137,8 @@ test('the screen renders a scan-barcode control and no mode toggle', () => {
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar');
   /* Build 7 R-98: the bar keeps three items (the shutter is the fourth only while the photo flag is on), so
      the keyboard button (manual-search) moved to the top band; four here counts the shutter's markup. */
-  assert.equal((bar.match(/data-act="/g) ?? []).length, 4, 'the bottom bar no longer holds exactly watchlist, scan-barcode, shoot, you');
+  // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera.
+  assert.deepEqual([...bar.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['chip-barcode', 'manual-search', 'torch', 'scan-barcode', 'shoot'], 'the bottom bar no longer holds the chips, torch, barcode and shutter');
 });
 
 test('the barcode button is never hidden, and only the vote lights it', () => {
@@ -179,7 +180,7 @@ test('the eye decodes at idle and stands down otherwise, with no mode in the way
 // The three accessible names of the camera's icon buttons (the barcode button
 // keeps `cam_scan_barcode`, the shutter `cam_shutter`, the keyboard button
 // `cam_mode_manual`).
-const NEW_KEYS = ['cam_scan_barcode', 'cam_shutter', 'cam_mode_manual'];
+const NEW_KEYS = ['cam_scan_barcode', 'cam_shutter', 'cam_chip_type'] // Amended 2026-11-22: the keyboard button became the Type name chip;
 // Where the French table opens: its own `cam_shutter`.
 const FR_MARK = "cam_shutter: 'Prendre une photo'";
 
@@ -201,7 +202,7 @@ test('the French strings are French, not the English ones copied across', () => 
   const frAt = STRINGS.indexOf(FR_MARK);
   const fr = STRINGS.slice(frAt);
   assert.match(fr, /cam_scan_barcode: 'Scanner le code-barres'/, 'the barcode button has no French');
-  assert.match(fr, /cam_mode_manual: 'Recherche manuelle'/, 'the keyboard button has no French');
+  assert.match(fr, /cam_chip_type: 'Écrire le nom'/, 'the Type name chip has no French'); // Amended 2026-11-22
 });
 
 test('the screen reads the icon label keys through t(), not as literals', () => {

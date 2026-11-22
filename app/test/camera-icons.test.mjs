@@ -58,7 +58,7 @@ const CONTROLS = TOP + BAR;
 const ICONS = [
   ['scan-code-btn', 'scan-barcode', 'cam_scan_barcode'],
   ['shutter', 'shoot', 'cam_shutter'],
-  ['type-btn', 'manual-search', 'cam_mode_manual'],
+  // Amended 2026-11-22: the keyboard icon button became the Type name chip (text, not an icon), so it leaves this list.
 ];
 
 /** The markup of one button, from its opening tag to its closing one. */
@@ -75,9 +75,9 @@ test('the barcode, camera and keyboard icon buttons are all on the camera, in th
   const order = [...BAR.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]);
   /* Build 7 R-98 (the bar keeps three items, as the pages do): the keyboard button moved to the top band,
      beside the torch, so the bar is Saved, the scan control, the shutter (only while the photo flag is on), You. */
-  assert.deepEqual(order, ['watchlist', 'scan-barcode', 'shoot', 'you']);
-  // Amended 2026-11-15: the Early access badge sat under the wordmark; removed 2026-11-21 (Apple 2.2).
-  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['torch', 'manual-search']);
+  // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera.
+  assert.deepEqual(order, ['chip-barcode', 'manual-search', 'torch', 'scan-barcode', 'shoot']);
+  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['progress', 'guide-help']);
 });
 
 test('each is an inline SVG with an aria-label, no text, no image and none hidden', () => {
@@ -105,8 +105,9 @@ test('the three aria-labels exist in English AND French, are different from each
     }
     assert.notEqual(TABLES.en[key], TABLES.fr[key], `${key} is the English text in the French table`);
   }
-  assert.equal(seen.en.size, 3, 'two of the icon buttons share one English name');
-  assert.equal(seen.fr.size, 3, 'two of the icon buttons share one French name');
+  // Amended 2026-11-22: two icon buttons are left in this list (barcode, shutter); the keyboard became a text chip.
+  assert.equal(seen.en.size, ICONS.length, 'two of the icon buttons share one English name');
+  assert.equal(seen.fr.size, ICONS.length, 'two of the icon buttons share one French name');
 });
 
 test('no tab, mode toggle or "Scan barcode" text button is left', () => {

@@ -435,20 +435,23 @@ test('R-98 (build 7): the scan control on the page bar is also a single word', (
   assert.equal(scan.trim().split(/\s+/).length, 1, `the scan control is named "${scan}": R-98 asks for three single-word labels`);
 });
 
+// Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera. The control row (after the chips) keeps three: torch, the scan control, the gap.
 test('R-98 (build 7): the camera bar keeps three items, as the pages do', () => {
   const camera = cameraSource();
-  const start = camera.indexOf('<div class="cam-bar">');
+  const start = camera.indexOf('<button type="button" class="torch-btn"', camera.indexOf('<div class="cam-bar">'));
   const end = camera.indexOf('</div>`;', start);
-  const buttons = [...camera.slice(start, end).matchAll(/<button type="button" class="([^"]+)"/g)].map((m) => m[1].split(' ')[0]);
+  const buttons = [...camera.slice(start, end).matchAll(/<(?:button type="button"|span) class="([^"]+)"/g)].map((m) => m[1].split(' ')[0]);
   const flags = read('flags.js');
   const live = /photoId:\s*true/.test(flags) ? buttons : buttons.filter((b) => b !== 'shutter');
-  assert.equal(live.length, 3, `the camera bar shows ${live.length} items today (${live.join(', ')}); R-98 keeps three (Saved, the scan control, You)`);
+  assert.deepEqual(live, ['torch-btn', 'scan-code-btn', 'cam-bar-gap'], `the camera bar shows ${live.join(', ')}`);
 });
 
-test('R-98 (keep): the camera bar labels are Saved and You, one word each', () => {
+// Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera.
+test('R-98 (2026-11-22): the camera carries no Saved or Settings labels; its chips are one or two words', () => {
   const camera = cameraSource();
   const labels = [...camera.matchAll(/class="nav-label"[^>]*>\$\{escapeHtml\(t\('([a-z_]+)'\)\)\}/g)].map((m) => m[1]);
-  assert.deepEqual(labels, ['nav_saved', 'nav_you']);
+  assert.deepEqual(labels, []);
+  for (const k of ['cam_chip_barcode', 'cam_chip_type']) assert.ok(camera.includes(`t('${k}')`), `${k} is not drawn`);
 });
 
 test('R-98 (keep): every page with a bar draws the same bar, and Past scans and Removed sit under Saved', async () => {

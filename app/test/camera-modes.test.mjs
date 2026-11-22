@@ -87,8 +87,9 @@ test('mode and hint ride on the identify, photo and price calls, and clearing th
 
 test('the keyboard button opens the name field', () => {
   /* Build 7 R-98: the keyboard button moved from the bottom bar to the top band so the bar keeps three items. */
-  const bar = between(CAMERA, '<div class="cam-top">', '<div class="reticle"', 'the top band').replace(/\s+/g, ' ');
-  assert.ok(bar.includes('data-act="manual-search"') && bar.includes("t('cam_mode_manual')"), 'the keyboard button is gone or has lost its label');
+  // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera.
+  const bar = between(CAMERA, '<div class="cam-chips"', '<button type="button" class="torch-btn"', 'the chip row').replace(/\s+/g, ' ');
+  assert.ok(bar.includes('data-act="manual-search"') && bar.includes("t('cam_chip_type')"), 'the Type name chip is gone or has lost its label');
   const fn = between(CAMERA, '    function openManualSearch() {', '    /**\n     * Whether the eye is decoding', 'openManualSearch');
   assert.ok(fn.includes('textRouteSheet()') && fn.includes("setState('texting')"), 'manual search no longer opens the name field');
   assert.ok(fn.includes('manualSearch = true;'), 'opening the name field does not say it is a manual search, so the price is not asked first');

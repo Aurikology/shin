@@ -2756,19 +2756,19 @@ export default {
              duplicated the one in the bottom bar, the top right corner of a
              camera is the hardest place on the phone for a thumb to reach, and
              Pexi's own dock moved down under the frame it talks about. -->
+        <!-- 2026-11-22 (Aurik, Cal AI's camera): an X top left that leaves for Progress, the wordmark, and a ?
+             that opens How Pexi works. The torch moved to the bottom, beside the barcode button; the typed
+             name is a mode in the strip above it. -->
         <div class="cam-top">
-          <button type="button" class="torch-btn" data-act="torch" aria-label="${escapeHtml(t('cam_torch'))}" aria-pressed="false">
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
+          <button type="button" class="cam-round cam-close" data-act="progress" aria-label="${escapeHtml(t('cam_close'))}">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
+                 stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
           <span class="wordmark">pexi<i>.</i></span>
           <!-- 2026-11-21: the "Early access" badge is gone (Apple 2.2: betas belong on TestFlight); the banner still shows on a first visit (early-access.js). -->
-          <!-- W30's Manual Search, a small keyboard button: it opens the same typed-name
-               field the type-it route uses. Build 7 R-98: it lives in the top band, where the
-               balancing spacer was, so the bottom bar keeps three items. -->
-          <button type="button" class="type-btn" data-act="manual-search" aria-label="${escapeHtml(t('cam_mode_manual'))}">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+          <button type="button" class="cam-round cam-help" data-act="guide-help" aria-label="${escapeHtml(t('guide_title'))}">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4.5"/><path d="M12 18h.01"/></svg>
           </button>
         </div>
 
@@ -2794,23 +2794,26 @@ export default {
              are unchanged and still win as the accessible name, so the word
              under the glyph and the word a screen reader reads are the same
              one rather than two descriptions of the same button. -->
+        <!-- 2026-11-22 (Aurik): Cal AI's bottom. A mode strip (Barcode, Type name), then the torch on the left,
+             the barcode button in the middle and a balancing gap. Saved and Settings left the camera: the X
+             goes to Progress, which holds Saved and the bar to Settings. -->
         <div class="cam-bar">
-          <button type="button" class="nav-btn" data-act="watchlist" aria-label="${escapeHtml(t('nav_saved'))}">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </span>
-            <span class="nav-badge" hidden></span>
-            <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_saved'))}</span>
+          <div class="cam-chips" role="group" aria-label="${escapeHtml(t('cam_chips_label'))}">
+            <button type="button" class="cam-chip on" data-act="chip-barcode" aria-pressed="true" aria-label="${escapeHtml(t('cam_chip_barcode'))}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" aria-hidden="true"><path d="M4 6v12M8 6v12M12 6v12M16 6v12M20 6v12"/></svg>
+              <span>${escapeHtml(t('cam_chip_barcode'))}</span>
+            </button>
+            <button type="button" class="cam-chip" data-act="manual-search" aria-pressed="false" aria-label="${escapeHtml(t('cam_chip_type'))}">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M7 14h10"/></svg>
+              <span>${escapeHtml(t('cam_chip_type'))}</span>
+            </button>
+          </div>
+          <button type="button" class="torch-btn" data-act="torch" aria-label="${escapeHtml(t('cam_torch'))}" aria-pressed="false">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8z"/></svg>
           </button>
-          <!-- No mode to pick first (owner, 2026-09-19: "simply click the scan
-               button to scan barcode and photo button to take photo"). The
-               middle of the bar is three icon buttons, always there: the
-               barcode, the shutter and, smaller, the typed-name search. The
-               eye decodes every frame at idle either way, so the barcode
-               button only asks it for the code it has already voted on, and
-               nothing is sent until a button is pressed (rule 2 stands).
-               The barcode button gets the is-ready class while a vote has a winner. -->
           <button type="button" class="scan-code-btn" data-act="scan-barcode" data-haptic="own" aria-label="${escapeHtml(t('cam_scan_barcode'))}">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M8 8v8M12 8v8M16 8v8"/></svg>
@@ -2819,13 +2822,7 @@ export default {
             <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
           </button>
-          <button type="button" class="nav-btn" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
-                   stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
-            </span>
-            <span class="nav-label" aria-hidden="true">${escapeHtml(t('nav_you'))}</span>
-          </button>
+          <span class="cam-bar-gap" aria-hidden="true"></span>
         </div>
       </div>`;
 
@@ -3288,6 +3285,7 @@ export default {
       .catch(() => { supportedCategories = []; });
 
     function paintBadge() {
+      if (!badge) return; // 2026-11-22: Saved left the camera bar (it is inside Progress), and its count with it
       const n = store.get().watchlist.length;
       badge.hidden = n === 0;
       badge.textContent = String(n);
@@ -5877,6 +5875,8 @@ export default {
         lastCaptureAt = Date.now();
         return;
       }
+      if (act === 'progress') { ctx.go('progress'); return; } // the X, 2026-11-22
+      if (act === 'guide-help') { ctx.go('guide', { replay: 1 }); return; }
       if (act === 'watchlist') { ctx.go('watchlist'); return; }
       if (act === 'you') { ctx.go('you'); return; }
       if (act === 'torch') { requestTorch(!torchOn); return; }

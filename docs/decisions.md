@@ -3198,3 +3198,14 @@ the user can see how much they saved. like a track progress sector"*, with Cal A
 
 **Reverses if:** fewer than 1 in 5 testers mark anything Bought in their first week (then the total
 should count every sure scan under the typical price, labelled as found rather than paid).
+
+## The camera is Cal AI's: X to Progress, a chip row, the torch at the bottom
+**Date:** 2026-11-22 · **Status:** active · **Who:** Aurik
+
+*"this is the inspiration we are looking for in terms of Barcode, library, and scan food. also put the
+flash on the bottom not the top and an x icon at the top when the user clicks that x it will go onto the
+progress."* Top: X (to Progress), the wordmark, ? (How Pexi works). Bottom: a chip row, Barcode (on) and
+Type name (opens the typed search), over torch | barcode button | balancing gap. Library and a photo
+chip are left out while photo scanning is off (Jamin, 2026-11-07). The chips are not a mode to pick
+first (the 2026-09-19 rule stands: barcode is always live). Saved and Settings left the camera bar, so
+Saved is 3 taps from the camera (was 2) and Settings 2 (was 1): J8, J10, J11 targets moved by one.

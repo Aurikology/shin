@@ -511,6 +511,10 @@ const EN = {
   cam_brand_model_placeholder: 'Product name…', // D-268 B17: was "Brand and model…" on a grocery scanner
   cam_search: 'Search',
   cam_torch: 'Torch',
+  cam_close: 'Close the camera',
+  cam_chips_label: 'How to scan',
+  cam_chip_barcode: 'Barcode',
+  cam_chip_type: 'Type name',
   cam_this: 'this',
   /* 2026-09-19: the camera screen has no mode tabs. These three are the
      accessible names of its three icon buttons: the shutter (a photo, sent as a
@@ -1290,6 +1294,10 @@ const FR = {
   cam_torch: 'Lampe',
   cam_this: 'ça',
   cam_shutter: 'Prendre une photo',
+  cam_close: 'Fermer la caméra',
+  cam_chips_label: 'Comment scanner',
+  cam_chip_barcode: 'Code-barres',
+  cam_chip_type: 'Écrire le nom',
   cam_mode_manual: 'Recherche manuelle',
   cam_alt_group: 'Que veux-tu de ce scan ?',
   cam_alt_validation: 'Est-ce un bon prix ?',

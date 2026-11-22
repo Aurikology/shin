@@ -361,7 +361,8 @@ function padRowHeights(vpName) {
 test('R-13 (build 7): the audit sees the controls it is supposed to audit (negative control)', () => {
   // A zero-result audit is UNKNOWN until it has found something it must find.
   const names = TAPPABLES.map((t) => t.classes.join(' '));
-  for (const must of ['nav-btn', 'scan-code-btn', 'sheet-close', 'grabber', 'toast-undo', 'switch', 'chip', 'thumb', 'torch-btn', 'pad-textbtn']) {
+  // Amended 2026-11-22: Aurik's Cal AI camera has no .nav-btn (Saved and Settings left it); the chips and the round top buttons are audited instead.
+  for (const must of ['cam-chip', 'cam-round', 'scan-code-btn', 'sheet-close', 'grabber', 'toast-undo', 'switch', 'chip', 'thumb', 'torch-btn', 'pad-textbtn']) {
     assert.ok(names.some((n) => n.split(' ').includes(must)), `the discovery step never found .${must} in public/js: it reads nothing, so it passes nothing`);
   }
   assert.ok(TAPPABLES.length >= 30, `only ${TAPPABLES.length} tappable elements discovered`);
@@ -425,15 +426,18 @@ test('R-13 (build 7): every per-scan control declares a width (or stretches), so
   assert.deepEqual(perScanNoWidth.map((e) => e.name), [], 'per-scan controls with no declared width: R-13 cannot be shown for them');
 });
 
-test('R-13 (build 7): the camera bar items are 56 px wide, as on the pages', () => {
-  const nav = TAPPABLES.find((e) => e.classes.includes('nav-btn'));
-  assert.ok(nav, 'no .nav-btn found');
+// Amended 2026-11-22: Aurik's Cal AI camera has no .nav-btn (Saved and Settings left it); the chips and the round top buttons are audited instead.
+test('R-13 (2026-11-22): the camera round buttons and chips are at least the tap floor', () => {
   const bad = [];
-  for (const vpName of Object.keys(VIEWPORTS)) {
-    const s = declaredSize(nav, '.cam-bar', vpName);
-    if (s.w === null || s.w < 56) bad.push(`${vpName}: ${s.w} px wide (${s.from})`);
+  for (const cls of ['cam-round', 'cam-chip']) {
+    const el = TAPPABLES.find((e) => e.classes.includes(cls));
+    assert.ok(el, `no .${cls} found`);
+    for (const vpName of Object.keys(VIEWPORTS)) {
+      const z = declaredSize(el, cls === 'cam-chip' ? '.cam-bar' : '.cam-top', vpName);
+      if (z.h === null || z.h < 44) bad.push(`.${cls} ${vpName}: ${z.h} px tall (${z.from})`);
+    }
   }
-  assert.deepEqual(bad, [], `R-13: camera bottom-bar items must be 56 wide; ${bad.join('; ')}`);
+  assert.deepEqual(bad, [], bad.join('; '));
 });
 
 test('R-13 (build 7): the switch hit area is at least 52 x 44', () => {
@@ -550,10 +554,11 @@ test('R-12 (keep): the bottom bar is anchored to the bottom and its top edge is 
 test('R-12 (build 7): the scan control stays centred on the bar as the camera renders it today', () => {
   // The bar's children in markup order, minus the shutter, which camera.js removes while FLAGS.photoId is off.
   const camera = cameraSource();
-  const barStart = camera.indexOf('<div class="cam-bar">');
+  // Amended 2026-11-22: the chips are their own row; the control row is torch | scan | (shutter) | the gap span.
+  const barStart = camera.indexOf('<button type="button" class="torch-btn"', camera.indexOf('<div class="cam-bar">'));
   const barEnd = camera.indexOf('</div>`;', barStart);
   assert.ok(barStart > -1 && barEnd > barStart, 'cannot find the .cam-bar markup in camera.js');
-  const items = [...camera.slice(barStart, barEnd).matchAll(/<button type="button" class="([^"]+)"/g)].map((m) => m[1].split(' ')[0]);
+  const items = [...camera.slice(barStart, barEnd).matchAll(/<(?:button type="button"|span) class="([^"]+)"/g)].map((m) => m[1].split(' ')[0]);
   const flags = readFileSync(new URL('flags.js', JS_DIR), 'utf8');
   const photoId = /photoId:\s*(true|false)/.exec(flags)?.[1];
   assert.ok(photoId, 'cannot read FLAGS.photoId');
