@@ -7,7 +7,7 @@
 
   A LaunchDAEMON: installed by mac/10-boot-survival.sh into /Library/LaunchDaemons, started by launchd at
   boot with nobody logged in, and run as __SHIN_USER__ (UserName), never as root. The tokens
-  __SHIN_REPO_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
+  __SHIN_REPO_DIR__, __SHIN_MAC_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
   this file as it is. launchd gives a job almost no environment, so HOME, USER, LOGNAME and PATH are set below.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -25,11 +25,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/sh</string>
-        <string>__SHIN_REPO_DIR__/mac/14-offsite-backup.sh</string>
+        <string>__SHIN_MAC_DIR__/14-offsite-backup.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>__SHIN_REPO_DIR__/mac</string>
+    <string>__SHIN_MAC_DIR__</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -55,9 +55,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>__SHIN_REPO_DIR__/mac/logs/offsite.out.log</string>
+    <string>__SHIN_MAC_DIR__/logs/offsite.out.log</string>
 
     <key>StandardErrorPath</key>
-    <string>__SHIN_REPO_DIR__/mac/logs/offsite.err.log</string>
+    <string>__SHIN_MAC_DIR__/logs/offsite.err.log</string>
 </dict>
 </plist>

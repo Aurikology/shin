@@ -306,10 +306,9 @@ async function runCombo(combo, feeds, storage = null) {
     await step(storage ? 'returning user opens the app' : 'fresh install: first screen', async () => {
       await page.goto(`${ORIGIN}/`, { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(2500);
-      if (await page.locator('[data-agree-tick]').count()) {
-        await page.locator('[data-agree-tick]').check();
-        await page.locator(`[data-agree-claude][value="${combo.claude ? 'yes' : 'no'}"]`).check();
-      }
+      // One "Agree and continue" button since 2026-11-22; it turns Claude on. A combo without Claude turns it off
+      // afterwards on the You screen, as a shopper would (not automated here: combo.claude=false now starts with it on).
+      if (await page.locator('[data-act="agree-go"]').count()) await page.locator('[data-act="agree-go"]').click();
       for (let i = 0; i < 5; i += 1) {
         const c = page.locator('#screen button:visible', { hasText: /Continue|Get started|Start|Allow|OK|Next|Agree/ }).first();
         if (!(await c.count())) break;

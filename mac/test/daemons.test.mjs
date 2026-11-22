@@ -13,7 +13,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MAC = join(HERE, '..');
 const DIR = join(MAC, 'launchd-daemons');
 const files = readdirSync(DIR).filter((f) => f.endsWith('.plist'));
-const TOKENS = new Set(['__SHIN_REPO_DIR__', '__SHIN_USER__', '__SHIN_HOME__', '__NODE_BIN__']);
+const TOKENS = new Set(['__SHIN_REPO_DIR__', '__SHIN_MAC_DIR__', '__SHIN_USER__', '__SHIN_HOME__', '__NODE_BIN__']);
 
 function tags(xml) {
   const body = xml.replace(/<!--[\s\S]*?-->/g, '').replace(/<\?xml[^>]*\?>/, '').replace(/<!DOCTYPE[^>]*>/, '');
@@ -46,9 +46,12 @@ for (const f of files) {
     assert.match(body, /<key>StandardOutPath<\/key>/);
     assert.match(body, /<key>StandardErrorPath<\/key>/);
     const args = [...(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(body)[1].matchAll(/<string>([^<]*)<\/string>/g))].map((m) => m[1]);
-    const script = args.find((a) => a.startsWith('__SHIN_REPO_DIR__/mac/'));
+    // Scripts come from __SHIN_MAC_DIR__ (the folder holding 10-boot-survival.sh), never the live app folder
+    // (2026-11-22: ~/shin-live has no mac/, and the server crash-looped until --rollback).
+    assert.doesNotMatch(body, /__SHIN_REPO_DIR__\/mac/, 'mac/ paths must use __SHIN_MAC_DIR__');
+    const script = args.find((a) => a.startsWith('__SHIN_MAC_DIR__/'));
     assert.ok(script, 'runs something from mac/');
-    assert.ok(existsSync(join(MAC, script.replace('__SHIN_REPO_DIR__/mac/', ''))), `${script} exists`);
+    assert.ok(existsSync(join(MAC, script.replace('__SHIN_MAC_DIR__/', ''))), `${script} exists`);
     const hasSchedule = /StartCalendarInterval|StartInterval|KeepAlive/.test(body);
     assert.ok(hasSchedule, 'something must start it');
   });

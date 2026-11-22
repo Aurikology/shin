@@ -36,7 +36,7 @@ try {
   p.on('pageerror', e => errs.push('pageerror ' + e.message));
   p.on('console', m => { if (m.type() === 'error') errs.push('console ' + m.text().slice(0, 160)); });
   await p.goto(BASE); await p.waitForTimeout(1500);
-  if (await p.locator('[data-agree-tick]').count()) { await p.locator('[data-agree-tick]').check(); await p.locator('[data-agree-claude][value="no"]').check(); }
+  if (await p.locator('[data-act="agree-go"]').count()) await p.locator('[data-act="agree-go"]').click(); // one-button first screen (2026-11-22)
   for (let i = 0; i < 4; i++) { const c = p.locator('#screen button:visible', { hasText: /Continue|Get started|Start|Allow|OK|Next/ }).first(); if (!(await c.count())) break; await c.click().catch(() => {}); await p.waitForTimeout(600); }
   console.log('screen', await p.evaluate(() => document.querySelector('#screen')?.dataset.screen));
   await p.waitForTimeout(4000); // let the eye start on the fake feed

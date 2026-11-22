@@ -7,7 +7,7 @@
 
   A LaunchDAEMON: installed by mac/10-boot-survival.sh into /Library/LaunchDaemons, started by launchd at
   boot with nobody logged in, and run as __SHIN_USER__ (UserName), never as root. The tokens
-  __SHIN_REPO_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
+  __SHIN_REPO_DIR__, __SHIN_MAC_DIR__, __SHIN_USER__, __SHIN_HOME__ and __NODE_BIN__ are filled in by that script; do not load
   this file as it is. launchd gives a job almost no environment, so HOME, USER, LOGNAME and PATH are set below.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -25,7 +25,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>__NODE_BIN__</string>
-        <string>__SHIN_REPO_DIR__/mac/deploy/checker.mjs</string>
+        <string>__SHIN_MAC_DIR__/deploy/checker.mjs</string>
     </array>
 
     <key>WorkingDirectory</key>
