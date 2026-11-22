@@ -179,6 +179,7 @@ export const SCREEN_TAGS = {
   a113: { id: 'camera.early-access', title: 'Everyday groceries banner over the camera', kind: 'overlay', file: 'app/public/js/screens/camera.js', route: 'camera', sel: '.ea-banner', rank: 45, how: 'First visit to the camera on a fresh install, until Got it.' },
   a114: { id: 'camera.busy', title: 'Pexi is busy sheet (a web page came back instead of an answer)', kind: 'sheet', file: 'app/public/js/screens/camera/trouble.js', route: 'camera', sel: '.sheet.refusal[data-busy]', rank: 45, how: 'Scan or type a name while Cloudflare answers the API with a challenge page. The sheet says Pexi is busy and offers Try again; a barcode retries once by itself.' },
   a115: { id: 'updategate', title: 'Please update Pexi (this build is too old)', kind: 'overlay', file: 'app/public/js/remote-status.js', route: 'camera', sel: '[data-update-gate]', rank: 90, how: 'The server sets SHIN_APP_MIN_VERSION above this build. Covers the whole app with an Update Pexi link to the App Store.' },
+  a116: { id: 'guide', title: 'How Pexi works, the new-user walkthrough', kind: 'screen', file: 'app/public/js/screens/guide.js', route: 'guide', how: 'First launch, after the permission screen and before the camera, once. Again from You, Help, How Pexi works. Or ?s=guide.' },
 };
 
 /**

@@ -195,7 +195,8 @@ test('Continue works with both switches untouched, and marks the screen seen onc
   await r.click(CONTINUE);
   r.cleanup();
   assert.equal(store.permissionsSeen(), true, 'Continue did not put the screen on record');
-  assert.deepEqual(r.calls.at(-1), ['replace', 'camera'], 'Continue must land where the launch order says next (the camera, with photos off: 2026-11-21)');
+  // Amended 2026-11-22: a fresh install meets the new-user walkthrough in front of the camera (guide-state.js landing).
+  assert.deepEqual(r.calls.at(-1), ['replace', 'guide'], 'Continue must land where the launch order says next (the walkthrough, then the camera)');
 });
 
 test('Continue never bounces back into the welcome flow, whatever the flag says', async () => {

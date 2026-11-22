@@ -130,9 +130,10 @@ test('R-1: a scan fires exactly 2 haptics, barcode captured and verdict landed',
   assert.equal(log.length, 2, `a scan buzzed ${log.length} times: ${JSON.stringify(log)}`);
 });
 
-test('R-1: the table holds exactly three events, two per scan and one for Save', () => {
+// Amended 2026-11-22: Aurik, "add haptics to presses", adds a fourth event, 'press', fired only by startPressHaptics.
+test('R-1: the table holds exactly four events, two per scan, one for Save and one for a press', () => {
   const { HAPTIC_EVENTS } = mod();
-  assert.deepEqual(Object.keys(HAPTIC_EVENTS).sort(), ['barcode-captured', 'saved', 'verdict-landed']);
+  assert.deepEqual(Object.keys(HAPTIC_EVENTS).sort(), ['barcode-captured', 'press', 'saved', 'verdict-landed']);
   assert.ok(Object.isFrozen(HAPTIC_EVENTS), 'the table can be edited at run time');
 });
 
@@ -167,7 +168,8 @@ test('R-1 (KEEP): the off switch is in You and haptics default to on', () => {
     try {
       m.default.render(root, { api: { quota: () => new Promise(() => {}), scans: () => new Promise(() => {}) }, go() {}, replace() {}, params: {}, build: 't' });
     } catch { /* wiring after the paint needs a DOM this stub lacks */ }
-    assert.match(root.innerHTML, /data-act="buzz"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-act="buzz"/, 'You has no haptics switch, or it starts off');
+    // Amended 2026-11-22: the row became a switch (role="switch", aria-checked) like the privacy switches.
+    assert.match(root.innerHTML, /data-act="buzz" role="switch"\s+aria-checked="true"/, 'You has no haptics switch, or it starts off');
   });
 });
 
@@ -335,4 +337,99 @@ test('R-5: no fallback pulse is longer than 100 ms, and a plain browser with no 
   const { win, log } = fakeWin({ platform: 'web' });
   assert.equal(mod().haptic('saved', win), 'off');
   assert.equal(log.length, 0);
+});
+
+/* ------------------------------------------------- presses, 2026-11-22 */
+/* Aurik, 2026-11-22: "add haptics to presses". One capture-phase listener taps on every press. */
+
+function fakeDoc() {
+  const listeners = [];
+  return {
+    listeners,
+    addEventListener(type, fn, capture) { listeners.push({ type, fn, capture }); },
+    removeEventListener(type, fn) { const i = listeners.findIndex((l) => l.type === type && l.fn === fn); if (i > -1) listeners.splice(i, 1); },
+    click(target) { for (const l of [...listeners]) if (l.type === 'click') l.fn({ target }); },
+  };
+}
+
+/** A fake element: `tag` matches PRESSABLE when it is a button; `own` marks data-haptic="own"; `inside` is a plain child. */
+function el({ pressable = true, disabled = false, ariaDisabled = false, own = false } = {}) {
+  const node = {
+    disabled,
+    getAttribute: (n) => (n === 'aria-disabled' && ariaDisabled ? 'true' : null),
+    closest(sel) {
+      if (sel === '[data-haptic="own"]') return own ? node : null;
+      return pressable ? node : null;
+    },
+  };
+  return node;
+}
+
+test('press: a press is the lightest feel, iOS light impact and Android tick, and no failure feel', () => {
+  const { HAPTIC_EVENTS } = mod();
+  assert.deepEqual(HAPTIC_EVENTS.press.ios, { kind: 'impact', style: 'LIGHT' });
+  assert.deepEqual(HAPTIC_EVENTS.press.android, { effect: 'TICK' });
+});
+
+test('press: every button press taps once, on the capture phase, so a handler that stops the click cannot swallow it', () => {
+  const { startPressHaptics } = mod();
+  const doc = fakeDoc();
+  const { win, log } = fakeWin({ platform: 'ios', plugin: true });
+  let t = 0;
+  startPressHaptics(doc, { win, now: () => (t += 100) });
+  assert.equal(doc.listeners[0]?.capture, true, 'the listener is not on the capture phase');
+  doc.click(el());
+  doc.click(el());
+  assert.deepEqual(log, [['impact', { style: 'LIGHT' }], ['impact', { style: 'LIGHT' }]]);
+});
+
+test('press: no tap on a non-press, a disabled control, or a control with its own haptic (the barcode button, Save)', () => {
+  const { startPressHaptics } = mod();
+  const doc = fakeDoc();
+  const { win, log } = fakeWin({ platform: 'ios', plugin: true });
+  let t = 0;
+  startPressHaptics(doc, { win, now: () => (t += 100) });
+  doc.click(el({ pressable: false }));
+  doc.click(el({ disabled: true }));
+  doc.click(el({ ariaDisabled: true }));
+  doc.click(el({ own: true }));
+  doc.click(null);
+  assert.equal(log.length, 0, `a non-press tapped: ${JSON.stringify(log)}`);
+  assert.match(CAMERA, /data-act="scan-barcode" data-haptic="own"/, 'the barcode button would tap on the press as well as on the capture (R-4)');
+  assert.equal((CAMERA.match(/data-act="dist-save" data-haptic="own"/g) ?? []).length, (CAMERA.match(/data-act="dist-save"/g) ?? []).length, 'a Save button would tap twice (press and saved)');
+});
+
+test('press: two clicks within PRESS_GAP_MS are one tap; the You switch off stops every press', () => {
+  const { startPressHaptics, PRESS_GAP_MS } = mod();
+  const doc = fakeDoc();
+  const { win, log } = fakeWin({ platform: 'ios', plugin: true });
+  let t = 1000;
+  startPressHaptics(doc, { win, now: () => t });
+  doc.click(el());
+  t += PRESS_GAP_MS - 1;
+  doc.click(el());
+  assert.equal(log.length, 1, 'one finger tapped twice');
+  t += 1000;
+  withStoreBuzz(false, () => doc.click(el()));
+  assert.equal(log.length, 1, 'the off switch did not stop a press');
+});
+
+test('press: a wrapper with no plugin is reported once, never thrown into the click, never on every tap', async () => {
+  const { startPressHaptics } = mod();
+  const doc = fakeDoc();
+  const { win } = fakeWin({ platform: 'ios', plugin: null });
+  const errors = [];
+  const orig = console.error;
+  console.error = (...a) => errors.push(a);
+  try {
+    let t = 0;
+    startPressHaptics(doc, { win, now: () => (t += 100) });
+    assert.doesNotThrow(() => { doc.click(el()); doc.click(el()); doc.click(el()); });
+  } finally { console.error = orig; }
+  assert.equal(errors.length, 1, `the fault was reported ${errors.length} times`);
+});
+
+test('press: the app starts the listener once, at boot', () => {
+  const main = read('../../public/js/main.js'); // not comment-stripped: main.js has glob-like paths a naive strip eats
+  assert.equal((main.match(/\bstartPressHaptics\(document\)/g) ?? []).length, 1, 'main.js does not start press haptics exactly once');
 });

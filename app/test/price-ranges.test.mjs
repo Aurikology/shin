@@ -208,7 +208,7 @@ test('Savings Overview: Total Saved and Monthly Goal Progress stay hidden until 
 });
 
 test('Savings Overview is a registered screen, reachable from the You screen', () => {
-  assert.match(read('../public/js/main.js'), /licences, savings\]/);
+  assert.match(read('../public/js/main.js'), /licences, savings[,\]]/); // Amended 2026-11-22: guide registered after it
   const you = read('../public/js/screens/you.js');
   assert.match(you, /data-act="savings"/);
   assert.match(you, /ctx\.go\('savings'\)/);

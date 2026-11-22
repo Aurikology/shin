@@ -1239,7 +1239,8 @@ export const KD = {
 };
 
 /** A store that has finished first-run: the camera is the first screen. */
-export const RETURNING = { 'shin.v1': { seenIntro: true, consentSeen: true, permissionsSeen: true } };
+/* 2026-11-22: and has seen the new-user walkthrough (guide-state.js), so a launch lands on the camera. */
+export const RETURNING = { 'shin.v1': { seenIntro: true, consentSeen: true, permissionsSeen: true }, 'pexi.guide.seen': '1' };
 
 /**
  * A verdict-bell answer with the shopper's price placed in it. `cents` is the
@@ -1287,7 +1288,11 @@ export async function onboard(app) {
   assert.equal(app.screen, 'permissions', `expected the permission screen first, got ${app.screen}`);
   await app.tap('[data-act="go"]', 'Permissions Continue');
   /* 2026-11-21 (business rank 3): with photo identification off the consent screen had no switch and is gone. */
-  assert.equal(app.screen, 'camera', `expected the camera second, got ${app.screen}`);
+  /* 2026-11-22 (Aurik, "set up the app walk through for new users"): the walkthrough stands before the first
+     camera. Its fastest way through is one tap, Skip, and that is the tap counted here. */
+  assert.equal(app.screen, 'guide', `expected the walkthrough second, got ${app.screen}`);
+  await app.tap('[data-act="skip"]', 'Walkthrough Skip');
+  assert.equal(app.screen, 'camera', `expected the camera third, got ${app.screen}`);
 }
 
 /** Point at a barcode and press the scan control, the way a shopper does today. One counted tap. */

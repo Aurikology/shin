@@ -142,7 +142,8 @@ test('the screen renders a scan-barcode control and no mode toggle', () => {
 
 test('the barcode button is never hidden, and only the vote lights it', () => {
   const bar = between(SCREEN, '<div class="cam-bar">', '</div>\n      </div>', '.cam-bar').replace(/\s+/g, ' ');
-  assert.ok(/data-act="scan-barcode" aria-label="[^"]*">/.test(bar), 'the barcode button is not a plain always-present button');
+  // Amended 2026-11-22: data-haptic="own" (its tick is the capture, R-4; the app-wide press tap skips it).
+  assert.ok(/data-act="scan-barcode" data-haptic="own" aria-label="[^"]*">/.test(bar), 'the barcode button is not a plain always-present button');
   assert.ok(!/data-act="scan-barcode"[^>]*hidden/.test(bar), 'the barcode button starts hidden again');
   const paint = between(SCREEN, '    function paintBarcodeButton() {', '    /**\n     * The eye\'s vote settled', 'paintBarcodeButton');
   assert.ok(paint.includes("btn.classList.toggle('is-ready', idle && Boolean(barcodeReady));"),

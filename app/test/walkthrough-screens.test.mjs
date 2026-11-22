@@ -173,9 +173,12 @@ test('D27: the Buzz caption sits directly under the Buzz row, before any other r
   const html = youMarkup();
   const buzz = html.indexOf('data-act="buzz"');
   const caption = html.indexOf(t('you_buzz_caption').slice(0, 20));
+  // Amended 2026-11-22: the You regroup put Scanning (torch, haptics) before Pexi Plus, so the next row after the
+  // caption is the theme; the rule is unchanged, the caption sits between its switch's row start and any other row.
+  const row = html.lastIndexOf('consent-row', buzz);
   const savings = html.indexOf('data-act="savings"');
-  assert.ok(buzz > 0 && caption > buzz && savings > caption, 'the caption is displaced from the row it explains');
-  const between = html.slice(buzz, caption);
+  assert.ok(buzz > 0 && caption > row && caption < buzz && savings > buzz, 'the caption is displaced from the row it explains');
+  const between = html.slice(row, buzz);
   assert.ok(!/data-act="(savings|market|welcome|licences|report)"/.test(between), 'another row sits between Buzz and its caption');
 });
 
@@ -218,7 +221,8 @@ test('D29: Manage subscription is drawn in the store builds (Android, and iOS si
   const android = youMarkup({ win: { Capacitor: { getPlatform: () => 'android' } } });
   assert.match(android, /data-manage-sub/);
   assert.doesNotMatch(android, /data-plus-block hidden/);
-  assert.match(youMarkup(), /data-plus-block hidden/, 'an empty Pexi Plus heading is left on screen');
+  // Amended 2026-11-22: the Pexi Plus group always holds the Plus and savings rows, so it is never an empty heading.
+  assert.match(youMarkup(), /data-plus-block>[\s\S]*?data-act="plus"/, 'an empty Pexi Plus heading is left on screen');
 });
 
 /* ------------------------------------------------------------------ D36 */

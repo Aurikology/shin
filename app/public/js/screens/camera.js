@@ -1730,7 +1730,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
         <div class="vd-chart${still ? ' vd-still' : ''}" data-dist-chart>${distBell(v, { report: shopperReport })}</div>
         ${shopperReportLine(shopperReport, v.currency)}
         <div class="actions actions-primary">
-          <button type="button" class="pill solid wide" data-act="dist-save">${saveLabel}</button>
+          <button type="button" class="pill solid wide" data-act="dist-save" data-haptic="own">${saveLabel}</button>
         </div>`
     : `<h2 class="vword small" data-dist-headline>${escapeHtml(headline)}</h2>
         ${faceRow(`<div class="vd-ask"><p class="vd-range" data-dist-range>${escapeHtml(t('vd_range', { low: estimateMoney(v.p10Cents, v.currency), high: estimateMoney(v.p90Cents, v.currency) }))}</p>${sellers}</div>`, { withThumb: true })}
@@ -1750,7 +1750,7 @@ function distributionSheet(raw, { name = '', thumb = null, saved = false, typedC
       </div>
       <div class="sheet-half">
         <div class="actions vd-half-actions">
-          ${s ? '' : `<button type="button" class="pill ghost" data-act="dist-save">${saveLabel}</button>`}
+          ${s ? '' : `<button type="button" class="pill ghost" data-act="dist-save" data-haptic="own">${saveLabel}</button>`}
           <button type="button" class="pill ghost" data-act="correct">${escapeHtml(t('cam_correct_it'))}</button>
           <button type="button" class="pill ghost" data-act="share">${escapeHtml(t('cam_share'))}</button>
         </div>
@@ -2811,7 +2811,7 @@ export default {
                button only asks it for the code it has already voted on, and
                nothing is sent until a button is pressed (rule 2 stands).
                The barcode button gets the is-ready class while a vote has a winner. -->
-          <button type="button" class="scan-code-btn" data-act="scan-barcode" aria-label="${escapeHtml(t('cam_scan_barcode'))}">
+          <button type="button" class="scan-code-btn" data-act="scan-barcode" data-haptic="own" aria-label="${escapeHtml(t('cam_scan_barcode'))}">
             <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M8 8v8M12 8v8M16 8v8"/></svg>
           </button>

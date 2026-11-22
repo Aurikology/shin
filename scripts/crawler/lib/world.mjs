@@ -134,6 +134,7 @@ function launchArgs(start) {
       consent: { photos: start.consent.photos, location: start.consent.location, updatedAt: '2026-10-01T00:00:00.000Z' },
       agreement: { at: '2026-11-06T00:00:00.000Z', version: 2, claude: start.claude, usage: true },
     };
+    seed['pexi.guide.seen'] = '1'; // 2026-11-22: a returning shopper has seen the walkthrough (guide-state.js)
   }
   if (start.plus) seed['shin.plus'] = '1';
   if (start.packRead) seed['shin.dev.packRead'] = '1';
@@ -410,7 +411,10 @@ function surface(app) {
   let storeLen = 0;
   // The telemetry queue grows on every tap (the app records the tap itself), so it says nothing about what the tap did.
   for (const [k, v] of app.storage.map) if (k !== 'shin.track.queue') storeLen += k.length + v.length;
-  return [app.root.innerHTML, app.loc.search, app.hist.length, app.server.calls.length, storeLen, app.phone.shares.length, app.phone.copied.length, app.phone.downloads.length, app.win.__vibrations.length].join('\u0001');
+  return [app.root.innerHTML, app.loc.search, app.hist.length, app.server.calls.length, storeLen, app.phone.shares.length, app.phone.copied.length, app.phone.downloads.length,
+    // 2026-11-22: every press now taps (lib/haptics.js 'press', fallbackMs 10; no other event uses 10). That tap is
+    // the press being felt, not the button doing something, so it does not count as a change.
+    app.win.__vibrations.filter((p) => p !== 10).length].join('\u0001');
 }
 
 /* ------------------------------------------------------------------ the run */

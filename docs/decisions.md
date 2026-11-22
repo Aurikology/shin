@@ -3128,3 +3128,27 @@ the scans-left line) now drawn on the iPhone, reversing D29's iOS half.
 
 **Reverses if:** the measured share of scans reaching Claude makes free users cost more than payers
 bring in, or Jamin rules on the seller name or contact.
+
+## Every press taps, a short walkthrough meets new shoppers, and You is grouped
+**Date:** 2026-11-22 · **Status:** active · **Who:** Aurik
+
+Aurik: *"generate the workflow we have been using to set up the app walk through for new users and
+add haptics to presses. Also the setting screen needs imrpovement because theres no flow."*
+
+- **Haptics on presses.** `lib/haptics.js` gains a fourth event, `press` (iOS light impact, Android
+  TICK, 10 ms web fallback), fired only by one app-wide capture-phase listener
+  (`startPressHaptics`, started in `main.js`). This amends UX build 1's R-1 ("none on pad keys,
+  price confirm, shop pick"). The barcode button and Save carry `data-haptic="own"` so they keep
+  their single, better-timed haptic (R-4). The You switch still turns all of it off. No native
+  rebuild: both presets already exist in the wrappers.
+- **Walkthrough.** `screens/guide.js`, four cards in scan order (scan, shelf price, verdict, no
+  barcode), once before the first camera, Skip on every card, replayable from You, Help. The 30-step
+  welcome flow stays off (Jamin, 2026-09-21, `flags.js onboarding`); this asks nothing. A phone that
+  already has scans is not walked through after an update. Cost: first launch to first verdict goes
+  from 6 to 7 taps (J1, Skip counted).
+- **You.** One "Settings" block of eleven controls became eight groups: Your Pexi, Prices,
+  Scanning, Look (and language), Pexi Plus, Your activity, data, Help. Every control is the one it
+  was; the haptics row became a switch.
+
+**Reverses if:** testers report the press taps as noise (drop `startPressHaptics`, keep the three
+events), or the J1 tap count is ruled more important than the walkthrough.

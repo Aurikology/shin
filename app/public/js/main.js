@@ -25,6 +25,7 @@ import * as router from './router.js';
 import { startThemeColourSync } from './lib/theme.js';
 import { startTextSizeSync } from './lib/text-size.js';
 import { startKeyboardFit } from './lib/keyboard-fit.js';
+import { startPressHaptics } from './lib/haptics.js';
 import * as store from './store.js';
 import * as api from './api.js';
 import * as shin from './shin.js';
@@ -54,6 +55,8 @@ import market from './screens/market.js';
 import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
+import guide from './screens/guide.js';
+import { landing } from './guide-state.js';
 import { refreshPlus, plusActive } from './purchases.js';
 import { startScansLeft } from './scans-left.js';
 import { hydrateDeviceIdentity } from './device.js';
@@ -66,7 +69,7 @@ import { startRemoteStatus } from './remote-status.js';
 applyFlags();
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings]) {
+for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings, guide]) {
   router.register(s);
 }
 
@@ -95,6 +98,8 @@ startThemeColourSync();
 startTextSizeSync();
 /* 2026-11-20: the app fits above the keyboard instead of being pushed up and covered by it. */
 startKeyboardFit();
+/* 2026-11-22 (Aurik, "add haptics to presses"): a light tap on every press, app-wide (lib/haptics.js). */
+startPressHaptics(document);
 
 /**
  * Item 6b: the consent screen sits between the attitude picker and the
@@ -124,7 +129,8 @@ await restoreSetupIfWiped({ store });
 startSetupBackup({ store });
 // Item 9: nothing opens before the terms tick and the Claude choice, whatever the link says.
 router.setGuard((id) => (id !== 'agree' && needsAgreement(store.get()) ? 'agree' : null));
-const first = firstScreen(store.get());
+/* 2026-11-22: the new-user walkthrough stands in front of the first camera (screens/guide.js). */
+const first = landing(firstScreen(store.get()), globalThis.localStorage, store.get());
 /* `?onboarding=1` replays the welcome once, for someone who has finished it
    already; the flow module decides, and the URL is rewritten so a reload does
    not start it again. First-run behaviour above is untouched. */

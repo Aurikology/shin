@@ -35,6 +35,7 @@ import { escapeHtml, on } from '../lib/dom.js';
 import { t } from '../ui-strings.js';
 import { recordAnswer, firstScreen } from '../onboarding-flow.js';
 import { FLAGS } from '../flags.js';
+import { landing } from '../guide-state.js';
 import { panelHtml, paintPanel, tapPermission, fillDemoSlot } from '../permissions-panel.js';
 
 const DEPS = { store, track };
@@ -90,7 +91,8 @@ export default {
            arriving here. `onboarding: false` whatever the real flag says:
            this screen is downstream of the welcome flow either way, and
            Continue must never bounce anyone back into it. */
-        ctx.replace(firstScreen(store.get(), { ...FLAGS, onboarding: false }));
+        /* 2026-11-22: and the walkthrough before the first camera (guide.js `landing`). */
+        ctx.replace(landing(firstScreen(store.get(), { ...FLAGS, onboarding: false })));
       }
     }, ac.signal);
 

@@ -235,6 +235,11 @@ export default {
           ${shinSay(weekState, weekKey, { scanned: weekly.scanned }, { size: 64, anim: weekAnim })}
         </section>
 
+        ${/* 2026-11-22 (Aurik: "the setting screen needs improvement because theres no flow"): one long
+             "Settings" block held eleven unrelated controls, so the page is grouped the way a shopper looks
+             for things, most-used first: your Pexi, prices, scanning, look and language, Pexi Plus, your
+             activity, privacy, then help. Every control and caption is the one it was; only the grouping and
+             the order changed, and the haptics row became a switch. */ ''}
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_your_shin'))}</h2>
           <div class="atts atts-row ilist" role="radiogroup" aria-label="${escapeHtml(t('you_attitude_group'))}">
@@ -250,32 +255,7 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_has_answered_h'))}</h2>
-          ${/* D14: only this phone's own numbers, from the same `weekly` object the
-               header line above reads, so the two can never disagree. The server's
-               fleet-wide scan log (every device's scans, hit rates, returns) is not
-               a shopper's business and is no longer fetched here. */ ''}
-          <div class="ilist" data-scanlog>
-            <div class="ilist-row">
-              <span class="ilist-l">${escapeHtml(t('you_yours_this_week'))}</span>
-              <span class="ilist-v">${escapeHtml(unreadable ? '?' : t('you_scan_count', { n: String(weekly.scanned) }))}</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_settings'))}</h2>
-
-          <div class="setting">
-            <span class="setting-t" id="you-theme-l">${escapeHtml(t('you_theme'))}</span>
-            <div class="seg" role="radiogroup" aria-labelledby="you-theme-l">
-              ${THEMES.map(
-                (th) => `<button type="button" class="btn seg-o${th.id === theme ? ' on' : ''}"
-                          role="radio" aria-checked="${th.id === theme}" data-theme="${th.id}">${escapeHtml(t(th.key))}</button>`,
-              ).join('')}
-            </div>
-          </div>
-
+          <h2 class="sect-h">${escapeHtml(t('you_prices_h'))}</h2>
           <!--
             The user's two lines, item added 2026-09-14. Setup asks them once;
             this is where they get changed, which is what setup's own fineprint
@@ -296,6 +276,18 @@ export default {
             ${rangePickerHtml(store.get(), 'you')}
           </div>
 
+          ${/* FLAGS.market off pins Canada at boot, so no picker row and no caption. */ !store.marketPinned() ? `<div class="ilist">
+            <button type="button" class="ilist-row" data-act="market">
+              <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
+              <span class="ilist-v">${escapeHtml((market.country ? countryLabel(market.country) : t('you_market_unset')) + (regionText(market) ? `, ${regionText(market)}` : ''))}</span>
+              ${rowChevron()}
+            </button>
+          </div>
+          <p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>` : ''}
+        </section>
+
+        <section class="block">
+          <h2 class="sect-h">${escapeHtml(t('you_scanning_h'))}</h2>
           <!--
             The torch (item 11, 2026-09-17), in his words: "This should be a
             setting the user can do. They should have the option to set the
@@ -324,6 +316,32 @@ export default {
             <p class="fineprint" id="you-torch-hint">${escapeHtml(t('you_torch_hint'))}</p>
           </div>
           <p class="fineprint" data-torch-offhint${torchMode === 'off' ? '' : ' hidden'}>${escapeHtml(t('you_torch_off_hint'))}</p>
+
+          ${/* 2026-11-22: a switch like the privacy switches, not a row with an On/Off word; it now covers every
+               press as well as the verdict (lib/haptics.js startPressHaptics). */ ''}
+          <div class="ilist consent-list">
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l" id="you-buzz-l">${escapeHtml(t('you_buzz'))}</span>
+                <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
+              </div>
+              <button type="button" class="switch${store.buzzOn() ? ' on' : ''}" data-act="buzz" role="switch"
+                      aria-checked="${store.buzzOn()}" aria-labelledby="you-buzz-l"></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <h2 class="sect-h">${escapeHtml(t(localePinned() ? 'you_look_only_h' : 'you_look_h'))}</h2>
+          <div class="setting">
+            <span class="setting-t" id="you-theme-l">${escapeHtml(t('you_theme'))}</span>
+            <div class="seg" role="radiogroup" aria-labelledby="you-theme-l">
+              ${THEMES.map(
+                (th) => `<button type="button" class="btn seg-o${th.id === theme ? ' on' : ''}"
+                          role="radio" aria-checked="${th.id === theme}" data-theme="${th.id}">${escapeHtml(t(th.key))}</button>`,
+              ).join('')}
+            </div>
+          </div>
 
           <!--
             The language row, item 31. Built as the same inset grouped list the
@@ -355,26 +373,15 @@ export default {
           </div>
           <p class="fineprint">${escapeHtml(t('you_language_caption'))}</p>` : ''}
 
+        </section>
+
+        ${/* Pexi Plus (2026-09-21): this week's free scans from /api/quota, filled
+             after the paint and shown only when the server sets a limit, and the
+             store's own subscription page, which is the only place a
+             subscription is changed or cancelled. */ ''}
+        <section class="block" data-plus-block>
+          <h2 class="sect-h">${escapeHtml(t('paywall_title'))}</h2>
           <div class="ilist">
-            <button type="button" class="ilist-row" data-act="buzz" aria-pressed="${store.buzzOn()}">
-              <span class="ilist-l">${escapeHtml(t('you_buzz'))}</span><span class="ilist-v" data-buzz-v></span>
-            </button>
-          </div>
-          ${/* D27: each caption sits directly under the row it explains. */ ''}
-          <p class="fineprint">${escapeHtml(t('you_buzz_caption'))}</p>
-          ${/* FLAGS.market off pins Canada at boot, so no picker row and no caption. */ !store.marketPinned() ? `<div class="ilist">
-            <button type="button" class="ilist-row" data-act="market">
-              <span class="ilist-l">${escapeHtml(t('you_market'))}</span>
-              <span class="ilist-v">${escapeHtml((market.country ? countryLabel(market.country) : t('you_market_unset')) + (regionText(market) ? `, ${regionText(market)}` : ''))}</span>
-              ${rowChevron()}
-            </button>
-          </div>
-          <p class="fineprint">${escapeHtml(t('you_market_caption'))}</p>` : ''}
-          <div class="ilist">
-            ${/* FLAGS.onboarding off: no welcome to watch again. */ FLAGS.onboarding ? `<button type="button" class="ilist-row" data-act="welcome">
-              <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
-              ${rowChevron()}
-            </button>` : ''}
             ${/* R-35: the paywall is one tap from here and two from the camera, with Restore purchases on it. */ ''}
             <button type="button" class="ilist-row" data-act="plus">
               <span class="ilist-l">${escapeHtml(t('paywall_title'))}</span>
@@ -384,16 +391,6 @@ export default {
               <span class="ilist-l">${escapeHtml(t('you_savings'))}</span>
               ${rowChevron()}
             </button>
-          </div>
-        </section>
-
-        ${/* Pexi Plus (2026-09-21): this week's free scans from /api/quota, filled
-             after the paint and shown only when the server sets a limit, and the
-             store's own subscription page, which is the only place a
-             subscription is changed or cancelled. */ ''}
-        <section class="block" data-plus-block${manageUrl ? '' : ' hidden style="display:none"'}>
-          <h2 class="sect-h">${escapeHtml(t('paywall_title'))}</h2>
-          <div class="ilist">
             <div class="ilist-row" data-quota-row hidden><span class="ilist-l" data-quota-text></span></div>
             ${/* D29: the store page is a dead end anywhere but the Android store build, so no row. */ manageUrl ? `<a class="ilist-row" href="${escapeHtml(manageUrl)}" target="_blank" rel="noopener noreferrer" data-manage-sub>
               <span class="ilist-l">${escapeHtml(t('you_manage_sub'))}</span>
@@ -403,7 +400,17 @@ export default {
         </section>
 
         <section class="block">
-          <h2 class="sect-h">${escapeHtml(t('you_ratings'))}</h2>
+          <h2 class="sect-h">${escapeHtml(t('you_activity_h'))}</h2>
+          ${/* D14: only this phone's own numbers, from the same `weekly` object the
+               header line above reads, so the two can never disagree. The server's
+               fleet-wide scan log (every device's scans, hit rates, returns) is not
+               a shopper's business and is no longer fetched here. */ ''}
+          <div class="ilist" data-scanlog>
+            <div class="ilist-row">
+              <span class="ilist-l">${escapeHtml(t('you_yours_this_week'))}</span>
+              <span class="ilist-v">${escapeHtml(unreadable ? '?' : t('you_scan_count', { n: String(weekly.scanned) }))}</span>
+            </div>
+          </div>
           <div class="ilist">
             <div class="ilist-row">
               <span class="ilist-l">${escapeHtml(t('you_ratings_rated'))}</span>
@@ -503,19 +510,18 @@ export default {
           </div>
         </section>
 
-        ${/* "Rate Pexi" is the store's own page, started by the shopper; it is not shown in, or tied to, the
-             phone's own rating prompt. Reporting a wrong price is the "Report a wrong price" row below. */ ''}
         <section class="block">
+          <h2 class="sect-h">${escapeHtml(t('you_help_h'))}</h2>
           <div class="ilist">
-            ${rate ? `<a class="ilist-row" href="${escapeHtml(rate)}" target="_blank" rel="noopener noreferrer" data-rate-pexi>
-              <span class="ilist-l">${escapeHtml(t('you_rate'))}</span>
+            ${/* 2026-11-22: the new-user walkthrough, again (screens/guide.js; RULINGS: watchable more than once). */ ''}
+            <button type="button" class="ilist-row" data-act="guide">
+              <span class="ilist-l">${escapeHtml(t('you_guide_row'))}</span>
               ${rowChevron()}
-            </a>` : ''}
-          </div>
-        </section>
-
-        <section class="block">
-          <div class="ilist">
+            </button>
+            ${/* FLAGS.onboarding off: no welcome to watch again. */ FLAGS.onboarding ? `<button type="button" class="ilist-row" data-act="welcome">
+              <span class="ilist-l">${escapeHtml(t('onb_replay_row'))}</span>
+              ${rowChevron()}
+            </button>` : ''}
             <a class="ilist-row" href="${escapeHtml(contactHref())}" data-contact>
               <span class="ilist-l">${escapeHtml(t('you_contact'))}</span>
               <span class="ilist-v">${escapeHtml(t('you_email'))}</span>
@@ -534,6 +540,10 @@ export default {
               <span class="ilist-l">${escapeHtml(t('lic_title'))}</span>
               ${rowChevron()}
             </button>
+            ${rate ? `<a class="ilist-row" href="${escapeHtml(rate)}" target="_blank" rel="noopener noreferrer" data-rate-pexi>
+              <span class="ilist-l">${escapeHtml(t('you_rate'))}</span>
+              ${rowChevron()}
+            </a>` : ''}
           </div>
         </section>
 
@@ -562,13 +572,11 @@ export default {
       </div>`;
 
     function paintBuzz() {
-      const row = root.querySelector('[data-act="buzz"]');
-      const on = store.buzzOn();
-      root.querySelector('[data-buzz-v]').textContent = on ? t('on') : t('off');
-      // The row is a two-state toggle, so `aria-pressed` is the honest thing to
-      // say about it -- unlike the theme control above, which has three states
-      // and is a radio group for that reason.
-      if (row) row.setAttribute('aria-pressed', String(on));
+      const sw = root.querySelector('[data-act="buzz"]');
+      if (!sw) return;
+      const isOn = store.buzzOn();
+      sw.setAttribute('aria-checked', String(isOn));
+      sw.classList.toggle('on', isOn);
     }
     paintBuzz();
 
@@ -762,6 +770,7 @@ export default {
       // Watch the welcome again: opt-in, unlimited. `replay` is what tells the
       // onboarding screen to change nothing it does not have to (onboarding-flow.js).
       if (e.target.closest('[data-act="welcome"]')) { ctx.go('onboarding', { replay: 1 }); return; }
+      if (e.target.closest('[data-act="guide"]')) { ctx.go('guide', { replay: 1 }); return; }
       if (e.target.closest('[data-act="plus"]')) { ctx.go('paywall'); return; }
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
       if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }

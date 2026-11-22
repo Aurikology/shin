@@ -9,11 +9,12 @@
  * glove, and nothing at all on an iPhone, whose Safari (and so, by inference,
  * its installed web app) has no vibrate call.
  *
- * THREE EVENTS AND NO OTHERS (R-1): the barcode is captured, a verdict lands,
- * a verdict is saved. A pad key, the price confirm, a shop pick, an error, an
- * offline or server fault and a low-confidence verdict have no name in the
- * table, so nothing can fire them by accident: `haptic()` THROWS on any name
- * outside it.
+ * FOUR EVENTS AND NO OTHERS (R-1, amended 2026-11-22): the barcode is
+ * captured, a verdict lands, a verdict is saved, and a press (Aurik: "add
+ * haptics to presses"; one app-wide listener, startPressHaptics, fires it). An
+ * error, an offline or server fault and a low-confidence verdict have no name
+ * in the table, so nothing can fire them by accident: `haptic()` THROWS on any
+ * name outside it.
  *
  * WHICH FEEL (R-2, R-3). iPhone: a "success" notification for the verdict, a
  * light impact for capture and Save, through Capacitor's Haptics plugin
@@ -66,7 +67,68 @@ export const HAPTIC_EVENTS = Object.freeze({
     android: Object.freeze({ effect: 'CONFIRM' }),
     fallbackMs: 12,
   }),
+  /* Aurik, 2026-11-22: "add haptics to presses". A light tap on every button,
+     row, switch and link the shopper presses, fired by startPressHaptics below
+     and by nothing else. It amends R-1's "none on pad keys, price confirm, shop
+     pick": those are presses. The lightest feel each phone has (iOS LIGHT
+     impact, Android TICK), so the verdict's success notification still reads
+     as the bigger moment. Uses presets the wrappers already carry: no rebuild. */
+  press: Object.freeze({
+    ios: Object.freeze({ kind: 'impact', style: 'LIGHT' }),
+    android: Object.freeze({ effect: 'TICK' }),
+    fallbackMs: 10,
+  }),
 });
+
+/**
+ * What counts as a press: anything a shopper taps to make something happen.
+ * A range slider is a drag, not a press, and is left out.
+ */
+export const PRESSABLE = 'button, a[href], [role="button"], [role="switch"], [role="radio"], [role="checkbox"], [role="tab"], summary';
+
+/** Two presses closer than this are one finger (a click that bubbles twice, a double fire), so one tap. */
+export const PRESS_GAP_MS = 40;
+
+/**
+ * The element a click pressed, or null when it should not tap: not a
+ * pressable, disabled, or marked `data-haptic="own"` because that control
+ * fires a haptic of its own at the right moment (the barcode button's tick
+ * is the capture, R-4; Save fires 'saved'). Exported for the test.
+ */
+export function pressTarget(target) {
+  const el = target && typeof target.closest === 'function' ? target.closest(PRESSABLE) : null;
+  if (!el) return null;
+  if (el.disabled === true || el.getAttribute?.('aria-disabled') === 'true') return null;
+  if (typeof el.closest === 'function' && el.closest('[data-haptic="own"]')) return null;
+  return el;
+}
+
+/**
+ * One listener for the whole app: every press taps. On the capture phase, so a
+ * handler that stops the click from bubbling cannot swallow the tap. A fault
+ * (a native wrapper with no plugin, a bridge that throws) is reported once per
+ * launch, through reportHapticFault, and the press itself always goes on:
+ * reporting it on every tap would flood the event queue with one fault.
+ * Returns a stop function.
+ */
+export function startPressHaptics(doc = globalThis.document, { win = globalThis.window, now = () => Date.now() } = {}) {
+  if (!doc || typeof doc.addEventListener !== 'function') return () => {};
+  let last = -Infinity;
+  let reported = false;
+  const onClick = (e) => {
+    if (!pressTarget(e.target)) return;
+    const at = now();
+    if (at - last < PRESS_GAP_MS) return;
+    last = at;
+    try {
+      haptic('press', win);
+    } catch (err) {
+      if (!reported) { reported = true; reportHapticFault(err, 'press'); }
+    }
+  };
+  doc.addEventListener('click', onClick, true);
+  return () => doc.removeEventListener('click', onClick, true);
+}
 
 /** R-4: how long the frozen frame and its highlight are held before the price pad rises (a vendor project's 150 ms). */
 export const CAPTURE_HOLD_MS = 150;
