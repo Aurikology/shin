@@ -256,10 +256,10 @@ test('end to end on the fixture: every scenario answered or reported empty, no m
   const own12 = summary.scenarios.find((x) => x.id === 'barcode_12_vs_13/own_price')!;
   assert.equal(own12.breakages, 0, JSON.stringify(own12));
   assert.ok((summary.scenarios.find((x) => x.id === 'barcode/own_price/many_recent')!.rungMix.own_price ?? 0) > 0);
-  // The one breakage the fixture is known to show is a real finding of the app: its Statistics Canada national average
-  // is offered to a US market. Anything else, and above all a crash, would be new.
+  // No breakage of any kind. The first run (2026-11-22) found the Statistics Canada national average offered to a US
+  // market as USD; server.ts marketOfContext now keeps that rung to non-US markets, and this pins it.
   const kinds = new Set(summary.scenarios.flatMap((x) => Object.keys(x.breakageKinds)));
-  assert.deepEqual([...kinds].filter((k) => k !== 'canadian_average_shown_to_us_market'), []);
+  assert.deepEqual([...kinds], []);
   for (const f of ['summary.md', 'summary.json', 'findings.jsonl']) assert.ok(existsSync(join(out, f)), f);
   const md = readFileSync(join(out, 'summary.md'), 'utf8');
   assert.match(md, /\| scenario \| examples \| no-result \| bad-result \| rung mix \| breakages \| traffic share \| change vs previous \|/);
