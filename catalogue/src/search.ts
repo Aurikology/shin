@@ -1187,6 +1187,14 @@ export class Catalogue {
       const upca = upcAOf(normalized);
       if (upca) { forms.add(upca); forms.add(upca.padStart(13, '0')); }
     }
+    // An 8-digit row that itself starts with 0, read by the phone zero-padded
+    // to 13 ("0000006781901" for row "06781901"): stripping every zero
+    // overshoots to 7 digits, so put the 8-digit form back. Found 2026-11-23 on
+    // the live catalogue (7,724 rows are stored as 8 digits; those starting with
+    // 0 were unreachable from a padded reading). Tried after the forms above,
+    // so an exact 13-digit row still wins.
+    const stripped = normalized.replace(/^0+/, '');
+    if (stripped.length > 0 && stripped.length < 8) forms.add(stripped.padStart(8, '0'));
     for (const form of forms) {
       if (!form) continue;
       const row = this.#db

@@ -800,6 +800,25 @@ test('a UPC-A row and its EAN-13 twin are one product, not two results', async (
   assert.equal(twins.length, 1, 'the same barcode came back in two forms');
 });
 
+test('an 8-digit row starting with 0 is found from its zero-padded 13-digit reading', () => {
+  const db = openCatalogue(':memory:');
+  const insert = db.prepare(`
+    INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value,
+      size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+  // The live miss (2026-11-23): row kept as printed, the phone hands over the padded form.
+  insert.run('01234565', 'Sparkling Water 355 mL', 'Sparkling Water 355 mL', null, 'Test', null, null, null, '[]', null, '[]', 0, 'openfoodfacts');
+  // A real 13-digit row whose stripped form is short must still win over an 8-digit twin.
+  insert.run('0000000004770', 'Screen Protector', 'Screen Protector', null, 'Test', null, null, null, '[]', null, '[]', 0, 'openfoodfacts');
+  insert.run('00004770', 'Avocado', 'Avocado', null, 'Test', null, null, null, '[]', null, '[]', 0, 'openfoodfacts');
+  rebuildFts(db);
+  const cat = new Catalogue(db, new HashEmbedder());
+  assert.equal(cat.byGtin('0000001234565')?.code, '01234565');
+  assert.equal(cat.byGtin('01234565')?.code, '01234565');
+  assert.equal(cat.byGtin('0000000004770')?.code, '0000000004770');
+  assert.equal(cat.byGtin('0000009999999'), null);
+});
+
 test('a pinned size lifts the sibling that agrees with it above the one that does not (D-082)', async () => {
   /*
    * D-082, from the eval's own rows. The dry run reads a Cadbury Mini Eggs
