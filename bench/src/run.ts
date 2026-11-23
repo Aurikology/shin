@@ -4,8 +4,9 @@
  *   node src/run.ts [--db PATH] [--catalogue PATH] [--test-fraction 0.3]
  *                   [--seed 0] [--open-sealed] [--sealed PATH] [--no-write]
  *
- * Reads prices.db READ-ONLY (SQLite refuses writes on the handle, and the
- * file's size and mtime are compared before and after). Writes only under
+ * Takes a consistent snapshot of prices.db first (VACUUM INTO a temp file, deleted after the run; loaders
+ * write the live file while the bench runs) and reads THAT copy READ-ONLY (SQLite refuses writes on the
+ * handle, and the copy's size and mtime are compared before and after). Writes only under
  * bench/results/: baseline-<date>.json always (unless --no-write), and
  * audit-<date>.csv, the hand re-read sheet, only if it does not already exist
  * (someone may be filling it in).
@@ -15,7 +16,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DatabaseSync } from 'node:sqlite';
-import { fingerprint, loadObservations, openReadOnly } from './data.ts';
+import { dropSnapshot, fingerprint, loadObservations, openReadOnly, snapshotDb } from './data.ts';
 import { buildPredictionKey, buildSaleKey, keyExclusions, loadMatchingKey, summarizeKeys } from './keys.ts';
 import { auditPredictionKey, auditSaleKey, auditSummary, keyErrorRate, mergeSheet } from './audit.ts';
 import { isFold, splitByProduct, splitByProductAndDate, splitByTime, splitSealedOpen, TEST_FRACTION, type Fold, type Unsplittable } from './split.ts';
@@ -45,7 +46,22 @@ function localDate(d = new Date()): string {
 const pct = (x: number | null | undefined) => (x === null || x === undefined ? '  -  ' : `${(x * 100).toFixed(1)}%`.padStart(6));
 const num = (x: number | null | undefined, d = 2) => (x === null || x === undefined ? '-' : x.toFixed(d));
 
-export function main(): void {
+export interface RunOptions {
+  /** Test hook: called once the snapshot exists and before anything is read from it, with the ORIGINAL prices path. */
+  afterSnapshot?: (originalPath: string) => void;
+}
+
+/** Takes a consistent snapshot of prices.db, runs everything on the copy, and deletes the copy afterwards. */
+export function main(opts: RunOptions = {}): void {
+  const snap: { path: string | null } = { path: null };
+  try {
+    runBench(opts, snap);
+  } finally {
+    if (snap.path) dropSnapshot(snap.path);
+  }
+}
+
+function runBench(opts: RunOptions, snap: { path: string | null }): void {
   const dbPath = arg('--db') ?? process.env.SHIN_PRICES ?? join(REPO, 'price', 'data', 'prices.db');
   const catPath = arg('--catalogue') ?? process.env.SHIN_CATALOGUE ?? join(REPO, 'catalogue', 'data', 'catalogue.db');
   const sealedArg = arg('--sealed');
@@ -76,8 +92,14 @@ export function main(): void {
   }
 
   if (!existsSync(dbPath)) throw new Error(`price database not found at ${dbPath}`);
-  const before = fingerprint(dbPath);
-  const prices = openReadOnly(dbPath);
+  // Loaders write prices.db while the bench runs, so everything is scored on one frozen copy (VACUUM INTO:
+  // a single consistent read). The "changed during the run" check below watches the copy, not the live file.
+  const snapStart = new Date().toISOString();
+  snap.path = snapshotDb(dbPath, 'prices');
+  const snapPath = snap.path;
+  opts.afterSnapshot?.(dbPath);
+  const before = fingerprint(snapPath);
+  const prices = openReadOnly(snapPath);
   const catalogue: DatabaseSync | null = existsSync(catPath) ? openReadOnly(catPath) : null;
 
   const allObs = loadObservations(prices);
@@ -134,13 +156,14 @@ export function main(): void {
 
   prices.close();
   catalogue?.close();
-  const after = fingerprint(dbPath);
+  const after = fingerprint(snapPath);
   const untouched = before.bytes === after.bytes && before.mtimeMs === after.mtimeMs;
 
   /* ------------------------------------------------------------ print */
   const out: string[] = [];
   out.push(`Shin price bench, baselines, ${date}`);
   out.push(`prices.db: ${dbPath}  (${totalRows} rows, ${allObs.length} usable CAD rows; read-only, unchanged: ${untouched ? 'yes' : 'NO'})`);
+  out.push(`snapshot: frozen copy of prices.db taken ${snapStart} (VACUUM INTO a temp file, deleted after the run); every score below is on that copy`);
   out.push(`catalogue: ${catalogue ? catPath : 'not found; category steps cannot run'}`);
   out.push(`sealed batch: ${guard.mode === 'none' ? 'none exists' : guard.mode === 'excluded' ? `${guard.count} keys excluded (sha256 ${guard.sha256.slice(0, 12)})` : `OPENED now (${guard.count} keys, sha256 ${guard.sha256.slice(0, 12)}), scored once`}`);
   out.push('');
@@ -216,7 +239,7 @@ export function main(): void {
       'baseline',
         {
           date,
-          pricesDb: { path: dbPath, rows: totalRows, usableCadRows: allObs.length, before, after, untouched },
+          pricesDb: { path: dbPath, snapshot: { method: 'VACUUM INTO', takenAt: snapStart }, rows: totalRows, usableCadRows: allObs.length, before, after, untouched },
           catalogue: catalogue ? catPath : null,
           sealed:
             guard.mode === 'opened'
@@ -244,7 +267,7 @@ ${controlled.reason}`);
     process.exitCode = 3;
   }
   if (!untouched) {
-    console.error('prices.db size or mtime changed during the run; investigate before trusting anything');
+    console.error('the prices.db snapshot size or mtime changed during the run; investigate before trusting anything');
     process.exitCode = 2;
   }
 }

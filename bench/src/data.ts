@@ -12,7 +12,9 @@
  */
 
 import { DatabaseSync } from 'node:sqlite';
-import { statSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { upcAOf, upcEOf } from '../../catalogue/src/upc.ts';
 
 export type PriceKind = 'regular' | 'promotional';
@@ -151,6 +153,35 @@ function reservedHost(url: string | null): boolean {
 /** Open a real database file so that SQLite itself refuses every write. */
 export function openReadOnly(path: string): DatabaseSync {
   return new DatabaseSync(path, { readOnly: true });
+}
+
+/**
+ * A consistent frozen copy of a SQLite file, taken with VACUUM INTO (one read transaction, so loaders
+ * writing the original at the same time cannot tear it; node:sqlite's backup() is async and absent
+ * before Node 22.16). Returns the copy's path; delete it with `dropSnapshot`.
+ */
+export function snapshotDb(path: string, label = 'db'): string {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-snapshot-'));
+  const dest = join(dir, `${label}.sqlite`);
+  const src = new DatabaseSync(path, { readOnly: true });
+  try {
+    src.exec(`VACUUM INTO '${dest.replace(/'/g, "''")}'`);
+  } catch (err) {
+    rmSync(dir, { recursive: true, force: true });
+    throw err;
+  } finally {
+    src.close();
+  }
+  return dest;
+}
+
+/** Delete a snapshot made by `snapshotDb` (its temp directory). Never throws. */
+export function dropSnapshot(dest: string): void {
+  try {
+    rmSync(dirname(dest), { recursive: true, force: true });
+  } catch {
+    /* a temp dir; the OS cleans it */
+  }
 }
 
 /** Size and mtime of a file, so a run can prove it did not change the database. */
