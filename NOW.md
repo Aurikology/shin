@@ -40,6 +40,14 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
+- **Builds, 2026-11-23 (Aurik's PC):** the last iPhone build made is **10** (8bddd20, 11-18); the
+  11, 12 and 13 asks were never read, and the Xcode project still says 10. One ask replaces them:
+  `comms/messages/2026-11-23-aurik-to-mac-build-11-from-2ee048c.md`, waiting on a Mac session.
+  An Android debug build of 2ee048c's code was walked on the PC emulator (kore_api36) against the
+  live server: one defect found and fixed (D-277, the Location switch); Android-only findings went
+  to Jamin. Nothing since build 9 seen on an iPhone. Building Android here needs JDK 21
+  (portable, `C:\dev\jdk-21.0.13.1+2`) and `npm ci` in `native/` first.
+
 - **2026-11-21 launch review (Jamin's PC):** not ready to submit; result and per-job findings in
   `docs/readiness/review-2026-11-21/REPORT.md`, phone checklist beside it.
 
