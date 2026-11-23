@@ -407,6 +407,16 @@ export class KrogerClient {
   products(productIds: readonly string[], locationId: string): Promise<any> {
     return this.get(`/products?filter.productId=${productIds.map(encodeURIComponent).join(',')}&filter.locationId=${encodeURIComponent(locationId)}`);
   }
+
+  /**
+   * A term search at one store: GET /products?filter.term=&filter.locationId=&filter.limit=&filter.start=. Used by
+   * scripts/shelf-sample.mts. PROVISIONAL: the filters are from the public docs; the answer is read by parseProducts.
+   */
+  searchProducts(term: string, locationId: string, limit: number, start: number): Promise<any> {
+    return this.get(
+      `/products?filter.term=${encodeURIComponent(term)}&filter.locationId=${encodeURIComponent(locationId)}&filter.limit=${limit}&filter.start=${start}`,
+    );
+  }
 }
 
 /* ------------------------------------------------------------ the run */
