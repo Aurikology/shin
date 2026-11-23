@@ -93,6 +93,9 @@ export const CALIBRATION_TOLERANCE = 0.05;
  */
 export const PER_CATEGORY_MIN_PRODUCTS = 30;
 
+/** Float slack on the Wilson comparison: wilson(n, n).high rounds to 0.9999999999999999, so a perfect hit rate must not read as outside a claim of 1. */
+const WILSON_EPS = 1e-9;
+
 /**
  * A range must claim to hold at least half of real prices. DEFAULT chosen here,
  * changeable by Jamin: 50% is what today's 25th-to-75th range claims.
@@ -507,7 +510,7 @@ export function gate(s: Scores, baselines: readonly BaselineComparison[] | null,
     const badCats = Object.entries(s.perCategory).filter(([, c]) => {
       if (c.products < bar.perCategoryMinProducts) return false;
       const w = wilson(Math.round(c.hitRate * c.products), c.products);
-      return s.claimedCoverage < w.low || s.claimedCoverage > w.high;
+      return s.claimedCoverage < w.low - WILSON_EPS || s.claimedCoverage > w.high + WILSON_EPS;
     });
     if (badCats.length) {
       failures.push('category_calibration');
