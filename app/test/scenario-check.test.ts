@@ -14,7 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import {
-  buildScenarios, findExamples, judge, loadAgg, summarise, trafficShare, loadTraffic, isoDay,
+  buildScenarios, findExamples, judge, loadAgg, summarise, trafficShare, loadTraffic, isoDay, rungOf,
   type AskResult, type Example, type FinderCtx, type Row, type Scenario,
 } from '../../scripts/scenarios/core.ts';
 import { PRICE_ONLY_CODE, PRODUCTS } from '../../scripts/scenarios/fixture.mts';
@@ -276,4 +276,12 @@ test('end to end on the fixture: every scenario answered or reported empty, no m
   assert.equal(row.change.breakages, 0);
   assert.ok(row.change.examples < 0, 'n 1 against n 2 should show fewer examples');
   assert.deepEqual([sha(cataloguePath), sha(pricesPath)], filesBefore, 'the fixture files changed after the CLI run');
+});
+
+test('a last-rung estimate drawn from the product own prices is judged as its own price, not a generic prior', () => {
+  // Live 2026-11-23: products priced at one or two shops (under the 3-shop bar) answer shin_estimate with basis own_prices.
+  assert.equal(rungOf({ rangeSource: 'shin_estimate', range: { basis: 'own_prices', lowCents: 100, highCents: 200 } }), 'own_price');
+  assert.equal(rungOf({ rangeSource: 'shin_estimate', range: { basis: 'own_prices', lowCents: 100, highCents: 200 } }, true), 'matcher');
+  assert.equal(rungOf({ rangeSource: 'shin_estimate', range: { basis: 'leaf_category', lowCents: 100, highCents: 200 } }), 'prior');
+  assert.equal(rungOf({ rangeSource: 'fixed_prior', range: { basis: 'fixed_prior', lowCents: 100, highCents: 200 } }), 'prior');
 });

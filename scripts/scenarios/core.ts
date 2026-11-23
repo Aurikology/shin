@@ -611,6 +611,9 @@ export function rungOf(json: Record<string, any> | null, matcherLinked = false):
   const vb: string | null = verdict?.basis ?? null;
   if (rs === 'claude_typical' || rb === 'gemini_typical' || rb === 'claude_typical' || vb === 'claude_typical') return 'claude';
   if (rs === 'national_average' || vb === 'national_average') return 'national';
+  // A last-rung estimate drawn from this product's own prices (one or two shops, under the 3-shop bar in
+  // price/src/range.ts) is still this product's price, so it is judged as one, including the in-sample check.
+  if (rs === 'shin_estimate' && (rb === 'own_prices' || vb === 'own_prices')) return matcherLinked ? 'matcher' : 'own_price';
   if (rs === 'fixed_prior' || rs === 'shin_estimate' || rb === 'fixed_prior') return 'prior';
   if (rb === 'this_product') return matcherLinked ? 'matcher' : 'own_price';
   if (rb === 'leaf_category' || rb === 'parent_category') return 'category';
