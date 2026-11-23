@@ -15,7 +15,7 @@ import { openCatalogue, rebuildFts } from '../../catalogue/src/schema.ts';
 import { rebuildCategoriesFromPaths } from '../../catalogue/test/helpers/path-taxonomy.ts';
 import { openPrices, recordObservation } from '../../price/src/store.ts';
 import { KrogerClient, gs1Valid, API_BASE } from '../../price/src/kroger-api.ts';
-import { buildSample, codeOfProduct, measureSample, summarise, type BuildClient, type Sample } from '../../scripts/shelf-sample.mts';
+import { buildSample, buildSampleCa, codeOfProduct, measureSample, formatSummary, summarise, type BuildClient, type Sample } from '../../scripts/shelf-sample.mts';
 
 function withCheck(body: string): string {
   let sum = 0;
@@ -169,27 +169,27 @@ test('measure: per-term numbers, the Kroger-only flag, and the two inputs unchan
   assert.equal(k.named, true);
   assert.equal(k.range, true);
   assert.equal(k.rangeBasis, 'this_product');
-  assert.equal(k.krogerOnly, true, 'every price behind the range is Kroger');
+  assert.equal(k.sampleSourceOnly, true, 'every price behind the range is Kroger');
   assert.equal(m.named, true);
   assert.equal(m.range, true);
   assert.equal(m.rangeBasis, 'this_product');
-  assert.equal(m.krogerOnly, false, 'another seller stands behind the range');
+  assert.equal(m.sampleSourceOnly, false, 'another seller stands behind the range');
   assert.deepEqual(m.ownSellers, ['Kroger', 'Safeway', 'Walmart']);
   assert.equal(u.named, false);
   assert.equal(u.range, false);
-  assert.equal(u.krogerOnly, null);
+  assert.equal(u.sampleSourceOnly, null);
 
   const s = r.summary;
   assert.deepEqual(
-    [s.overall.n, s.overall.named, s.overall.range, s.overall.rangeNotOnlyKroger, s.overall.rangeKrogerOnly],
+    [s.overall.n, s.overall.named, s.overall.range, s.overall.rangeNotOnlySource, s.overall.rangeSourceOnly],
     [3, 2, 2, 1, 1],
   );
   assert.deepEqual(
-    [s.byTerm.milk!.n, s.byTerm.milk!.named, s.byTerm.milk!.range, s.byTerm.milk!.rangeNotOnlyKroger, s.byTerm.milk!.rangeKrogerOnly],
+    [s.byTerm.milk!.n, s.byTerm.milk!.named, s.byTerm.milk!.range, s.byTerm.milk!.rangeNotOnlySource, s.byTerm.milk!.rangeSourceOnly],
     [2, 1, 1, 0, 1],
   );
   assert.deepEqual(
-    [s.byTerm.cereal!.n, s.byTerm.cereal!.named, s.byTerm.cereal!.range, s.byTerm.cereal!.rangeNotOnlyKroger, s.byTerm.cereal!.rangeKrogerOnly],
+    [s.byTerm.cereal!.n, s.byTerm.cereal!.named, s.byTerm.cereal!.range, s.byTerm.cereal!.rangeNotOnlySource, s.byTerm.cereal!.rangeSourceOnly],
     [1, 1, 1, 1, 0],
   );
   assert.match(s.caveat, /over-represents Kroger/);
@@ -198,8 +198,110 @@ test('measure: per-term numbers, the Kroger-only flag, and the two inputs unchan
 });
 
 test('summarise: a failed item is counted as an error, never as named or ranged', () => {
-  const s = summarise([{ code: 'x', term: 't', named: false, range: false, rangeSource: null, rangeBasis: null, ownSellers: [], krogerOnly: null, error: 'boom' }], 'now');
+  const s = summarise([{ code: 'x', term: 't', named: false, range: false, rangeSource: null, rangeBasis: null, ownSellers: [], sampleSourceOnly: null, error: 'boom' }], 'now');
   assert.deepEqual([s.overall.n, s.overall.named, s.overall.range, s.overall.errors], [1, 0, 0, 1]);
+});
+
+/* ------------------------------------------------------------ Canada (CA) */
+
+const caCode = (n: number): string => code13(withCheck(`06${String(n).padStart(9, '0')}`));
+let caPricesPath = '';
+const caDay = (ago: number): string => new Date(Date.now() - ago * 86_400_000).toISOString().slice(0, 10);
+let caSku = 0;
+function putCa(db: ReturnType<typeof openPrices>, o: { code: string | null; seller: string; store: string | null; country?: string; flags?: string | null; name?: string; cents?: number; ago?: number }): void {
+  recordObservation(db, {
+    code: o.code, seller: o.seller, sellerSku: `CA-${(caSku += 1)}`, sellerName: o.name ?? `item ${caSku}`, sellerBrand: 'BrandX', priceCents: o.cents ?? 399, kind: 'regular',
+    unitPriceCents: null, unitLabel: null, currency: o.country === 'US' ? 'USD' : 'CAD', country: o.country ?? 'CA', region: 'ON', joinMethod: 'gtin', seenOn: caDay(o.ago ?? 2),
+    url: null, imageUrl: null, inStock: null, storeName: o.store, storeCity: 'Toronto', basePriceCents: null, flags: o.flags ?? null,
+  });
+}
+
+function makeCaPrices(): void {
+  caPricesPath = join(dir, 'prices-ca.db');
+  const db = openPrices(caPricesPath);
+  for (let i = 1; i <= 12; i += 1) putCa(db, { code: caCode(i), seller: 'hammer', store: 'Metro' });
+  for (let i = 13; i <= 24; i += 1) putCa(db, { code: caCode(i), seller: 'hammer', store: 'Loblaws' });
+  for (let i = 25; i <= 27; i += 1) putCa(db, { code: caCode(i), seller: 'hammer', store: 'Galleria' });
+  putCa(db, { code: caCode(1), seller: 'hammer', store: 'Loblaws' }); // a barcode two stores share: one stratum only
+  putCa(db, { code: caCode(1), seller: 'hammer', store: 'Metro', ago: 5 }); // same store, older day: still one item
+  putCa(db, { code: caCode(40), seller: 'hammer', store: 'Metro', flags: '["hammer_matched"]' }); // a twin's barcode, not on that shelf
+  putCa(db, { code: caCode(41), seller: 'Walmart', store: null }); // a crawl of our own barcode list, not in the frame
+  putCa(db, { code: code13(withCheck('08100000001')), seller: 'hammer', store: 'Metro', country: 'US' }); // not Canada
+  putCa(db, { code: '3110', seller: 'hammer', store: 'Metro' }); // a PLU key, not a shelf barcode
+  putCa(db, { code: null, seller: 'hammer', store: 'Metro' }); // unjoined
+  db.close();
+}
+
+test('build-ca: seeded, stratified by store, CA only, codes deduped and canonical 13-digit, no network', () => {
+  makeCaPrices();
+  const run = (seed: number) => buildSampleCa({ pricesPath: caPricesPath, perGroup: 5, seed, now: () => new Date(0) });
+  const a = run(7);
+  assert.deepEqual(a, run(7), 'same seed, same sample');
+  assert.notDeepEqual(a.items.map((i) => i.code), run(8).items.map((i) => i.code));
+  assert.equal(a.market, 'CA');
+  assert.match(a.source!, /Toronto-area grocers/);
+  const by = (t: string): string[] => a.items.filter((i) => i.term === t).map((i) => i.code);
+  assert.deepEqual([by('Galleria').length, by('Loblaws').length, by('Metro').length], [3, 5, 5], 'every store is capped at the per-group size, a small one gives what it has');
+  assert.deepEqual(Object.keys(a.groupSizes!).sort(), ['Galleria', 'Loblaws', 'Metro']);
+  assert.equal(new Set(a.items.map((i) => i.code)).size, a.items.length, 'a barcode appears once, even listed at two stores');
+  const allowed = new Set([...Array.from({ length: 27 }, (_, i) => caCode(i + 1))]);
+  for (const i of a.items) {
+    assert.match(i.code, /^\d{13}$/);
+    assert.ok(gs1Valid(i.code), i.code);
+    assert.ok(allowed.has(i.code), `${i.code} is a Canadian hammer listing with a real barcode`);
+    assert.deepEqual(i.sourceSellers, ['hammer']);
+    assert.equal(i.brand, 'BrandX');
+    assert.ok(i.description);
+  }
+  assert.ok(![caCode(40), caCode(41)].some((c) => a.items.some((i) => i.code === c)), 'twin-matched and out-of-frame rows are left out');
+  assert.throws(() => buildSampleCa({ pricesPath: join(dir, 'nope.db') }), /not found/);
+});
+
+test('measure CA: country CA and CAD, and a range resting only on the sample source seller is flagged', async () => {
+  const catPath = join(dir, 'catalogue-ca.db');
+  const pPath = join(dir, 'prices-ca-measure.db');
+  const only = caCode(101);
+  const mixed = caCode(102);
+  const cat = openCatalogue(catPath);
+  const ins = cat.prepare(`INSERT INTO product (code, name, name_en, name_fr, brands, quantity, size_value, size_unit, category_path, leaf_category, allergens, sold_in_canada, source)
+    VALUES (?,?,?,NULL,?,?,NULL,NULL,?,?,'[]',1,'fixture')`);
+  ins.run(only, 'Whole Milk', 'Whole Milk', 'Neilson', '2 L', MILK, 'en:milks');
+  ins.run(mixed, 'Honey Oat Cereal', 'Honey Oat Cereal', 'Post', '12 oz', CEREAL, 'en:breakfast-cereals');
+  rebuildFts(cat);
+  rebuildCategoriesFromPaths(cat);
+  cat.close();
+  const db = openPrices(pPath);
+  for (const [i, c] of [349, 359, 339].entries()) putCa(db, { code: only, seller: 'hammer', store: `Metro ${i}`, cents: c, ago: 2 + i });
+  putCa(db, { code: mixed, seller: 'hammer', store: 'Metro', cents: 399, ago: 2 });
+  putCa(db, { code: mixed, seller: 'Walmart', store: null, cents: 429, ago: 3 });
+  putCa(db, { code: mixed, seller: 'Canadian Tire', store: null, cents: 379, ago: 4 });
+  db.close();
+  const s: Sample = {
+    market: 'CA', builtAt: '2026-11-23T00:00:00.000Z', seed: 7, zips: [], stores: [],
+    items: [
+      { code: only, term: 'Metro', description: 'Milk', brand: 'Neilson', sourceSellers: ['hammer'] },
+      { code: mixed, term: 'Metro', description: 'Cereal', brand: 'Post', sourceSellers: ['hammer'] },
+      { code: caCode(103), term: 'Loblaws', description: 'Nothing', brand: null, sourceSellers: ['hammer'] },
+    ],
+  };
+  const before = [sha(catPath), sha(pPath)];
+  const r = await measureSample({ sample: s, cataloguePath: catPath, pricesPath: pPath });
+  assert.deepEqual(r.failures, []);
+  const by = Object.fromEntries(r.items.map((i) => [i.code, i]));
+  assert.deepEqual(r.items.map((i) => i.error), [null, null, null]);
+  assert.equal(by[only]!.range, true);
+  assert.equal(by[only]!.rangeBasis, 'this_product');
+  assert.equal(by[only]!.sampleSourceOnly, true, 'every price behind the range is the seller the sample came from');
+  assert.equal(by[mixed]!.range, true);
+  assert.equal(by[mixed]!.sampleSourceOnly, false, 'another seller stands behind the range');
+  assert.deepEqual(by[mixed]!.ownSellers, ['Canadian Tire', 'Walmart', 'hammer']);
+  assert.equal(by[caCode(103)]!.range, false);
+  assert.equal(by[caCode(103)]!.sampleSourceOnly, null);
+  assert.deepEqual([r.summary.overall.n, r.summary.overall.range, r.summary.overall.rangeNotOnlySource, r.summary.overall.rangeSourceOnly], [3, 2, 1, 1]);
+  assert.equal(r.summary.sourceLabel, 'hammer');
+  assert.match(r.summary.caveat, /Toronto-area grocers' online listings/);
+  assert.match(formatSummary(r.summary), /not only hammer/);
+  assert.deepEqual([sha(catPath), sha(pPath)], before, 'inputs unchanged');
 });
 
 test('measure: a missing input file is refused before anything is read', async () => {

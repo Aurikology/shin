@@ -7,7 +7,16 @@
  * rerun --measure after every data load to watch the number move.
  *
  *   node scripts/shelf-sample.mts --build --zips 90210,60601,77002 --out sample.json [--per-term 20] [--seed 7]
+ *   node scripts/shelf-sample.mts --build-ca --prices <prices.db> --out sample-ca.json [--per-group 20] [--seed 7] [--sellers hammer]
  *   node scripts/shelf-sample.mts --measure --sample sample.json --catalogue <catalogue.db> --prices <prices.db> [--out <dir>]
+ *
+ * --build-ca is the Canadian twin of --build and touches NO network: it draws a seeded random sample of distinct barcodes from
+ * Canadian store listings already in prices.db (country CA, a real barcode in `code`, default seller `hammer`: Project Hammer's
+ * nine Toronto grocers), stratified by store (store_name). Project Hammer rows carry no store category, so the store is the only
+ * stratum; a store_category, when a row has one, is copied onto the item as `category`. Rows Hammer stored under a twin's
+ * barcode (flag hammer_matched) are left out: that barcode was not read off that store's shelf. Crawls that re-price barcodes
+ * Pexi already holds (Canadian Tire, Walmart, Save-On-Foods, BCLDB) are not a frame: their barcode list is our own catalogue.
+ * The sample file says market CA, so --measure then asks the scan path with country CA, currency CAD.
  *
  * --build is the only mode that touches the network (the Kroger developer API; credentials in KROGER_CLIENT_ID and
  * KROGER_CLIENT_SECRET). --measure is offline and read-only: both databases are opened read-only and their size and
@@ -56,8 +65,14 @@ export const TERMS: readonly string[] = [
 export interface SampleItem {
   code: string;
   term: string;
-  krogerDescription: string | null;
+  /** US build only (the Kroger description); description holds the same text for every market. */
+  krogerDescription?: string | null;
+  description?: string | null;
   brand: string | null;
+  /** Sellers whose listings this item was drawn from. Absent means Kroger (the US build). */
+  sourceSellers?: string[];
+  /** CA build: the row's store_category when it had one. */
+  category?: string | null;
 }
 export interface SampleStore {
   zip: string;
@@ -68,6 +83,12 @@ export interface SampleStore {
   state: string | null;
 }
 export interface Sample {
+  /** Absent means US. */
+  market?: 'US' | 'CA';
+  /** What the sample was drawn from (CA build). */
+  source?: string;
+  /** CA build: distinct eligible barcodes per store before sampling. */
+  groupSizes?: Record<string, number>;
   builtAt: string;
   seed: number;
   zips: string[];
@@ -163,7 +184,7 @@ export async function buildSample(o: BuildOptions): Promise<Sample> {
       for (const p of found) {
         const code = codeOfProduct(p);
         if (code === null || taken.has(code) || pool.has(code)) continue;
-        pool.set(code, { code, term, krogerDescription: p.description, brand: p.brand });
+        pool.set(code, { code, term, krogerDescription: p.description, description: p.description, brand: p.brand });
       }
     }
     const sorted = [...pool.values()].sort((a, b) => (a.code < b.code ? -1 : 1));
@@ -173,6 +194,87 @@ export async function buildSample(o: BuildOptions): Promise<Sample> {
     }
   }
   return { builtAt: (o.now ?? (() => new Date()))().toISOString(), seed, zips: [...o.zips], stores, items };
+}
+
+/* ---------------------------------------------------------------- build CA */
+
+export const CA_DEFAULT_SELLERS: readonly string[] = ['hammer'];
+
+export interface BuildCaOptions {
+  pricesPath: string;
+  perGroup?: number;
+  seed?: number;
+  /** Sellers whose Canadian listings are the frame. Default: Project Hammer only. */
+  sellers?: readonly string[];
+  now?: () => Date;
+}
+
+interface CaRow {
+  code: string;
+  seller: string;
+  store_name: string | null;
+  store_category: string | null;
+  seller_name: string | null;
+  seller_brand: string | null;
+}
+
+/** No network: reads prices.db read-only. Strata are stores (store_name, else the seller); a barcode sits in one stratum only. */
+export function buildSampleCa(o: BuildCaOptions): Sample {
+  const perGroup = o.perGroup ?? 20;
+  const seed = o.seed ?? 7;
+  const sellers = [...(o.sellers ?? CA_DEFAULT_SELLERS)].sort();
+  if (!existsSync(o.pricesPath)) throw new Error(`not found: ${o.pricesPath}`);
+  const db = new DatabaseSync(o.pricesPath, { readOnly: true });
+  let rows: CaRow[];
+  try {
+    const marks = sellers.map(() => '?').join(',');
+    rows = db
+      .prepare(
+        `SELECT code, seller, store_name, store_category, seller_name, seller_brand FROM observation
+          WHERE country = 'CA' AND code IS NOT NULL AND seller IN (${marks})
+            AND (flags IS NULL OR flags NOT LIKE '%"hammer_matched"%')
+          ORDER BY code, seller, seller_sku, seen_on`,
+      )
+      .all(...sellers) as unknown as CaRow[];
+  } finally {
+    db.close();
+  }
+  // stratum -> code -> first row (by the ORDER BY) plus every seller that listed it in that stratum
+  const strata = new Map<string, Map<string, { row: CaRow; sellers: Set<string> }>>();
+  for (const r of rows) {
+    const code = canonicalCode(r.code);
+    if (!gs1Valid(code)) continue; // a PLU, a short or damaged code: not a shelf barcode
+    const stratum = (r.store_name ?? '').trim() || r.seller;
+    const pool = strata.get(stratum) ?? new Map();
+    strata.set(stratum, pool);
+    const hit = pool.get(code);
+    if (hit) hit.sellers.add(r.seller);
+    else pool.set(code, { row: r, sellers: new Set([r.seller]) });
+  }
+  const groupSizes: Record<string, number> = {};
+  for (const [k, pool] of [...strata].sort((a, b) => (a[0] < b[0] ? -1 : 1))) groupSizes[k] = pool.size;
+  // Smallest store first, so a barcode two stores share goes to the one with fewer to give; then name.
+  const order = [...strata.keys()].sort((a, b) => strata.get(a)!.size - strata.get(b)!.size || (a < b ? -1 : 1));
+  const taken = new Set<string>();
+  const items: SampleItem[] = [];
+  for (const stratum of order) {
+    const pool = [...strata.get(stratum)!].filter(([c]) => !taken.has(c)).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+    for (const [code, { row, sellers: from }] of shuffled(pool, rng(seed ^ hash(stratum))).slice(0, perGroup)) {
+      taken.add(code);
+      items.push({ code, term: stratum, description: row.seller_name, brand: row.seller_brand || null, sourceSellers: [...from].sort(), category: row.store_category });
+    }
+  }
+  items.sort((a, b) => (a.term < b.term ? -1 : a.term > b.term ? 1 : a.code < b.code ? -1 : 1));
+  return {
+    market: 'CA',
+    source: `prices.db listings, country CA, sellers ${sellers.join(',')} (Toronto-area grocers' online listings)`,
+    groupSizes,
+    builtAt: (o.now ?? (() => new Date()))().toISOString(),
+    seed,
+    zips: [],
+    stores: [],
+    items,
+  };
 }
 
 /* ----------------------------------------------------------------- measure */
@@ -188,8 +290,8 @@ export interface MeasuredItem {
   rangeBasis: string | null;
   /** Sellers of this barcode's own price rows. */
   ownSellers: string[];
-  /** true: a range on the product's own prices, all from Kroger. false: own prices include another seller. null: no range, or a category-pool range (seller mix not checked). */
-  krogerOnly: boolean | null;
+  /** true: a range on the product's own prices, all from the seller(s) the sample came from (Kroger for the US sample). false: own prices include another seller. null: no range, or a category-pool range (seller mix not checked). */
+  sampleSourceOnly: boolean | null;
   error: string | null;
 }
 
@@ -197,9 +299,10 @@ export interface TermStats {
   n: number;
   named: number;
   range: number;
-  /** Range stood on the product's own prices and at least one price row is from a seller other than Kroger. */
-  rangeNotOnlyKroger: number;
-  rangeKrogerOnly: number;
+  /** Range stood on the product's own prices and at least one price row is from a seller the sample did not come from. */
+  rangeNotOnlySource: number;
+  /** Range stood on the product's own prices, every row from the sample's own source seller(s): circular. */
+  rangeSourceOnly: number;
   /** Range from a category pool: another product's prices, seller mix not checked. */
   rangePoolUnchecked: number;
   errors: number;
@@ -207,6 +310,8 @@ export interface TermStats {
 
 export interface MeasureSummary {
   measuredAt: string;
+  /** Who the sample came from, for the report line ("Kroger", "hammer"). */
+  sourceLabel: string;
   overall: TermStats;
   byTerm: Record<string, TermStats>;
   caveat: string;
@@ -216,9 +321,14 @@ export const CAVEAT =
   "Caveat: the sample is Kroger-family shelves, so it over-represents Kroger's assortment and its prices; " +
   "named/range count Pexi's own data only (no Claude ask, no Open Food Facts).";
 
-const blank = (): TermStats => ({ n: 0, named: 0, range: 0, rangeNotOnlyKroger: 0, rangeKrogerOnly: 0, rangePoolUnchecked: 0, errors: 0 });
+export const CAVEAT_CA =
+  "Caveat: the Canada sample is Toronto-area grocers' online listings (Project Hammer: Loblaws, No Frills, Metro, Walmart, Save-On-Foods, Sobeys, Voila, T&T, Galleria), " +
+  "not a national shelf; those listings are also a Pexi price source, so read the 'not only <source>' column as the independent share; " +
+  "named/range count Pexi's own data only (no Claude ask, no Open Food Facts).";
 
-export function summarise(items: readonly MeasuredItem[], measuredAt: string): MeasureSummary {
+const blank = (): TermStats => ({ n: 0, named: 0, range: 0, rangeNotOnlySource: 0, rangeSourceOnly: 0, rangePoolUnchecked: 0, errors: 0 });
+
+export function summarise(items: readonly MeasuredItem[], measuredAt: string, opts: { market?: 'US' | 'CA'; sourceLabel?: string } = {}): MeasureSummary {
   const overall = blank();
   const byTerm: Record<string, TermStats> = {};
   for (const it of items) {
@@ -226,20 +336,20 @@ export function summarise(items: readonly MeasuredItem[], measuredAt: string): M
       t.n += 1;
       if (it.named) t.named += 1;
       if (it.range) t.range += 1;
-      if (it.krogerOnly === false) t.rangeNotOnlyKroger += 1;
-      if (it.krogerOnly === true) t.rangeKrogerOnly += 1;
-      if (it.range && it.krogerOnly === null) t.rangePoolUnchecked += 1;
+      if (it.sampleSourceOnly === false) t.rangeNotOnlySource += 1;
+      if (it.sampleSourceOnly === true) t.rangeSourceOnly += 1;
+      if (it.range && it.sampleSourceOnly === null) t.rangePoolUnchecked += 1;
       if (it.error) t.errors += 1;
     }
   }
-  return { measuredAt, overall, byTerm, caveat: CAVEAT };
+  return { measuredAt, sourceLabel: opts.sourceLabel ?? 'Kroger', overall, byTerm, caveat: opts.market === 'CA' ? CAVEAT_CA : CAVEAT };
 }
 
 const pct = (a: number, n: number): string => (n === 0 ? '  -  ' : `${((100 * a) / n).toFixed(1).padStart(5)}%`);
 
 export function formatSummary(s: MeasureSummary): string {
   const row = (label: string, t: TermStats): string =>
-    `${label.padEnd(18)} ${String(t.n).padStart(4)}  named ${pct(t.named, t.n)}  range ${pct(t.range, t.n)}  range, own prices not only Kroger ${pct(t.rangeNotOnlyKroger, t.n)}  (Kroger-only ${t.rangeKrogerOnly}, category pool unchecked ${t.rangePoolUnchecked}${t.errors ? `, ERRORS ${t.errors}` : ''})`;
+    `${label.padEnd(18)} ${String(t.n).padStart(4)}  named ${pct(t.named, t.n)}  range ${pct(t.range, t.n)}  range, own prices not only ${s.sourceLabel} ${pct(t.rangeNotOnlySource, t.n)}  (${s.sourceLabel}-only ${t.rangeSourceOnly}, category pool unchecked ${t.rangePoolUnchecked}${t.errors ? `, ERRORS ${t.errors}` : ''})`;
   return [row('ALL', s.overall), ...Object.keys(s.byTerm).map((k) => row(k, s.byTerm[k]!)), s.caveat].join('\n');
 }
 
@@ -285,19 +395,21 @@ export async function measureSample(o: MeasureOptions): Promise<MeasureResult> {
     // byGtin does no embedding; the embedder is never used (the same as app/server.ts).
     const lookup = new Catalogue(cat, defaultEmbedder()) as unknown as { byGtin(code: string): unknown };
     const sellersOf = prices.prepare('SELECT DISTINCT seller FROM observation WHERE code = ? ORDER BY seller');
+    const market = o.sample.market ?? 'US';
     const asOf = (o.now ?? (() => new Date()))().toISOString().slice(0, 10);
     for (const s of o.sample.items) {
-      const m: MeasuredItem = { code: s.code, term: s.term, named: false, range: false, rangeSource: null, rangeBasis: null, ownSellers: [], krogerOnly: null, error: null };
+      const m: MeasuredItem = { code: s.code, term: s.term, named: false, range: false, rangeSource: null, rangeBasis: null, ownSellers: [], sampleSourceOnly: null, error: null };
       try {
         const canonical = canonicalBarcode(s.code);
         if (!canonical) throw new Error('not a barcode');
-        const { answer } = await answerBarcodeFromCatalogue(canonical, { lookup, prices, catalogue: cat, country: 'US', currency: 'USD', asOf, region: null });
+        const { answer } = await answerBarcodeFromCatalogue(canonical, { lookup, prices, catalogue: cat, country: market, currency: market === 'CA' ? 'CAD' : 'USD', asOf, region: null });
         m.named = answer.identity !== null || answer.storeIdentity !== null;
         m.rangeSource = answer.rangeSource;
         m.rangeBasis = answer.range?.basis ?? null;
         m.range = answer.range !== null && answer.rangeSource !== 'fixed_prior' && answer.range.basis !== 'fixed_prior';
         m.ownSellers = (sellersOf.all(canonical.gtin) as { seller: string }[]).map((r) => r.seller);
-        if (m.range && m.rangeBasis === 'this_product') m.krogerOnly = m.ownSellers.length > 0 && m.ownSellers.every((x) => x === KROGER_SELLER);
+        const sourceSellers = s.sourceSellers ?? [KROGER_SELLER];
+        if (m.range && m.rangeBasis === 'this_product') m.sampleSourceOnly = m.ownSellers.length > 0 && m.ownSellers.every((x) => sourceSellers.includes(x));
       } catch (err) {
         m.error = err instanceof Error ? err.message : String(err);
       }
@@ -308,7 +420,8 @@ export async function measureSample(o: MeasureOptions): Promise<MeasureResult> {
     prices.close();
   }
   for (const [p, was] of before) if (stamp(p) !== was) failures.push(`an input file changed during the run: ${p}`);
-  const summary = summarise(items, (o.now ?? (() => new Date()))().toISOString());
+  const sourceLabel = o.sample.market === 'CA' ? [...new Set(o.sample.items.flatMap((i) => i.sourceSellers ?? []))].sort().join('+') || 'sample source' : 'Kroger';
+  const summary = summarise(items, (o.now ?? (() => new Date()))().toISOString(), { market: o.sample.market ?? 'US', sourceLabel });
   if (o.outDir) {
     mkdirSync(o.outDir, { recursive: true });
     writeFileSync(join(o.outDir, 'shelf-summary.json'), JSON.stringify(summary, null, 2));
@@ -323,19 +436,34 @@ export async function measureSample(o: MeasureOptions): Promise<MeasureResult> {
 const USAGE =
   'usage:\n' +
   '  node scripts/shelf-sample.mts --build --zips 90210,60601 --out sample.json [--per-term 20] [--seed 7]\n' +
+  '  node scripts/shelf-sample.mts --build-ca --prices <db> --out sample-ca.json [--per-group 20] [--seed 7] [--sellers hammer]\n' +
   '  node scripts/shelf-sample.mts --measure --sample sample.json --catalogue <db> --prices <db> [--out <dir>]\n';
 
 async function main(): Promise<void> {
   const { values } = parseArgs({
     options: {
-      build: { type: 'boolean', default: false }, measure: { type: 'boolean', default: false },
+      build: { type: 'boolean', default: false }, 'build-ca': { type: 'boolean', default: false }, 'per-group': { type: 'string', default: '20' }, sellers: { type: 'string' }, measure: { type: 'boolean', default: false },
       zips: { type: 'string' }, out: { type: 'string' }, 'per-term': { type: 'string', default: '20' }, seed: { type: 'string', default: '7' },
       sample: { type: 'string' }, catalogue: { type: 'string' }, prices: { type: 'string' },
     },
   });
-  if (values.build === values.measure) {
+  if ([values.build, values['build-ca'], values.measure].filter(Boolean).length !== 1) {
     process.stderr.write(USAGE);
     process.exit(2);
+  }
+  if (values['build-ca']) {
+    const perGroup = Number(values['per-group']);
+    const seed = Number(values.seed);
+    if (!values.out || !values.prices || !Number.isInteger(perGroup) || perGroup < 1 || !Number.isInteger(seed)) {
+      process.stderr.write(USAGE);
+      process.exit(2);
+    }
+    const sellers = values.sellers ? values.sellers.split(',').map((x) => x.trim()).filter(Boolean) : undefined;
+    const sample = buildSampleCa({ pricesPath: values.prices, perGroup, seed, sellers });
+    writeFileSync(values.out, JSON.stringify(sample, null, 2));
+    process.stdout.write(`wrote ${sample.items.length} items from ${Object.keys(sample.groupSizes ?? {}).length} stores to ${values.out}\n`);
+    for (const [k, n] of Object.entries(sample.groupSizes ?? {})) process.stdout.write(`  ${k}: ${n} eligible barcodes, ${sample.items.filter((i) => i.term === k).length} sampled\n`);
+    return;
   }
   if (values.build) {
     const perTerm = Number(values['per-term']);
