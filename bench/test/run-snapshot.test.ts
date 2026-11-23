@@ -22,7 +22,7 @@ function snapshotDirs(): string[] {
 }
 
 /** Runs the bench on a fixture db; returns the printed report, the exit code and the snapshot line. */
-function runOnce(dir: string, mutate: ((path: string) => void) | undefined): { report: string; code: number | undefined; snapshotLine: string } {
+async function runOnce(dir: string, mutate: ((path: string) => void) | undefined, extraArgs: string[] = []): Promise<{ report: string; code: number | undefined; snapshotLine: string }> {
   const dbPath = join(dir, 'prices.db');
   const catPath = join(dir, 'catalogue.db');
   rmSync(dbPath, { force: true });
@@ -35,12 +35,12 @@ function runOnce(dir: string, mutate: ((path: string) => void) | undefined): { r
   const savedErr = console.error;
   const savedCode = process.exitCode;
   const lines: string[] = [];
-  process.argv = [savedArgv[0]!, 'run.ts', '--db', dbPath, '--catalogue', catPath, '--no-write', '--no-sealed'];
+  process.argv = [savedArgv[0]!, 'run.ts', '--db', dbPath, '--catalogue', catPath, '--no-write', '--no-sealed', ...extraArgs];
   console.log = (...a: unknown[]) => void lines.push(a.join(' '));
   console.error = () => {};
   process.exitCode = undefined;
   try {
-    main({ afterSnapshot: mutate });
+    await main({ afterSnapshot: mutate });
     const code = process.exitCode as number | undefined;
     const all = lines.join('\n').split('\n');
     const snapshotLine = all.find((l) => l.startsWith('snapshot:')) ?? '';
@@ -53,14 +53,14 @@ function runOnce(dir: string, mutate: ((path: string) => void) | undefined): { r
   }
 }
 
-test('a write to the live prices db between snapshot and scoring changes no score and trips no warning', () => {
+test('a write to the live prices db between snapshot and scoring changes no score and trips no warning', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'bench-run-snap-'));
   try {
     const before = new Set(snapshotDirs());
-    const calm = runOnce(dir, undefined);
+    const calm = await runOnce(dir, undefined);
     let rowsBefore = -1;
     let rowsAfter = -1;
-    const busy = runOnce(dir, (original) => {
+    const busy = await runOnce(dir, (original) => {
       // A loader at work: many new rows into the live file, after the snapshot was taken.
       const live = new DatabaseSync(original);
       rowsBefore = (live.prepare('SELECT count(*) AS n FROM observation').get() as { n: number }).n;
@@ -78,6 +78,23 @@ test('a write to the live prices db between snapshot and scoring changes no scor
     assert.equal(calm.code, busy.code);
     assert.match(busy.snapshotLine, /^snapshot: frozen copy of prices\.db taken \d{4}-/);
     assert.deepEqual(snapshotDirs().filter((n) => !before.has(n)), [], 'the snapshot is deleted after the run');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--methods runs only the named methods; live_estimate runs through run.ts (async) and is named in the report', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'bench-run-methods-'));
+  try {
+    const only = await runOnce(dir, undefined, ['--methods', 'category_range,live_estimate']);
+    assert.match(only.report, /live_estimate/);
+    assert.match(only.report, /category_range/);
+    assert.doesNotMatch(only.report, /^ *category_median {2,}/m);
+    assert.doesNotMatch(only.report, /price_tree/);
+    const plain = await runOnce(dir, undefined);
+    assert.doesNotMatch(plain.report, /live_estimate/, 'the slow live method runs only when named');
+    assert.match(plain.report, /^ *category_median {2,}/m);
+    await assert.rejects(() => runOnce(dir, undefined, ['--methods', 'nope']), /unknown method nope/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

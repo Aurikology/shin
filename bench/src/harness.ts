@@ -56,6 +56,8 @@ export interface TrainContext {
 }
 
 export type Predictor = (q: Query) => Interval | null;
+/** A predictor that answers asynchronously (the live estimate is an async function); only `evaluateAsync` can run it. */
+export type AsyncPredictor = (q: Query) => Promise<Interval | null>;
 
 export interface Model {
   readonly name: string;
@@ -66,6 +68,8 @@ export interface Model {
   readonly runnable: boolean;
   readonly notRunReason?: string;
   fit(ctx: TrainContext): Predictor;
+  /** An async model gives its predictor here (its `fit` then only refuses). `evaluateAsync` runs it; `evaluate` refuses it. */
+  fitAsync?(ctx: TrainContext): AsyncPredictor;
   /** Anything the model counted while predicting (e.g. which ladder step answered), recorded with its run. */
   report?(): Record<string, unknown>;
   /** Set only by baselines.ts on the bench's own required baselines. */
@@ -233,18 +237,56 @@ interface Raw {
   readonly extra?: Record<string, unknown>;
 }
 
+/**
+ * One run is written once, as a generator that yields any promise a predictor returns. `runModel` and
+ * `evaluate` drive it synchronously (a promise is an error there: the model needs `evaluateAsync`);
+ * `evaluateAsync` awaits each yield. Sync models behave exactly as before.
+ */
+type Steps<T> = Generator<Promise<unknown>, T, unknown>;
+
+function driveSync<T>(gen: Steps<T>, model: string): T {
+  const r = gen.next();
+  if (!r.done) {
+    void r.value.catch(() => {});
+    throw new Error(`${model}: answered asynchronously; run it with evaluateAsync`);
+  }
+  return r.value;
+}
+
+async function driveAsync<T>(gen: Steps<T>): Promise<T> {
+  let r = gen.next();
+  while (!r.done) {
+    let v: unknown;
+    try {
+      v = await r.value;
+    } catch (err) {
+      r = gen.throw(err);
+      continue;
+    }
+    r = gen.next(v);
+  }
+  return r.value;
+}
+
 function runModel(model: Model, fold: Fold, opts: EvalOptions, trainDb: DatabaseSync): Raw {
+  return driveSync(runModelSteps(model, fold, opts, trainDb), model.name);
+}
+
+function* runModelSteps(model: Model, fold: Fold, opts: EvalOptions, trainDb: DatabaseSync): Steps<Raw> {
   const claim = readClaim(model);
-  const predict = model.fit({ fold: fold.name, observations: fold.train, prices: trainDb, catalogue: opts.catalogue });
+  const trainCtx = { fold: fold.name, observations: fold.train, prices: trainDb, catalogue: opts.catalogue };
+  const predict: (q: Query) => Interval | null | Promise<Interval | null> = model.fitAsync ? model.fitAsync(trainCtx) : model.fit(trainCtx);
 
   const keys = new Set<string>([...fold.testPoints.map((p) => p.key), ...fold.testSales.map((s) => s.key!)]);
   const info = readCatalogueInfo(opts.catalogue, keys);
   const cache = new Map<string, Interval | null>();
   const answered: string[] = [];
-  const ask = (key: string, asOf: string): Interval | null => {
+  const ask = function* (key: string, asOf: string): Steps<Interval | null> {
     const k = `${key}|${asOf}`;
     if (!cache.has(k)) {
-      const a = freezeAnswer(predict(Object.freeze({ key, code: key, asOf, info: info.get(key) ?? null })), model.name);
+      let given = predict(Object.freeze({ key, code: key, asOf, info: info.get(key) ?? null }));
+      if (given !== null && typeof given === 'object' && typeof (given as { then?: unknown }).then === 'function') given = (yield given as Promise<unknown>) as Interval | null;
+      const a = freezeAnswer(given, model.name);
       cache.set(k, a);
       if (a) answered.push(k);
     }
@@ -256,10 +298,10 @@ function runModel(model: Model, fold: Fold, opts: EvalOptions, trainDb: Database
   for (const q of queryOrder(fold, opts.seed ?? 1)) {
     if (q.kind === 'p') {
       const p = fold.testPoints[q.i]!;
-      pAns[q.i] = ask(p.key, p.seenOn);
+      pAns[q.i] = yield* ask(p.key, p.seenOn);
     } else {
       const s = fold.testSales[q.i]!;
-      sAns[q.i] = ask(s.key!, s.seenOn);
+      sAns[q.i] = yield* ask(s.key!, s.seenOn);
     }
   }
 
@@ -293,6 +335,15 @@ const baselineFactories = new Map<RequiredBaseline, () => Model>([
 ]);
 
 export function evaluate(model: Model, fold: Fold, opts: EvalOptions): ModelRun {
+  return driveSync(evaluateSteps(model, fold, opts), model.name);
+}
+
+/** Same as `evaluate`, for a model whose predictor returns promises (the live estimate). */
+export function evaluateAsync(model: Model, fold: Fold, opts: EvalOptions): Promise<ModelRun> {
+  return driveAsync(evaluateSteps(model, fold, opts));
+}
+
+function* evaluateSteps(model: Model, fold: Fold, opts: EvalOptions): Steps<ModelRun> {
   if (!isIssuedFold(fold)) throw new Error('fold was not made by split.ts (which runs the sealed-batch guard); refusing to score it');
   const t0 = Date.now();
   const base = { model: model.name, description: model.description, fold: fold.name, foldDescription: fold.description, counts: foldCounts(fold.name) };
@@ -301,7 +352,7 @@ export function evaluate(model: Model, fold: Fold, opts: EvalOptions): ModelRun 
   }
   const trainDb = opts.trainDb ?? trainingDatabase(fold.train);
   const self = model[REQUIRED_BASELINE];
-  const raw = self ? baselineRaw(self, fold, opts, trainDb, () => model) : runModel(model, fold, opts, trainDb);
+  const raw = self ? baselineRaw(self, fold, opts, trainDb, () => model) : yield* runModelSteps(model, fold, opts, trainDb);
 
   // B4 at one level: the 50% band against category_range's (alpha 0.5), the median against category_median's.
   // A baseline is compared with the other one.

@@ -1,7 +1,7 @@
 /**
  * The baseline scoreboard on the real price database.
  *
- *   node src/run.ts [--db PATH] [--catalogue PATH] [--test-fraction 0.3]
+ *   node src/run.ts [--db PATH] [--catalogue PATH] [--test-fraction 0.3] [--methods live_estimate]
  *                   [--seed 0] [--open-sealed] [--sealed PATH] [--no-write]
  *
  * Takes a consistent snapshot of prices.db first (VACUUM INTO a temp file, deleted after the run; loaders
@@ -24,7 +24,8 @@ import { controlledRuns } from './controls.ts';
 import { dataSupport, leakAudit, ontarioMix, type LeakCheck } from './holdout.ts';
 import { requiredSampleSize } from './handaudit.ts';
 import { applyGuard, guardSealed } from './sealed.ts';
-import { assertSameItems, overallVerdict, type ModelRun } from './harness.ts';
+import { assertSameItems, evaluateAsync, overallVerdict, trainingDatabase, type ModelRun } from './harness.ts';
+import { liveEstimateModel } from './live-estimate.ts';
 import { writeResult } from './results.ts';
 import { baselines } from './baselines.ts';
 import { DEFAULT_BAR } from './score.ts';
@@ -52,16 +53,33 @@ export interface RunOptions {
 }
 
 /** Takes a consistent snapshot of prices.db, runs everything on the copy, and deletes the copy afterwards. */
-export function main(opts: RunOptions = {}): void {
+export async function main(opts: RunOptions = {}): Promise<void> {
   const snap: { path: string | null } = { path: null };
   try {
-    runBench(opts, snap);
+    await runBench(opts, snap);
   } finally {
     if (snap.path) dropSnapshot(snap.path);
   }
 }
 
-function runBench(opts: RunOptions, snap: { path: string | null }): void {
+/**
+ * `--methods a,b` runs only those methods: category_range, category_median, claude_guess, price_tree, and
+ * live_estimate (the app's last rung; async and slow on the real data, so it runs only when named).
+ * Without the flag the four baselines run, as before.
+ */
+export const METHOD_NAMES = ['category_range', 'category_median', 'claude_guess', 'price_tree', 'live_estimate'] as const;
+
+export function selectedMethods(spec: string | undefined): { names: Set<string>; live: boolean } {
+  const asked = spec === undefined ? null : spec.split(',').map((s) => s.trim()).filter(Boolean);
+  if (asked !== null) {
+    const bad = asked.filter((n) => !(METHOD_NAMES as readonly string[]).includes(n));
+    if (bad.length || asked.length === 0) throw new Error(`--methods: unknown method ${bad.join(', ') || '(none given)'}; known: ${METHOD_NAMES.join(', ')}`);
+  }
+  const names = new Set(asked ?? METHOD_NAMES.filter((n) => n !== 'live_estimate'));
+  return { names, live: names.has('live_estimate') };
+}
+
+async function runBench(opts: RunOptions, snap: { path: string | null }): Promise<void> {
   const dbPath = arg('--db') ?? process.env.SHIN_PRICES ?? join(REPO, 'price', 'data', 'prices.db');
   const catPath = arg('--catalogue') ?? process.env.SHIN_CATALOGUE ?? join(REPO, 'catalogue', 'data', 'catalogue.db');
   const sealedArg = arg('--sealed');
@@ -70,6 +88,7 @@ function runBench(opts: RunOptions, snap: { path: string | null }): void {
   const testFraction = Number(arg('--test-fraction') ?? String(TEST_FRACTION));
   const seed = Number(arg('--seed') ?? '0');
   const cutoffArg = arg('--cutoff');
+  const methods = selectedMethods(arg('--methods'));
   const write = !flag('--no-write');
   const openSealed = flag('--open-sealed');
   const date = localDate();
@@ -150,8 +169,20 @@ function runBench(opts: RunOptions, snap: { path: string | null }): void {
   const leaked = leaks.filter((l) => !l.promised.ok);
   const controlled = leaked.length
     ? { aborted: true, reason: `LEAK: ${leaked.map((l) => l.promised.note).join('; ')}`, controls: [], runs: [], skipped: [] }
-    : controlledRuns(folds.filter(isFold), baselines, { catalogue, seed: seed + 1 });
+    : controlledRuns(folds.filter(isFold), () => baselines().filter((m) => methods.names.has(m.name)), { catalogue, seed: seed + 1 });
   const runs: ModelRun[] = [...controlled.runs];
+  if (methods.live && !controlled.aborted) {
+    // The live estimate answers asynchronously, so it is scored here, after the controls passed, on every fold they scored.
+    const skippedFolds = new Set(controlled.skipped.map((s) => s.fold));
+    for (const f of folds.filter(isFold).filter((x) => !skippedFolds.has(x.name))) {
+      const trainDb = trainingDatabase(f.train);
+      try {
+        runs.push(await evaluateAsync(liveEstimateModel(), f, { catalogue, trainDb, seed: seed + 1 }));
+      } finally {
+        trainDb.close();
+      }
+    }
+  }
   for (const name of new Set(runs.map((r) => r.fold))) assertSameItems(runs.filter((r) => r.fold === name));
 
   prices.close();
@@ -272,4 +303,9 @@ ${controlled.reason}`);
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}
