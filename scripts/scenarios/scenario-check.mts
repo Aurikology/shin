@@ -54,6 +54,12 @@ export interface ScenarioCheckOptions {
   quiet?: boolean;
   /** Only these scenario ids (tests). */
   only?: readonly string[];
+  /**
+   * Running on the machine that also runs the live server (--live-machine): the live server and its
+   * jobs write the real data folder all the time (access.log, checker.json), so a change there is
+   * reported as a note, not a run problem. The input files themselves must still not change.
+   */
+  liveMachine?: boolean;
 }
 
 export interface ScenarioCheckResult {
@@ -277,7 +283,11 @@ export async function runScenarioCheck(opts: ScenarioCheckOptions): Promise<Scen
       );
     }
     realDataChanges = running.realDataChanges();
-    if (realDataChanges.length > 0) failures.push(`a real data folder changed: ${realDataChanges.slice(0, 5).join('; ')}`);
+    if (realDataChanges.length > 0) {
+      const what = `a real data folder changed: ${realDataChanges.slice(0, 5).join('; ')}`;
+      if (opts.liveMachine) log(`NOTE (--live-machine, other processes write here): ${what}`);
+      else failures.push(what);
+    }
   } catch (err) {
     failures.push(String((err as Error)?.message ?? err));
   } finally {
@@ -305,10 +315,11 @@ async function main(): Promise<void> {
     options: {
       catalogue: { type: 'string' }, prices: { type: 'string' }, scans: { type: 'string' }, corrections: { type: 'string' },
       n: { type: 'string', default: '10' }, seed: { type: 'string', default: '7' }, out: { type: 'string' }, previous: { type: 'string' },
+      'live-machine': { type: 'boolean', default: false },
     },
   });
   if (!values.catalogue || !values.prices) {
-    process.stderr.write('usage: node scripts/scenarios/scenario-check.mts --catalogue <db> --prices <db> [--scans <db>] [--corrections <db>] [--n 10] [--seed 7] [--out <dir>] [--previous <summary.json>]\n');
+    process.stderr.write('usage: node scripts/scenarios/scenario-check.mts --catalogue <db> --prices <db> [--scans <db>] [--corrections <db>] [--n 10] [--seed 7] [--out <dir>] [--previous <summary.json>] [--live-machine]\n');
     process.exit(2);
   }
   const n = Number(values.n);
@@ -319,7 +330,7 @@ async function main(): Promise<void> {
   }
   const r = await runScenarioCheck({
     cataloguePath: values.catalogue, pricesPath: values.prices, scansPath: values.scans ?? null, correctionsPath: values.corrections ?? null,
-    n, seed, outDir: values.out ?? 'scenario-check-out', previousPath: values.previous ?? null,
+    n, seed, outDir: values.out ?? 'scenario-check-out', previousPath: values.previous ?? null, liveMachine: values['live-machine'] === true,
   });
   for (const f of r.failures) process.stderr.write(`RUN PROBLEM: ${f}\n`);
   if (r.summary) {
