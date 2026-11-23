@@ -23,9 +23,9 @@
  *      'gtin' = the 13-digit GTIN itself; 'body' = "00" + the 11-digit UPC-A body WITHOUT its check digit.
  *      Evidence for 'body' is in this repo: kroger-names.ts read a 2022 Kroger product file where 98,257 of
  *      102,603 product_ids were "00" + 11 digits, and appending the UPC check digit gave codes Open Food Facts
- *      knows. Whether the API's productId is the same id is NOT checked. The default 'both' sends both candidates
- *      in one request (half as many barcodes per call) and matches the answer back through the exact id that
- *      was asked for, so it works whichever is right. Pass --id-form gtin|body once the real shape is known.
+ *      knows. Checked against the live API 2026-11-23: 'body' matched 29 of 204 barcodes, 'gtin' matched 0 of 204,
+ *      and 2,000 Kroger-listed codes priced 61.8% with 'body'. So 'body' is the default; 'both' (half as many
+ *      barcodes per call) and 'gtin' stay for a re-check if Kroger ever changes its ids.
  *   5. Stock: an item's `inventory.stockLevel` is used when present (HIGH/LOW -> 1, TEMPORARILY_OUT_OF_STOCK ->
  *      0); otherwise in_stock stays NULL. The product.compact scope may not return it at all.
  *   6. Order of locations is nearest first, so "the nearest N" is the first N returned.
@@ -553,7 +553,7 @@ async function main(): Promise<void> {
   const zips = (arg(argv, '--zips') ?? '').split(',').map((z) => z.trim()).filter(Boolean);
   if (zips.length === 0) throw new Error(`--zips is required. ${USAGE}`);
   for (const z of zips) if (!/^\d{5}$/.test(z)) throw new Error(`--zips: "${z}" is not a 5-digit US ZIP`);
-  const form = (arg(argv, '--id-form') ?? 'both') as IdForm;
+  const form = (arg(argv, '--id-form') ?? 'body') as IdForm;
   if (!['both', 'gtin', 'body'].includes(form)) throw new Error('--id-form must be both, gtin or body');
   const intArg = (name: string, dflt: number): number => {
     const v = arg(argv, name);
