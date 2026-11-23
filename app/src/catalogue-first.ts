@@ -1417,6 +1417,41 @@ function coversTyped(typed: readonly string[], row: TypedRow): boolean {
   return typed.length > 0 && typed.every((w) => have.has(w));
 }
 
+/**
+ * Whether two words are one typing slip apart: a letter added, dropped or changed, or two neighbours swapped.
+ * Letters only and at least five long, so a short word ("mild" for "milk") or a number ("500" for "600") never
+ * counts as a typo of another.
+ */
+export function oneEditApart(a: string, b: string): boolean {
+  if (a === b || a.length < 5 || b.length < 5 || !/^[a-z]+$/.test(a) || !/^[a-z]+$/.test(b)) return false;
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i += 1;
+  if (i === a.length || i === b.length) return true; // one extra letter at the end
+  if (a.length === b.length) {
+    if (a.slice(i + 1) === b.slice(i + 1)) return true; // one letter changed
+    return a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2); // two neighbours swapped
+  }
+  const [long, short] = a.length > b.length ? [a, b] : [b, a];
+  return long.slice(i + 1) === short.slice(i);
+}
+
+/**
+ * Like coversTyped, but ONE typed word may be a one-edit slip of a word the row has. Every other word must be
+ * exact, so a query with two wrong words, or a wrong word that is no near word of this row, covers nothing.
+ */
+function coversTypedWithOneSlip(typed: readonly string[], row: TypedRow): boolean {
+  const have = [...new Set([...brandWordsOf(row).split(' '), ...nameWordsOf(row), ...wordsOf(row.quantity)])];
+  const set = new Set(have);
+  let slips = 0;
+  for (const w of typed) {
+    if (set.has(w)) continue;
+    slips += 1;
+    if (slips > 1 || !have.some((h) => oneEditApart(w, h))) return false;
+  }
+  return typed.length > 0;
+}
+
 /** The same product spelled twice: one brand, one name once punctuation is gone. */
 function sameIdentity(a: TypedRow, b: TypedRow): boolean {
   return brandWordsOf(a) === brandWordsOf(b) && nameWordsOf(a).join(' ') === nameWordsOf(b).join(' ');
@@ -1426,7 +1461,7 @@ export interface TypedResolution {
   /** The row the typed words name, or null: the shopper is to pick, or nothing matched. */
   readonly row: TypedRow | null;
   /** Which rule decided, for the log and the tests. */
-  readonly rule: 'search_confident' | 'covers_all_words_no_rival' | 'ambiguous' | 'no_match';
+  readonly rule: 'search_confident' | 'covers_all_words_no_rival' | 'one_edit_typo_no_rival' | 'ambiguous' | 'no_match';
 }
 
 /**
@@ -1446,12 +1481,28 @@ export interface TypedResolution {
  * the caller answers from the typed words alone (case 8) while offering the
  * candidates. No candidates is `no_match`.
  */
-export function resolveTypedName(text: string, rows: readonly TypedRow[], band: string = 'ambiguous'): TypedResolution {
+export function resolveTypedName(
+  text: string,
+  rows: readonly TypedRow[],
+  band: string = 'ambiguous',
+  /** The words the search actually answered, when it corrected a misspelt word of the text. */
+  correctedTo: string | null = null,
+): TypedResolution {
   const top = rows[0];
   if (!top) return { row: null, rule: 'no_match' };
   if (band === 'confident') return { row: top, rule: 'search_confident' };
-  const typed = wordsOf(text);
-  if (!coversTyped(typed, top)) return { row: null, rule: 'ambiguous' };
+  const typed = wordsOf(correctedTo ?? text);
+  if (!coversTyped(typed, top)) {
+    /*
+     * A typo keeps the search's band at ambiguous on purpose, and the typed word is not a word of the row, so the
+     * strict test failed and the shopper's product went to a guess (answer-key scenario typed_typo, 2026-11-23:
+     * 10 of 10). One slip in one word is still the product when the top row is the only product the words reach
+     * that way: another product covering the words exactly or with one slip, or two wrong words, stays ambiguous.
+     */
+    if (!coversTypedWithOneSlip(typed, top)) return { row: null, rule: 'ambiguous' };
+    const slipRival = rows.slice(1).some((r) => (coversTyped(typed, r) || coversTypedWithOneSlip(typed, r)) && !sameIdentity(top, r));
+    return slipRival ? { row: null, rule: 'ambiguous' } : { row: top, rule: 'one_edit_typo_no_rival' };
+  }
   const rival = rows.slice(1).some((r) => coversTyped(typed, r) && !sameIdentity(top, r));
   return rival ? { row: null, rule: 'ambiguous' } : { row: top, rule: 'covers_all_words_no_rival' };
 }

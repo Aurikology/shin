@@ -1314,13 +1314,13 @@ function typedCatalogueAttached(): boolean {
 /** Rows a typed search asks the catalogue for, before the grocery filter keeps the first five. */
 const GROCERY_SEARCH_WINDOW = 30;
 
-async function typedCatalogueSearch(text: string, device: string, pickedGtin: string | null = null): Promise<{ rows: TypedRow[]; band: string }> {
+async function typedCatalogueSearch(text: string, device: string, pickedGtin: string | null = null): Promise<{ rows: TypedRow[]; band: string; correctedTo?: string }> {
   const seam = catalogueFirstTest?.searcher;
   // A barcode that rides with the words is the shopper's pick ("Not this", then a price): the barcode branch answers it, and the words search only when the catalogue does not know that barcode.
   // A words-only search is narrowed to grocery (grocery-scope.ts) after the fact, so it asks for a wider list to still end with five.
   const q = { text, limit: GROCERY_SEARCH_WINDOW, vectors: vectorsOn, ...(pickedGtin ? { gtin: pickedGtin } : {}) };
   try {
-    let raw: { band?: string; matchedBy?: string; candidates?: unknown[] };
+    let raw: { band?: string; matchedBy?: string; candidates?: unknown[]; correctedTo?: string };
     let downgrade = false;
     if (seam !== undefined) {
       if (seam === null) return { rows: [], band: 'miss' };
@@ -1340,7 +1340,7 @@ async function typedCatalogueSearch(text: string, device: string, pickedGtin: st
     // The leader the search banded was not grocery, so that band was never about this list's leader.
     if (rows.length === 0) band = 'miss';
     else if (rows[0] !== all[0] && band === 'confident') band = 'ambiguous';
-    return { rows, band };
+    return { rows, band, ...(typeof raw.correctedTo === 'string' ? { correctedTo: raw.correctedTo } : {}) };
   } catch (err) {
     logError({ where: 'identify.typed_search', deviceId: device, scanId: null, err });
     return { rows: [], band: 'miss' };
@@ -1386,7 +1386,7 @@ async function typedFromOwnData(
       ? { rows: [] as TypedRow[], band: 'miss' }
       : await typedCatalogueSearch(text, device, pickedGtin ?? typedCode?.gtin ?? null)
     : null;
-  const resolution = searched ? resolveTypedName(text, searched.rows, searched.band) : null;
+  const resolution = searched ? resolveTypedName(text, searched.rows, searched.band, searched.correctedTo ?? null) : null;
   const pickCandidates = searched ? searched.rows.slice(0, 3).map(shownCandidate) : [];
 
   let match: OwnMatch | null = null;
