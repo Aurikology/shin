@@ -289,7 +289,7 @@
   /* Reaches past the pill without painting anything or catching a scroll. */
 }
 
-.onb-perm-note { margin: 0; }
+.onb-perm-note, .onb-perm-note-location { margin: 0; }
 
 .onb-notnow { display: block; margin: var(--s-2) auto 0; }
 

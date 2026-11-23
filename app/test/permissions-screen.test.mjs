@@ -189,6 +189,57 @@ test('the panel shows granted only when the record says granted', () => {
   resetStore();
 });
 
+/*
+ * D-277, 2026-11-23, seen on the Android emulator walk: the phone said no to
+ * location and the Location switch still showed ON, because the switch wrote
+ * Pexi's consent and never heard the phone's answer. The camera switch always
+ * listened. These hold the location switch to the same rule.
+ */
+const LOCATION_SWITCH = { '[data-perm-row]': { dataset: { permRow: 'location' } } };
+
+function withGeolocation(answer, fn) {
+  const before = globalThis.navigator;
+  const geolocation = {
+    getCurrentPosition(ok, fail) {
+      if (answer === 'granted') ok({ coords: { latitude: 44.23, longitude: -76.49, accuracy: 50 } });
+      else fail({ code: answer === 'denied' ? 1 : 3 });
+    },
+  };
+  Object.defineProperty(globalThis, 'navigator', { value: { ...before, geolocation }, configurable: true });
+  return fn().finally(() => Object.defineProperty(globalThis, 'navigator', { value: before, configurable: true }));
+}
+
+test('D-277: the phone says no to location, and the switch stays off', async () => {
+  resetStore();
+  await withGeolocation('denied', async () => {
+    const r = render();
+    await r.click(LOCATION_SWITCH);
+    r.cleanup();
+  });
+  assert.equal(store.consent().location === true, false, 'location consent went on after the phone said no');
+  assert.equal(panel.panelStates().location, false);
+  assert.equal(store.get().onboarding?.answers?.locationAllowed, false);
+});
+
+test('D-277: the phone says yes, the switch goes on; a slow fix (timeout) is not a refusal', async () => {
+  for (const answer of ['granted', 'timeout']) {
+    resetStore();
+    await withGeolocation(answer, async () => {
+      const r = render();
+      await r.click(LOCATION_SWITCH);
+      r.cleanup();
+    });
+    assert.equal(panel.panelStates().location, true, `${answer}: the switch did not go on`);
+  }
+  resetStore();
+});
+
+test('D-277: the panel has a location refusal note in both languages', () => {
+  assert.match(panel.panelHtml(), /onb-perm-note-location/);
+  const strings = readJs('onboarding-strings.js');
+  assert.equal((strings.match(/onb_perm_location_denied:/g) ?? []).length, 2);
+});
+
 /* ------------------------------------------------------ 5. nothing blocks */
 
 test('Continue works with both switches untouched, and marks the screen seen once', async () => {

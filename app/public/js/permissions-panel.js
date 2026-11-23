@@ -52,6 +52,23 @@ export async function askCamera() {
 }
 
 /**
+ * The phone's own location prompt, asked when the location switch is turned
+ * on (D-277). 'denied' only for a real refusal (PERMISSION_DENIED, code 1): a
+ * slow or missing fix indoors is not a no, and the switch stays on for it.
+ */
+export function askLocation() {
+  const geo = typeof navigator !== 'undefined' ? navigator.geolocation : null;
+  if (!geo?.getCurrentPosition) return Promise.resolve('unavailable');
+  return new Promise((resolve) => {
+    geo.getCurrentPosition(
+      () => resolve('granted'),
+      (err) => resolve(err && err.code === 1 ? 'denied' : 'unavailable'),
+      { maximumAge: 15 * 60 * 1000, timeout: 8000 },
+    );
+  });
+}
+
+/**
  * The panel's markup: a heading, the two switches, the denied note (hidden
  * until the phone says no) and item 19's demo link with its empty slot.
  *
@@ -71,6 +88,7 @@ export function panelHtml({ heading = true } = {}) {
   // is empty until tapped; `fillDemoSlot` below fills it.
   return `${heading ? `<h1>${escapeHtml(t('onb_perm_title'))}</h1>` : ''}${row('camera')}${row('location')}
     <p class="fineprint onb-perm-note" role="status" hidden>${escapeHtml(t('onb_perm_camera_denied'))}</p>
+    <p class="fineprint onb-perm-note-location" role="status" hidden>${escapeHtml(t('onb_perm_location_denied'))}</p>
     <button type="button" class="onb-demo-link" data-act="see-demo">${escapeHtml(t('onb_see_demo'))}</button>
     <div class="onb-demo-slot" data-demo-slot role="status"></div>`;
 }
@@ -107,6 +125,17 @@ export function paintPanel(root) {
  */
 export async function tapPermission(root, ctx, key, record) {
   if (key === 'location') {
+    // Turning it on asks the phone first; a refusal leaves Pexi's consent off,
+    // so the switch never shows ON over a phone that said no (D-277).
+    if (store.consent().location !== true) {
+      const answer = await askLocation();
+      const locNote = root.querySelector('.onb-perm-note-location');
+      if (locNote) locNote.hidden = answer !== 'denied';
+      if (answer === 'denied') {
+        record('locationAllowed', false);
+        return null;
+      }
+    }
     const after = toggleConsent(ctx.api, 'location');
     record('locationAllowed', after.location === true);
     return null;

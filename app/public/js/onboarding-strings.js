@@ -188,6 +188,7 @@ export const ONB_EN = {
   onb_perm_location: 'Location access',
   onb_perm_location_sub: 'for store prices',
   onb_perm_camera_denied: 'Camera access was not allowed on this device.',
+  onb_perm_location_denied: 'Location access was not allowed on this device. Turn it on in Settings to see store prices near you.',
   /* Item 19: a scripted demo scan, so a sample answer can be seen before
      camera permission is granted. Chrome, not Pexi: this screen carries none
      of Pexi's voice (see the file header on screens/onboarding.js), so the
@@ -382,6 +383,7 @@ export const ONB_FR = {
   onb_perm_location: 'Accès à la localisation',
   onb_perm_location_sub: 'pour les prix en magasin',
   onb_perm_camera_denied: 'L’accès à la caméra n’a pas été autorisé sur cet appareil.',
+  onb_perm_location_denied: 'L’accès à la localisation n’a pas été autorisé sur cet appareil. Active-la dans les Réglages pour voir les prix des magasins près de toi.',
   onb_see_demo: 'Voir un exemple de scan',
   onb_demo_badge: 'DÉMO',
   onb_demo_unavailable: 'L’exemple de scan n’est pas encore disponible.',
