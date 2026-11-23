@@ -26,6 +26,7 @@ import { requiredSampleSize } from './handaudit.ts';
 import { applyGuard, guardSealed } from './sealed.ts';
 import { assertSameItems, evaluateAsync, overallVerdict, trainingDatabase, type ModelRun } from './harness.ts';
 import { liveEstimateModel } from './live-estimate.ts';
+import { conformalLiveEstimateModel, conformalModels } from './conformal.ts';
 import { writeResult } from './results.ts';
 import { baselines } from './baselines.ts';
 import { DEFAULT_BAR } from './score.ts';
@@ -65,18 +66,20 @@ export async function main(opts: RunOptions = {}): Promise<void> {
 /**
  * `--methods a,b` runs only those methods: category_range, category_median, claude_guess, price_tree, and
  * live_estimate (the app's last rung; async and slow on the real data, so it runs only when named).
- * Without the flag the four baselines run, as before.
+ * Also only when named: the split conformal wrappers conformal_category_range, conformal_price_tree and
+ * conformal_live_estimate (conformal.ts; the last is async and slow). Without the flag the four baselines run, as before.
  */
-export const METHOD_NAMES = ['category_range', 'category_median', 'claude_guess', 'price_tree', 'live_estimate'] as const;
+export const METHOD_NAMES = ['category_range', 'category_median', 'claude_guess', 'price_tree', 'live_estimate', 'conformal_category_range', 'conformal_price_tree', 'conformal_live_estimate'] as const;
+const DEFAULT_METHODS = ['category_range', 'category_median', 'claude_guess', 'price_tree'];
 
-export function selectedMethods(spec: string | undefined): { names: Set<string>; live: boolean } {
+export function selectedMethods(spec: string | undefined): { names: Set<string>; live: boolean; conformalLive: boolean } {
   const asked = spec === undefined ? null : spec.split(',').map((s) => s.trim()).filter(Boolean);
   if (asked !== null) {
     const bad = asked.filter((n) => !(METHOD_NAMES as readonly string[]).includes(n));
     if (bad.length || asked.length === 0) throw new Error(`--methods: unknown method ${bad.join(', ') || '(none given)'}; known: ${METHOD_NAMES.join(', ')}`);
   }
-  const names = new Set(asked ?? METHOD_NAMES.filter((n) => n !== 'live_estimate'));
-  return { names, live: names.has('live_estimate') };
+  const names = new Set<string>(asked ?? DEFAULT_METHODS);
+  return { names, live: names.has('live_estimate'), conformalLive: names.has('conformal_live_estimate') };
 }
 
 async function runBench(opts: RunOptions, snap: { path: string | null }): Promise<void> {
@@ -169,15 +172,16 @@ async function runBench(opts: RunOptions, snap: { path: string | null }): Promis
   const leaked = leaks.filter((l) => !l.promised.ok);
   const controlled = leaked.length
     ? { aborted: true, reason: `LEAK: ${leaked.map((l) => l.promised.note).join('; ')}`, controls: [], runs: [], skipped: [] }
-    : controlledRuns(folds.filter(isFold), () => baselines().filter((m) => methods.names.has(m.name)), { catalogue, seed: seed + 1 });
+    : controlledRuns(folds.filter(isFold), () => [...baselines(), ...conformalModels()].filter((m) => methods.names.has(m.name)), { catalogue, seed: seed + 1 });
   const runs: ModelRun[] = [...controlled.runs];
-  if (methods.live && !controlled.aborted) {
+  if ((methods.live || methods.conformalLive) && !controlled.aborted) {
     // The live estimate answers asynchronously, so it is scored here, after the controls passed, on every fold they scored.
     const skippedFolds = new Set(controlled.skipped.map((s) => s.fold));
     for (const f of folds.filter(isFold).filter((x) => !skippedFolds.has(x.name))) {
       const trainDb = trainingDatabase(f.train);
       try {
-        runs.push(await evaluateAsync(liveEstimateModel(), f, { catalogue, trainDb, seed: seed + 1 }));
+        if (methods.live) runs.push(await evaluateAsync(liveEstimateModel(), f, { catalogue, trainDb, seed: seed + 1 }));
+        if (methods.conformalLive) runs.push(await evaluateAsync(conformalLiveEstimateModel(), f, { catalogue, trainDb, seed: seed + 1 }));
       } finally {
         trainDb.close();
       }
