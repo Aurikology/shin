@@ -29,7 +29,7 @@ function tags(xml) {
 }
 
 test('there is one daemon per job the install procedure lists', () => {
-  const want = ['backup', 'checker', 'deadman', 'expiry', 'hammer', 'integrity', 'logrotate', 'offsite', 'openprices', 'restoretest', 'server'].map((n) => `com.shin.${n}.plist`);
+  const want = ['backup', 'checker', 'deadman', 'expiry', 'hammer', 'integrity', 'logrotate', 'offsite', 'kroger', 'openprices', 'restoretest', 'server'].map((n) => `com.shin.${n}.plist`);
   assert.deepEqual(files.sort(), want.sort());
 });
 
