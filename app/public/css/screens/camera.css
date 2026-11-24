@@ -1763,7 +1763,8 @@
 .padsheet .amount-cur { font-size: 20px; color: var(--ink-faint); font-weight: 700; }
 /* French writes the mark after the digits (4,99 $), with the same breath of space cad() keeps. */
 .padsheet .amount-cur-after { margin-left: 5px; }
-.padsheet .amount .ghosted { color: var(--ink-faint); opacity: .45; }
+/* .8, was .45 (1.81 to 2.08:1): 3:1 on every ground in both themes, still well under a typed digit. test/pad-ghost-contrast.test.mjs */
+.padsheet .amount .ghosted { color: var(--ink-faint); opacity: .8; }
 
 /* Row 43: "% off" / "N for $" recompute the unit price the pad will judge,
    labelled here, above the keypad. */

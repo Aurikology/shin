@@ -77,7 +77,8 @@
   color: var(--ink-faint);
   font-weight: 700;
 }
-.amount .ghosted { color: var(--ink-faint); opacity: .45; }
+/* .8, was .45: see camera.css .padsheet .amount .ghosted and test/pad-ghost-contrast.test.mjs */
+.amount .ghosted { color: var(--ink-faint); opacity: .8; }
 
 .seller { display: flex; flex-direction: column; gap: 6px; }
 /*
