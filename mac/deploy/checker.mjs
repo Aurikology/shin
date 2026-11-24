@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { checkDue, observeHealth } from './lib.mjs';
 import { handleOutcome, reportSink, stoppedReason, syncPage } from './sync.mjs';
+import { forwardComms } from './comms-forward.mjs';
 import { record } from '../lib/health.mjs';
 import { PATHS, childEnv, git, loadState, lockHolder, logTo, readConfig, run, tryLock, withState } from './util.mjs';
 
@@ -80,6 +81,7 @@ async function main() {
     const force = process.argv.includes('--now');
     if (force || checkDue(loadState(), Date.now())) {
       const gitInfo = await originInfo();
+      await forwardComms(gitInfo, log); // Aurik's "to-mac" message files into the mailbox (never throws)
       const health = await publicHealth();
       if (health) await withState('checker', (st) => observeHealth(st, health, Date.now(), !!lockHolder('deployer')));
       const r = await syncPage({ ingest: true, git: gitInfo, owner: 'checker', log });
