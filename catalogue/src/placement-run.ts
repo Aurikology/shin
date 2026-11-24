@@ -33,6 +33,7 @@ import { buildPlacement, departmentOfSource, NO_DEPARTMENT } from './placement.t
 import { FOOD_LABEL_MAP_PATH, loadFoodLabelMap, type FoodLabelMap } from './food-label-link.ts';
 import {
   assertNotLiveCatalogue,
+  assertStage2Built,
   barcodeRoute,
   labelledLeaves,
   neighbourRoute,
@@ -74,6 +75,7 @@ export async function main(argv: readonly string[]): Promise<number> {
     const db = new DatabaseSync(dbPath);
     try {
       buildPlacement(db, { taxonomy: tax, departmentTaxonomies, foodLabelMap, log });
+      assertStage2Built(db); // the cascade's precondition, checked now rather than after hours of neighbour work
       ensureFeedbackSchema(db);
       const scans = arg('--scans', argv);
       if (scans) log(`placement-run: picks ${JSON.stringify(ingestPicks(db, scans, { origin: 'scans' }))}`);

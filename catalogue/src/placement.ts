@@ -143,6 +143,11 @@ export const DEPARTMENT_OF_SOURCE: Readonly<Record<string, string>> = {
   icecat: 'electronics',
   returnit: 'drinks',
   consignaction: 'drinks',
+  // Grocer name feeds (2026-11-24). They carry no category of their own and are mostly food; their
+  // non-food rows (detergent, shampoo) find few food neighbours and stay at the food top level under
+  // the confidence bar. Without a department every one of their rows failed the placement run.
+  'kroger-names': 'food',
+  hammer: 'food',
 };
 
 export function departmentOfSource(source: string): string {

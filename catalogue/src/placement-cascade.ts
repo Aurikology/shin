@@ -458,18 +458,30 @@ function share(items: number, of: number): TopLevelShare {
   return { items, of, share: s, meetsBar: s <= TOP_LEVEL_SHARE_BAR };
 }
 
+/**
+ * Throws when the Stage 2 build has not run: an item of a source WITH a department that carries
+ * a stored path but sits unplaced. A source with no department (not in DEPARTMENT_OF_SOURCE)
+ * stays unplaced by design even when tagged, so it never counts here (2026-11-24: 2,002 such
+ * items made every run refuse, after 9 h of neighbour work). Cheap: placement-run calls it right
+ * after the build, before any long step.
+ */
+export function assertStage2Built(db: DatabaseSync): void {
+  ensurePlacementSchema(db);
+  const sources = Object.keys(DEPARTMENT_OF_SOURCE);
+  const notBuilt = (db.prepare(
+    `SELECT count(*) AS n FROM product p JOIN item_placement ip ON ip.code = p.code WHERE ip.placed_by = 'unplaced' AND p.category_path <> '[]' AND p.source IN (${sources.map(() => '?').join(', ')})`,
+  ).get(...sources) as { n: number }).n;
+  if (notBuilt > 0) {
+    throw new Error(`runCascade: ${notBuilt} items carry a stored path but sit unplaced: run the Stage 2 build (placement.ts) first, nothing was moved`);
+  }
+}
+
 /** Places every item not placed from its stored path. Throws on any fault. */
 export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promise<CascadeSummary> {
   const log = opts.log ?? ((l: string) => console.log(l));
   const bar = opts.bar ?? PLACEMENT_CONFIDENCE_BAR;
   if (!(bar > 0 && bar <= 1)) throw new Error(`runCascade: bar ${bar} is not in (0, 1]`);
-  ensurePlacementSchema(db);
-  const notBuilt = (db.prepare(
-    `SELECT count(*) AS n FROM product p JOIN item_placement ip ON ip.code = p.code WHERE ip.placed_by = 'unplaced' AND p.category_path <> '[]'`,
-  ).get() as { n: number }).n;
-  if (notBuilt > 0) {
-    throw new Error(`runCascade: ${notBuilt} items carry a stored path but sit unplaced: run the Stage 2 build (placement.ts) first, nothing was moved`);
-  }
+  assertStage2Built(db);
   const tree = PlacementTree.load(db);
   const seen = new Set<string>();
   for (const r of opts.routes) {

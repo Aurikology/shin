@@ -22,6 +22,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   countPaths,
+  departmentOfSource,
   placeOnNode,
   placementCallCount,
   ensurePlacementSchema,
@@ -352,6 +353,17 @@ test('2.1 a fresh catalogue with no placement layer is refused by the cascade (r
   const db = fixtureCatalogue(ROWS);
   ensurePlacementSchema(db);
   await assert.rejects(runCascade(db, { routes: [], log: quiet }), /Stage 2|placement\.ts/);
+});
+
+test('2.1 a tagged item of a source with no department does not read as "Stage 2 never ran" (2026-11-24: 2,002 such items refused every run)', async () => {
+  const db = placedFixture([...ROWS, { code: 'NODEPT1', source: 'somewhere-new', path: ['en:cheeses'], name: 'Cheese from a source with no department' }]);
+  // It still fails the run at the end, loudly, as an item that cannot be placed; never as "Stage 2 never ran".
+  await assert.rejects(runCascade(db, { routes: [], log: quiet }), (err: Error) => /2\.1 FAILED/.test(err.message) && !/Stage 2/.test(err.message));
+});
+
+test('grocery name feeds (kroger-names, hammer) have a department, so their items can be placed and never fail a run', () => {
+  assert.equal(departmentOfSource('kroger-names'), 'food');
+  assert.equal(departmentOfSource('hammer'), 'food');
 });
 
 test('2.1 text neighbours from worker threads (read-only connections to a temp file) equal the one-thread result', async () => {
