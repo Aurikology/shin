@@ -152,7 +152,7 @@ Deleting happens in RevenueCat, not here:
 
 - The Mac backs up every night at **04:00** (`mac/launchd/com.shin.backup.plist`), one folder per night, copying every database
   (`mac/07-backup.sh`).
-- It keeps the **newest 14** folders and deletes older ones (`mac/07-backup.sh:272`).
+- It keeps the **newest 7** folders and deletes older ones (`mac/07-backup.sh`, KEEP; 14 until 2026-11-24).
 - So after you delete someone, the nights before the delete still hold them. The last such backup is deleted once 14 newer ones
   exist: **about 14 nights, so within 15 days of the delete.** The policy's wording, "Backups ... can hold a copy for longer until
   they are replaced" (`docs/store/privacy.html:91`), is true.
@@ -239,7 +239,7 @@ Checked by reading the policy lines against the code. "Promised" is what `docs/s
 | Request logs: 90 days | `privacy.html:87` | Enforced for `access.log` (`retention.ts:123-172`). **Bug found and fixed:** a damaged first line stopped the sweep for good (the early return, now `retention.ts:146-149`). | **Yes**, with a test (`app/test/retention.test.ts`). |
 | Request logs: 90 days | `privacy.html:87` | The server's own output logs `mac/logs/server.out.log` and `server.err.log` (`mac/launchd/com.shin.server.plist:46,49`) carry device ids (`app/src/errlog.ts:69`) and are never rotated or trimmed. The code says so itself (`retention.ts:17-18`). | **No.** Needs a rotation job on the Mac and a call on the daily timer in `app/server.ts`, which is outside this lane. The script removes lines by id on request. |
 | Scans, ratings, prices: device id removed after 24 months | `privacy.html:89` | Enforced for the scan tables (`retention.ts:46-54`), corrections and shopper prices (`retention.ts:95-105`). **Not** the catalogue's `user_observation.device_key` (`catalogue/src/user-catalogue.ts:124`), a one-way key that still links a shopper's typed prices to each other and survives 24 months. | **No.** Needs a call from the daily timer in `app/server.ts`, which is outside this lane. |
-| Backups hold a copy "until they are replaced" | `privacy.html:91` | True only while backups run (section 6). It is by count (14), not by days (`mac/07-backup.sh:272`). A Dropbox folder keeps more (ASSUMED). | No code change needed; documented in section 6. |
+| Backups hold a copy "until they are replaced" | `privacy.html:91` | True only while backups run (section 6). It is by count (7), not by days (`mac/07-backup.sh` KEEP). A Dropbox folder keeps more (ASSUMED). | No code change needed; documented in section 6. |
 | "This version of Pexi does not upload photos or camera images" | `privacy.html:39,58` | The server has code to store photos with no end date by default (`app/src/photos.ts:87`, `SHIN_PHOTO_RETENTION_DAYS` unset = keep for ever) and shelf photos in a folder named after the phone (`app/src/shelf.ts:141`). **ASSUMED:** the live app does not send them; not checked. If it ever does, the policy sentence is wrong and there is no retention period for them. | **No.** Flag to you. |
 
 ## Sources

@@ -286,18 +286,19 @@ backup_file access_log  SHIN_ACCESS_LOG            access.log
 backup_dir photos   SHIN_PHOTOS        photos
 backup_dir shutter  SHIN_SHUTTER_DIR   shutter
 
-# Keep the newest 14 backups, remove older ones -- ONLY directory entries
+# Keep the newest KEEP backups (7 since 2026-11-24, Jamin: the Mac disk was 97% full), remove older ones -- ONLY directory entries
 # directly under $SHIN_BACKUP_DIR whose name matches this script's own
 # timestamp pattern exactly (case is a full-string match, not a prefix or
 # substring match), so this can never reach into a folder it did not
 # create or touch anything outside $SHIN_BACKUP_DIR.
+KEEP=7
 prune_old_backups() {
   _count=0
   for _d in $(ls -1 "$SHIN_BACKUP_DIR" 2>/dev/null | LC_ALL=C sort -r); do
     case "$_d" in
       [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9])
         _count=$((_count + 1))
-        if [ "$_count" -gt 14 ]; then
+        if [ "$_count" -gt "$KEEP" ]; then
           _target="$SHIN_BACKUP_DIR/$_d"
           if [ -d "$_target" ]; then
             echo "07-backup.sh: pruning old backup $_target"
@@ -311,7 +312,7 @@ prune_old_backups() {
   done
 }
 
-# A failed night does NOT prune: the 14 older folders are the last good copies, and a
+# A failed night does NOT prune: the older folders are the last good copies, and a
 # bad night must never be the thing that pushes one of them out (R52).
 if [ "$FAILED" -ne 0 ]; then
   _names=$(awk -F'\t' '$1=="failed"{printf "%s ", $2}' "$MANIFEST")

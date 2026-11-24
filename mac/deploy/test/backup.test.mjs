@@ -352,11 +352,11 @@ test('restore: refuses the live SHIN_DATA_DIR as a target', () => {
   }
 });
 
-test('backup: keeps only the newest 14 timestamped backups inside SHIN_BACKUP_DIR', () => {
+test('backup: keeps only the newest 7 timestamped backups inside SHIN_BACKUP_DIR', () => {
   const { root, backupDir, configPath } = setupFakeDeployment();
   try {
-    // Seed 16 fake timestamp-named folders, oldest to newest by name.
-    for (let i = 0; i < 16; i++) {
+    // Seed 9 fake timestamp-named folders, oldest to newest by name.
+    for (let i = 0; i < 9; i++) {
       const name = `20260101-0000${String(i).padStart(2, '0')}`;
       const dir = join(backupDir, name);
       mkdirSync(dir, { recursive: true });
@@ -371,7 +371,7 @@ test('backup: keeps only the newest 14 timestamped backups inside SHIN_BACKUP_DI
 
     const remaining = require_ls(backupDir);
     const timestamped = remaining.filter((d) => /^\d{8}-\d{6}$/.test(d));
-    assert.equal(timestamped.length, 14, `expected 14 timestamped dirs, got ${timestamped.length}: ${timestamped.join(', ')}`);
+    assert.equal(timestamped.length, 7, `expected 7 timestamped dirs, got ${timestamped.length}: ${timestamped.join(', ')}`);
     assert.ok(remaining.includes('not-a-backup'), 'a non-matching folder must never be pruned');
     assert.ok(existsSync(join(backupDir, 'not-a-backup', 'keepme.txt')));
   } finally {
