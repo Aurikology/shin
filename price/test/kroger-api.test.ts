@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   KrogerClient, KrogerError, SELLER, barcodeOf, exitCodeFor, gs1Valid, newTally, parseCodeList, parseLocations,
-  parseProducts, productIdsFor, rowsFor, runKroger, tokenRequest, validBarcode, type FetchLike, type KrogerLocation,
+  isHoldout, parseProducts, productIdsFor, rowsFor, runKroger, tokenRequest, validBarcode, type FetchLike, type KrogerLocation,
 } from '../src/kroger-api.ts';
 import { openPrices, recordAttempt, recordObservation } from '../src/store.ts';
 
@@ -196,6 +196,27 @@ test('a run asks both id forms per batch, writes priced rows, counts the unprice
   assert.equal(t.skippedNoPrice, 1);
   assert.equal(t.skippedUnrequested, 1);
   assert.equal(exitCodeFor(t), 0);
+});
+
+test('the 5% holdout: a holdout barcode\'s rows go to the holdout sink, never to prices.db; others are untouched', async () => {
+  const HOLD = '0011110000002'; // valid GTIN-13 whose sha1 rule puts it in the holdout
+  assert.equal(isHoldout(HOLD), true);
+  assert.equal(isHoldout(CODE_A), false);
+  let n = 0;
+  for (let i = 0; i < 4000; i++) if (isHoldout(String(1000000000000 + i * 7919))) n += 1;
+  assert.ok(n > 4000 * 0.04 && n < 4000 * 0.06, `about 5% held out, got ${n}`);
+  const f = fakeKroger(() => json(200, {
+    data: [product(), product({ productId: HOLD, upc: HOLD, items: [{ itemId: '9', price: { regular: 2.5, promo: 0 }, size: '1', soldBy: 'UNIT' }] })],
+  }));
+  const held: any[] = [];
+  const o = opts(f, { codes: [CODE_A, HOLD], holdout: (r: any, _l: any, b: string) => held.push({ b, r }) });
+  const t = await runKroger(o);
+  assert.equal(o.rows.length, 1);
+  assert.equal(held.length, 1);
+  assert.equal(held[0].b, HOLD);
+  assert.equal(t.heldOut, 1);
+  assert.equal(t.rows, 1);
+  assert.ok(t.priced.has(HOLD), 'a held-out barcode still counts as priced by Kroger');
 });
 
 test('rerunning the same day does not duplicate rows or attempts (temp prices.db)', async () => {

@@ -58,7 +58,9 @@
  *        [--delay-ms 250] [--client-id-env NAME] [--client-secret-env NAME] [--dry-run]
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { canonicalCode } from '../../catalogue/src/barcode.ts';
 import { openPrices, recordObservation, recordAttempt, PRICES_DB_PATH } from './store.ts';
@@ -67,6 +69,16 @@ import { registerSource, requireSourceUse, currentRegistry } from './registry.ts
 import * as settings from '../../settings/src/index.ts';
 
 export const SELLER = 'Kroger';
+
+/**
+ * THE HOLDOUT (Jamin "go", 2026-11-24). A fixed 5% of barcodes, chosen by a hash of the 13-digit code, is never
+ * written to prices.db: its Kroger rows go to a side file instead, so every day they can test, honestly, the range
+ * Pexi gives for a product whose own shelf price it does not hold. The Mac's one-off move of the rows loaded before
+ * this existed uses the same rule. Changing the rule changes the yardstick.
+ */
+export function isHoldout(code13: string): boolean {
+  return parseInt(createHash('sha1').update(code13).digest('hex').slice(0, 8), 16) % 20 === 0;
+}
 export const API_BASE = 'https://api.kroger.com/v1';
 export const TOKEN_PATH = '/connect/oauth2/token';
 export const SCOPE = 'product.compact';
@@ -234,6 +246,8 @@ export interface RunTally {
   joined: number;
   unjoined: number;
   onSale: number;
+  /** Rows sent to the holdout file instead of prices.db (isHoldout). */
+  heldOut: number;
   /** barcode -> priced at any location this run. */
   priced: Set<string>;
   stopped: string | null;
@@ -243,7 +257,7 @@ export function newTally(): RunTally {
   return {
     zips: 0, locations: 0, inputBarcodes: 0, skippedBadBarcode: 0, productCalls: 0, productsReturned: 0,
     skippedUnrequested: 0, skippedNoPrice: 0, skippedBadPrice: 0, skippedNoCurrency: 0, rows: 0,
-    observations: 0, joined: 0, unjoined: 0, onSale: 0, priced: new Set(), stopped: null,
+    observations: 0, joined: 0, unjoined: 0, onSale: 0, heldOut: 0, priced: new Set(), stopped: null,
   };
 }
 
@@ -432,6 +446,8 @@ export interface RunOptions {
   readonly has: (code: string) => boolean;
   /** Where a row goes: recordObservation for a real run, a printer for --dry-run. */
   readonly sink: (row: ObservationRow, loc: KrogerLocation, barcode: string) => void;
+  /** When given, rows of holdout barcodes (isHoldout) go here and never to `sink`. */
+  readonly holdout?: (row: ObservationRow, loc: KrogerLocation, barcode: string) => void;
   /** Real runs only: crawl_attempt per barcode at the end. */
   readonly attempt?: (code: string, outcome: 'matched' | 'no_barcode_match' | 'no_candidates', note: string | null) => void;
 }
@@ -476,9 +492,15 @@ export async function runKroger(o: RunOptions): Promise<RunTally> {
             if (o.has(barcode)) t.joined += 1;
             else t.unjoined += 1;
             if (rows.length > 1) t.onSale += 1;
+            const held = o.holdout !== undefined && isHoldout(barcode);
             for (const r of rows) {
-              o.sink(r, loc, barcode);
-              t.rows += 1;
+              if (held) {
+                o.holdout!(r, loc, barcode);
+                t.heldOut += 1;
+              } else {
+                o.sink(r, loc, barcode);
+                t.rows += 1;
+              }
             }
           }
         }
@@ -541,6 +563,7 @@ export function printTally(t: RunTally, dryRun: boolean): string[] {
     `  priced (barcode, store)  ${t.observations}  (joined ${t.joined}, unjoined ${t.unjoined}, on sale ${t.onSale})`,
     `  rows ${dryRun ? 'that would be written' : 'written'}    ${t.rows}`,
     `  distinct barcodes priced ${t.priced.size}`,
+    `  held out (5% yardstick)  ${t.heldOut} rows, never written to prices.db`,
   ];
   if (t.stopped !== null) l.push(`  STOPPED EARLY: ${t.stopped}`);
   return l;
@@ -605,6 +628,8 @@ async function main(): Promise<void> {
     requireSourceUse(db, SELLER, 'automated');
   }
   const today = new Date().toISOString().slice(0, 10);
+  // The holdout rows' file: --holdout-out, else kroger-holdout.jsonl beside prices.db.
+  const holdoutPath = dry ? null : (arg(argv, '--holdout-out') ?? join(dirname(arg(argv, '--db') ?? PRICES_DB_PATH), 'kroger-holdout.jsonl'));
 
   const client = new KrogerClient({
     fetch: fetch as unknown as FetchLike,
@@ -621,6 +646,10 @@ async function main(): Promise<void> {
     maxCalls: intArg('--max-calls', 500),
     today,
     has,
+    holdout: (row, loc, barcode) => {
+      if (holdoutPath) appendFileSync(holdoutPath, JSON.stringify({ barcode, locationId: loc.locationId, ...row }) + '\n');
+      else console.log(`  would hold out ${loc.locationId} ${barcode} ${row.kind} $${(row.priceCents / 100).toFixed(2)}`);
+    },
     sink: (row, loc, barcode) => {
       if (db) recordObservation(db, row);
       else console.log(`  would write ${loc.locationId} ${barcode} ${row.kind.padEnd(11)} $${(row.priceCents / 100).toFixed(2)} ${row.storeName ?? ''} ${row.storeCity ?? ''} ${row.region ?? ''}`);
