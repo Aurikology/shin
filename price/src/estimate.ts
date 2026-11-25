@@ -60,9 +60,8 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
-import { statSync } from 'node:fs';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
-import { departmentFromPath, departmentOf, nearestRankIndex, parentOf, readAge, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
+import { departmentFromPath, departmentOf, fileStamp, nearestRankIndex, parentOf, readAge, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide, TARGET_WIDTH } from './width-flag.ts';
 import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
@@ -1099,43 +1098,30 @@ async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | 'timeout'>
  * file (or its write-ahead log) changes size or time, or the day changes. A handle with no file
  * behind it (`:memory:`, every test fixture) is never cached.
  */
-let snapshot: { key: string; rows: Row[]; cat: Map<string, CatRow> } | null = null;
+// Up to SNAPSHOT_SLOTS versions (currency x day), least recently used dropped first. One slot thrashed
+// when US and Canadian answers alternated, so each answer re-read every row (Mac probe A, 2026-11-25:
+// 2.26 s per answer, peak 2.1 GB).
+const SNAPSHOT_SLOTS = 4;
+const snapshots = new Map<string, { rows: Row[]; cat: Map<string, CatRow> }>();
+let snapshotStats = { hits: 0, misses: 0 };
 
-function stamp(db: DatabaseSync | null | undefined): string | null {
-  if (!db) return 'none';
-  let file: string | null;
-  try {
-    file = db.location();
-  } catch {
-    return null;
-  }
-  if (!file) return null;
-  try {
-    const main = statSync(file);
-    let wal = '';
-    try {
-      const w = statSync(`${file}-wal`);
-      wal = `${w.size}:${w.mtimeMs}`;
-    } catch {
-      wal = '-';
-    }
-    return `${file}|${main.size}:${main.mtimeMs}|${wal}`;
-  } catch {
-    return null;
-  }
+/** Read-cache hits and misses since start (or the last clear), for probes and the health check. */
+export function estimateCacheStats(): { hits: number; misses: number; slots: number } {
+  return { ...snapshotStats, slots: snapshots.size };
 }
 
 /** The cache key for these files, currency and day, or null when they cannot be cached. */
 function snapshotKey(deps: EstimateDeps, currency: string, asOf: string): string | null {
-  const p = stamp(deps.prices);
-  const c = stamp(deps.catalogue);
+  const p = fileStamp(deps.prices);
+  const c = fileStamp(deps.catalogue);
   if (p === null || c === null || (p === 'none' && c === 'none')) return null;
   return `${p}#${c}#${currency}#${asOf}`;
 }
 
 /** Drops the read cache (tests, and a caller that knows the files changed in place). */
 export function clearEstimateCache(): void {
-  snapshot = null;
+  snapshots.clear();
+  snapshotStats = { hits: 0, misses: 0 };
 }
 
 export async function estimate(item: EstimateItem, shopper: ShopperInput | null, deps: EstimateDeps): Promise<EstimateResult> {
@@ -1151,10 +1137,15 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const key = snapshotKey(deps, currency, item.asOf);
   let rows: Row[] = [];
   let cat = new Map<string, CatRow>();
-  if (key !== null && snapshot?.key === key) {
-    rows = snapshot.rows;
-    cat = snapshot.cat;
+  const cached = key !== null ? snapshots.get(key) : undefined;
+  if (cached) {
+    snapshotStats.hits++;
+    snapshots.delete(key!);
+    snapshots.set(key!, cached);
+    rows = cached.rows;
+    cat = cached.cat;
   } else {
+    if (key !== null) snapshotStats.misses++;
     if (deps.prices) {
       try {
         rows = readRows(deps.prices, currency, item.asOf);
@@ -1169,7 +1160,10 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         cat = new Map();
       }
     }
-    if (key !== null) snapshot = { key, rows, cat };
+    if (key !== null) {
+      snapshots.set(key, { rows, cat });
+      while (snapshots.size > SNAPSHOT_SLOTS) snapshots.delete(snapshots.keys().next().value!);
+    }
   }
   // The scanned item's own catalogue row, when no price row brought it in. Added to the snapshot's map:
   // it is the same catalogue version, so it is as true for the next request as for this one.

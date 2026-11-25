@@ -54,6 +54,7 @@
  */
 
 import type { DatabaseSync } from 'node:sqlite';
+import { statSync } from 'node:fs';
 import { ageDays, isFutureDated, ratio } from '../../spine/src/money.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLabel } from '../../catalogue/src/units.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
@@ -430,6 +431,85 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
 }
 
 /**
+ * The file behind a handle, stamped by size and time of the file and its write-ahead log: 'none' for
+ * no handle, null for one with no file (`:memory:`, every test fixture), which is never cached.
+ */
+export function fileStamp(db: DatabaseSync | null | undefined): string | null {
+  if (!db) return 'none';
+  let file: string | null;
+  try {
+    file = db.location();
+  } catch {
+    return null;
+  }
+  if (!file) return null;
+  try {
+    const main = statSync(file);
+    let wal = '';
+    try {
+      const w = statSync(`${file}-wal`);
+      // An empty log holds nothing: the first read creates one, and must not count as a change.
+      wal = w.size === 0 ? '-' : `${w.size}:${w.mtimeMs}`;
+    } catch {
+      wal = '-';
+    }
+    return `${file}|${main.size}:${main.mtimeMs}|${wal}`;
+  } catch {
+    return null;
+  }
+}
+
+/*
+ * POOL CACHE. The category pools are every regular price in the currency plus the catalogue rows
+ * behind them, the same for every answer on the same files, currency, day and window. Reading them
+ * per answer was 1.35 s and about 250,000 rows (Mac probe A, 2026-11-25), so they are kept, up to
+ * POOL_SLOTS versions, least recently used dropped first. Callers only read the lists, never change them.
+ */
+const POOL_SLOTS = 4;
+type Pools = { priced: Map<string, Obs[]>; catalogue: Map<string, CatalogueRow> };
+const poolCache = new Map<string, Pools>();
+let poolStats = { hits: 0, misses: 0 };
+
+/** Pool-cache hits and misses since start (or the last clear), for probes and the health check. */
+export function rangeCacheStats(): { hits: number; misses: number; slots: number } {
+  return { ...poolStats, slots: poolCache.size };
+}
+
+/** Drops the pool cache (tests, and a caller that knows the files changed in place). */
+export function clearRangeCache(): void {
+  poolCache.clear();
+  poolStats = { hits: 0, misses: 0 };
+}
+
+function categoryPools(sources: RangeSources, currency: string, asOf: string, windowDays: number): Pools {
+  const p = fileStamp(sources.prices);
+  const c = fileStamp(sources.catalogue);
+  const key = p === null || c === null ? null : `${p}#${c}#${currency}#${asOf}#${windowDays}`;
+  const hit = key !== null ? poolCache.get(key) : undefined;
+  if (hit) {
+    poolStats.hits++;
+    poolCache.delete(key!);
+    poolCache.set(key!, hit);
+    return hit;
+  }
+  const all = readObservations(sources.prices, null, currency, asOf, windowDays);
+  const priced = new Map<string, Obs[]>();
+  for (const o of all) {
+    const list = priced.get(o.key);
+    if (list) list.push(o);
+    else priced.set(o.key, [o]);
+  }
+  const catalogue = readCatalogue(sources.catalogue!, [...priced.keys()]);
+  const pools = { priced, catalogue };
+  if (key !== null) {
+    poolStats.misses++;
+    poolCache.set(key, pools);
+    while (poolCache.size > POOL_SLOTS) poolCache.delete(poolCache.keys().next().value!);
+  }
+  return pools;
+}
+
+/**
  * One price per shop: the latest; on the same day, a listing not marked out of stock before one that is
  * (D-267 A4: the price a shopper can buy there), then the lower.
  */
@@ -643,16 +723,9 @@ export function priceRangeFor(input: RangeInput, sources: RangeSources): RangeRe
   let pools: { priced: Map<string, Obs[]>; catalogue: Map<string, CatalogueRow>; department: string | null } | null = null;
   const readPools = () => {
     if (pools) return pools;
-    const all = readObservations(sources.prices, null, currency, input.asOf, windowDays);
-    const priced = new Map<string, Obs[]>();
-    for (const o of all) {
-      const list = priced.get(o.key);
-      if (list) list.push(o);
-      else priced.set(o.key, [o]);
-    }
-    const catalogue = readCatalogue(sources.catalogue!, [...priced.keys()]);
-    const department = selfRow?.department ?? departmentFromPath(catalogue.values(), path);
-    pools = { priced, catalogue, department };
+    const shared = categoryPools(sources, currency, input.asOf, windowDays);
+    const department = selfRow?.department ?? departmentFromPath(shared.catalogue.values(), path);
+    pools = { ...shared, department };
     return pools;
   };
 
