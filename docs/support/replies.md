@@ -1,6 +1,6 @@
 # Pexi support replies
 
-Canned replies for useshinapp@gmail.com. Facts come from docs/store/terms.html, docs/store/index.html, docs/store/privacy.html and the app's own strings. Pexi has no accounts, so ask for nothing the shopper cannot give (never an Apple ID password or card number).
+Canned replies for usepexiapp@gmail.com (the old useshinapp@gmail.com stays open for older builds; docs/store/listing.md). Facts come from docs/store/terms.html, docs/store/index.html, docs/store/privacy.html and the app's own strings. Pexi has no accounts, so ask for nothing the shopper cannot give (never an Apple ID password or card number).
 
 ## Annuler mon abonnement
 
@@ -8,7 +8,7 @@ Bonjour [prénom],
 
 Merci de nous avoir écrit. Pour annuler Pexi Plus, il faut passer par votre compte Apple, car c'est Apple qui gère l'abonnement.
 
-Sur votre iPhone, ouvrez Réglages, touchez votre nom, puis Abonnements, choisissez Pexi et touchez Annuler l'abonnement. Vous pouvez aussi ouvrir l'écran Toi dans Pexi et toucher « Gérer ou annuler l'abonnement ».
+Sur votre iPhone, ouvrez l'app Réglages, touchez votre nom, puis Abonnements, choisissez Pexi et touchez Annuler l'abonnement. Vous pouvez aussi le faire dans Pexi : touchez le X en haut de la caméra, puis l'onglet Réglages, et touchez « Gérer ou annuler l'abonnement ».
 
 Pour éviter un nouveau renouvellement, l'annulation doit se faire au moins 24 heures avant la fin de la période en cours. Supprimer l'application n'annule pas l'abonnement.
 
@@ -22,7 +22,7 @@ Bonjour [prénom],
 
 Merci de votre message. Pexi Plus est vendu par l'App Store d'Apple, et Pexi ne reçoit ni votre carte ni les détails de votre compte Apple. Pexi ne peut donc pas rembourser un achat fait dans l'App Store.
 
-Les remboursements se demandent directement à Apple : rendez-vous sur reportaproblem.apple.com, ouvrez une session, choisissez « Demander un remboursement » et sélectionnez le prélèvement Pexi Plus. C'est Apple qui décide de la demande.
+Les remboursements se demandent directement à Apple : rendez-vous sur reportaproblem.apple.com, ouvrez une session, choisissez « Demander un remboursement » et sélectionnez l'achat Pexi Plus. C'est Apple qui décide de la demande.
 
 Si Pexi Plus ne fonctionne pas comme prévu, écrivez-nous en nous donnant le numéro de commande qui figure sur votre reçu Apple, et nous vérifierons de notre côté.
 
@@ -34,9 +34,9 @@ Bonjour [prénom],
 
 Merci de votre message. Pexi ne demande ni nom, ni courriel, ni compte : vos données sont liées à un identifiant aléatoire de votre appareil.
 
-Pour demander leur suppression, ouvrez l'écran Toi dans Pexi et touchez « Supprimer mes données ». Un courriel est préparé pour nous, avec l'identifiant de votre appareil, afin que nous retrouvions les bons renseignements. Envoyez-le tel quel. Vous pouvez aussi nous écrire vous-même, mais l'identifiant nous aide beaucoup.
+Pour demander leur suppression, touchez le X en haut de la caméra dans Pexi, puis l'onglet Réglages, et touchez « Supprimer mes données ». Un courriel est préparé pour nous, avec l'identifiant de votre appareil, afin que nous retrouvions les bons renseignements. Envoyez-le tel quel. Vous pouvez aussi nous écrire vous-même, mais l'identifiant nous aide beaucoup.
 
-La suppression se fait à la main. Supprimer l'application ne supprime pas ce que le serveur détient, et cela n'annule pas votre abonnement : pour l'annuler, passez par les Réglages d'Apple.
+La suppression se fait à la main. Supprimer l'application ne supprime pas ce que le serveur détient, et cela n'annule pas votre abonnement : pour l'annuler, passez par l'app Réglages de votre iPhone.
 
 L'équipe Pexi
 
@@ -52,7 +52,7 @@ Pour que nous puissions vérifier, pourriez-vous nous indiquer :
 - le prix que vous avez vu, et celui que Pexi affichait;
 - si possible, une photo de l'étiquette sur la tablette.
 
-Dans l'application, vous pouvez aussi indiquer qu'un verdict était erroné en répondant à la question sur le verdict. Les prix changent souvent et nos données ne couvrent pas tout.
+Dans l'application, vous pouvez aussi toucher « Ça a l'air faux » sous la réponse, ou « Signaler un prix erroné » dans l'onglet Réglages. Les prix changent souvent et nos données ne couvrent pas tout.
 
 L'équipe Pexi
 
@@ -79,7 +79,7 @@ Hi [first name],
 Thanks for writing, and sorry for the trouble. Pexi Plus is tied to the Apple ID that bought it, so it can come back on a new phone, a reinstall or another device.
 
 1. On the phone where you want Plus, make sure it is signed in to the same Apple ID that bought the subscription (Settings, your name).
-2. Open Pexi, go to the You screen, tap Pexi Plus, then tap "Restore purchases". This is the action Apple calls Restore Purchases.
+2. Open Pexi, tap the X at the top of the camera, then the Settings tab, tap Pexi Plus, then tap "Restore purchases". This is the action Apple calls Restore Purchases.
 3. If it works, the Pexi Plus screen shows you as subscribed. If you see "No Pexi Plus subscription was found for this store account", that Apple ID did not buy Plus, so check which Apple ID you used.
 
 One thing to know: Plus is expected to be active on one phone at a time. If you restore on a new phone, the older phone may stop showing Plus, and you can restore there again if you go back to it.
@@ -106,7 +106,7 @@ Facts each reply rests on
 - Manage row: ui-strings.js:116 and :912 (FR); screens/you.js:383-388; URL plus-config.js:90-93.
 - Cancel, 24 hours, deleting app does not cancel: terms.html:63-64, terms-fr.html:63-64.
 - Refunds via Apple: docs/store/index.html:42.
-- Delete data: privacy.html:97 (You screen, Delete my data, prepares an email with the device identifier, deletion by hand), privacy.html:91 (app deletion does not delete server data); ui-strings.js:787-791 and :1453-1457; support email useshinapp@gmail.com.
+- Delete data: privacy.html:97 (You screen, Delete my data, prepares an email with the device identifier, deletion by hand), privacy.html:91 (app deletion does not delete server data); ui-strings.js:787-791 and :1453-1457; support email usepexiapp@gmail.com (useshinapp@gmail.com until 2026-11-22).
 - Wrong price: privacy.html:49 and :98 (in-app answer to the verdict question).
 - Store not covered: docs/store/listing.md:39 ("Coverage is limited"). No doc names the chains or regions Pexi knows well, so the reply names none.
 - RevenueCat app user ID = device id: docs/store/listing.md:84.
@@ -123,4 +123,11 @@ Could not verify
 - That the Delete my data email opens on a phone. privacy.html promises no deletion deadline, so none is stated.
 - Whether Quebec consumer law needs more in the French refund or cancel wording (success-11 lists F3 as open).
 - The French is my own Quebec French and needs a native read.
+
+Checked against the app 2026-11-24 (Aurik's PC), before his native read:
+- Every "écran Toi" / "You screen" is now the Réglages / Settings tab (d43f8dd, nav_you and you_title in ui-strings.js), reached by the X on the camera. "Réglages" is also the iPhone's own Settings app, so each reply now says which: "l'app Réglages de votre iPhone" or "l'onglet Réglages" in Pexi.
+- Mauvais prix names the real controls: cam_looks_wrong "Ça a l'air faux" and you_report "Signaler un prix erroné".
+- Support address: usepexiapp@gmail.com since 2026-11-22.
+- "prélèvement" became "achat" (more natural in Quebec for an App Store purchase).
+- Register: these replies say "vous", while the app says "tu" throughout (2026-11-21). Kept on purpose: a support email from a company is usually "vous" in Quebec, and a reply to an upset customer reads colder in "tu". Aurik's call on his read; switching is a mechanical pass.
 -->
