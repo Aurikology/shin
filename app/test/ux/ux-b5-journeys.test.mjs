@@ -162,33 +162,35 @@ test('J8 keep: Saved list to the last verdict of an item is 3 taps to see it and
   await app.tap('[data-act="cancel-scan"]', 'back to camera (setup)');
   assert.equal(app.state, 'idle');
   const base = app.taps;
-  await app.tap('[data-act="progress"]', 'the X, to Progress');
+  // Amended 2026-11-25 (Aurik, build 12): the camera's top-left is the Settings gear now, so Saved is
+  // gear, Progress (tab bar), Saved: +1 tap.
+  await app.tap('[data-act="you"]', 'the gear, to Settings');
+  await app.tap('[data-act="progress"]', 'Progress');
   await app.tap('[data-act="watchlist"]', 'Saved items');
   await app.tap('[data-open]', 'the saved row');
   const modal = app.find('[data-modal], .pmodal-card');
   assert.match(modal.textContent, /Kraft Dinner Original/, 'the last verdict does not name the item');
-  assert.equal(app.taps - base, 3, `J8 to see counted ${app.taps - base}, expected 3`);
+  assert.equal(app.taps - base, 4, `J8 to see counted ${app.taps - base}, expected 4`);
   await app.tap('[data-act="close-detail"]', 'Close');
   assert.equal(app.has('.pmodal-card'), false, 'Close did not close the view');
-  assert.equal(app.taps - base, 4, 'J8: the close is the 4th tap');
+  assert.equal(app.taps - base, 5, 'J8: the close is the 5th tap');
   app.stop();
 });
 
 /* ---------------------------------------------------------------- J10 */
 
 // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera. Settings is reached through Progress: +1 tap.
-test('J10 keep: changing the three thresholds is 5 taps: X, Settings, great, good, bad (pass: 5)', async () => {
+test('J10 keep: changing the three thresholds is 4 taps: the gear, great, good, bad (pass: 4)', async () => {
   const app = await launchReturning();
   const base = app.taps;
-  await app.tap('[data-act="progress"]', 'the X, to Progress');
-  await app.tap('[data-act="you"]', 'Settings');
+  await app.tap('[data-act="you"]', 'the gear, to Settings'); // Amended 2026-11-25: the gear opens Settings, -1 tap
   assert.equal(app.screen, 'you');
   const pick = (kind, val) => app.find(`[data-range-row="${kind}"] [data-range-val="${val}"]`);
   const before = app.all('[data-range-row] [aria-checked="true"]').map((e) => `${e.dataset.rangeKind}=${e.dataset.rangeVal}`);
   await app.tap(pick('great', 25), 'great 25');
   await app.tap(pick('good', 15), 'good 15');
   await app.tap(pick('bad', 25), 'bad 25');
-  assert.equal(app.taps - base, 5);
+  assert.equal(app.taps - base, 4);
   const after = app.all('[data-range-row] [aria-checked="true"]').map((e) => `${e.dataset.rangeKind}=${e.dataset.rangeVal}`);
   assert.deepEqual(after.sort(), ['bad=25', 'good=15', 'great=25'], `the three thresholds did not change as chosen (before ${before.join(',')})`);
   const { rangesOf } = await app.mod('lib/ranges.js');
@@ -214,8 +216,7 @@ test('J11 keep: at the free-scan limit the paywall opens with 0 taps beyond the 
 
 test('J11 after build 2 (replaces J11 TODAY, as it asked): the You screen has exactly one entry to the paywall, the Pexi Plus row', async () => {
   const app = await launchReturning();
-  await app.tap('[data-act="progress"]', 'the X, to Progress'); // Amended 2026-11-22
-  await app.tap('[data-act="you"]', 'Settings');
+  await app.tap('[data-act="you"]', 'the gear, to Settings'); // Amended 2026-11-25: the gear opens Settings
   const words = /pexi plus|restore purchases|subscribe|subscription|upgrade/i;
   const hits = app.all('button, a, [data-act]').filter((e) => words.test(e.textContent) || words.test(e.getAttribute('aria-label') ?? ''));
   assert.deepEqual(hits.map((h) => h.dataset.act), ['plus'], `the You screen's paywall entries are not exactly the one Pexi Plus row (${hits.map((h) => h.textContent.trim()).join('; ')})`);
@@ -223,14 +224,13 @@ test('J11 after build 2 (replaces J11 TODAY, as it asked): the You screen has ex
 });
 
 // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera. +1 tap through Progress.
-test('J11 target: reaching the paywall is 3 taps: X, Settings, then the Pexi Plus row (pass: 3)', async () => {
+test('J11 target: reaching the paywall is 2 taps: the gear, then the Pexi Plus row (pass: 2)', async () => {
   const app = await launchReturning();
-  await app.tap('[data-act="progress"]', 'the X, to Progress');
-  await app.tap('[data-act="you"]', 'Settings');
+  await app.tap('[data-act="you"]', 'the gear, to Settings'); // Amended 2026-11-25: the gear opens Settings, -1 tap
   const row = app.all('button, a, [data-act]').find((e) => /pexi plus/i.test(e.textContent));
   assert.ok(row, 'the You screen has no "Pexi Plus" row, so the paywall cannot be reached except at the scan limit');
   await app.tap(row, 'Pexi Plus row');
   assert.equal(app.screen, 'paywall');
-  assert.equal(app.taps, 3);
+  assert.equal(app.taps, 2);
   app.stop();
 });

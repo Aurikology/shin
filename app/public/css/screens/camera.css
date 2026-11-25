@@ -873,6 +873,9 @@
 /* R-40: the verdict's first position is sized by its content and capped at 60%, so the frozen
    picture of the product stays visible above it; the rest waits for a drag or the grabber. */
 .sheet.dist[data-detent="peek"] { max-height: 60%; }
+/* 2026-11-25 (Aurik, build 12: "a slight scroll"): a sheet whose only overflow is its own bottom
+   padding does not scroll (lib/sheet-fit.js decides). */
+.sheet.sheet-fits { overflow-y: hidden; }
 
 @keyframes rise { from { transform: translateY(100%); } to { transform: none; } }
 

@@ -70,6 +70,9 @@ import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
 import { pricePadDisplay, centsPadDisplay, padSeparator, padAmountHtml, keypadHtml, padCents, parsePadPrice } from './camera/pad.js';
 import { displayName, productLabel, categoryLineOf, candidateRow, answerName, captureNameFrom, humaniseTag } from './camera/names.js';
 import { thumbImg, backButton, grabber } from './camera/chrome.js';
+import { SETTINGS_ICON } from '../lib/pagebar.js';
+import { fitSheet } from '../lib/sheet-fit.js';
+import { dismissSheet } from '../lib/sheet-exit.js';
 import { isServerFault, isBusy, BUSY_RETRY_MS, BUSY_RETRIES, busySheet, needsConnectionSheet, serverFaultSheet } from './camera/trouble.js';
 export { isServerFault, isBusy, BUSY_RETRY_MS, BUSY_RETRIES, busySheet, needsConnectionSheet, serverFaultSheet };
 
@@ -2760,9 +2763,10 @@ export default {
              that opens How Pexi works. The torch moved to the bottom, beside the barcode button; the typed
              name is a mode in the strip above it. -->
         <div class="cam-top">
-          <button type="button" class="cam-round cam-close" data-act="progress" aria-label="${escapeHtml(t('cam_close'))}">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"
-                 stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          ${/* 2026-11-25 (Aurik, on build 12): "the settings page button is an x at the top left". The X read as
+               "close", and it led to Progress; it is now the Settings gear the tab bar uses, and opens Settings. */ ''}
+          <button type="button" class="cam-round cam-close" data-act="you" aria-label="${escapeHtml(t('nav_you'))}">
+            ${SETTINGS_ICON.replace('width="22" height="22"', 'width="20" height="20"')}
           </button>
           <span class="wordmark">pexi<i>.</i></span>
           <!-- 2026-11-21: the "Early access" badge is gone (Apple 2.2: betas belong on TestFlight); the banner still shows on a first visit (early-access.js). -->
@@ -2988,6 +2992,8 @@ export default {
     let scanFrame = null;
     /* A misread is waiting for a good reading (`onMisread`); when it runs out, the frame is read off the pack. */
     let misreadTimer = null;
+    /* A Save that added the item closes the sheet after its "Saved" acknowledgement (closeAfterSave). */
+    let saveCloseTimer = null;
     /* The frame a misread falls back to, held from `onMisread` until `catalogueLookup` sends it. */
     let misreadFrame = null;
     let coachKey = null;
@@ -5529,7 +5535,26 @@ export default {
       }
     }
 
+    /**
+     * Aurik, 2026-11-25, on build 12: "when you press save it, the price verdict screen should auto
+     * disappear but it doesn't". A Save that ADDS the item shows its acknowledgement (the pleased face,
+     * "Saved", one haptic) for SAVE_ACK_MS, then the sheet runs its normal exit and the camera is live
+     * again. An un-save stays put. Stopped by reset() and the teardown like every other timer here.
+     */
+    const SAVE_ACK_MS = 700;
+    function closeAfterSave() {
+      clearTimeout(saveCloseTimer);
+      saveCloseTimer = setTimeout(() => {
+        saveCloseTimer = null;
+        const sheet = slot.querySelector('.sheet');
+        if (!sheet || sheet.hasAttribute('data-leaving')) { reset(); return; }
+        dismissSheet(sheet, reset);
+      }, SAVE_ACK_MS);
+    }
+
     function reset() {
+      clearTimeout(saveCloseTimer);
+      saveCloseTimer = null;
       reviewNoteClose();
       // Leaving the type-it route with nothing submitted is an abandoned typed
       // search. That it happened is kept; the words are not (Jamin's App Store
@@ -6083,6 +6108,7 @@ export default {
         // R-1: one haptic when the answer becomes saved, none when it is un-saved.
         if (!wasSaved) { try { haptic('saved'); } catch (err) { reportHapticFault(err, 'saved'); } }
         mounted(`[data-act="${act}"]`);
+        if (!wasSaved) closeAfterSave(); else clearTimeout(saveCloseTimer);
         return;
       }
 
@@ -6229,6 +6255,7 @@ export default {
         // Same repaint-under-the-press as the modifier toggles: the save button
         // is a toggle, and the second press has to land on the same key.
         mounted('[data-act="watch"]');
+        if (!wasSaved) closeAfterSave();
         return;
       }
       /* D09 (2026-10-06): EVERY answer kind has a scan to rate, not only Gemini's.
@@ -7000,6 +7027,7 @@ export default {
      * the seller list are already open), and both are false.
      */
     function syncGrabber(sheet) {
+      fitSheet(sheet);
       const g = sheet.querySelector('button.grabber');
       if (!g) return;
       const at = clampDetent(sheet, sheet.dataset.detent || 'peek');
@@ -7161,6 +7189,7 @@ export default {
       // was open with no answer yet. Before `dead = true` and the rest of
       // teardown so `cam.dataset.state` is still whatever it was left in.
       trackScanAbandonedIfMidScan('left_screen');
+      clearTimeout(saveCloseTimer);
       dead = true;
       reviewPrompter.cancel();
       listeners.abort();
