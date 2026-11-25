@@ -103,7 +103,8 @@ export const STEPS = Object.freeze([
   { n: 1, id: 'welcome', kind: 'welcome' },
   { n: 2, id: 'promise', kind: 'info' },
   { n: 3, id: 'shops', kind: 'choice', key: 'shopTypes', multi: true,
-    options: ['supermarkets', 'bigbox', 'pharmacies', 'other'] },
+    /* Aurik 2026-11-25: kinds of shopping, not kinds of store ("Big Box Stores" said nothing). */
+    options: ['groceries', 'apparel', 'electronics', 'health', 'beauty'] },
   { n: 4, id: 'frequency', kind: 'choice', key: 'shopsPerWeek',
     options: ['occasional', 'regular', 'frequent'] },
   { n: 5, id: 'priority', kind: 'choice', key: 'priority',

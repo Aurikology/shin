@@ -386,15 +386,16 @@ test('a multiple-choice answer is saved to the store and to the events queue', a
   const r = render('shops');
   const group = { querySelectorAll: () => [] };
   const pick = (opt) => ({ '[data-opt]': { dataset: { opt }, parentElement: group } });
-  await r.click(pick('pharmacies'));
-  await r.click(pick('bigbox'));
+  // Amended 2026-11-25: the options are kinds of shopping now (Aurik), ids renamed.
+  await r.click(pick('health'));
+  await r.click(pick('apparel'));
   r.cleanup();
-  assert.deepEqual(store.get().onboarding.answers.shopTypes, ['bigbox', 'pharmacies']);
+  assert.deepEqual(store.get().onboarding.answers.shopTypes, ['apparel', 'health']);
   const events = trackedEvents('onboarding_answer').filter((e) => e.payload.key === 'shopTypes');
   assert.equal(events.length, 2);
-  assert.deepEqual(events.at(-1).payload.value, ['bigbox', 'pharmacies']);
-  await r.click(pick('bigbox'));
-  assert.deepEqual(store.get().onboarding.answers.shopTypes, ['pharmacies'], 'tapping again takes it off');
+  assert.deepEqual(events.at(-1).payload.value, ['apparel', 'health']);
+  await r.click(pick('apparel'));
+  assert.deepEqual(store.get().onboarding.answers.shopTypes, ['health'], 'tapping again takes it off');
 });
 
 test('a single choice is saved the moment it is tapped, not on Continue', async () => {
@@ -498,7 +499,7 @@ function seedFinishedUser() {
       skippedAt: null,
       step: 'tip_accuracy',
       answers: {
-        shopTypes: ['bigbox', 'pharmacies'], shopsPerWeek: 'regular', dealThresholdMode: 'percent',
+        shopTypes: ['apparel', 'health'], shopsPerWeek: 'regular', dealThresholdMode: 'percent',
         dealThreshold: 15, monthlyGoal: 250, planInterest: 'annual', locationAllowed: true,
       },
     },
@@ -577,7 +578,7 @@ test('a replay wipes and flips nothing: walking through leaves everything saved 
   assert.equal(snapshot(), before, 'the store changed during a replay nobody changed anything in');
   const s = store.get();
   assert.equal(s.lineUnderPct, 15);
-  assert.deepEqual(s.onboarding.answers.shopTypes, ['bigbox', 'pharmacies']);
+  assert.deepEqual(s.onboarding.answers.shopTypes, ['apparel', 'health']);
   assert.equal(s.onboarding.answers.dealThreshold, 15);
   assert.equal(s.onboarding.answers.monthlyGoal, 250);
   assert.equal(s.consent.location, true);
@@ -592,9 +593,9 @@ test('a replay wipes and flips nothing: walking through leaves everything saved 
 test('a replay shows what is saved, so tapping through changes nothing', () => {
   seedFinishedUser();
   const shops = render('shops', { replay: 1 });
-  assert.match(shops.html, /class="onb-opt on"[^>]*aria-checked="true"[^>]*data-opt="bigbox"/);
-  assert.match(shops.html, /class="onb-opt on"[^>]*aria-checked="true"[^>]*data-opt="pharmacies"/);
-  assert.ok(!/class="onb-opt on"[^>]*data-opt="supermarkets"/.test(shops.html));
+  assert.match(shops.html, /class="onb-opt on"[^>]*aria-checked="true"[^>]*data-opt="apparel"/);
+  assert.match(shops.html, /class="onb-opt on"[^>]*aria-checked="true"[^>]*data-opt="health"/);
+  assert.ok(!/class="onb-opt on"[^>]*data-opt="groceries"/.test(shops.html));
   shops.cleanup();
   const threshold = render('threshold', { replay: 1 });
   assert.match(threshold.html, /15% OFF/, 'the slider starts at the saved line, not at his recommended 20');
@@ -780,4 +781,19 @@ test('with no label, a name that already starts with the brand is not prefixed a
 test('a demo card never leaks a missing fact onto the screen', () => {
   const html = demoResultHtml({ demo: true, product: {} });
   assert.doesNotMatch(html, /undefined|null|NaN/);
+});
+
+/* Aurik, 2026-11-25, on the phone: "when it asks the user where do they typically shop, one of the
+   answers were big box stores. These should be the option. Groceries and everyday essentials,
+   apparel and footwear, electronics, health, beauty." */
+test('the shops step offers the five kinds of shopping, not kinds of store', async () => {
+  const step = STEPS.find((s) => s.id === 'shops');
+  assert.deepEqual(step.options, ['groceries', 'apparel', 'electronics', 'health', 'beauty']);
+  const { t } = await import('../public/js/ui-strings.js');
+  assert.equal(t('onb_shops_groceries'), 'Groceries & Everyday Essentials');
+  assert.equal(t('onb_shops_apparel'), 'Apparel & Footwear');
+  assert.equal(t('onb_shops_electronics'), 'Electronics');
+  assert.equal(t('onb_shops_health'), 'Health');
+  assert.equal(t('onb_shops_beauty'), 'Beauty');
+  assert.ok(!/Big Box/i.test(readFileSync(fileURLToPath(new URL('../public/js/onboarding-strings.js', import.meta.url)), 'utf8')));
 });

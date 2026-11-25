@@ -99,9 +99,9 @@ test('4. a question\'s Continue waits for an answer and opens on a pick; Skip th
   r.stop();
   const multi = render('shops');
   assert.equal(multi.cta.disabled, true);
-  await multi.clickOpt('supermarkets');
+  await multi.clickOpt('groceries');
   assert.equal(multi.cta.disabled, false);
-  await multi.clickOpt('supermarkets');
+  await multi.clickOpt('groceries');
   assert.equal(multi.cta.disabled, true, 'un-choosing the only shop left Continue open');
   multi.stop();
 });
