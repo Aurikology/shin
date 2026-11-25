@@ -217,3 +217,15 @@ test('Savings Overview is still a registered screen, and Settings sends the shop
   assert.doesNotMatch(you, /data-act="savings">/);
   assert.match(read('../public/js/lib/pagebar.js'), /item\('progress'/);
 });
+
+/* Aurik, 2026-11-25, on the phone: "in the settings tab the percentage and dollar amount tab is
+   not useful and will confuse new users instantly". Settings keeps the three ranges, in whatever
+   unit the welcome set; the unit question stays in the welcome and setup only. */
+test('Settings draws the three ranges with no Percentage / Dollar Amount toggle', () => {
+  resetStore();
+  const you = picker.rangePickerHtml(store.get(), 'you');
+  assert.ok(!/data-range-unit/.test(you), 'the unit toggle is still in Settings');
+  assert.ok(!you.includes(t('ranges_unit_q')), 'the "Measure them in" label is still in Settings');
+  for (const kind of ['great', 'good', 'bad']) assert.match(you, new RegExp(`data-range-row="${kind}"`));
+  assert.match(picker.rangePickerHtml(store.get(), 'setup'), /data-range-unit="amount"/, 'setup keeps its toggle');
+});

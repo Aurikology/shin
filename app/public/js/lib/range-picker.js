@@ -1,6 +1,6 @@
 /**
  * The user's price ranges as a control: a Percentage (%) or Dollar Amount ($)
- * toggle and three rows of choices, great, good and bad. One drawing shared by
+ * toggle (setup only, not Settings) and three rows of choices, great, good and bad. One drawing shared by
  * the setup screen and the You screen, because a second copy is a second copy
  * that goes stale (the same reason LINE_CHOICES lives in the store).
  *
@@ -50,10 +50,14 @@ export function rangePickerHtml(state, variant = 'setup') {
     <div class="${cls.row}" role="radiogroup" aria-labelledby="range-${kind}-q-${variant}" data-range-row="${kind}" data-unit="${r.unit}">
       ${rowOptions(cls, r.unit, kind, r[kind])}
     </div>`).join('');
-  return `
-    <div data-ranges="${variant}">
+  /* Aurik 2026-11-25: in Settings the Percentage / Dollar Amount toggle "is not useful and will
+     confuse new users instantly". Settings keeps the three ranges in the unit the welcome set;
+     the unit question is asked in the welcome and setup only. */
+  const unitBlock = variant === 'you' ? '' : `
       <p class="line-q" id="range-unit-q-${variant}">${escapeHtml(t('ranges_unit_q'))}</p>
-      <div class="${cls.row}" role="radiogroup" aria-labelledby="range-unit-q-${variant}" data-range-unitrow>${unitRow}</div>
+      <div class="${cls.row}" role="radiogroup" aria-labelledby="range-unit-q-${variant}" data-range-unitrow>${unitRow}</div>`;
+  return `
+    <div data-ranges="${variant}">${unitBlock}
       ${rows}
       <p class="fineprint" data-range-note>${escapeHtml(t(r.unit === 'amount' ? 'ranges_note_amount' : 'ranges_note'))}</p>
     </div>`;
