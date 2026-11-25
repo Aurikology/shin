@@ -65,7 +65,9 @@ export function chartSvg(points, currency) {
 }
 
 function vsLine(s) {
-  if (!s.buys || s.vsTypicalPct === null) return '';
+  /* 2026-11-25 (Aurik: "how much they have saved compared to the typical shopper"): shown from the
+     first visit, so the comparison is there before the first Bought mark says how to fill it. */
+  if (!s.buys || s.vsTypicalPct === null) return `<p class="prog-vs prog-vs-even">${escapeHtml(t('prog_vs_none'))}</p>`;
   const pct = Math.abs(s.vsTypicalPct);
   const key = s.vsTypicalPct < 0 ? 'prog_vs_less' : s.vsTypicalPct > 0 ? 'prog_vs_more' : 'prog_vs_even';
   const tone = s.vsTypicalPct < 0 ? 'good' : s.vsTypicalPct > 0 ? 'bad' : 'even';
@@ -121,6 +123,7 @@ export default {
             <p class="prog-card-sub">${escapeHtml(t('prog_under_sub', { n: String(s.buys) }))}</p>
           </section>
         </div>
+        ${vsLine(s)}
 
         <section class="prog-panel">
           <div class="prog-panel-top">
@@ -132,7 +135,6 @@ export default {
             ${Object.keys(RANGES).map((r) => `<button type="button" class="btn seg-o${r === range ? ' on' : ''}" role="radio"
                 aria-checked="${r === range}" data-range="${r}">${escapeHtml(t(`prog_range_${r}`))}</button>`).join('')}
           </div>
-          ${vsLine(s)}
         </section>
 
         <section class="block">

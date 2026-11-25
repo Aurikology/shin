@@ -2994,6 +2994,9 @@ export default {
     let misreadTimer = null;
     /* A Save that added the item closes the sheet after its "Saved" acknowledgement (closeAfterSave). */
     let saveCloseTimer = null;
+    /* The typed name's search, started when the name is submitted so it runs while the price is typed
+       (Aurik 2026-11-25: "make it faster when the use inputs the prices"). { text, promise } or null. */
+    let typedAhead = null;
     /* The frame a misread falls back to, held from `onMisread` until `catalogueLookup` sends it. */
     let misreadFrame = null;
     let coachKey = null;
@@ -3984,6 +3987,11 @@ export default {
      */
     function askPriceFirst(pending) {
       scanShelfCents = null;
+      /* The name is known before the price: ask the catalogue now, so the "which one" list is ready
+         when the price is confirmed instead of starting then (~365 ms on the PC, more on a phone). */
+      typedAhead = pending.kind === 'text'
+        ? { text: pending.text, promise: Promise.resolve().then(() => ctx.api.search({ text: pending.text, limit: 3 })).catch(() => null) }
+        : null;
       /* R-36: a barcode pad names the item when it can. `pending.label` is a name
          already in hand (a suggestion or a pick); otherwise the lookup started at
          capture (`nameCapturedCode`) may have answered by now. Neither: the digits,
@@ -5555,6 +5563,7 @@ export default {
     function reset() {
       clearTimeout(saveCloseTimer);
       saveCloseTimer = null;
+      typedAhead = null;
       reviewNoteClose();
       // Leaving the type-it route with nothing submitted is an abandoned typed
       // search. That it happened is kept; the words are not (Jamin's App Store
@@ -6414,8 +6423,10 @@ export default {
        */
       if (!skipPicks) {
         let found = null;
+        const ahead = typedAhead?.text === text ? typedAhead.promise : null;
+        typedAhead = null;
         try {
-          found = await ctx.api.search({ text, limit: 3 });
+          found = await (ahead ?? ctx.api.search({ text, limit: 3 }));
         } catch {
           found = null;
         }
