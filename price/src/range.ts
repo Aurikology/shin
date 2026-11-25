@@ -436,27 +436,16 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
  */
 export function fileStamp(db: DatabaseSync | null | undefined): string | null {
   if (!db) return 'none';
-  let file: string | null;
-  try {
-    file = db.location();
-  } catch {
-    return null;
-  }
+  // A closed handle is never cached (location() would throw); a missing file is an answer, not an error.
+  if (!db.isOpen) return null;
+  const file = db.location();
   if (!file) return null;
-  try {
-    const main = statSync(file);
-    let wal = '';
-    try {
-      const w = statSync(`${file}-wal`);
-      // An empty log holds nothing: the first read creates one, and must not count as a change.
-      wal = w.size === 0 ? '-' : `${w.size}:${w.mtimeMs}`;
-    } catch {
-      wal = '-';
-    }
-    return `${file}|${main.size}:${main.mtimeMs}|${wal}`;
-  } catch {
-    return null;
-  }
+  const main = statSync(file, { throwIfNoEntry: false });
+  if (!main) return null;
+  const w = statSync(`${file}-wal`, { throwIfNoEntry: false });
+  // An empty log holds nothing: the first read creates one, and must not count as a change.
+  const wal = !w || w.size === 0 ? '-' : `${w.size}:${w.mtimeMs}`;
+  return `${file}|${main.size}:${main.mtimeMs}|${wal}`;
 }
 
 /*

@@ -295,7 +295,7 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   assert.equal(row.estimate_zone, v.shopper.zone);
   assert.equal(row.estimate_centre_cents, v.centreCents);
   // Shadow cross-border (D-280 probe C): logged on the scan row from the USD price, never in the response.
-  assert.deepEqual(JSON.parse(row.estimate_cross_border), {
+  assert.deepEqual(JSON.parse(row.estimate_cross_border as string), {
     fromCurrency: 'USD', n: 1, medianOtherCents: 1800, lowCents: 1494, highCents: 3060, ratioSource: 'probe-c-2026-11-25',
   });
   assert.ok(!JSON.stringify(body).includes('crossBorder'), 'the shadow range reached the shopper');
