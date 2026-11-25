@@ -367,6 +367,8 @@ export interface CatalogueRecord {
   readonly verdict: Verdict | null;
   /** Design case 9: the catalogue and the store row disagree on size; the caller logs it. */
   readonly conflict: EstimateTrace['conflict'];
+  /** SHADOW (D-280 probe C): the estimate's cross-border range, written on the scan row, never shown. */
+  readonly crossBorder?: EstimateTrace['crossBorder'];
   /**
    * Category faults the serve-time check found on this answer (category-guard.ts).
    * Present only when there are some; absent means none were found OR the check
@@ -1284,6 +1286,7 @@ async function priceIdentity(
       rangeMissReason,
       verdict,
       conflict,
+      ...(est?.trace.crossBorder ? { crossBorder: est.trace.crossBorder } : {}),
       ...(categoryFaults.length > 0 ? { categoryFaults } : {}),
     },
   };

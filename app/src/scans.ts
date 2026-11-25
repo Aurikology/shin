@@ -353,6 +353,8 @@ export interface ScanInput {
   readonly estimateZone?: string | null;
   readonly estimateCentreCents?: number | null;
   readonly estimateSigmaLog?: number | null;
+  /** Migration 24, SHADOW (D-280 probe C): the cross-border range the estimate computed, as JSON; never shown. */
+  readonly estimateCrossBorder?: string | null;
   /** D-235: the rung and the zone of the verdict the sheet showed, written at insert (null when none was shown). */
   readonly verdictTier?: string | null;
   readonly verdictZone?: string | null;
@@ -841,11 +843,11 @@ export function recordScan(input: ScanInput): number | null {
         `INSERT INTO scan (device_id, kind, query_text, resolved_code, resolved_label, confidence, source, outcome, failure_class, corrected_code, scanned_at, category,
                            model_json, model_cost_cents, app_version, platform, latency_ms, cell, store_id, store_name, exact_lat, exact_lon, exact_accuracy, exact_at, user_id, is_demo, scan_category,
                            answer_path, range_source, range_basis, range_miss_reason, match_lines, match_candidates, match_price_read,
-                           estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log,
+                           estimate_basis, estimate_confidence, estimate_zone, estimate_centre_cents, estimate_sigma_log, estimate_cross_border,
                            verdict_tier, verdict_zone,
                            country, currency,
                            consent_photos, consent_location)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                  COALESCE((SELECT photos FROM consent WHERE device_id = ?), 0),
                  COALESCE((SELECT location FROM consent WHERE device_id = ?), 0))`,
       )
@@ -884,6 +886,7 @@ export function recordScan(input: ScanInput): number | null {
         input.estimateZone ?? null,
         input.estimateCentreCents ?? null,
         input.estimateSigmaLog ?? null,
+        input.estimateCrossBorder ?? null,
         input.verdictTier ?? null,
         input.verdictZone ?? null,
         input.country ?? null,

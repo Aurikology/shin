@@ -404,6 +404,20 @@ export interface EstimateTrace {
    * a fault: data is missing. Null otherwise.
    */
   readonly noPrices: { readonly why: string } | null;
+  /**
+   * SHADOW (D-280 probe C): this barcode's own regular prices in the other of USD/CAD, and the range they imply
+   * here (median x the probe's p10 and p90 ratios). Recorded beside the answer, never shown, never in the verdict.
+   * Null with no barcode, no such prices, or a currency other than USD and CAD.
+   */
+  readonly crossBorder?: {
+    readonly fromCurrency: 'USD' | 'CAD';
+    /** Shops (one latest regular price each) behind the median. */
+    readonly n: number;
+    readonly medianOtherCents: number;
+    readonly lowCents: number;
+    readonly highCents: number;
+    readonly ratioSource: string;
+  } | null;
 }
 
 export interface EstimateResult {
@@ -499,7 +513,7 @@ function sizeFromName(name: string | null): { q: ComparisonQuantity; text: strin
   return q ? { q, text: f.matchedText } : null;
 }
 
-function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
+function readRows(db: DatabaseSync, currency: string, asOf: string, codes?: readonly string[]): Row[] {
   const have = new Set((db.prepare('PRAGMA table_info(observation)').all() as { name: string }[]).map((c) => c.name));
   const col = (name: string) => (have.has(name) ? name : `NULL AS ${name}`);
   const rows = db
@@ -508,9 +522,9 @@ function readRows(db: DatabaseSync, currency: string, asOf: string): Row[] {
               kind, ${col('is_sale')}, region, ${col('store_name')}, ${col('store_city')}, ${col('store_osm')}, seen_on, url,
               ${col('parsed_size')}, ${col('parsed_brand')}, ${col('store_category')}, ${col('capture_tile_id')}, ${col('price_verified')},
               ${col('join_method')}, ${col('in_stock')}, ${col('seen_on_unknown')}
-         FROM observation WHERE currency = ?`,
+         FROM observation WHERE currency = ?${codes ? ` AND code IN (${codes.map(() => '?').join(',')})` : ''}`,
     )
-    .all(currency) as Record<string, unknown>[];
+    .all(currency, ...(codes ?? [])) as Record<string, unknown>[];
   const out: Row[] = [];
   for (const r of rows) {
     const price = posInt(r.price_cents);
@@ -668,6 +682,66 @@ function latestPerShop<T extends { shop: string; seenOn: string; cents: number; 
 function medianOf(values: readonly number[]): number {
   const s = [...values].sort((a, b) => a - b);
   return s[nearestRankIndex(s.length, 50)]!;
+}
+
+/**
+ * The rows that are this barcode's own prices (no printout rows), with the D-267 name-join rule: where rows
+ * joined by the barcode itself exist, a name-joined row counts only when it agrees with them (NAME_JOIN_AGREE).
+ */
+function ownRowsOf(rows: readonly Row[], selfKey: string): Row[] {
+  const ownAny = rows.filter((r) => r.key === selfKey && !r.printout);
+  const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
+  const barcodeMid = ownByBarcode.length > 0 ? medianOf(ownByBarcode.map((r) => Math.log(r.cents))) : null;
+  return barcodeMid === null
+    ? ownAny
+    : ownAny.filter((r) => !r.nameJoined || Math.abs(Math.log(r.cents) - barcodeMid) <= Math.log(NAME_JOIN_AGREE));
+}
+
+/**
+ * SHADOW cross-border range (D-280 probe C, Mac, 2026-11-25): for 808 barcodes priced in both USD and CAD, the
+ * ratio CAD/USD of each barcode's median regular price had median 1.22, p10 0.83, p90 1.70 (train half, n=394).
+ * Predicting one currency's price as the other's median x [0.83, 1.70] (CAD to USD: divided by [1.70, 0.83])
+ * hit the true price 83-86% of the time at width 2.04, against the live path's 48% (US to CA) and 39% (CA to US)
+ * at width 3.01. Recorded beside live answers; never shown, never read by the verdict.
+ */
+export const CROSS_BORDER_RATIO_LOW = 0.83;
+export const CROSS_BORDER_RATIO_HIGH = 1.7;
+export const CROSS_BORDER_SOURCE = 'probe-c-2026-11-25';
+/** Only prices this old or newer (days, the range card's window) count: the own-price rung's "fresh" shops. */
+export const CROSS_BORDER_WINDOW_DAYS = WINDOW_DAYS;
+
+/**
+ * Reads the rows of ONE barcode in one currency: an indexed lookup on `observation(code, seen_on)`, a few rows,
+ * never the currency's whole table. Rows carrying the barcode only as `page_gtin` (no `code`) are not read: that
+ * column has no index.
+ */
+function readRowsForCode(db: DatabaseSync, currency: string, asOf: string, barcode: string): Row[] {
+  return readRows(db, currency, asOf, spellings(barcode));
+}
+
+/** One price per shop (latest, regular, in window), in the other of USD/CAD: the item's own prices there. */
+function crossBorderOf(
+  item: { currency: string; barcode: string | null; asOf: string },
+  prices: DatabaseSync | undefined | null,
+): EstimateTrace['crossBorder'] {
+  const other = item.currency === 'CAD' ? 'USD' : item.currency === 'USD' ? 'CAD' : null;
+  if (!other || !item.barcode || !prices) return null;
+  const selfKey = codeKey(item.barcode);
+  const own = ownRowsOf(readRowsForCode(prices, other, item.asOf, item.barcode), selfKey).filter((r) => !r.sale);
+  const shops = latestPerShop(own).filter((s) => s.age <= CROSS_BORDER_WINDOW_DAYS);
+  if (shops.length === 0) return null;
+  const medianOtherCents = medianOf(shops.map((s) => s.cents));
+  // Other = USD, item = CAD: CAD = USD x [0.83, 1.70]. Other = CAD, item = USD: USD = CAD / [1.70, 0.83]. Rounded to whole cents.
+  const lo = other === 'USD' ? medianOtherCents * CROSS_BORDER_RATIO_LOW : medianOtherCents / CROSS_BORDER_RATIO_HIGH;
+  const hi = other === 'USD' ? medianOtherCents * CROSS_BORDER_RATIO_HIGH : medianOtherCents / CROSS_BORDER_RATIO_LOW;
+  return {
+    fromCurrency: other,
+    n: shops.length,
+    medianOtherCents,
+    lowCents: Math.max(1, Math.round(lo)),
+    highCents: Math.max(1, Math.round(hi)),
+    ratioSource: CROSS_BORDER_SOURCE,
+  };
 }
 
 function buildProducts(
@@ -1222,13 +1296,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       /* a broken shopper store is no voice: the answer goes on from the shops' prices */
     }
   }
-  const ownAny = selfKey ? rows.filter((r) => r.key === selfKey && !r.printout) : [];
-  const ownByBarcode = ownAny.filter((r) => !r.nameJoined);
-  const barcodeMid = ownByBarcode.length > 0 ? medianOf(ownByBarcode.map((r) => Math.log(r.cents))) : null;
-  let ownAll =
-    barcodeMid === null
-      ? ownAny
-      : ownAny.filter((r) => !r.nameJoined || Math.abs(Math.log(r.cents) - barcodeMid) <= Math.log(NAME_JOIN_AGREE));
+  let ownAll = selfKey ? ownRowsOf(rows, selfKey) : [];
   const ownNewest = [...ownAll].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0))[0] ?? null;
 
   /* ---- identity: the catalogue first, else the store's own product name (design case 2) */
@@ -1832,9 +1900,16 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     thresholds,
     notes: [...notes],
   };
+  // SHADOW (D-280 probe C): computed last, from its own indexed read, and kept out of everything above.
+  let crossBorder: EstimateTrace['crossBorder'] = null;
+  try {
+    crossBorder = crossBorderOf({ currency, barcode, asOf: item.asOf }, deps.prices);
+  } catch {
+    crossBorder = null;
+  }
   return {
     verdict,
-    trace: { tried, claude: claudeTrace, conflict, sorted, nationalAverage: national, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices },
+    trace: { tried, claude: claudeTrace, conflict, sorted, nationalAverage: national, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices, crossBorder },
   };
 }
 

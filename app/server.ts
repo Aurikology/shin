@@ -1967,6 +1967,7 @@ function finishCatalogueScan(s: {
     rangeBasis: record.rangeBasis,
     rangeMissReason: record.rangeMissReason,
     ...verdictRecord(record.verdict),
+    estimateCrossBorder: record.crossBorder ? JSON.stringify(record.crossBorder) : null,
     appVersion: s.telemetry.appVersion,
     platform: s.telemetry.platform,
     latencyMs: ms,

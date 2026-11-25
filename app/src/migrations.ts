@@ -957,6 +957,14 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'currency', 'TEXT');
     },
   },
+  {
+    version: 24,
+    name: 'a scan records the shadow cross-border price range the estimate computed (D-280 probe C), never shown',
+    apply(db) {
+      /* JSON text of price/src/estimate.ts EstimateTrace.crossBorder; NULL when there was none and on every older scan. */
+      addColumnIfMissing(db, 'scan', 'estimate_cross_border', 'TEXT');
+    },
+  },
 ];
 
 /**

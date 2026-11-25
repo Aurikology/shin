@@ -121,6 +121,12 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
       basePriceCents: null,
     });
   price(OWN, 'bcldb', 2400, 'OWN VODKA 750 ML');
+  // SHADOW cross-border (D-280 probe C): the same barcode priced in USD. It changes no CAD answer, only the scan row's estimate_cross_border.
+  recordObservation(prices, {
+    code: OWN, seller: 'usshop', sellerSku: 'SKU-US-1', sellerName: 'OWN VODKA 750 ML', sellerBrand: null, priceCents: 1800, kind: 'regular',
+    unitPriceCents: null, unitLabel: null, currency: 'USD', country: 'US', region: null, joinMethod: 'gtin', seenOn: today, url: null,
+    imageUrl: null, inStock: null, storeName: 'usshop store', storeCity: 'Seattle', basePriceCents: null,
+  });
   [2000, 2200, 2500, 2800, 3000].forEach((c, i) => price(VODKAS[i]!, `shop${i}`, c));
   price(STORE_ONLY, 'bcldb', 2600, 'Vodka Number 750 ml');
   [300, 320, 340, 360, 380, 400].forEach((c, i) => price(POOL_OTHERS[i]!, `snack${i}`, c));
@@ -288,6 +294,11 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   assert.equal(row.estimate_confidence, 'low');
   assert.equal(row.estimate_zone, v.shopper.zone);
   assert.equal(row.estimate_centre_cents, v.centreCents);
+  // Shadow cross-border (D-280 probe C): logged on the scan row from the USD price, never in the response.
+  assert.deepEqual(JSON.parse(row.estimate_cross_border), {
+    fromCurrency: 'USD', n: 1, medianOtherCents: 1800, lowCents: 1494, highCents: 3060, ratioSource: 'probe-c-2026-11-25',
+  });
+  assert.ok(!JSON.stringify(body).includes('crossBorder'), 'the shadow range reached the shopper');
   assert.equal(row.estimate_sigma_log, v.sigmaLog);
 });
 
