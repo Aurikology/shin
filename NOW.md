@@ -40,6 +40,11 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
+- **Build 12, 2026-11-24 19:20 EST: VALID, in TestFlight's "Family and team"** (from bad2d1f: build 11
+  plus the price pad contrast fix 5176dec; delivery a63259f2-cd2d-4e2b-8a1a-e9d865348c71). .ipa
+  37.7 MB, 6.4 MB under build 11: the Mac's untracked efficientdet_lite0.tflite was absent this run,
+  which only photo scans read (off for 1.0, eye-attach.js), so nothing a shopper uses changed.
+  **Build 12 is the one to install.**
 - **Builds, 2026-11-24:** **build 11 is uploaded to TestFlight** (from 6949171, which carries
   2ee048c; CFBundleVersion 11 read from the archive; .ipa 44.1 MB; delivery
   37ac9f73-b444-4cf0-be63-a54af8b98a31; Apple was still processing it at 13:10 EST). It is the
