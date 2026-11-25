@@ -40,13 +40,19 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
-- **Builds, 2026-11-23 (Aurik's PC):** the last iPhone build made is **10** (8bddd20, 11-18); the
-  11, 12 and 13 asks were never read, and the Xcode project still says 10. One ask replaces them:
-  `comms/messages/2026-11-23-aurik-to-mac-build-11-from-2ee048c.md`, waiting on a Mac session.
-  An Android debug build of 2ee048c's code was walked on the PC emulator (kore_api36) against the
-  live server: one defect found and fixed (D-277, the Location switch); Android-only findings went
-  to Jamin. Nothing since build 9 seen on an iPhone. Building Android here needs JDK 21
-  (portable, `C:\dev\jdk-21.0.13.1+2`) and `npm ci` in `native/` first.
+- **Builds, 2026-11-24:** **build 11 is uploaded to TestFlight** (from 6949171, which carries
+  2ee048c; CFBundleVersion 11 read from the archive; .ipa 44.1 MB; delivery
+  37ac9f73-b444-4cf0-be63-a54af8b98a31; Apple was still processing it at 13:10 EST). It is the
+  first build with everything since 10: R79 restore, D-275, D-276 (photo engine left out), the
+  haptics and walkthrough, the five-screen welcome, the Progress tab, the camera redesign and D-277.
+  Build 10's size was never recorded, so D-276's saving on the phone is unmeasured. Nothing since
+  build 9 has been seen on an iPhone: build 11 is the one to install. Building Android here needs
+  JDK 21 (portable, `C:\dev\jdk-21.0.13.1+2`) and `npm ci` in `native/` first.
+
+- **Accessibility, 2026-11-24 (Aurik's PC, R80 desk half):** `scripts/a11y-sweep.mjs` (axe-core
+  plus a pixel contrast check, 16 states at iPhone 13 size) gives 0 problems on 5176dec. Its one
+  finding, the price pad's faint 0.00 at 1.88:1, was fixed in 5176dec. The VoiceOver pass on a
+  phone is still R80's open half.
 
 - **2026-11-21 launch review (Jamin's PC):** not ready to submit; result and per-job findings in
   `docs/readiness/review-2026-11-21/REPORT.md`, phone checklist beside it.
