@@ -142,7 +142,15 @@ and restore → 4 crash reports → 12 screenshots (21 included) → 9 torch.
     created (item 3b). Old text:
     **[Jamin] Known wrong cached answer for barcode 0068100084245 still in both caches** (QUEUE
     7.19). From notes.
-12. **[Aurik] Screenshots: 0 uploaded on every size.** Checked. iPhone 6.9" and iPad 13" (iPad
+12. **[Aurik] Screenshots: 0 uploaded on every size.** **2026-11-24 (Aurik's PC): RECAPTURED for
+    build 10+ screens, in the caption order of docs/store/listing.md** (verdict "Great price" at
+    Loblaws' real $4.99 sale price, the range chart with the shop list, typed search, price ranges,
+    Saved; the paywall for the purchase review), iPhone 6.9" and 6.3" and iPad 13", each checked
+    for Apple's pixel size by `scripts/appstore-screenshots.cjs`, which now routes every request
+    through a write guard (the typed price is stripped before it leaves; scan-price is never sent).
+    **To upload (Jamin's account):** replace the 5 shots uploaded 2026-11-09 (old screens: the
+    camera, a Skip answer, You) with 01 to 05, and add the captions from listing.md. Older text:
+    Checked. iPhone 6.9" and iPad 13" (iPad
     simulator renders the app, reported; iPhone simulator has no Pexi installed), plus one Plus
     screen shot for each subscription's review (21).
     **iPhone DONE 2026-11-09 (Jamin's PC, taken over on his "do this"):** 5 shots captured from
