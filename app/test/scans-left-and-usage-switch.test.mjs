@@ -19,7 +19,6 @@ installBrowser({ doc, storage });
 
 const read = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8').replace(/\r\n/g, '\n');
 const { scansLeftLine, mountScansLeft, WARN_AT } = await import('../public/js/scans-left.js');
-const usage = await import('../public/js/usage-setting.js');
 const { track } = await import('../public/js/track.js');
 
 /* ------------------------------------------------------------------ 4. scans left */
@@ -67,24 +66,8 @@ test('4. a barcode scan that was answered tells the app a scan was counted; a pr
 
 const queued = () => JSON.parse(storage.getItem('shin.track.queue') ?? '[]');
 
-test('6. usage sharing is on by default and track() queues events', () => {
-  assert.equal(usage.usageSharingOn(), true);
+/* 2026-11-25: the "Share usage data" switch is gone (one document, accepted once, no off switches). */
+test('6. track() always queues events: usage recording is part of using Pexi', () => {
   track('probe_on', {});
   assert.ok(queued().some((e) => e.type === 'probe_on'));
-});
-
-test('6. switched off: what was queued is dropped and nothing new is queued', () => {
-  assert.equal(usage.setUsageSharing(false), false);
-  assert.equal(usage.usageSharingOn(), false);
-  assert.deepEqual(queued(), [], 'the queue was emptied');
-  track('probe_off', {});
-  assert.deepEqual(queued(), [], 'an event was queued with sharing off');
-  assert.equal(storage.getItem(usage.USAGE_OFF_KEY), '1', 'the choice is remembered');
-});
-
-test('6. switched back on, events are queued again', () => {
-  assert.equal(usage.setUsageSharing(true), true);
-  track('probe_back', {});
-  assert.ok(queued().some((e) => e.type === 'probe_back'));
-  assert.equal(storage.getItem(usage.USAGE_OFF_KEY), null);
 });

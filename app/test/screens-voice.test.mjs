@@ -393,11 +393,6 @@ const ALLOWED = [
     text: 'Does not change a verdict yet. Recorded for when it does.',
     why: 'Caption under the list. A fact about the engine, deliberately written with no subject so it is not a promise from Pexi.',
   },
-  {
-    file: 'market.js',
-    text: 'Prices and product details come from open data. See the sources and licences.',
-    why: 'Button text. It is a control, and the second sentence is what the tap does.',
-  },
 
   /* --- you.js --- */
   {
@@ -436,23 +431,6 @@ const ALLOWED = [
     file: 'removed.js',
     text: 'Removed',
     why: 'The count label on a row, completed by the two dates interpolated after it. Structural, and it carries no sentence.',
-  },
-
-  /* --- licences.js --- */
-  {
-    file: 'licences.js',
-    text: 'This app is built on open data from Open Food Facts, Open Prices, OpenStreetMap and Open Icecat. The full list, with each licence, is what failed to load.',
-    why: 'The fallback credit under the failure line. It names sources, which is the legal statement this screen exists to make, and the statement may not vary with an attitude.',
-  },
-  {
-    file: 'licences.js',
-    text: 'Product details, prices and store names in this app are open data, collected and published by other people. Each source below sets its own terms for reuse, and this is the credit those terms ask for.',
-    why: 'The attribution intro. Same reasoning: a licence statement, fixed wording on purpose.',
-  },
-  {
-    file: 'licences.js',
-    text: 'Pexi is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
-    why: 'The attribution footer, and a disclaimer. It names Pexi in the third person, which is what a disclaimer about Pexi has to do.',
   },
 
   /* --- camera.js, another lane's file this pass --- */
@@ -617,15 +595,13 @@ const NOT_SHOWN = [
    * because the day a screen registers a title with no titleKey beside it is
    * the day this list stops matching and somebody has to look. --- */
   { file: 'camera.js', text: 'Pexi', why: 'The camera\'s registered title, and it is the app name: titleFor() in router.js has the reasoning for why this screen is titled after the app rather than after itself.' },
-  { file: 'consent.js', text: 'Your data', why: 'The registered title. consent_title is what the tab and the announcement print; this literal is the screen\'s name in the source.' },
   { file: 'onboarding.js', text: 'Welcome', why: 'The registered title, translated through onb_title. Same split as every other screen.' },
   { file: 'permissions.js', text: 'Permissions', why: 'The registered title, translated through perm_title. Same split as every other screen.' },
   { file: 'progress.js', text: 'Progress', why: 'The registered title of the Progress tab (2026-11-22), translated through prog_title. Same split as every other screen.' },
   { file: 'guide.js', text: 'How Pexi works', why: 'The registered title of the new-user walkthrough (2026-11-22), translated through guide_title. Same split as every other screen.' },
   { file: 'correct.js', text: 'Report a wrong price', why: 'The registered title, translated through correct_title. Same split as every other screen.' },
-  { file: 'licences.js', text: 'Where this comes from', why: 'The registered title, translated through lic_kicker. Same split.' },
   { file: 'market.js', text: 'Where do you shop?', why: 'The registered title, translated through market_title. Same split.' },
-  { file: 'agree.js', text: 'Before you start', why: 'The registered title, translated through agree_title. Same split.' },
+  { file: 'agree.js', text: 'Terms, Privacy and Data', why: 'The registered title, translated through legal_title. Same split.' },
   { file: 'paywall.js', text: 'Pexi Plus', why: 'The registered title, translated through paywall_title. Same split.' },
   { file: 'pastscans.js', text: 'Past scans', why: 'The registered title, translated through past_scans. Same split.' },
   { file: 'removed.js', text: 'Recently removed', why: 'The registered title, translated through removed_title. Same split.' },
@@ -737,7 +713,6 @@ test('the lines this pass migrated are keys in voice.js', async () => {
     'watchlist_loading', 'watchlist_failed',
     'pastscans_loading', 'pastscans_failed',
     'removed_loading', 'removed_failed',
-    'licences_loading', 'licences_failed',
     // 'read_only_note' left this list 2026-10-10: the reopened-answer note was removed from every modal (top-of-screen audit row 29).
   ];
   for (const key of keys) {

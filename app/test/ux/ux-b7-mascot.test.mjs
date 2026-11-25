@@ -136,10 +136,9 @@ const LIMIT_SENTENCES = 2;
  * held to 12 words and 2 sentences in every voice. Each entry names why it cannot be cut, and a stale entry fails the
  * next test, so this list can only shrink or be argued for in a diff.
  */
-const FINE_PRINT_EXEMPT = {
-  cam_privacy_line: 'privacy disclosure shown once at the camera: it states what a scan sends (the frame, always) and what is kept '
-    + '(with Photos on, or for a barcode read), and cutting it to twelve words drops one of the facts the shopper is agreeing to',
-};
+/* 2026-11-25: cam_privacy_line, the one entry, left voice.js with the one-document change (what a scan sends
+   is said in the Terms, Privacy and Data document, not on the camera), so the list is empty. */
+const FINE_PRINT_EXEMPT = {};
 const SPOKEN_KEYS = BUBBLE_KEYS.filter((k) => !(k in FINE_PRINT_EXEMPT));
 
 test('R-61 (control): every fine-print exemption still names a real key that is still over the limit (a stale entry fails)', () => {

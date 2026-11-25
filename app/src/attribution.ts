@@ -60,6 +60,8 @@
  * a licence rather than honour one.
  */
 
+import { SHOPPER_SOURCES } from '../public/js/legal/sources.js';
+
 export interface AttributionEntry {
   readonly name: string;
   readonly what: string;
@@ -200,53 +202,14 @@ export const ATTRIBUTION: readonly AttributionEntry[] = [
  * by key; a source that is in neither SHOPPER_WORDS nor WITHHELD fails the test,
  * so a new source cannot silently vanish from the screen. To show one again,
  * move it into SHOPPER_WORDS with its own plain words.
+ *
+ * SINCE 2026-11-25 THE WORDS LIVE IN public/js/legal/sources.js (SHOPPER_SOURCES), the one list the
+ * in-app "Terms, Privacy and Data" document, the hosted pages and this route all print. SHOPPER_WORDS
+ * is that list keyed for the tests; add a source's plain words there, not here.
  */
-export const SHOPPER_WORDS: Readonly<Record<string, { readonly what: string; readonly licence: string }>> = {
-  openfoodfacts: {
-    what: 'Product names, sizes and allergens for 121,949 grocery products, all listed as sold in Canada (counted October 2026). Contains information from Open Food Facts contributors.',
-    licence: 'Open Database License (ODbL)',
-  },
-  openbeautyfacts: {
-    what: 'The non-grocery slice of the catalogue: cosmetics, pet food and general products, 88,182 products combined, 1,700 of them listed as sold in Canada (counted October 2026). Contains information from the contributors to these databases.',
-    licence: 'Open Database License (ODbL)',
-  },
-  openprices: {
-    what: 'Shelf prices photographed and submitted by contributors: 874 price observations, 417 distinct barcodes, seen from February 2020 to August 2026 (counted October 2026).',
-    licence: 'Open Database License (ODbL)',
-  },
-  openstreetmap: {
-    what: 'Shop names and cities for the 88 OpenStreetMap places, under 46 distinct store names, that the Open Prices observations were made at, and the nearby-shop list the app builds from OpenStreetMap when you allow location (counted October 2026). Map data from OpenStreetMap contributors.',
-    licence: 'Open Database License (ODbL), credit: OpenStreetMap contributors',
-  },
-  icecat: {
-    what: 'The electronics and general product catalogue, 3,596,403 products, 296,300 of them listed for the Canadian market (counted October 2026). Database Right data-sheet 2026 Icecat. All rights reserved. Provided AS IS, without warranty.',
-    licence: 'Icecat Open Content License Agreement and fair use policy',
-  },
-  usda: {
-    what: 'Branded food names, sizes and ingredients for 429,593 products from the December 2025 release, 22 of them listed as sold in Canada (counted October 2026). Source: U.S. Department of Agriculture, Agricultural Research Service, FoodData Central, fdc.nal.usda.gov.',
-    licence: 'CC0 1.0 Universal (public domain); USDA asks to be cited',
-  },
-  bcldb: {
-    what: 'Barcodes, product names and pre-tax prices from the June 2026 BC liquor store price list: 7,556 price observations, 7,555 distinct barcodes (counted October 2026). Contains information licensed under the Open Government Licence - British Columbia.',
-    licence: 'Open Government Licence - British Columbia',
-  },
-  statcan: {
-    what: 'Monthly average retail prices for 110 everyday products, by province, from table 18-10-0245-01 (newest month September 2026, counted November 2026). Used, adjusted to regular shelf prices, as a guide for an everyday staple when we have no store price for it. Source: Statistics Canada. Table 18-10-0245-01 Monthly average retail prices for selected products. Contains information licensed under the Open Government Licence - Canada.',
-    licence: 'Open Government Licence - Canada',
-  },
-  hammer: {
-    what: 'Shelf prices from nine Canadian grocers (Loblaws, No Frills, Metro, Walmart, Save-On-Foods, Sobeys, Voila, T&T, and Galleria), collected by Project Hammer for one Toronto neighbourhood: 98,918 price observations, 47,404 distinct barcodes, most seen in 2026 (counted November 2026). Data from Project Hammer by Jacob Filipp.',
-    licence: 'Published by Project Hammer',
-  },
-  'kroger-names': {
-    what: 'Product names for 84,863 US grocery barcodes, from a 2022 copy of Kroger product listings published on GitHub by atehe (counted November 2026). Names only.',
-    licence: 'Published by atehe on GitHub',
-  },
-  kroger: {
-    what: 'US shelf prices by barcode at Kroger family stores, read through the Kroger Developer API for the products US shoppers scan (from November 2026).',
-    licence: 'Kroger Developer API terms',
-  },
-};
+export const SHOPPER_WORDS: Readonly<Record<string, { readonly what: string; readonly licence: string }>> = Object.freeze(
+  Object.fromEntries(SHOPPER_SOURCES.map((s) => [s.key, Object.freeze({ what: s.what, licence: s.licence })])),
+);
 
 /** Source keys deliberately not on the phone: no answer uses them. See the note above SHOPPER_WORDS. */
 export const WITHHELD: readonly string[] = ['anbl', 'walmart.ca', 'returnit', 'consignaction'];

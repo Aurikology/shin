@@ -157,7 +157,7 @@ Pexi is a price-checking app for shoppers in Canada. There is no account, no sig
 
 The app needs an internet connection and talks to our server to answer. If it ever shows no answer, please retry in a few minutes.
 
-First launch: the first screen, "Before you start", asks for two answers. Tick "I agree to the Terms of Use and the Privacy Policy" (both are linked on the screen), and choose whether Pexi may send product names to Claude, our AI model: "Yes, send product names to Claude" or "No, use broad guesses". Either answer works, the app answers every scan with both, and nothing is preselected. Tap Continue. Next is a Permissions screen for camera and (optionally) location; location is off by default and you can tap Continue with both off. Then the camera.
+First launch: the first screen, "Terms, Privacy and Data", shows our Terms of Use and Privacy Policy as one document, including that product details are sent to Anthropic's Claude AI model to estimate a price when we have none. Tap "Accept and continue". Next is a Permissions screen for camera and (optionally) location, each asked through the phone's own prompt; you can tap Continue with both off. Then the camera. The same document opens again from Settings, "Terms, Privacy and Data", and the Pexi Plus screen links the Terms and Privacy pages beside the price.
 
 Without a barcode or a product in front of you:
 1. On the Permissions screen (the second screen), tap "See a demo scan" for a sample verdict.

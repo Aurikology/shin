@@ -22,7 +22,6 @@ const read = (rel) => readFileSync(readUrl(rel), 'utf8').replace(/\r\n/g, '\n');
 const { FLAGS } = await import('../public/js/flags.js');
 const store = await import('../public/js/store.js');
 const youModule = await import('../public/js/screens/you.js');
-const consentScreen = (await import('../public/js/screens/consent.js')).default;
 const watchlistScreen = (await import('../public/js/screens/watchlist.js')).default;
 const panel = await import('../public/js/permissions-panel.js');
 const router = await import('../public/js/router.js');
@@ -99,8 +98,8 @@ test('D14: an empty week counts zero, and says how to start', async () => {
 test('D15: no line says there is no privacy policy; the real pages are linked; one deletion email', () => {
   const html = youMarkup();
   assert.doesNotMatch(html, /no privacy policy|no terms page/i);
-  assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/privacy\.html"/);
-  assert.match(html, /href="https:\/\/xu826jamin\.github\.io\/pexi\/terms\.html"/);
+  // Amended 2026-11-25: the policy is the in-app Terms, Privacy and Data document, opened from this row.
+  assert.match(html, /data-act="legal"/);
   assert.match(html, /mailto:usepexiapp@gmail\.com/);
   assert.ok(!html.includes('privacy@shin.app'));
   const policy = read('../../docs/store/privacy.html');
@@ -148,30 +147,14 @@ test('D23: each permission row is the target, and the row is at least 44px', () 
 
 /* ------------------------------------------------------------------ D24 */
 
-test('D24: with photo identification off the consent screen has no photo wording and no phantom location switch', () => {
-  const html = withFlags({ photoId: false, onboarding: false }, () => markup(consentScreen));
-  assert.doesNotMatch(html, /data-consent="photos"/);
-  assert.doesNotMatch(html, /data-consent="location"/);
-  assert.doesNotMatch(html, /photo/i);
-  assert.doesNotMatch(html, /switch it on/i);
-  assert.match(html, /allowed it on the last screen/);
-  assert.doesNotMatch(html, /either choice|either one/i);
-});
-
-test('D24: with the flags on, the photo switch, the location switch and their wording are back', () => {
-  const html = withFlags({ photoId: true, onboarding: true }, () => markup(consentScreen));
-  assert.match(html, /data-consent="photos"/);
-  assert.match(html, /data-consent="location"/);
-  assert.match(html, /Photos are kept only if you switch that on below/);
-});
-
-test('D24: You has no Photos switch and no camera-frame sentence while photo identification is off', () => {
-  const off = withFlags({ photoId: false }, () => youMarkup());
-  assert.doesNotMatch(off, /data-consent="photos"/);
-  assert.doesNotMatch(off, /camera frame/i);
-  assert.match(off, /data-consent="location"/);
-  const on = withFlags({ photoId: true }, () => youMarkup());
-  assert.match(on, /data-consent="photos"/);
+/* 2026-11-25: the consent screen and the You switches are gone (one document, accepted once). D24 now
+   reduces to: no switch of any kind for photos or location on You, whatever the flag says. */
+test('D24: You has no Photos or Location switch and no camera-frame sentence, flags on or off', () => {
+  for (const photoId of [false, true]) {
+    const html = withFlags({ photoId }, () => youMarkup());
+    assert.doesNotMatch(html, /data-consent=/);
+    assert.doesNotMatch(html, /camera frame/i);
+  }
 });
 
 /* ------------------------------------------------------------------ D27 */

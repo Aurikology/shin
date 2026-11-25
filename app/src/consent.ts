@@ -32,6 +32,14 @@
  * them whatever the client sends. What IS kept when a toggle is on is still
  * used to train Shin and to answer other shoppers, and the footer says so.
  *
+ * REVERSED 2026-11-25 ON JAMIN'S WORD: "Everything that is not part of the functionality of the app will
+ * come in one long document at the beginning of the app ... The user will then not have the option to
+ * turn off send data to Claude or other things like that." The app's switches are gone; pressing Accept
+ * and continue on the Terms, Privacy and Data document posts `accepted: true`, which the route writes as
+ * photos yes, location yes. What stays: a device with no row (never accepted) still keeps nothing, a
+ * failed read still keeps nothing, location is still only the coarse cell the phone's own OS permission
+ * lets it send, and `locationFor` still writes null into the exact columns.
+ *
  * NO HISTORY TABLE. Only the current answer is stored. A log of when somebody
  * said no is still something kept about a person who said keep nothing, and
  * the event log already records a consent change as an event for anybody

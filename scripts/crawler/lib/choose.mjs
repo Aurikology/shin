@@ -11,7 +11,7 @@ import { planFaults } from './routes.mjs';
 import { BARCODES, NAMES, PRICES, PAD_PRICES, NUMBERS } from './data.mjs';
 
 /** Screens a run may open on by URL, as the app's own deep links do. Resolved at start from the router. */
-export const URL_SCREENS = ['camera', 'you', 'pastscans', 'watchlist', 'savings', 'paywall', 'licences', 'removed', 'share', 'correct', 'market', 'setup', 'onboarding', 'permissions', 'consent', 'agree', 'nonexistent'];
+export const URL_SCREENS = ['camera', 'you', 'pastscans', 'watchlist', 'savings', 'paywall', 'progress', 'removed', 'share', 'correct', 'market', 'setup', 'onboarding', 'permissions', 'guide', 'agree', 'nonexistent'];
 
 /** A start state, drawn from the seed's stream. */
 export async function chooseStart(rng) {

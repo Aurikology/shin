@@ -455,14 +455,14 @@ test('R-98 (2026-11-22): the camera carries no Saved or Settings labels; its chi
 });
 
 test('R-98 (keep): every page with a bar draws the same bar, and Past scans and Removed sit under Saved', async () => {
-  for (const [file, active] of [['pastscans.js', 'watchlist'], ['removed.js', 'watchlist'], ['watchlist.js', 'watchlist'], ['licences.js', 'you'], ['savings.js', 'you'], ['you.js', 'you']]) {
+  for (const [file, active] of [['pastscans.js', 'watchlist'], ['removed.js', 'watchlist'], ['watchlist.js', 'watchlist'], ['agree.js', 'you'], ['savings.js', 'you'], ['you.js', 'you']]) {
     assert.match(read(`screens/${file}`), new RegExp(`pageBar\\('${active}'\\)`), `${file} no longer draws the ${active} bar`);
   }
   const { html, cleanup } = await renderScreen(watchlist);
   assert.match(html(), /data-act="pastscans"/);
   assert.match(html(), /data-act="removed"/);
   cleanup();
-  assert.match(read('screens/you.js'), /data-act="licences"/, 'Licences is no longer one tap under You');
+  assert.match(read('screens/you.js'), /data-act="legal"/, 'Terms, Privacy and Data is no longer one tap under You (2026-11-25: it replaced Licences)');
 });
 
 test('R-98 (build 7): the rendered Saved, Past scans and Removed pages each carry the three-label bar', async () => {

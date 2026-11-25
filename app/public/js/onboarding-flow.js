@@ -216,49 +216,25 @@ export const THRESHOLD = Object.freeze({
 export const MONTHLY = Object.freeze({ start: 100, min: 10, max: 1000, step: 10 });
 
 /**
- * The first screen a launch lands on. The order the app is used in:
- * onboarding once, then the attitude and two lines (setup), then consent, then
- * the camera. Extracted from main.js so a test can hold the order.
+ * The first screen a launch lands on, after the Terms, Privacy and Data document (screens/agree.js, the
+ * router guard in main.js). The order the app is used in: onboarding once, then the permission screen,
+ * then the camera. Extracted from main.js so a test can hold the order.
  *
- * WITH `FLAGS.onboarding` OFF the welcome flow and setup both drop out, and
- * the order is Permissions, Consent, Camera; with `FLAGS.photoId` also off
- * (the store build) Consent has no switch and drops out too (2026-11-21).
+ * WITH `FLAGS.onboarding` OFF the welcome flow and setup both drop out, and the order is Permissions,
+ * Camera. The permission screen is the welcome flow's step 24 standing on its own, so switching the flow
+ * off does not take the camera and location ask with it.
  *
- * THE PERMISSION SCREEN IS IN THAT ORDER ON PURPOSE, and for one day it was
- * not. The camera and location ask is step 24 INSIDE the welcome flow, so the
- * first version of this branch took the ask off with the flow and a fresh
- * install was never asked at all. screens/permissions.js is that step as a
- * screen of its own, and this branch is the whole of what puts it in front of
- * a first launch.
- *
- * IT KEEPS STEP 24's PLACE, in front of consent rather than behind it, because
- * that is where it sits inside the flow and moving it was not asked for. Worth
- * knowing when reading the two screens back to back: the location switch on
- * this screen and the location switch on consent are the SAME switch (both go
- * through consent-actions.js), so with the flow off they are two screens in a
- * row carrying one question. Inside the flow twenty steps separated them, so
- * this is visible in a way it was not before. Logged rather than fixed here:
- * which screen owns that row is a product call, and the panel is shared with
- * the live step 24.
+ * 2026-11-25: the "Your data" consent screen is gone (Jamin: one document, accepted once, no off
+ * switches); what it asked is answered by Accept and continue.
  */
 export function firstScreen(s, flags = FLAGS) {
-  /* FLAGS.onboarding off (docs/mvp-plan.md): no welcome and no setup, so a
-     fresh install is asked for permissions, then consent, then the camera.
-     `seenIntro` is not consulted, which leaves the default voice in place. */
-  if (!flags.onboarding) {
-    if (!s.permissionsSeen) return 'permissions';
-    /* 2026-11-21 readiness review (business rank 3): with photo identification off the consent screen has
-       no switch on it, only text, so it is skipped. What it said is one line on the agree screen
-       (agree_data_line) and in full in the Privacy Policy linked there. */
-    if (!flags.photoId) return 'camera';
-    return s.consentSeen ? 'camera' : 'consent';
-  }
+  /* FLAGS.onboarding off (docs/mvp-plan.md): no welcome and no setup. `seenIntro` is not consulted,
+     which leaves the default voice in place. */
+  if (!flags.onboarding) return s.permissionsSeen ? 'camera' : 'permissions';
   if (!s.onboarding?.doneAt) return 'onboarding';
-  /* 2026-11-22: the concise flow asks for the camera and location itself (its last step), and setup's
-     attitude picker is not asked on a first launch: the default voice stands and You changes it. A flow
-     skipped before its permission step still gets the permission screen. Consent only while photos exist. */
+  /* 2026-11-22: the concise flow asks for the camera and location itself (its last step). A flow skipped
+     before its permission step still gets the permission screen. */
   if (!s.permissionsSeen) return 'permissions';
-  if (flags.photoId && !s.consentSeen) return 'consent';
   return 'camera';
 }
 

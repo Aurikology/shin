@@ -126,7 +126,7 @@ test('with the welcome flow off, a first launch lands on the permission ask', ()
   /* Setup goes off with the flow. With photo identification off too (the shipped flags) consent has no
      switch and drops out (2026-11-21), so the ask is followed by the camera; with photos on, by consent. */
   assert.equal(firstScreen({ permissionsSeen: true }, { ...off, photoId: false }), 'camera');
-  assert.equal(firstScreen({ permissionsSeen: true }, { ...off, photoId: true }), 'consent');
+  assert.equal(firstScreen({ permissionsSeen: true }, { ...off, photoId: true }), 'camera', '2026-11-25: no consent screen, photos or not');
   assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }, off), 'camera');
   // `seenIntro` is not consulted at all on this path.
   assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }, off), 'camera');

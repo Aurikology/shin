@@ -148,8 +148,6 @@ export const ONB_EN = {
   /* 18 */
   onb_thanks_title: 'Thank you for trusting us',
   onb_thanks_sub: 'Now let’s set Pexi up for you.',
-  onb_thanks_privacy_title: 'Your privacy matters to us',
-  onb_thanks_privacy: 'Your answers stay tied to this phone, never to your name, and you can turn data sharing off in Settings.',
 
   /* 19, a figure step: each line is its own slot */
   onb_social_title: (f) => `Join over ${f.n} smart shoppers like you`,
@@ -352,8 +350,6 @@ export const ONB_FR = {
 
   onb_thanks_title: 'Merci de nous faire confiance',
   onb_thanks_sub: 'Maintenant, préparons Pexi pour toi.',
-  onb_thanks_privacy_title: 'Ta vie privée compte pour nous',
-  onb_thanks_privacy: 'Tes réponses restent liées à ce téléphone, jamais à ton nom, et tu peux arrêter le partage de données dans Réglages.',
 
   onb_social_title: (f) => `Joins plus de ${f.n} acheteurs futés comme toi`,
   onb_social_rating: (f) => `Note de ${f.v} étoiles`,

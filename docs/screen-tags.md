@@ -57,7 +57,7 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | a28 | Welcome tip: adjust shelf price or store | Welcome flow step 28. | `app/public/js/screens/onboarding.js` |
 | a29 | Welcome tip: for highest accuracy | Welcome flow step 29. Continue goes to Evaluating Deal (a84). | `app/public/js/screens/onboarding.js` |
 | a30 | Pick your Pexi (attitude and your three price ranges) | First launch after the welcome flow, once. Or ?s=setup. | `app/public/js/screens/setup.js` |
-| a31 | Your data (photos and location switches) | First launch after setup, once. Or ?s=consent. | `app/public/js/screens/consent.js` |
+| a31 | Retired: Your data (photos and location switches) | Gone 2026-11-25: folded into the Terms, Privacy and Data document (a112, screens/agree.js). | `app/public/js/screens/agree.js` |
 
 ### Camera and verdict
 
@@ -112,9 +112,9 @@ The badge is a tiny low-contrast tag in the top right corner, above every sheet,
 | --- | --- | --- | --- |
 | a66 | You (settings, data, language) | Tap You in the camera bar or any page bar. Or ?s=you. | `app/public/js/screens/you.js` |
 | a67 | Where do you shop? (country picker) | You, tap the market row. Or ?s=market. | `app/public/js/screens/market.js` |
-| a68 | Where this comes from (data sources list) | Where do you shop, tap the sources link at the bottom. Or ?s=licences. | `app/public/js/screens/licences.js` |
-| a69 | Where this comes from, loading | Open the sources page; visible while the list is being fetched. | `app/public/js/screens/licences.js` |
-| a70 | Where this comes from, could not load (Try again) | Open the sources page with no signal or when the server answers with an empty list. | `app/public/js/screens/licences.js` |
+| a68 | Retired: Where this comes from (data sources list) | Gone 2026-11-25: folded into the Terms, Privacy and Data document (a112, screens/agree.js). | `app/public/js/screens/agree.js` |
+| a69 | Retired: Where this comes from, loading | Gone 2026-11-25: folded into the Terms, Privacy and Data document (a112, screens/agree.js). | `app/public/js/screens/agree.js` |
+| a70 | Retired: Where this comes from, could not load (Try again) | Gone 2026-11-25: folded into the Terms, Privacy and Data document (a112, screens/agree.js). | `app/public/js/screens/agree.js` |
 | a71 | Tell Pexi the price (correction form) | Verdict half sheet, Correct it. Or a refusal sheet, Tell me the price. Or You, Report a wrong price. | `app/public/js/screens/correct.js` |
 | a72 | Tell Pexi the price, thank-you state | Submit a price on the correction form; it returns to the camera after a moment. | `app/public/js/screens/correct.js` |
 | a73 | Share (the card image) | Verdict half sheet, Share. Needs a verdict in Past scans. | `app/public/js/screens/share.js` |
@@ -170,7 +170,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a109 | Price saved toast after a correction, back on the viewfinder | Verdict sheet half open, tap Correct it, tap Save with a price and a shop filled in. | `app/public/js/screens/camera.js` |
 | a110 | Past scan detail, a price range with no verdict (read only) | Past scans, tap a row labelled A broad guess (a barcode or typed name Pexi has no prices for). | `app/public/js/screens/pastscans.js` |
 | a111 | Saved item detail, a price range with no verdict | Saved, tap a row labelled A broad guess. | `app/public/js/screens/watchlist.js` |
-| a112 | Before you start (terms and the Claude choice) | First launch, before anything else. It cannot be skipped. | `app/public/js/screens/agree.js` |
+| a112 | Terms, Privacy and Data (the one document, Accept and continue) | First launch, before anything else; it cannot be skipped. After that, Settings, Terms, Privacy and Data opens it read-only. | `app/public/js/screens/agree.js` |
 | a113 | Everyday groceries banner over the camera | First visit to the camera on a fresh install, until Got it. | `app/public/js/screens/camera.js` |
 | a114 | Pexi is busy sheet (a web page came back instead of an answer) | Scan or type a name while Cloudflare answers the API with a challenge page. The sheet says Pexi is busy and offers Try again; a barcode retries once by itself. | `app/public/js/screens/camera/trouble.js` |
 | a115 | Please update Pexi (this build is too old) | The server sets SHIN_APP_MIN_VERSION above this build. Covers the whole app with an Update Pexi link to the App Store. | `app/public/js/remote-status.js` |

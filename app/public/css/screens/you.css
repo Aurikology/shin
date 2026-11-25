@@ -182,34 +182,6 @@
 .mkt-regions { margin-top: 20px; }
 .mkt-regions .kicker { margin-bottom: 8px; }
 
-/*
- * The attribution line, and the reason it is underlined rather than merely
- * tappable. Credit that the licences ask for has to be reachable, and a
- * sentence that looks like small print is one nobody presses. The underline is
- * hairline rather than full contrast, so it reads as a way through without
- * competing with the market rows above it, which are the actual decision on
- * this screen.
- *
- * Colour on press and no movement. This line is on screen every time the
- * screen opens; the scale-on-press that a rarely-seen control earns would be
- * motion a person sees on every visit for no information.
- */
-.mkt-attrib {
-  margin-top: 10px;
-  text-align: left;
-  font-size: 13px;
-  line-height: 1.45;
-  text-decoration: underline;
-  text-decoration-color: var(--hairline);
-  text-underline-offset: 3px;
-  transition: color 140ms ease, text-decoration-color 140ms ease;
-}
-.mkt-attrib:active { color: var(--ink-muted); }
-
-@media (hover: hover) and (pointer: fine) {
-  .mkt-attrib:hover { text-decoration-color: var(--ink-faint); }
-}
-
 /* Was written out twice, identically, and both copies said the same thing. */
 .mkt-head .face-block {
   margin-bottom: 4px;
@@ -319,10 +291,6 @@
    the torch slider drew with Torch Off, beside the off hint. */
 .setting[hidden] { display: none; }
 
-/* The first-run screen (screens/agree.js): one list of plain lines and one button; it shares the consent list rows. */
-.agree-links { display: flex; gap: 20px; flex-wrap: wrap; }
-.agree-links a { color: inherit; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center; }
-.agree-line { margin: 0; }
 
 /* ------------------------------------------------ Progress, 2026-11-22 --
    screens/progress.js. Cal AI's Progress tab in Pexi's tokens: two cards, a

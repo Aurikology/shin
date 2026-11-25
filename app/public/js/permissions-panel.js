@@ -13,8 +13,7 @@
  * two would drift.
  *
  * The router's rule is that screens never import one another; this is the
- * shape that keeps it, the same one `consent-actions.js` uses for the two
- * places the consent toggles are drawn.
+ * shape that keeps it.
  *
  * WHAT STAYS WITH THE CALLER. The chrome around the panel (the welcome flow's
  * progress bar and Skip, or the standalone screen's heading and Continue),
@@ -31,7 +30,7 @@
 import * as store from './store.js';
 import { escapeHtml } from './lib/dom.js';
 import { t } from './ui-strings.js';
-import { toggleConsent } from './consent-actions.js';
+import { refreshCell } from './geocell.js';
 
 /**
  * The phone's own camera prompt, asked on the owner's word for screen 24, and
@@ -96,7 +95,7 @@ export function panelHtml({ heading = true } = {}) {
 /** What is on record for each switch. One reader, so the two callers agree. */
 export function panelStates() {
   return {
-    location: store.consent().location === true,
+    location: store.get().onboarding?.answers?.locationAllowed === true,
     camera: store.get().onboarding?.answers?.cameraPermission === 'granted',
   };
 }
@@ -125,19 +124,15 @@ export function paintPanel(root) {
  */
 export async function tapPermission(root, ctx, key, record) {
   if (key === 'location') {
-    // Turning it on asks the phone first; a refusal leaves Pexi's consent off,
-    // so the switch never shows ON over a phone that said no (D-277).
-    if (store.consent().location !== true) {
-      const answer = await askLocation();
-      const locNote = root.querySelector('.onb-perm-note-location');
-      if (locNote) locNote.hidden = answer !== 'denied';
-      if (answer === 'denied') {
-        record('locationAllowed', false);
-        return null;
-      }
-    }
-    const after = toggleConsent(ctx.api, 'location');
-    record('locationAllowed', after.location === true);
+    // The phone's own prompt is the whole question (2026-11-25: the Terms, Privacy and Data document
+    // covers Pexi's side, with no switch of its own). A refusal leaves the switch off, so it never
+    // shows ON over a phone that said no (D-277); a slow fix indoors is not a no.
+    const answer = await askLocation();
+    const locNote = root.querySelector('.onb-perm-note-location');
+    if (locNote) locNote.hidden = answer !== 'denied';
+    const allowed = answer !== 'denied';
+    record('locationAllowed', allowed);
+    if (allowed) void refreshCell();
     return null;
   }
   const result = await askCamera();

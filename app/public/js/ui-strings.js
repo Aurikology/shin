@@ -326,19 +326,9 @@ const EN = {
      Never "saved" and no savings tally (hard rule 2). Amounts arrive already
      formatted by lib/money.js. */
   vd_estimate: 'Pexi’s estimate',
-  agree_title: 'Before you start',
-  /* 2026-11-22: one screen, one button (Jamin). The lines say what "Agree and continue" covers; Apple 5.1.2 and Quebec Law 25 are met by naming the recipient and each purpose here. */
-  agree_lead: 'Agree and continue covers:',
-  agree_terms_line: 'The Terms of Use and the Privacy Policy.',
-  agree_terms_link: 'Terms of Use',
-  agree_privacy_link: 'Privacy Policy',
-  /* 2026-11-21: what the "Your data" screen said, at the moment of collection (Quebec P-39.1 s.8, notice at collection). */
-  agree_data_line: 'Pexi records your scans and how you use the app to improve its answers.',
-  agree_claude_line: 'Product names may be sent to Anthropic’s Claude AI to estimate prices.',
-  agree_change_later: 'You can turn either of these off any time in Settings.',
-  agree_button: 'Agree and continue',
-  you_claude: 'Send product names to Claude',
-  you_claude_desc: 'For a typical price when Pexi has none. Only the product’s name, brand, size, category and country go to Anthropic. Off, you get a broad guess instead.',
+  /* 2026-11-25 (Jamin): one document, one button; the words are in js/legal/document.js. */
+  agree_button: 'Accept and continue',
+  legal_title: 'Terms, Privacy and Data',
   vd_zone_great: 'Great price',
   vd_zone_good: 'Good price',
   vd_zone_reasonable: 'Reasonable price',
@@ -539,13 +529,6 @@ const EN = {
   you_torch_hint: 'A lower setting waits until it is darker. It starts at the level Pexi uses.',
   you_torch_off_hint: 'The torch stays off, and the camera says when it is too dark to read.',
 
-  /* ------------------------------------------------------------- the consent */
-  consent_kicker: 'Before your first scan',
-  consent_title: 'Your data',
-  consent_heading: 'What Pexi does with your data',
-  consent_photos: 'Photos',
-  consent_location: 'Location',
-  consent_continue: 'Continue',
 
   /* --------------------------------------------------------- the permissions */
   /* The screen's own chrome. Everything else on it is the welcome flow's own
@@ -569,13 +552,6 @@ const EN = {
   correct_price_typed: 'Price typed so far',
   correct_shop_placeholder: 'Metro, No Frills, a listing…',
 
-  /* ------------------------------------------------------------ the licences */
-  lic_kicker: 'Where this comes from',
-  lic_title: 'Data and licences',
-  lic_sources: 'Sources',
-  lic_fallback_credit: 'This app is built on open data from Open Food Facts, Open Prices, OpenStreetMap and Open Icecat. The full list, with each licence, is what failed to load.',
-  lic_intro: 'Product details, prices and store names in this app are open data, collected and published by other people. Each source below sets its own terms for reuse, and this is the credit those terms ask for.',
-  lic_footer: 'Pexi is not affiliated with any of them. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
 
   /* -------------------------------------------------------------- the market */
   market_title: 'Where do you shop?',
@@ -586,7 +562,6 @@ const EN = {
   market_region_kicker: 'Region, if it matters',
   market_region_none: 'Not chosen',
   market_region_caption: 'Optional. Prices can differ between provinces and states. Left unchosen, the region stays unknown.',
-  market_sources_button: 'Prices and product details come from open data. See the sources and licences.',
   country_ca: 'Canada',
   country_us: 'United States',
   country_gb: 'United Kingdom',
@@ -845,13 +820,8 @@ const EN = {
   // D-268 F31: the ratings row in plain words (was "0 thumbs up · 1 thumbs down").
   you_rated_right: (f) => `${f.n} looked right`,
   you_rated_wrong: (f) => `${f.n} looked wrong`,
-  you_data_h: 'What Pexi does with your data',
-  you_photos: 'Photos',
-  you_location: 'Location',
+  you_data_h: 'Privacy and data',
   you_no_meter: 'No scan limit.',
-  /* 2026-11-21 (legal 7, apple-rules 8): the switch that stops usage events (usage-setting.js). */
-  you_usage: 'Share usage data',
-  you_usage_desc: 'Which screens and buttons you use, so Pexi keeps getting better. Off, the app stops sending it.',
   /* 2026-11-21 (ops 7): a way to write to us from inside the app. */
   you_contact: 'Help and contact',
   you_contact_subject: 'Pexi help',
@@ -1152,17 +1122,8 @@ const FR = {
   /* LA COURBE DU VERDICT. Les quatre mots de zone sont les siens. Le prix
      habituel est toujours dit estimation de Pexi. Jamais « économisé ». */
   vd_estimate: 'Estimation de Pexi',
-  agree_title: 'Avant de commencer',
-  agree_lead: 'Accepter et continuer couvre :',
-  agree_terms_line: 'Les conditions d’utilisation et la politique de confidentialité.',
-  agree_terms_link: 'Conditions d’utilisation',
-  agree_privacy_link: 'Politique de confidentialité',
-  agree_data_line: 'Pexi enregistre tes scans et la façon dont tu utilises l’application pour améliorer ses réponses.',
-  agree_claude_line: 'Le nom des produits peut être envoyé à Claude, l’IA d’Anthropic, pour estimer les prix.',
-  agree_change_later: 'Tu peux désactiver l’un ou l’autre à tout moment dans Réglages.',
   agree_button: 'Accepter et continuer',
-  you_claude: 'Envoyer le nom des produits à Claude',
-  you_claude_desc: 'Pour obtenir un prix typique quand Pexi n’en a aucun. Seuls le nom, la marque, le format, la catégorie et le pays du produit sont envoyés à Anthropic. Si c’est désactivé, tu obtiens une estimation large.',
+  legal_title: 'Conditions, confidentialité et données',
   vd_zone_great: 'Excellent prix',
   vd_zone_good: 'Bon prix',
   vd_zone_reasonable: 'Prix raisonnable',
@@ -1312,13 +1273,6 @@ const FR = {
   you_torch_hint: "Un réglage plus bas attend qu'il fasse plus sombre. Il part du niveau que Pexi utilise.",
   you_torch_off_hint: "La lampe reste éteinte, et la caméra dit quand il fait trop sombre pour lire.",
 
-  /* ----------------------------------------------------------- le consentement */
-  consent_kicker: 'Avant ton premier scan',
-  consent_title: 'Tes données',
-  consent_heading: 'Ce que Pexi fait avec tes données',
-  consent_photos: 'Photos',
-  consent_location: 'Localisation',
-  consent_continue: 'Continuer',
 
   /* ---------------------------------------------------------- les permissions */
   perm_title: 'Autorisations',
@@ -1338,13 +1292,6 @@ const FR = {
   correct_price_typed: 'Prix tapé jusqu’ici',
   correct_shop_placeholder: 'Metro, Maxi, une annonce…',
 
-  /* ----------------------------------------------------------- les licences */
-  lic_kicker: 'D’où ça vient',
-  lic_title: 'Données et licences',
-  lic_sources: 'Sources',
-  lic_fallback_credit: 'Cette application est bâtie sur les données ouvertes d’Open Food Facts, Open Prices, OpenStreetMap et Open Icecat. La liste complète, avec chaque licence, n’a pas pu être chargée.',
-  lic_intro: 'Les détails de produits, les prix et les noms de magasins dans cette application sont des données ouvertes, recueillies et publiées par d’autres personnes. Chaque source ci-dessous fixe ses propres conditions de réutilisation, et voici le crédit que ces conditions demandent.',
-  lic_footer: 'Pexi n’est affilié à aucune d’entre elles. Les prix sont ce que quelqu’un a noté le jour indiqué à côté, pas une offre, et ils n’ont pas été vérifiés auprès du magasin.',
 
   /* ----------------------------------------------------------- le marché */
   market_title: 'Où magasines-tu ?',
@@ -1355,7 +1302,6 @@ const FR = {
   market_region_kicker: 'Région, si ça compte',
   market_region_none: 'Non choisie',
   market_region_caption: 'Facultatif. Les prix peuvent différer entre provinces et États. Sans choix, la région reste inconnue.',
-  market_sources_button: 'Les prix et les détails de produits viennent de données ouvertes. Voir les sources et les licences.',
   country_ca: 'Canada',
   country_us: 'États-Unis',
   country_gb: 'Royaume-Uni',
@@ -1571,12 +1517,8 @@ const FR = {
   you_thumbs_down: 'pouces baissés',
   you_rated_right: (f) => `${f.n} ${Number(f.n) > 1 ? 'semblaient justes' : 'semblait juste'}`,
   you_rated_wrong: (f) => `${f.n} ${Number(f.n) > 1 ? 'semblaient fausses' : 'semblait fausse'}`,
-  you_data_h: 'Ce que Pexi fait avec tes données',
-  you_photos: 'Photos',
-  you_location: 'Localisation',
+  you_data_h: 'Confidentialité et données',
   you_no_meter: 'Aucune limite de scans.',
-  you_usage: 'Partager les données d’utilisation',
-  you_usage_desc: 'Les écrans et les boutons que tu utilises, pour que Pexi continue de s’améliorer. Désactivé, l’appli arrête de les envoyer.',
   you_contact: 'Aide et contact',
   you_contact_subject: 'Aide Pexi',
   you_contact_body_build: 'Version de l’appli',

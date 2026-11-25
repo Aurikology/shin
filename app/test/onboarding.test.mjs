@@ -220,7 +220,7 @@ test('first launch order with the welcome switched off (the MVP default): permis
   assert.equal(firstScreen({}, OFF), 'permissions', 'a fresh install is asked for permissions first');
   assert.equal(firstScreen({ onboarding: { answers: {} } }, OFF), 'permissions', 'a half-finished welcome does not bring it back');
   assert.equal(firstScreen({ permissionsSeen: true }, OFF), 'camera', 'the camera comes after the ask');
-  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent', 'with a photo switch to answer, consent still comes after the ask');
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'camera', '2026-11-25: the consent screen is part of the one document now');
   assert.equal(firstScreen({ permissionsSeen: true, seenIntro: false, consentSeen: true }, OFF), 'camera', 'setup is never asked for');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, seenIntro: true, consentSeen: true, permissionsSeen: true }, OFF), 'camera');
 });
@@ -232,7 +232,7 @@ test('first launch order with the welcome switched on: onboarding, then permissi
   assert.equal(firstScreen({ onboarding: { answers: {} } }, on), 'onboarding', 'answers without a finish do not count');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' } }, on), 'permissions', 'a flow skipped before its permission step still asks');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }, on), 'camera', 'setup is not asked');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }, { onboarding: true, photoId: true }), 'consent', 'consent only while photos exist');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true }, { onboarding: true, photoId: true }), 'camera', '2026-11-25: no consent screen');
   assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: true }, on), 'camera');
   assert.equal(firstScreen({ onboarding: { skippedAt: 'x', doneAt: 'y' }, permissionsSeen: true }, on), 'camera');
 });

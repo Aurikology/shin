@@ -226,9 +226,9 @@ test('every in-app link to the privacy policy or terms is the hosted page', () =
   assert.equal(LEGAL_URLS.terms, HOSTED.terms);
   assert.equal(LEGAL_URLS.privacy, HOSTED.privacy);
   const you = read('../public/js/screens/you.js');
-  // 2026-11-21 (blind 14): through legalUrl, which is LEGAL_URLS in English and the -fr pages in French.
-  assert.match(you, /legalUrl\('privacy', chosenLocale\)/);
-  assert.match(you, /legalUrl\('terms', chosenLocale\)/);
+  // 2026-11-25: You opens the one in-app document (screens/agree.js) instead of the two hosted pages; the
+  // paywall keeps the hosted links beside the price (Apple 3.1.2), held in legal-document.test.mjs.
+  assert.match(you, /data-act="legal"/);
   assert.doesNotMatch(you, /LEGAL_URLS_FR/, 'the You screen still links the old French pages');
   const js = readdirSync(here('../public/js'), { recursive: true }).filter((f) => /\.(js|html)$/.test(f) && !/vendor|chunks|\.map$/.test(f));
   for (const f of js) {

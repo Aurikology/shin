@@ -758,16 +758,6 @@ export const LINES_FR = {
     blunt: () => "Refusé. Trop occupé en ce moment.",
   },
 
-  licences_loading: {
-    deadpan: () => 'Je demande la liste des sources…',
-    warm: () => 'Laisse-moi aller chercher la liste des sources…',
-    blunt: () => 'Je vais chercher la liste des sources…',
-  },
-  licences_failed: {
-    deadpan: () => "Je n'ai pas pu joindre la liste des sources pour les créditer. Elle n'est pas affichée du tout, plutôt qu'affichée incomplète.",
-    warm: () => "Je n'ai pas pu joindre la liste des sources pour les créditer. Je préfère ne rien te montrer plutôt qu'une version courte qui crédite les mauvaises personnes.",
-    blunt: () => "Pas pu joindre la liste des sources. Rien ne monte, plutôt que la moitié.",
-  },
 
   /* caméra, voie B */
   cam_aim_hint: {
@@ -855,77 +845,10 @@ export const LINES_FR = {
     warm: () => "Voici ce avec quoi je peux t'aider à la place.",
     blunt: () => "Je donne un prix à ça, à la place.",
   },
-  /* RÉÉCRIT 2026-09-14, même raison que la version anglaise (voice.js): un
-   * scan de code-barres envoie maintenant sa propre image de caméra aussi
-   * (tâche 5), donc "un code-barres n'envoie jamais d'image" n'est plus vrai. */
-  cam_privacy_line: {
-    deadpan: () => "Chaque scan envoie une image : le cadre que la caméra voyait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si Photos est ouvert; un code-barres consigne son image dans tous les cas.",
-    warm: () => "Chaque scan envoie maintenant une image, le cadre que la caméra regardait à ce moment, toujours. Un scan par photo garde cette image ensuite seulement si tu as ouvert Photos; un code-barres consigne son image dans tous les cas.",
-    blunt: () => "Chaque scan envoie une image, toujours. Photo : gardée si Photos est ouvert. Code-barres : image consignée dans tous les cas.",
-  },
-  /* D-265: identification par photo fermée, un code-barres n'envoie aucune image. */
-  cam_privacy_line_nophoto: {
-    deadpan: () => "Un scan envoie le code-barres et ton prix. Jamais une image.",
-    warm: () => "Je reçois seulement le code-barres et ton prix, jamais une image.",
-    blunt: () => "Code-barres et prix seulement. Aucune image.",
-  },
-  /* RÉÉCRIT 2026-09-19 (écart bêta 13; le fondateur a délégué ce texte, "you
-   * decide"): les photos sont gardées par défaut, la position est fermée par
-   * défaut, comme consent.ts et store.js. Le texte dit le défaut en premier,
-   * simplement, avec la sortie juste à côté: l'interrupteur. Tout changement
-   * de défaut change ce texte, voice.js et consent.ts le même jour. */
-  consent_intro: {
-    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse. Les photos sont gardées seulement si tu ouvres ça ci-dessous. La position n'est gardée que si tu l'ouvres.",
-    warm: () => "Chaque scan est écrit : ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi. Les photos sont gardées seulement si tu ouvres ça ci-dessous, et la position n'est gardée que si tu l'ouvres.",
-    blunt: () => "Chaque scan est consigné : produit et prix, toujours. Les photos sont gardées seulement si tu ouvres ça. La position n'est gardée que si tu l'ouvres.",
-  },
-  consent_photos_desc: {
-    deadpan: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image de la tablette n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo est lue une fois pour répondre et n'est pas gardée. Ouvert, les deux sont gardées : l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque : une photo gardée peut montrer ce qui se trouve autour de toi.",
-    warm: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé, aucune image de la tablette n'est gardée pendant que la caméra est ouverte, et l'image d'un scan par photo n'est lue qu'une fois, pour répondre à ce scan, puis elle est partie. Ouvert, les deux sont gardées : l'image du rayon, et l'image d'un scan par photo, liée à ce scan, pour qu'une mauvaise réponse puisse être vérifiée plus tard et que Pexi puisse apprendre. Le risque, c'est qu'une photo gardée peut montrer tout ce qu'il y avait d'autre autour de toi.",
-    blunt: () => "Fermé jusqu'à ce que tu l'ouvres. Fermé : pas d'image de la tablette, et l'image du scan par photo est lue une fois, pas gardée. Ouvert : les deux gardées, liées au scan, pour qu'une mauvaise réponse puisse être vérifiée. Risque : une photo gardée peut montrer ce qui est près de toi.",
-  },
-  consent_location_desc: {
-    deadpan: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé à un magasin proche. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, pour arrêter de te le demander. Cette liste ne quitte jamais le téléphone et elle disparaît quand tu fermes ça. Fermé, aucune position n'est gardée. Le risque : même une zone approximative réduit l'endroit où tu magasines.",
-    warm: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact, pour qu'un prix puisse être associé au magasin près duquel tu étais. Ton téléphone retient aussi quel magasin tu as choisi dans chaque zone, comme ça il ne te le redemande pas. Cette liste reste sur le téléphone, n'est jamais envoyée nulle part, et elle est effacée dès que tu fermes ça. Fermé, rien sur l'endroit où tu es n'est gardé. Le risque, c'est que même une zone approximative dit quelque chose sur l'endroit où tu magasines.",
-    blunt: () => "Garde une zone approximative, d'environ un kilomètre de large, jamais ton point exact. Ton téléphone retient quel magasin tu as choisi où, pour arrêter de demander. Ça reste sur le téléphone. Effacé quand tu fermes ça. Fermé : rien de gardé. Risque : même une zone approximative réduit l'endroit où tu magasines.",
-  },
   you_ratings_none: {
     deadpan: () => "Aucune pour l'instant. Un pouce sur n'importe quel verdict compte ici.",
     warm: () => "Aucune pour l'instant, mais un pouce sur n'importe quel verdict lance le compte.",
     blunt: () => "Aucune. Évalues-en un.",
-  },
-  /* RÉÉCRIT 2026-09-14, même raison que cam_privacy_line: un code-barres
-   * envoie maintenant aussi son image de caméra. */
-  you_data_intro: {
-    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
-    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, avec l'image de la caméra à ce moment, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné : produit, prix et image de la caméra, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
-  },
-  /* RÉÉCRIT 2026-09-14: "seuls cette application et la personne qui la fait
-   * tourner peuvent voir ça" n'était plus toute la vérité une fois que tout
-   * collecter est devenu le but; ce qui est collecté sert aussi à répondre à
-   * d'autres personnes et à entraîner Pexi. */
-  consent_footer: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change l'un ou l'autre des choix n'importe quand dans Réglages.",
-    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer l'un ou l'autre des choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand dans Réglages.",
-  },
-  /* D24: une seule décision quand l'identification par photo est fermée. */
-  consent_footer_one: {
-    deadpan: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Change ce choix n'importe quand dans Réglages.",
-    warm: () => "Cette application garde ce qu'elle collecte, l'utilise pour répondre à d'autres personnes et entraîner Pexi, et la personne qui la fait tourner peut le voir aussi. Tu peux changer ce choix n'importe quand depuis la page Toi.",
-    blunt: () => "Cette application garde ça, l'utilise pour répondre à d'autres personnes et entraîner Pexi. Change-le n'importe quand dans Réglages.",
-  },
-  consent_intro_lean: {
-    deadpan: (f) => `Chaque scan est écrit : le produit et le prix que tu as vu, toujours, pour que la prochaine personne qui le scanne obtienne une réponse.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
-    warm: (f) => `Chaque scan est écrit : ce que tu as scanné et le prix que tu as vu, toujours, pour que la prochaine personne qui scanne la même chose obtienne une réponse elle aussi.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça ci-dessous.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres ci-dessous." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
-    blunt: (f) => `Chaque scan est consigné : produit et prix, toujours.${f.photos ? ' Les photos sont gardées seulement si tu ouvres ça.' : ''}${f.locationSwitch ? " La position n'est gardée que si tu l'ouvres." : " La position n'est gardée que si tu l'as permise à l'écran précédent."}`,
-  },
-  /* D24: identification par photo fermée, aucune image de caméra ne part avec un code-barres. */
-  you_data_intro_nophoto: {
-    deadpan: () => "Chaque scan est écrit : le produit et le prix que tu as vu, toujours, utilisé pour entraîner Pexi et répondre à d'autres personnes.",
-    warm: () => "Chaque scan est écrit, le produit et le prix que tu as vu, toujours, et ça aide à entraîner Pexi et à répondre à d'autres personnes.",
-    blunt: () => "Chaque scan est consigné : produit et prix, toujours. Utilisé pour entraîner Pexi et répondre à d'autres personnes.",
   },
   /* Un code-barres mal lu (chiffre de contrôle faux): je relis, jamais « introuvable ». */
   cam_misread_hold: {

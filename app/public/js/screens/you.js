@@ -40,7 +40,6 @@ import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
 import { pageBar, rowChevron, rowCheck } from '../lib/pagebar.js';
 import { getDeviceId } from '../device.js';
-import { toggleConsent } from '../consent-actions.js';
 import { t } from '../ui-strings.js';
 import { LOCALES, locale, setLocale, localePinned } from '../lib/locale.js';
 import { countryLabel, regionText } from './market.js';
@@ -48,10 +47,9 @@ import { rangePickerHtml, handleRangeClick } from '../lib/range-picker.js';
 import { tagsOn, setTagsOn } from '../screen-tag-badge.js';
 import { devOn, packReadOn, setPackReadOn } from '../dev-mode.js';
 import { FLAGS } from '../flags.js';
-import { MANAGE_URLS, REVIEW_URLS, legalUrl } from '../plus-config.js';
+import { MANAGE_URLS, REVIEW_URLS } from '../plus-config.js';
 import { platformOf } from '../purchases.js';
 import { APP_VERSION } from '../version.js';
-import { usageSharingOn, setUsageSharing } from '../usage-setting.js';
 
 /**
  * "Manage subscription": the store's own subscriptions page, or '' for no row.
@@ -183,7 +181,6 @@ export default {
     const manageUrl = manageSubscriptionUrl();
     const rate = rateUrl();
     const ratedCounts = store.ratedCounts();
-    const consent = store.consent();
     const ac = new AbortController();
 
     function currentTheme() {
@@ -382,42 +379,15 @@ export default {
 
         <section class="block">
           <h2 class="sect-h">${escapeHtml(t('you_data_h'))}</h2>
-          <p class="fineprint">${escapeHtml(say(FLAGS.photoId ? 'you_data_intro' : 'you_data_intro_nophoto'))}</p>
-
-          <div class="ilist consent-list">
-            <div class="ilist-row consent-row">
-              <div class="consent-text">
-                <span class="ilist-l">${escapeHtml(t('you_claude'))}</span>
-                <p class="fineprint">${escapeHtml(t('you_claude_desc'))}</p>
-              </div>
-              <button type="button" class="switch${store.get().agreement?.claude === true ? ' on' : ''}" data-act="claude-consent" role="switch"
-                      aria-checked="${store.get().agreement?.claude === true}" aria-label="${escapeHtml(t('you_claude'))}"></button>
-            </div>
-            ${/* D24: no Photos switch while photo identification is off; nothing is kept to switch. */ !FLAGS.photoId ? '' : `<div class="ilist-row consent-row">
-              <div class="consent-text">
-                <span class="ilist-l">${escapeHtml(t('you_photos'))}</span>
-                <p class="fineprint">${escapeHtml(say('consent_photos_desc'))}</p>
-              </div>
-              <button type="button" class="switch" data-consent="photos" role="switch"
-                      aria-checked="${consent.photos}" aria-label="${escapeHtml(t('you_photos'))}"></button>
-            </div>`}
-            <div class="ilist-row consent-row">
-              <div class="consent-text">
-                <span class="ilist-l">${escapeHtml(t('you_location'))}</span>
-                <p class="fineprint">${escapeHtml(say('consent_location_desc'))}</p>
-              </div>
-              <button type="button" class="switch" data-consent="location" role="switch"
-                      aria-checked="${consent.location}" aria-label="${escapeHtml(t('you_location'))}"></button>
-            </div>
-            ${/* 2026-11-21 (legal 7, apple-rules 8): off stops track.js sending usage events (usage-setting.js). */ ''}
-            <div class="ilist-row consent-row">
-              <div class="consent-text">
-                <span class="ilist-l">${escapeHtml(t('you_usage'))}</span>
-                <p class="fineprint">${escapeHtml(t('you_usage_desc'))}</p>
-              </div>
-              <button type="button" class="switch${usageSharingOn() ? ' on' : ''}" data-act="usage-sharing" role="switch"
-                      aria-checked="${usageSharingOn()}" aria-label="${escapeHtml(t('you_usage'))}"></button>
-            </div>
+          ${/* 2026-11-25 (Jamin: one document, no off switches): the Claude, photos, location and usage
+               switches and the data paragraph are gone. Everything they said is in the Terms, Privacy and
+               Data document, accepted once on first launch; the row below reopens it read-only (Apple
+               5.1.1(i): the privacy policy stays reachable in the app). */ ''}
+          <div class="ilist">
+            <button type="button" class="ilist-row" data-act="legal">
+              <span class="ilist-l">${escapeHtml(t('legal_title'))}</span>
+              ${rowChevron()}
+            </button>
           </div>
 
           ${/* 2026-11-21: "No scan limit." is true only when the server sets none, so it is drawn hidden and
@@ -435,19 +405,6 @@ export default {
             deliberately nothing to write. That decision is not an embarrassment to
             hide behind a placeholder; said plainly, it is the paragraph above.
           -->
-          ${/* D15: the privacy policy and the terms exist (the hosted pages, plus-config.js
-               LEGAL_URLS), so this links them instead of saying there are none. */ ''}
-          <div class="ilist">
-            ${/* 2026-11-21 (blind 14, ops 18): the pages in the shopper's language, as the agree screen does. */ ''}
-            <a class="ilist-row" href="${escapeHtml(legalUrl('privacy', chosenLocale))}" target="_blank" rel="noopener noreferrer" data-legal-privacy>
-              <span class="ilist-l">${escapeHtml(t('paywall_privacy'))}</span>
-              ${rowChevron()}
-            </a>
-            <a class="ilist-row" href="${escapeHtml(legalUrl('terms', chosenLocale))}" target="_blank" rel="noopener noreferrer" data-legal-terms>
-              <span class="ilist-l">${escapeHtml(t('paywall_terms'))}</span>
-              ${rowChevron()}
-            </a>
-          </div>
           ${
             /*
              * The one error state this screen can honestly report about itself.
@@ -486,14 +443,6 @@ export default {
             <button type="button" class="ilist-row" data-act="report">
               <span class="ilist-l">${escapeHtml(t('you_report'))}</span>
               <span class="ilist-v">${escapeHtml(t('you_report_fastest'))}</span>
-              ${rowChevron()}
-            </button>
-            ${/* The market picker held the app's only door to the licences, so
-                 attribution was reachable only by someone changing country.
-                 `lib/pagebar.js` already documents the licences screen as
-                 sitting under You; this is that written intent, wired. */ ''}
-            <button type="button" class="ilist-row" data-act="licences">
-              <span class="ilist-l">${escapeHtml(t('lic_title'))}</span>
               ${rowChevron()}
             </button>
             ${rate ? `<a class="ilist-row" href="${escapeHtml(rate)}" target="_blank" rel="noopener noreferrer" data-rate-pexi>
@@ -558,29 +507,6 @@ export default {
       const block = root.querySelector('[data-plus-block]');
       if (block) { block.hidden = false; block.style.display = ''; }
     }).catch(() => {});
-
-    /**
-     * Item 6d: the withdrawal toggles. `switch` mirrors `store.setConsent`'s
-     * shape (only the flag that changed), writes the local copy first (same
-     * write-then-send order `corrections.js` uses, for the same reason: the
-     * local flag is what every other check in this app reads immediately,
-     * and it must never wait on a network round trip to take effect), then
-     * tells the server and fires the consent-change event. Turning location
-     * on also asks the OS for a position right away rather than waiting for
-     * the next scan, so the very first scan after saying yes already has a
-     * cell to attach.
-     */
-    function paintConsent() {
-      const c = store.consent();
-      for (const key of ['photos', 'location']) {
-        const btn = root.querySelector(`[data-consent="${key}"]`);
-        if (btn) {
-          btn.setAttribute('aria-checked', String(c[key]));
-          btn.classList.toggle('on', c[key]);
-        }
-      }
-    }
-    paintConsent();
 
     /** The Developer row's switch, painted from the badge's own state, never from the last tap. */
     function paintTags() {
@@ -681,22 +607,6 @@ export default {
         }
         return;
       }
-      const claudeSwitch = e.target.closest('[data-act="claude-consent"]');
-      if (claudeSwitch) {
-        const now = store.get().agreement?.claude !== true;
-        store.update({ agreement: { ...store.get().agreement, claude: now } });
-        void ctx.api?.postEvent?.({ deviceId: getDeviceId()?.id, type: 'agreement_change', payload: { claude: now } });
-        claudeSwitch.setAttribute('aria-checked', String(now));
-        claudeSwitch.classList.toggle('on', now);
-        return;
-      }
-      const usageSwitch = e.target.closest('[data-act="usage-sharing"]');
-      if (usageSwitch) {
-        const now = setUsageSharing(!usageSharingOn());
-        usageSwitch.setAttribute('aria-checked', String(now));
-        usageSwitch.classList.toggle('on', now);
-        return;
-      }
       if (e.target.closest('[data-act="buzz"]')) {
         store.setBuzz(!store.buzzOn());
         paintBuzz();
@@ -712,12 +622,6 @@ export default {
         paintPackRead();
         return;
       }
-      const consentBtn = e.target.closest('[data-consent]');
-      if (consentBtn) {
-        toggleConsent(ctx.api, consentBtn.dataset.consent);
-        paintConsent();
-        return;
-      }
       if (e.target.closest('[data-act="camera"]')) { ctx.go('camera'); return; }
       if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
@@ -730,7 +634,7 @@ export default {
       if (e.target.closest('[data-act="guide"]')) { ctx.go('guide', { replay: 1 }); return; }
       if (e.target.closest('[data-act="plus"]')) { ctx.go('paywall'); return; }
       if (e.target.closest('[data-act="savings"]')) { ctx.go('savings'); return; }
-      if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
+      if (e.target.closest('[data-act="legal"]')) { ctx.go('agree'); return; }
       if (e.target.closest('[data-act="report"]')) ctx.go('correct', {});
     }, ac.signal);
 

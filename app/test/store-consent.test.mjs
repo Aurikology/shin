@@ -16,7 +16,8 @@ test('item 9: a fresh install must answer, and only a current, whole answer coun
   assert.equal(needsAgreement({ agreement: { at: 'x', version: AGREEMENT_VERSION } }), true, 'no Claude answer passed');
   assert.equal(needsAgreement({ agreement: { at: 'x', version: 0, claude: false } }), true, 'an old version passed');
   assert.equal(needsAgreement({ agreement: { at: 'x', version: 1, claude: true } }), true, 'the version 1 screen (tick box and Claude question) is asked again');
-  assert.equal(needsAgreement({ agreement: { at: 'x', version: AGREEMENT_VERSION, claude: false } }), false, 'switching Claude off on You is a whole record');
+  assert.equal(needsAgreement({ agreement: { at: 'x', version: 2, claude: true } }), true, 'the version 2 screen (one button, You switches) is asked again');
+  assert.equal(needsAgreement({ agreement: { at: 'x', version: AGREEMENT_VERSION, claude: false } }), true, '2026-11-25: there is no Claude off any more, so a no is not an acceptance');
   assert.equal(needsAgreement({ agreement: agreementRecord() }), false);
   assert.equal(agreementRecord().claude, true, 'one agreement covers Claude');
 });

@@ -1,0 +1,43 @@
+/*
+ * The Terms, Privacy and Data document (screens/agree.js, words in js/legal/document.js). A long read, so
+ * this is the plainest surface in the app: body text at a reading size, section heads that let a thumb
+ * find its place, and the data credits on one inset card. No verdict colour and no brand pink anywhere:
+ * a licence in the green of a good price would read as a rating of the source. The button is the shell's
+ * sticky `.page-foot`, so "Accept and continue" is always one tap away, wherever the reader stops.
+ */
+
+.legal-doc {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+  padding-bottom: var(--s-4);
+}
+.legal-doc p,
+.legal-doc li { margin: 0 0 10px; }
+.legal-doc ul { margin: 0 0 12px; padding-left: 1.2em; }
+.legal-doc a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+.legal-meta { font-size: 13px; color: var(--ink-muted); }
+.legal-intro { font-size: 16px; }
+
+.legal-section h2 {
+  font-size: 17px;
+  line-height: 1.3;
+  margin: 22px 0 8px;
+}
+
+.legal-sources {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.legal-doc .legal-sources { padding-left: 0; }
+.legal-source { padding: 12px 14px; margin: 0; border-bottom: 1px solid var(--hairline); }
+.legal-source:last-child { border-bottom: 0; }
+.legal-source p { margin: 0 0 4px; }
+.legal-source-what,
+.legal-source-licence { font-size: 13px; color: var(--ink-muted); }
+.legal-source-licence a { min-height: 44px; display: inline-flex; align-items: center; margin-left: 4px; }

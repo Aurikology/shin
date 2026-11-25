@@ -44,7 +44,6 @@ import { getDeviceId } from './device.js';
 import { postEventsBatch } from './api.js';
 import { APP_VERSION } from './version.js';
 import * as router from './router.js';
-import { usageSharingOn, onUsageSharingChange } from './usage-setting.js';
 
 const QUEUE_KEY = 'shin.track.queue';
 /** Sent per flush, at most. `events.ts`'s route cap is ~200; this stays under it
@@ -66,8 +65,10 @@ function loadQueue() {
   }
 }
 
-/* "Share usage data" off (usage-setting.js, 2026-11-21): nothing queued is kept, nothing new is queued. */
-let queue = usageSharingOn() ? loadQueue() : [];
+/* 2026-11-25 (Jamin: one document, no off switches): usage recording is part of using Pexi, so the
+   "Share usage data" switch and usage-setting.js are gone. Its old stored choice is cleared once. */
+try { localStorage.removeItem('pexi.usage.off'); } catch { /* private window */ }
+let queue = loadQueue();
 let flushing = false;
 
 function saveQueue() {
@@ -79,12 +80,6 @@ function saveQueue() {
   }
 }
 
-if (!usageSharingOn()) saveQueue();
-onUsageSharingChange((on) => {
-  if (on) return;
-  queue = [];
-  saveQueue();
-});
 
 /**
  * Queues one event. Never throws, and never awaited by a caller: exactly the
@@ -93,7 +88,6 @@ onUsageSharingChange((on) => {
  * contradiction.
  */
 export function track(type, payload = {}) {
-  if (!usageSharingOn()) return;
   try {
     const device = getDeviceId();
     queue.push({
@@ -115,7 +109,7 @@ export function track(type, payload = {}) {
  * place for the next timer or the next visibility change to try again.
  */
 async function flush() {
-  if (flushing || queue.length === 0 || !usageSharingOn()) return;
+  if (flushing || queue.length === 0) return;
   flushing = true;
   try {
     const batch = queue.slice(0, BATCH_SIZE);

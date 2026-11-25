@@ -991,8 +991,9 @@ function matchTextRefusal(req: IncomingMessage): { retryAfterSeconds: number } |
 }
 
 /**
- * Has this shopper said yes to product names going to Claude? Anything but the phone's `1` is no, so
- * an older app and an unanswered screen fail toward not sharing. The suite's fake provider counts as
+ * Has this shopper accepted the Terms, Privacy and Data document, which covers product names going to
+ * Claude (2026-11-25: no separate switch any more)? Anything but the phone's `1` is no, so a phone that
+ * never accepted shares nothing. The suite's fake provider counts as
  * a yes unless a test asks for the real check: no name leaves the machine in a test.
  */
 function claudeAllowed(req: IncomingMessage): boolean {
@@ -4241,8 +4242,16 @@ export const server = createServer(async (req, res) => {
        * place in this server where a client bug must fail towards keeping
        * less, and `photos: "false"` is a real thing a client sends.
        */
-      const photos = k.photos === true;
-      const location = k.location === true;
+      /*
+       * 2026-11-25 (Jamin: one document, accepted once, no off switches): `accepted: true` is the phone
+       * saying its shopper pressed Accept and continue on the Terms, Privacy and Data document, which
+       * covers photos and rough location, so both are a yes. Location is still only what the phone's own
+       * permission lets it send, and `locationFor` still writes null into the exact columns. A device that
+       * never accepted has no row and keeps nothing. Older apps still send the two flags themselves.
+       */
+      const accepted = k.accepted === true;
+      const photos = accepted || k.photos === true;
+      const location = accepted || k.location === true;
       const stored = writeConsent(deviceId, photos, location);
       if (!stored) {
         // Reported rather than swallowed. A person who just turned photo

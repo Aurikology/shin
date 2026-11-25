@@ -63,8 +63,8 @@ test('onboarding off: a fresh install goes Permissions, Camera (Consent only wit
   assert.equal(firstScreen({}, { onboarding: false, photoId: false }), 'permissions');
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: false }), 'camera', 'photos off: the consent screen has no switch and is skipped (2026-11-21)');
   assert.equal(firstScreen({ permissionsSeen: true, consentSeen: true }, { onboarding: false, photoId: false }), 'camera');
-  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent');
-  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: false }, { onboarding: false, photoId: true }), 'consent');
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'camera', '2026-11-25: no consent screen, photos or not');
+  assert.equal(firstScreen({ onboarding: { doneAt: 'x' }, permissionsSeen: true, consentSeen: false }, { onboarding: false, photoId: true }), 'camera');
   assert.equal(firstScreen({}, { onboarding: true }), 'onboarding', 'the flag no longer switches the welcome back on');
 });
 

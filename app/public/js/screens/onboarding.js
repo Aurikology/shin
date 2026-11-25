@@ -263,8 +263,7 @@ function bodyFor(step, answers, replay) {
         <p class="onb-sub onb-welcome-line">${escapeHtml(t('onb_welcome_line'))}</p>`;
     case 'info':
       return step.id === 'thanks'
-        ? `${face('proud', 120)}<h1>${escapeHtml(t('onb_thanks_title'))}</h1><p class="onb-sub">${escapeHtml(t('onb_thanks_sub'))}</p>
-          <div class="onb-privacy"><b>${escapeHtml(t('onb_thanks_privacy_title'))}</b><span>${escapeHtml(t('onb_thanks_privacy'))}</span></div>`
+        ? `${face('proud', 120)}<h1>${escapeHtml(t('onb_thanks_title'))}</h1><p class="onb-sub">${escapeHtml(t('onb_thanks_sub'))}</p>`
         : `${face('idle', 120)}<h1>${escapeHtml(t('onb_promise'))}</h1>`;
     case 'choice': return choiceBody(step, answers);
     case 'threshold': return thresholdBody(answers, replay);

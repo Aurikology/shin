@@ -122,19 +122,8 @@ export default {
             storagePersists() ? '' : `<p class="fineprint" role="status">${escapeHtml(say('storage_not_kept'))}</p>`
           }
 
-          <!--
-            The attribution line. One line, and it is a real control rather than
-            small print: nearly everything this app knows is open data whose
-            licence asks for credit, and credit nobody can reach is not credit.
-            It sits on this screen because this is where a person is already
-            thinking about where their prices come from.
-
-            No animation on it. This line is on screen every time the market
-            screen opens, and the screen it leads to is the rare one.
-          -->
-          <button type="button" class="linky mkt-attrib" data-act="licences">
-            ${escapeHtml(t('market_sources_button'))}
-          </button>
+          ${/* 2026-11-25: the sources line that stood here is gone; the data credits are in the one
+               Terms, Privacy and Data document, reachable from Settings (screens/agree.js). */ ''}
 
           ${pageBar('you')}
         </div>`;
@@ -228,7 +217,6 @@ export default {
       if (e.target.closest('[data-act="progress"]')) { ctx.go('progress'); return; } // the bar, 2026-11-22
       if (e.target.closest('[data-act="watchlist"]')) { ctx.go('watchlist'); return; }
       if (e.target.closest('[data-act="you"]')) { ctx.go('you'); return; }
-      if (e.target.closest('[data-act="licences"]')) { ctx.go('licences'); return; }
       const region = e.target.closest('[data-region]');
       if (region) { store.setRegion(region.dataset.region); return; }
       const row = e.target.closest('[data-country]');

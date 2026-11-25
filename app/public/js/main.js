@@ -42,10 +42,9 @@ import './track.js';
 import camera from './screens/camera.js';
 import onboarding from './screens/onboarding.js';
 import agree from './screens/agree.js';
-import { needsAgreement } from './screens/agree.js';
+import { needsAgreement, syncAgreement } from './screens/agree.js';
 import permissions from './screens/permissions.js';
 import setup from './screens/setup.js';
-import consent from './screens/consent.js';
 import watchlist from './screens/watchlist.js';
 import correct from './screens/correct.js';
 import share from './screens/share.js';
@@ -53,7 +52,6 @@ import you from './screens/you.js';
 import pastscans from './screens/pastscans.js';
 import removed from './screens/removed.js';
 import market from './screens/market.js';
-import licences from './screens/licences.js';
 import savings from './screens/savings.js';
 import paywall from './screens/paywall.js';
 import guide from './screens/guide.js';
@@ -71,7 +69,7 @@ import { startRemoteStatus } from './remote-status.js';
 applyFlags();
 import { firstScreen, replayUrlFor } from './onboarding-flow.js';
 
-for (const s of [agree, camera, onboarding, permissions, setup, consent, watchlist, correct, share, you, pastscans, removed, market, paywall, licences, savings, guide, progress]) {
+for (const s of [agree, camera, onboarding, permissions, setup, watchlist, correct, share, you, pastscans, removed, market, paywall, savings, guide, progress]) {
   router.register(s);
 }
 
@@ -132,8 +130,10 @@ if (personality() !== DEFAULT_PERSONALITY) setPersonality(DEFAULT_PERSONALITY);
 await hydrateDeviceIdentity();
 await restoreSetupIfWiped({ store });
 startSetupBackup({ store });
-// Item 9: nothing opens before the terms tick and the Claude choice, whatever the link says.
+// Item 9: nothing opens before the Terms, Privacy and Data document is accepted, whatever the link says.
 router.setGuard((id) => (id !== 'agree' && needsAgreement(store.get()) ? 'agree' : null));
+/* An accept pressed with no signal: the server's yes is written on a later launch (screens/agree.js). */
+void syncAgreement(api);
 /* 2026-11-22: the new-user walkthrough stands in front of the first camera (screens/guide.js). */
 const first = landing(firstScreen(store.get()), globalThis.localStorage, store.get());
 /* `?onboarding=1` replays the welcome once, for someone who has finished it

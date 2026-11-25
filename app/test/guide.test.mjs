@@ -79,7 +79,7 @@ test('2. once seen it never stands in front of the camera again; storage that th
 test('2b. main.js and the permissions screen both ask landing(), so neither path skips it', () => {
   assert.match(read('../public/js/main.js'), /const first = landing\(firstScreen\(store\.get\(\)\), globalThis\.localStorage, store\.get\(\)\)/);
   assert.match(read('../public/js/screens/permissions.js'), /ctx\.replace\(landing\(firstScreen\(/);
-  assert.match(read('../public/js/main.js'), /licences, savings, guide[,\]]/, 'the guide screen is not registered');
+  assert.match(read('../public/js/main.js'), /paywall, savings, guide[,\]]/, 'the guide screen is not registered');
 });
 
 test('3. four cards in scan order, each with a title and body in English and French', () => {

@@ -1022,9 +1022,13 @@ export function getConsent(deviceId) {
   return getSoft(`/api/consent?${params.toString()}`, { photos: true, location: false, updatedAt: null });
 }
 
-/** Writes this device's consent choice. Quiet on failure: the local copy (store.js) is the source of truth the app itself reads from. */
-export function postConsent({ deviceId, photos, location }) {
-  return postSoft('/api/consent', { deviceId, photos, location }, { stored: false });
+/**
+ * Writes this device's consent. Since 2026-11-25 the only caller is Accept and continue on the Terms,
+ * Privacy and Data document (screens/agree.js), which sends `accepted: true`: the server reads that as yes
+ * to photos and rough location. Quiet on failure; agree.js retries on a later launch until it is stored.
+ */
+export function postConsent({ deviceId, photos, location, accepted }) {
+  return postSoft('/api/consent', { deviceId, photos, location, accepted }, { stored: false });
 }
 
 /* -------------------------------------------------------------- item 10: event */

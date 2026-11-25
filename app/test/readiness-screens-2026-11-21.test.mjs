@@ -76,15 +76,17 @@ test('2. with photo identification off, the permission ask goes straight to the 
   const { firstScreen } = await import('../public/js/onboarding-flow.js');
   assert.equal(firstScreen({ permissionsSeen: true, onboarding: { doneAt: 'x' } }), 'camera'); // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW)
   assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: false }), 'camera');
-  // A photo switch is a real choice, so with photo identification on the screen still asks.
-  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'consent');
+  // 2026-11-25: no consent screen at all now, photos or not (the one document covers it).
+  assert.equal(firstScreen({ permissionsSeen: true }, { onboarding: false, photoId: true }), 'camera');
   assert.equal(firstScreen({}, { onboarding: false, photoId: false }), 'permissions', 'the permission ask stays first with the welcome off');
   assert.equal(firstScreen({}), 'onboarding', 'with the welcome on (2026-11-22) the flow is first and asks for permissions as its last step');
 });
 
-test('2. the agree screen carries one line saying what scans are used for, both languages', () => {
-  for (const lang of LANGS) assert.match(TABLES[lang].agree_data_line, lang === 'en' ? /scans/ : /scans/, lang);
-  assert.match(read('../public/js/screens/agree.js'), /t\('agree_data_line'\)/);
+test('2. the first screen says what scans are used for, both languages (2026-11-25: in the one document)', async () => {
+  const { legalBodyHtml } = await import('../public/js/legal/document.js');
+  assert.match(legalBodyHtml('en'), /what you scan or type[^<]*how you use the app, and uses it to make its answers better/);
+  assert.match(legalBodyHtml('fr'), /ce que tu scannes ou saisis[^<]*améliorer ses réponses/);
+  assert.match(read('../public/js/screens/agree.js'), /legalBodyHtml\(lang\)/);
 });
 
 /* ------------------------------------------------------------------ 3. the camera banner */
@@ -135,19 +137,14 @@ test('6. the You screen has a Contact row that writes to the support address', (
   assert.match(html, />Help and contact</);
 });
 
-test('6. the You screen has a usage-data switch', () => {
+test('6. (2026-11-25) the You screen has no usage-data switch, and one row to the Terms, Privacy and Data document', () => {
   const html = renderYou('en');
-  assert.match(html, /data-act="usage-sharing"[^>]*role="switch"/);
-  assert.equal(typeof TABLES.fr.you_usage, 'string');
-  assert.equal(typeof TABLES.fr.you_usage_desc, 'string');
+  assert.doesNotMatch(html, /data-act="usage-sharing"|data-act="claude-consent"|data-consent=/);
+  assert.match(html, /data-act="legal"[\s\S]*Terms, Privacy and Data/);
+  assert.match(renderYou('fr'), /Conditions, confidentialité et données/);
 });
 
-test('6. French shoppers get the French Terms and Privacy pages on You and on Plus', async () => {
-  const fr = renderYou('fr');
-  assert.match(fr, /privacy-fr\.html/);
-  assert.match(fr, /terms-fr\.html/);
-  const en = renderYou('en');
-  assert.doesNotMatch(en, /-fr\.html/);
+test('6. French shoppers get the French Terms and Privacy pages on Plus', async () => {
 
   const pw = await import('../public/js/screens/paywall.js');
   assert.match(inLocale('fr', () => pw.plusSpentPage({})), /terms-fr\.html[\s\S]*privacy-fr\.html/);
@@ -223,7 +220,7 @@ function voiceValues() {
 test('8. the French interface says tu, never vous', () => {
   const bad = frenchValues().filter(([, s]) => /\b(vous|votre|vos)\b/i.test(s));
   assert.deepEqual(bad, []);
-  assert.match(TABLES.fr.agree_change_later, /Réglages/); // Amended 2026-11-22: the You tab is Settings (Réglages)
+  assert.equal(TABLES.fr.you_title, 'Réglages'); // Amended 2026-11-25: agree_change_later is gone; the You tab is Settings (Réglages)
 });
 
 test('8. one French word for scan: no numérisation, no balayage', () => {
@@ -243,7 +240,6 @@ test('8. the machine-like French strings the ops review listed are rewritten', (
   assert.doesNotMatch(fr.cam_gem_median(FACTS), /du milieu/);
   assert.equal(fr.you_kind_typed, 'Saisi');
   assert.doesNotMatch(fr.you_thumbs_up, /en haut/);
-  assert.doesNotMatch(fr.lic_fallback_credit, /est ce qui/);
   assert.doesNotMatch(fr.screen_error_body, /dessus a cassé/);
   assert.doesNotMatch(fr.note_strongest, /le plus fort/);
   assert.doesNotMatch(fr.savings_unreadable, /^Je /);

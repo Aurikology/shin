@@ -1300,30 +1300,6 @@ const LINES_EN = {
     blunt: () => 'Refused. Too busy right now.',
   },
 
-  /**
-   * --- the licences screen, two states ---
-   *
-   * That screen carried its own exemption in its file comment, and it is the
-   * reason the boundary at the top of this file is written down: it argued
-   * that "a fetch narration is not a verdict" and so could live in the screen.
-   * Both lines are first person and both narrate what Pexi is doing, so both
-   * are here. The exemption is deleted.
-   *
-   * The failure line keeps the thing that matters about it: an empty
-   * attribution screen looks identical to an app with nothing to attribute,
-   * so all three variants say the list is being withheld rather than shown
-   * short. The aggression, such as it is, points at the fetch.
-   */
-  licences_loading: {
-    deadpan: () => 'Asking for the list of sources…',
-    warm: () => 'Let me go and fetch the list of sources…',
-    blunt: () => 'Getting the source list…',
-  },
-  licences_failed: {
-    deadpan: () => 'I could not reach the source list. None of it is shown.',
-    warm: () => 'Source list unreachable, so I show none, not a short one.',
-    blunt: () => 'Could not reach the source list. Showing none, not half.',
-  },
 
   /* camera, lane B */
   /**
@@ -1475,104 +1451,6 @@ const LINES_EN = {
     blunt: () => 'I price these instead.',
   },
   /**
-   * --- row 14, the privacy line, at the moment camera permission is asked.
-   * Shown while `getUserMedia` is in flight; swapped for the real idle
-   * content the instant it resolves either way.
-   *
-   * REWRITTEN 2026-09-11 (item 6e), REWRITTEN AGAIN 2026-09-14. The 2026-09-11
-   * line said a barcode read never sends a picture, only the decoded code,
-   * which was true that day and stopped being true the day a barcode read
-   * started sending the live camera frame the same way a shutter press always
-   * has (task item 5, camera.js's `onBarcode`, api.js's own `beginShutter`).
-   * What this line says now is the current, larger truth: every scan sends a
-   * picture, always, and what happens to it afterward is what Photos governs
-   * -- kept for the identify route's own copy, or not, but the frame itself
-   * reaches the server on both routes regardless of that toggle.
-   */
-  cam_privacy_line: {
-    deadpan: () => 'Every scan sends a picture: the frame the camera saw at that moment, always. A photo scan keeps that picture afterward only if Photos is on; a barcode read logs its frame either way.',
-    warm: () => 'Every scan sends a picture now, the frame the camera was looking at right then, always. A photo scan keeps that picture afterward only if you have Photos turned on; a barcode read logs its frame regardless.',
-    blunt: () => 'Every scan sends a picture, always. Photo: kept if Photos is on. Barcode: frame logged either way.',
-  },
-  /* D-265, 2026-11-11: with photo scanning off (FLAGS.photoId false, RULINGS
-   * 2026-11-07) a barcode read sends no frame (camera.js, D-147), so the line
-   * above was false and contradicted the privacy policy. This one is shown
-   * instead, the way the You screen picks you_data_intro_nophoto. */
-  cam_privacy_line_nophoto: {
-    deadpan: () => 'A scan sends the barcode and your price. Never a picture.',
-    warm: () => 'I only get the barcode and your price, never a picture.',
-    blunt: () => 'Barcode and price only. No picture.',
-  },
-  /*
-   * Item 6: the consent screen's own copy, and the You screen's withdrawal
-   * section reads the same two description keys so the sentence explaining a
-   * toggle cannot drift between the two places it appears. This is policy
-   * text, not Pexi having a personality about privacy, so the three voices
-   * below say the same thing in close to the same words on purpose -- the
-   * opposite intent from a verdict line, and the same intent the existing
-   * data paragraph on the You screen was written with.
-   *
-   * REWRITTEN 2026-09-19 (beta gap item 13; the founder delegated this
-   * wording, "you decide", and asked for as much user data as possible).
-   * PHOTOS ARE KEPT BY DEFAULT and location is off by default, same as
-   * `consent.ts` and `store.js`. The photo line states the default first, in
-   * plain words, and gives the one way out right beside it: the switch below
-   * it. No "are you sure", no guilt copy, no second screen to leave. Saying
-   * "off by default" while shipping "on by default" is the gap an earlier
-   * pass closed and this one must not reopen: the line has to be an honest
-   * notice of what is kept, so any change to a default changes it here, in
-   * `voice-fr.js`, and in `consent.ts` the same day.
-   */
-  /*
-   * REWRITTEN 2026-09-28, D-148, ruled the same day, alongside `consent.ts`'s
-   * `DEFAULT_CONSENT` reversal: from 2026-09-19 to today this said photos were
-   * kept unless switched off. That was the wrong side of the standing ruling
-   * "Location and photo consent default off until answered", and this line
-   * saying "on by default" while the switch itself paints off would have been
-   * a false statement on the one screen whose whole job is to say what is
-   * kept truthfully.
-   */
-  consent_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer. Photos are kept only if you switch that on below. Location is kept only if you switch it on.',
-    warm: () => 'Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too. Photos are kept only if you switch that on below, and location is kept only if you switch it on.',
-    blunt: () => 'Every scan is logged: product and price, always. Photos are kept only if you switch that on. Location is kept only if you switch it on.',
-  },
-  /*
-   * The same intro for a build where a switch is not on this screen. D24,
-   * 2026-10-06: with photo identification off there is no photo to keep, and
-   * with the welcome flow off location is asked once, on the permission screen
-   * (RULINGS.md "Location is asked once"), so the old line pointed at two
-   * switches that do not exist. `f.photos` and `f.locationSwitch` say which
-   * switches this build really draws here.
-   */
-  consent_intro_lean: {
-    deadpan: (f) => `Every scan is written down: the product and the price you saw, always, so the next person who scans it gets an answer.${f.photos ? ' Photos are kept only if you switch that on below.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on below.' : ' Location is kept only if you allowed it on the last screen.'}`,
-    warm: (f) => `Every scan gets written down: what you scanned and the price you saw, always, so the next person who scans the same thing gets an answer too.${f.photos ? ' Photos are kept only if you switch that on below.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on below.' : ' Location is kept only if you allowed it on the last screen.'}`,
-    blunt: (f) => `Every scan is logged: product and price, always.${f.photos ? ' Photos are kept only if you switch that on.' : ''}${f.locationSwitch ? ' Location is kept only if you switch it on.' : ' Location is kept only if you allowed it on the last screen.'}`,
-  },
-  /*
-   * REWRITTEN 2026-09-28, twice the same day. First for D-148's own complaint:
-   * this line named only "the picture from a photo scan", the one path
-   * FLAGS.photoId keeps off in this build, and said nothing about the shelf
-   * stream that runs today (`camera.js` `startShelf`, gated on this same
-   * flag) and is the thing this switch actually turns on or off. Second for
-   * the default reversal right above: `store.js` and `consent.ts` now both
-   * read photos OFF for a device that has never answered, so "on until you
-   * switch it off" became a sentence the switch itself would contradict the
-   * moment it painted. Now it names both things this switch governs, on the
-   * side the default actually sits.
-   */
-  consent_photos_desc: {
-    deadpan: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is read once to answer it and not kept. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Pexi can learn from it. The risk: a kept photo can show what is near you in the shot.',
-    warm: () => 'Off until you switch it on. Off, no picture of the shelf is kept while the camera is open, and a photo scan’s picture is only read once, to answer that scan, and then it is gone. Switched on, both are kept: the shelf picture, and the picture from a photo scan, tied to that scan, so a wrong answer can be checked later and Pexi can learn from it. The risk is that a kept photo can show whatever else was in the shot around you.',
-    blunt: () => 'Off until you switch it on. Off: no shelf picture, and the photo-scan picture is read once, not kept. On: both kept, tied to the scan, so a wrong answer can be checked. Risk: a kept photo can show what is near you.',
-  },
-  consent_location_desc: {
-    deadpan: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to a nearby store. Your phone also remembers which shop you picked in each area, so it stops asking. That list never leaves the phone and it goes when you switch this off. Off, no location is kept at all. The risk: even a rough area narrows down where you shop.',
-    warm: () => 'Keeps a rough area, about a kilometre wide, never your exact spot, so a price can be matched to the store you were near. Your phone also remembers which shop you picked in each area, so it does not have to ask you again. That list stays on the phone, is never sent anywhere, and is deleted the moment you switch this off. Off, nothing about where you are is kept. The risk is that even a rough area says something about where you shop.',
-    blunt: () => 'Keeps a rough area, about a kilometre wide, never your exact spot. Your phone remembers which shop you picked where, so it stops asking. Stays on the phone. Deleted when you switch this off. Off: nothing kept. Risk: even a rough area narrows down where you shop.',
-  },
-  /**
    * Item 8d: the You screen's rated-count row. Pexi's own voice, same family
    * as `you_scans_named` above it: a fact about this device's own record,
    * narrated rather than printed as a bare caption, so it reads as the same
@@ -1583,45 +1461,6 @@ const LINES_EN = {
     deadpan: () => 'None yet. A thumb on any verdict counts here.',
     warm: () => 'None yet, but a thumb on any verdict starts this counting.',
     blunt: () => 'None yet. Rate one.',
-  },
-  /*
-   * The You screen's own copy of the data paragraph, item 6e's replacement
-   * for "Everything stays on this device," which stopped being true the day
-   * the photo route and the hosted tunnel (plan item 1) shipped.
-   *
-   * REWRITTEN AGAIN 2026-09-14, same reason as `cam_privacy_line` above: a
-   * barcode read now sends its camera frame too (task item 5), so "a barcode
-   * never sends a picture" is no longer a sentence this screen can say.
-   */
-  you_data_intro: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, plus the camera frame from that moment, used to train Pexi and answer other shoppers.',
-    warm: () => 'Every scan gets written down, the product and the price you saw, always, along with the camera frame from that moment, and it helps train Pexi and answer other shoppers.',
-    blunt: () => 'Every scan is logged: product, price, and the camera frame, always. Used to train Pexi and answer other shoppers.',
-  },
-  /* Photo identification off (D24): no camera frame leaves the phone on a barcode scan (RULINGS.md "A barcode scan sends no photo"), so the line must not say one does. */
-  you_data_intro_nophoto: {
-    deadpan: () => 'Every scan is written down: the product and the price you saw, always, used to train Pexi and answer other shoppers.',
-    warm: () => 'Every scan gets written down, the product and the price you saw, always, and it helps train Pexi and answer other shoppers.',
-    blunt: () => 'Every scan is logged: product and price, always. Used to train Pexi and answer other shoppers.',
-  },
-  /*
-   * REWRITTEN 2026-09-14. "Only this app and the person running it can see
-   * any of this" stopped being the whole truth the day collecting everything
-   * became the point: what is collected is also used to answer other
-   * shoppers and to train Pexi, which is a use beyond "seen by the app and
-   * whoever runs it." This says what actually happens instead of the
-   * narrower, more reassuring claim.
-   */
-  consent_footer: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change either choice any time in Settings.',
-    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change either choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time in Settings.',
-  },
-  /* One choice left when photo identification is off (D24): "either choice" had nothing to be either of. */
-  consent_footer_one: {
-    deadpan: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it too. Change this choice any time in Settings.',
-    warm: () => 'This app keeps what it collects, uses it to answer other shoppers and to train Pexi, and the person running it can see it as well. You can change this choice any time from the You page.',
-    blunt: () => 'This app keeps it, uses it to answer other shoppers and train Pexi. Change it any time in Settings.',
   },
   /*
    * Item 9, the two route-declined failures (`THROTTLE_REASONS` in camera.js).

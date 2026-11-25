@@ -24,13 +24,9 @@ import { tmpdir } from 'node:os';
 
 import { openScanStore } from '../src/scans.ts';
 import { readConsent, writeConsent, keepPhoto, keepLocation, DEFAULT_CONSENT } from '../src/consent.ts';
-import { say } from '../public/js/voice.js';
-import { LINES_FR } from '../public/js/voice-fr.js';
 import * as store from '../public/js/store.js';
-import { confirmConsent, toggleConsent } from '../public/js/consent-actions.js';
 
 const fresh = () => join(mkdtempSync(join(tmpdir(), 'shin-consent-')), 'scans.db');
-const TONES = ['deadpan', 'warm', 'blunt'];
 
 /** A localStorage that lives in a Map, for the duration of `fn`. */
 function withStorage(seed, fn) {
@@ -143,99 +139,6 @@ test('a choice the person did record is kept exactly, whatever the default is', 
   assert.equal(fresher.consent().location, true);
 });
 
-test('Continue records the default as an answer, with a time, and posts it', () => {
-  withStorage({}, () => {
-    const posted = [];
-    const events = [];
-    const api = {
-      postConsent: (body) => posted.push(body),
-      postEvent: (body) => events.push(body),
-    };
-    const next = confirmConsent(api);
-    assert.equal(next.photos, false);
-    assert.equal(next.location, false);
-    assert.ok(next.updatedAt, 'the confirmed answer carries no time');
-    assert.equal(posted.length, 1, 'Continue did not post the consent to the server');
-    assert.equal(posted[0].photos, false);
-    assert.equal(posted[0].location, false);
-    assert.equal(events[0].payload.via, 'continue');
-  });
-});
-
-test('the one switch is the whole opt-out, and it posts what it says', () => {
-  withStorage({}, () => {
-    const posted = [];
-    const api = { postConsent: (b) => posted.push(b), postEvent: () => {} };
-    const next = toggleConsent(api, 'photos');
-    assert.equal(next.photos, true);
-    assert.equal(posted[0].photos, true, 'the switch and the server disagree');
-    assert.equal(toggleConsent(api, 'photos').photos, false);
-  });
-});
-
-/* ----------------------------------------------------------------- wording -- */
-
-const KEYS = ['consent_intro', 'consent_photos_desc', 'consent_footer'];
-
-test('the English copy says photos are off by default and how to turn that on', () => {
-  for (const tone of TONES) {
-    const intro = say('consent_intro', {}, tone);
-    const photos = say('consent_photos_desc', {}, tone);
-    assert.match(intro, /photos/i, `${tone} intro does not mention photos`);
-    assert.match(intro, /only if you switch (that|them) on/i, `${tone} intro does not say photos are off by default`);
-    assert.match(photos, /off until you switch it on/i, `${tone} photo line does not say it is off`);
-    assert.match(photos, /not kept|is gone/i, `${tone} photo line does not say what off does`);
-    assert.doesNotMatch(intro, /two more things/i, `${tone} intro regressed to an even older wording`);
-  }
-});
-
-test('the French copy says the same, in all three tones', () => {
-  for (const tone of TONES) {
-    const intro = LINES_FR.consent_intro[tone]();
-    const photos = LINES_FR.consent_photos_desc[tone]();
-    assert.match(intro, /photos/i, `${tone} intro does not mention photos`);
-    assert.match(intro, /seulement si tu ouvres/i, `${tone} intro does not say photos are off by default`);
-    assert.match(photos, /Fermé jusqu'à ce que tu l'ouvres/, `${tone} photo line does not say it is off`);
-    assert.match(photos, /pas gardée|est partie/i, `${tone} photo line does not say what off does`);
-    assert.doesNotMatch(intro, /Deux autres choses/i, `${tone} intro regressed to an even older wording`);
-  }
-});
-
-test('the consent copy has no em dash and no guilt line, in either language', () => {
-  const all = [];
-  for (const key of KEYS) {
-    for (const tone of TONES) {
-      all.push([`en ${key} ${tone}`, say(key, {}, tone)]);
-      all.push([`fr ${key} ${tone}`, LINES_FR[key][tone]()]);
-    }
-  }
-  for (const [where, text] of all) {
-    assert.ok(text.length > 0, `${where} is empty`);
-    assert.ok(!text.includes('—'), `${where} has an em dash`);
-    assert.doesNotMatch(text, /are you sure|please keep|help us|sad|désolé/i, `${where} pressures the choice`);
-  }
-});
-
-test('the source of the screen and the actions still agree on the opt-out', () => {
-  const screen = readFileSync(
-    fileURLToPath(new URL('../public/js/screens/consent.js', import.meta.url)),
-    'utf8',
-  );
-  // The switch is painted from the store, so it shows the default the server
-  // uses; Continue goes through confirmConsent so the answer is recorded.
-  assert.match(screen, /aria-checked="\$\{store\.consent\(\)\.photos\}"/);
-  assert.match(screen, /confirmConsent\(ctx\.api\)/);
-});
-
-test('with the welcome flow off, location is asked once: the consent screen gates its row (D-139)', () => {
-  const screen = readFileSync(
-    fileURLToPath(new URL('../public/js/screens/consent.js', import.meta.url)),
-    'utf8',
-  );
-  // The location switch is emitted only inside the FLAGS.onboarding branch;
-  // with the flow off the permission screen right before has already asked.
-  const at = screen.indexOf('data-consent="location"');
-  assert.ok(at > 0, 'the location switch still exists for the welcome flow');
-  const gate = screen.lastIndexOf('FLAGS.onboarding ?', at);
-  assert.ok(gate > 0 && at - gate < 800, 'the location row sits inside a FLAGS.onboarding branch');
-});
+/* 2026-11-25: the consent screen, its switches and their copy are gone (one document, accepted once;
+   screens/agree.js). What stays above is the server and store half: no row keeps nothing. The accept path
+   is tested in legal-document.test.mjs. */

@@ -465,7 +465,7 @@ test('R-91 (keep): the reticle appears without contracting under reduced motion'
 
 test('R-17 (keep): the stylesheets that animate honour reduced motion', () => {
   const missing = [];
-  for (const f of ['screens/camera.css', 'face.css', 'screens/correct.css', 'screens/licences.css', 'screens/onboarding.css', 'screens/watchlist.css', 'screens/you.css', 'shell.css']) {
+  for (const f of ['screens/camera.css', 'face.css', 'screens/correct.css', 'screens/onboarding.css', 'screens/watchlist.css', 'screens/you.css', 'shell.css']) {
     if (!/prefers-reduced-motion/.test(readFileSync(new URL(f, CSS_DIR), 'utf8'))) missing.push(f);
   }
   assert.deepEqual(missing, []);

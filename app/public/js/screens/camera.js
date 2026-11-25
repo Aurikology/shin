@@ -3719,13 +3719,13 @@ export default {
       }
     }
 
-    // Row 14: the one-sentence privacy line, shown while permission is being
-    // asked (this promise is exactly that moment) and swapped out for the
-    // real idle content the instant it resolves either way.
+    // The line shown while camera permission is being asked, swapped out for
+    // the real idle content the instant it resolves either way. Until
+    // 2026-11-25 this was a privacy line (Row 14, D-265); what is sent now
+    // lives only in the Terms, Privacy and Data document (Jamin: one place),
+    // so the camera says how to scan instead.
     if (camShin) {
-      // D-265 (2026-11-11): with photo scanning off no frame leaves the phone,
-      // so the "every scan sends a picture" line would be false here.
-      camShin.innerHTML = shinSay('idle', FLAGS.photoId ? 'cam_privacy_line' : 'cam_privacy_line_nophoto', {}, { size: 64 });
+      camShin.innerHTML = shinSay('idle', FLAGS.photoId ? 'cam_aim_hint' : 'cam_aim_barcode', {}, { size: 64 });
       camShinEl = camShin.querySelector('.shin-say');
     }
 

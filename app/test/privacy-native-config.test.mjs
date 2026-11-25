@@ -39,14 +39,18 @@ test('both policies describe requests, complaints, the time to answer and record
   assert.match(EN, /register|record of every/i);
   assert.match(FR, /30 jours/);
   assert.match(FR, /plainte/i);
-  assert.match(FR, /Commission d'accès à l'information/);
+  assert.match(FR, /Commission d['’]accès à l['’]information/);
   assert.match(FR, /incident/i);
   assert.match(FR, /registre/i);
 });
 
-test('both policies say usage tracking can be switched off on the You screen', () => {
-  assert.match(EN, /switch (usage tracking|it) off[^.]*You screen|You screen[^.]*switch[^.]*usage tracking off/i);
-  assert.match(FR, /écran Vous[^.]*(désactiv|arrêt)[^.]*(utilisation|suivi)|(désactiv|arrêt)[^.]*(utilisation|suivi)[^.]*écran Vous/i);
+/* 2026-11-25 (Jamin: one document, no off switches): this used to require the usage switch; the switch is gone,
+   so the pages must not promise one. */
+test('both pages say usage recording is part of Pexi and promise no switch for it', () => {
+  assert.match(EN, /how you use the app/i);
+  assert.doesNotMatch(EN, /switch (usage tracking|it) off|turn (this|it) off at any time/i);
+  assert.match(FR, /façon dont tu utilises l’application/);
+  assert.doesNotMatch(FR, /(désactiv|arrêt)[^.]*suivi/i);
 });
 
 test('no em dash in the policy pages', () => {
