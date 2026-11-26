@@ -61,7 +61,7 @@ UNVERIFIED: that a check created by `?create=1` gets the project's email integra
 ## Outside uptime check (independent of the box)
 
 `.github/workflows/uptime-5min.yml`: GitHub's own machines call `https://relay.anjiawenda.com/api/health` every 5 minutes
-and fail the run (GitHub emails the account) when it is not a 200 with `ok: true`, retrying once after 20 s. GitHub may
+and fail the run (GitHub emails the account) when it is not a 200 with `ok: true`, three tries 20 s apart. GitHub may
 delay a schedule under load (it did, 2026-11-18: readiness R02), so it is one layer of three, with the box's dead-man ping
 (every 60 s, box to Healthchecks) and the existing `server-alarm.yml` (every 30 min, full phone-route probe).
 For a second independent clock, add the same URL to a free UptimeRobot monitor (5 min).
