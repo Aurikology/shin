@@ -530,9 +530,60 @@ const FR = {
   ],
 };
 
-/** The document in one language. Anything but 'fr' reads English. */
-export function legalDocument(lang = 'en') {
-  return lang === 'fr' ? FR : EN;
+/*
+ * WHERE PEXI'S SERVER RUNS. 'mac' is what is live today. Flip to 'ovh' at the cutover to OVHcloud
+ * (OVH Hosting Inc., Beauharnois, Quebec), bump LEGAL_EFFECTIVE, then run node scripts/build-legal-pages.mjs
+ * and commit the regenerated pages: the app, the hosted pages and the tests all read this one constant.
+ */
+export const HOSTING = 'mac';
+
+const OVH_TEXT = {
+  en: {
+    receivesId: 'Cloudflare, which carries your requests, and RevenueCat, described below, do.',
+    receivesIdOvh: "Cloudflare, which carries your requests, OVHcloud, which hosts Pexi's server, and RevenueCat, described below, do.",
+    item: { lead: 'OVHcloud', text: "(OVH Hosting Inc., a Canadian company) hosts Pexi's server and its databases in its data centre in Beauharnois, Quebec, so it holds what Pexi stores, including the device identifier and the records tied to it. It provides the hosting only; Pexi decides what is kept and for how long." },
+    beforeLead: 'Cloudflare',
+    whereLead: 'Outside your province and outside Canada.',
+    where: { lead: 'Where your data is kept.', text: "Pexi's server and databases are hosted by OVHcloud in Beauharnois, Quebec, so the data Pexi stores is kept in Quebec, Canada. Some of the other services above, including Anthropic, RevenueCat, Cloudflare, Apple and Google, may store or process data outside Canada, including in the United States and the European Union, where privacy law differs from Canada's. Courts, law enforcement and government authorities in those places may be able to get access to data held there under their own laws. Pexi limits what each one receives to what is listed above." },
+  },
+  fr: {
+    receivesId: 'Cloudflare, qui achemine tes demandes, et RevenueCat, décrit plus bas, le reçoivent.',
+    receivesIdOvh: 'Cloudflare, qui achemine tes demandes, OVHcloud, qui héberge le serveur de Pexi, et RevenueCat, décrit plus bas, le reçoivent.',
+    item: { lead: 'OVHcloud', text: '(OVH Hosting Inc., une société canadienne) héberge le serveur de Pexi et ses bases de données dans son centre de données de Beauharnois, au Québec; il détient donc ce que Pexi conserve, y compris l’identifiant d’appareil et les données qui y sont rattachées. Il fournit l’hébergement seulement; c’est Pexi qui décide de ce qui est conservé et pour combien de temps.' },
+    beforeLead: 'Cloudflare',
+    whereLead: 'À l’extérieur de ta province et du Canada.',
+    where: { lead: 'Où tes données sont conservées.', text: 'Le serveur et les bases de données de Pexi sont hébergés par OVHcloud à Beauharnois, au Québec; les données que Pexi conserve sont donc gardées au Québec, au Canada. Certains des autres services ci-dessus, dont Anthropic, RevenueCat, Cloudflare, Apple et Google, peuvent conserver ou traiter des données à l’extérieur du Canada, notamment aux États-Unis et dans l’Union européenne, où les lois sur la vie privée diffèrent de celles du Canada. Les tribunaux, les forces de l’ordre et les autorités gouvernementales de ces endroits peuvent avoir accès aux données qui s’y trouvent en vertu de leurs propres lois. Pexi limite ce que chacun reçoit à ce qui est indiqué plus haut.' },
+  },
+};
+
+/** A copy of one language's document with the OVHcloud hosting wording. Throws if a sentence it replaces has moved. */
+function withOvhHosting(doc) {
+  const t = OVH_TEXT[doc.lang];
+  const sharing = doc.sections.find((s) => s.id === 'sharing');
+  if (!sharing) throw new Error('legal document: no sharing section');
+  let hit = 0;
+  const blocks = sharing.blocks.map((b) => {
+    if (typeof b === 'string' && b.includes(t.receivesId)) { hit++; return b.replace(t.receivesId, t.receivesIdOvh); }
+    if (b && b.ul && b.ul.some((i) => i.lead === t.beforeLead)) {
+      hit++;
+      const ul = [];
+      for (const i of b.ul) { if (i.lead === t.beforeLead) ul.push(t.item); ul.push(i); }
+      return { ...b, ul };
+    }
+    if (b && b.lead === t.whereLead) { hit++; return t.where; }
+    return b;
+  });
+  if (hit !== 3) throw new Error(`legal document: OVH hosting wording matched ${hit} of 3 places in ${doc.lang}`);
+  return { ...doc, sections: doc.sections.map((s) => (s === sharing ? { ...s, blocks } : s)) };
+}
+
+const OVH_DOCS = {};
+
+/** The document in one language. Anything but 'fr' reads English. `hosting` defaults to HOSTING. */
+export function legalDocument(lang = 'en', hosting = HOSTING) {
+  const doc = lang === 'fr' ? FR : EN;
+  if (hosting !== 'ovh') return doc;
+  return (OVH_DOCS[doc.lang] ||= withOvhHosting(doc));
 }
 
 /* ------------------------------------------------------------------ rendering, shared by app and pages --- */
@@ -571,8 +622,8 @@ function blockHtml(block, doc) {
  * The document body as HTML: the effective line, the intro and every section. Everything is escaped here;
  * the only markup is this renderer's own. `headingTag` lets the hosted page and the app pick the level.
  */
-export function legalBodyHtml(lang = 'en', { headingTag = 'h2' } = {}) {
-  const doc = legalDocument(lang);
+export function legalBodyHtml(lang = 'en', { headingTag = 'h2', hosting = HOSTING } = {}) {
+  const doc = legalDocument(lang, hosting);
   const parts = [`<p class="legal-meta">${esc(doc.effective)}</p>`];
   for (const p of doc.intro) parts.push(`<p class="legal-intro">${text(p)}</p>`);
   for (const s of doc.sections) {
@@ -585,8 +636,8 @@ export function legalBodyHtml(lang = 'en', { headingTag = 'h2' } = {}) {
  * A whole hosted page (docs/store/terms.html and privacy.html, and their -fr twins). Both URLs carry the
  * same document: the App Store's terms link and privacy link each land on all of it.
  */
-export function legalPageHtml(lang = 'en', file = lang === 'fr' ? 'terms-fr.html' : 'terms.html') {
-  const doc = legalDocument(lang);
+export function legalPageHtml(lang = 'en', file = lang === 'fr' ? 'terms-fr.html' : 'terms.html', hosting = HOSTING) {
+  const doc = legalDocument(lang, hosting);
   const twin = file.includes('-fr.') ? file.replace('-fr.', '.') : file.replace('.html', '-fr.html');
   const other = lang === 'fr'
     ? `<a href="${twin}" lang="en">English version</a>`
@@ -622,7 +673,7 @@ footer { margin-top: 2.5em; padding-top: 1em; border-top: 1px solid var(--line);
 <body>
 <p class="top-links"><a href="index.html">${support}</a> | ${other}</p>
 <h1>Pexi: ${esc(doc.title)}</h1>
-${legalBodyHtml(lang)}
+${legalBodyHtml(lang, { hosting })}
 <footer>Pexi: ${esc(doc.title)}. ${esc(doc.effective.split('.')[0])}.</footer>
 </body>
 </html>
