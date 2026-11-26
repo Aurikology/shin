@@ -40,7 +40,7 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
-- **Build 14 asked of the Mac 2026-11-26** (from feb5785): carries the shop-search word-start fix 0fb382a (D-268 E26). The 11-11 screen walk is re-checked against the code: what is left is two phone looks (D-268 items 18, 27).
+- **Build 14 is NOT uploaded (2026-11-26 21:30):** archived from 8167364 on the Mac, but the upload failed twice with Apple answering "Unauthenticated" for the App Store Connect API key 98VUK7UL9Y. **Blocked on Aurik or Jamin:** App Store Connect, Users and Access, Integrations: is that key still active? Revoked or expired means a new key on the Mac. The archive sits unsigned in the Mac session's scratch (lost on reboot); the next build should come from newest main, which now carries the depth pass (34c0148). It carries the shop-search word-start fix 0fb382a (D-268 E26); what is left of the 11-11 walk is two phone looks (D-268 items 18, 27).
 - **Build 13 is live in TestFlight (2026-11-26):** processed, "Ready to Submit", 1 install in "Family and team"
   (Jamin's console sweep, `notes/launch-readiness-2026-11-26/consoles.md`; Aurik confirmed). It carries the build 12
   phone review fixes (D-281 to D-285) and the scans-left line. Its commit and .ipa size were not reported back to the
