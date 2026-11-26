@@ -27,7 +27,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Pexi uses the camera to read barcodes and product labels, on your phone, so it can check the price.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Pexi uses your rough area, only if you turn it on, to tell you what an item usually costs near you.</string>
+	<string>Pexi uses your rough area, only if you allow it, to tell you what an item usually costs near you.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pexi takes its own pictures with the camera. It asks for your photo library only if you choose a picture you already took instead of taking a new one.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

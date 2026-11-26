@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -47,12 +47,14 @@
          drive the Vibrator, which needs this. CONFIRM goes through the web view
          and needs nothing. -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Location: the You/permissions switch ("for store prices") asks the web view for a position.
-         Capacitor's web chrome client only shows the system prompt when these are declared here;
-         without them the switch turns on and nothing is ever asked or sent. Only a rough area about
-         1 km wide leaves the phone (geocell.js), and location stays off until the person turns it on. -->
+    <!-- Location: approximate only. The app asks the web view for a position without high accuracy
+         (geocell.js, permissions-panel.js) and only a rough area about 1 km wide leaves the phone,
+         so ACCESS_FINE_LOCATION is deliberately not declared (Google Play: request coarse instead of
+         fine). Capacitor 8's BridgeWebChromeClient asks for coarse AND fine together and, when fine
+         is refused, still allows the page on Android 12 and later (API 31+) if coarse is granted.
+         On Android 7 to 11 (API 24 to 30) it treats that as a refusal, so the web-view location
+         read fails there and the app carries on without shops nearby. Test on a device. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
