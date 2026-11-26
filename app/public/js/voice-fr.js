@@ -83,14 +83,14 @@ export const LINES_FR = {
    * dessus: la colère vise le magasin ou le prix, jamais la personne qui lit
    * l'écran. --- */
   verdict_steal: {
-    deadpan: () => "Personne d'autre n'approche ce prix-là.",
-    warm: () => "Oh, ça c'est une vraie aubaine. Personne d'autre n'est proche.",
-    blunt: () => "Personne d'autre n'approche ça. Profites-en.",
+    deadpan: (f) => `C'est bien sous le prix habituel de ${f.usual}.`,
+    warm: (f) => `Oh, ça c'est une vraie aubaine. C'est bien sous le prix habituel de ${f.usual}.`,
+    blunt: () => "Bien sous le prix habituel. Profites-en.",
   },
   verdict_ripoff: {
-    deadpan: () => "Personne d'autre ne charge ça.",
-    warm: () => "Non. Ça, ce n'est pas un prix, c'est un souhait.",
-    blunt: () => "C'est bien au-dessus de ce que les autres chargent.",
+    deadpan: (f) => `${f.asking}. Le prix habituel est ${f.usual}.`,
+    warm: (f) => `Oh là là, c'est bien au-dessus du prix habituel de ${f.usual}.`,
+    blunt: () => "Bien au-dessus du prix habituel.",
   },
 
   /* --- le mot du verdict, le plus gros texte de l'écran --- */
@@ -938,6 +938,16 @@ export const BARE_FR = {
     deadpan: () => "C'est au-dessus du prix habituel.",
     warm: () => "Ouf, c'est salé pour celui-là.",
     blunt: () => "Très au-dessus de l'habituel.",
+  },
+  verdict_steal: {
+    deadpan: () => "C'est bien sous le prix habituel.",
+    warm: () => "Oh, ça c'est une vraie aubaine. C'est bien sous le prix habituel.",
+    blunt: () => "Bien sous le prix habituel. Profites-en.",
+  },
+  verdict_ripoff: {
+    deadpan: () => "C'est bien au-dessus du prix habituel.",
+    warm: () => "Oh là là, c'est bien au-dessus du prix habituel.",
+    blunt: () => "Bien au-dessus du prix habituel.",
   },
   refuse_category: {
     deadpan: () => "Pas quelque chose que je chiffre",

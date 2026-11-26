@@ -374,7 +374,7 @@ const EN = {
   /* R-43: the chart's description carries the band's own sentence. */
   vd_band_alt: (f) => `Pexi's estimate of 8 in 10 prices, ${f.low} to ${f.high}.`,
   /* R-45: the confidence in a word, beside three dots, in the half position (RULINGS 2026-10-10). */
-  vd_conf_high: 'Certain',
+  vd_conf_high: 'Very sure',
   vd_conf_medium: 'Fairly sure',
   vd_conf_low: 'Not fully confident',
   vd_why_own_count: (f) => `${f.n} ${Number(f.n) === 1 ? 'price' : 'prices'} found, blended with its category`,
@@ -507,7 +507,7 @@ const EN = {
   cam_looks_wrong: 'This looks wrong',
   conf_no_price: 'No price to compare',
   conf_sellers: (f) => `${f.n} seller${f.n === '1' ? '' : 's'}`,
-  conf_certain: (f) => `Certain · ${f.sellers}`,
+  conf_certain: (f) => `Very sure · ${f.sellers}`,
   conf_sure: (f) => `Fairly sure · ${f.sellers}`,
   conf_thin: (f) => `Thin · ${f.sellers}`,
   cam_rate_single: (f) => `${f.price}${f.market ? ` ${f.market}` : ''}, one seller`,
@@ -1183,7 +1183,7 @@ const FR = {
   vd_unit_lb: 'lb',
   vd_unit_kg: 'kg',
   vd_band_alt: (f) => `L’estimation de Pexi pour 8 prix sur 10, de ${f.low} à ${f.high}.`,
-  vd_conf_high: 'Certain',
+  vd_conf_high: 'Très sûr',
   vd_conf_medium: 'Assez sûr',
   vd_conf_low: 'Pas tout à fait sûr',
   vd_why_own_count: (f) => (Number(f.n) === 1 ? '1 prix trouvé, combiné avec sa catégorie' : `${f.n} prix trouvés, combinés avec sa catégorie`),
@@ -1279,7 +1279,7 @@ const FR = {
   cam_looks_wrong: 'Ça a l’air faux',
   conf_no_price: 'Aucun prix à comparer',
   conf_sellers: (f) => `${f.n} marchand${f.n === '1' ? '' : 's'}`,
-  conf_certain: (f) => `Certain · ${f.sellers}`,
+  conf_certain: (f) => `Très sûr · ${f.sellers}`,
   conf_sure: (f) => `Assez sûr · ${f.sellers}`,
   conf_thin: (f) => `Peu de données · ${f.sellers}`,
   cam_rate_single: (f) => `${f.price}${f.market ? ` ${f.market}` : ''}, un marchand`,
@@ -1484,7 +1484,7 @@ const FR = {
   kind_list: 'prix catalogue',
   share_range: (f) => `${f.low} à ${f.high}`,
   share_no_price_caps: 'Aucun prix',
-  share_conf_high: 'Certain',
+  share_conf_high: 'Très sûr',
   share_card_alt: (f) => `Carte Pexi. ${f.word}. ${f.label}. Sur l’étiquette ${f.asking}. Ailleurs ${f.elsewhere}.`,
 
   /* ----------------------------------------------------------- les gardés */

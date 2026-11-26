@@ -29,7 +29,7 @@ export const ONB_EN = {
   onb_welcome_name: 'PEXI',
   onb_welcome_line: 'Know a good price before you pay.',
   onb_get_started: 'Get started',
-  onb_promise: 'Scan any product and instantly know if it’s worth it',
+  onb_promise: 'Scan a product and see if the price is a good one',
 
   /* 2026-11-22, the concise flow (onboarding-flow.js FLOW): gender, and why each question is asked. */
   onb_gender_q: 'Choose your gender',
@@ -260,7 +260,7 @@ export const ONB_FR = {
   onb_priority_why: 'Ça aide Pexi à te montrer d’abord ce qui compte pour toi.',
   onb_heard_why: 'Ça nous aide à rejoindre d’autres gens comme toi.',
   onb_tried_why: 'Ça nous aide à rendre Pexi meilleure que ce que tu as déjà utilisé.',
-  onb_promise: 'Scanne n’importe quel produit et sache tout de suite si ça vaut le coup',
+  onb_promise: 'Scanne un produit et vois si le prix est bon',
 
   onb_shops_q: 'Qu’achètes-tu d’habitude ?',
   onb_shops_groceries: 'Épicerie et essentiels du quotidien',

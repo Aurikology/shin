@@ -155,14 +155,14 @@ const LINES_EN = {
    * line change. Aggression lands on the store or the price, never the
    * user reading the screen. --- */
   verdict_steal: {
-    deadpan: () => 'Nobody else is near that.',
-    warm: () => 'Oh, that is a proper find. Nobody else is close.',
-    blunt: () => 'Nobody else is near that. Enjoy it.',
+    deadpan: (f) => `That is well under the usual ${f.usual}.`,
+    warm: (f) => `Oh, what a find. It is well under the usual ${f.usual}.`,
+    blunt: () => 'Well under the usual. Enjoy it.',
   },
   verdict_ripoff: {
-    deadpan: () => 'Nobody else charges that.',
-    warm: () => 'No. That is not a price, that is a hope.',
-    blunt: () => 'That is far over what anyone else charges.',
+    deadpan: (f) => `${f.asking}. The usual is ${f.usual}.`,
+    warm: (f) => `Ooh, that is well over the usual ${f.usual}.`,
+    blunt: () => 'Well over the usual.',
   },
 
   /* --- the verdict word, which is the largest text on the screen --- */
@@ -1639,6 +1639,16 @@ const BARE_EN = {
     deadpan: () => 'That is over the usual.',
     warm: () => 'Ooh, that is steep for this one.',
     blunt: () => 'Way over the usual.',
+  },
+  verdict_steal: {
+    deadpan: () => 'That is well under the usual.',
+    warm: () => 'Oh, that is a proper find. It is well under the usual.',
+    blunt: () => 'Well under the usual. Enjoy it.',
+  },
+  verdict_ripoff: {
+    deadpan: () => 'That is well over the usual.',
+    warm: () => 'Ooh, that is well over the usual.',
+    blunt: () => 'Well over the usual.',
   },
   refuse_category: {
     deadpan: () => 'Not something I price',

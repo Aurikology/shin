@@ -467,7 +467,7 @@ test('the onboarding text has no em dash in either language, and both have the s
       assert.ok(!text.includes(String.fromCharCode(0x2014)), `${key} has an em dash`);
     }
   }
-  assert.equal(t('onb_promise'), 'Scan any product and instantly know if it’s worth it');
+  assert.equal(t('onb_promise'), 'Scan a product and see if the price is a good one');
 });
 
 /* ------------------------------------------------------------ 6. replay */
