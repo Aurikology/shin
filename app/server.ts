@@ -1743,7 +1743,28 @@ let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { 
 const CLAUDE_ADDRESS_WINDOWS = [{ ms: 10 * 60_000, limit: 30 }];
 let claudeAddressLimiter = new KeyedLimiter(CLAUDE_ADDRESS_WINDOWS, 'claude-address');
 const claudeWeeklyLimiters = new Map<number, KeyedLimiter>();
+/*
+ * THE DAILY CAPS (src/daily-caps.ts, legal review 2026-11-26 N7): per phone and per address, set by
+ * SHIN_CAP_CLAUDE_DEVICE_PER_DAY / SHIN_CAP_CLAUDE_IP_PER_DAY (40 and 100) and SHIN_CAP_PRICE_DEVICE_PER_DAY /
+ * SHIN_CAP_PRICE_IP_PER_DAY (60 and 300). A Claude ask that trips a cap, or the ten-minute burst limits beside
+ * them, skips ONLY the Claude call: the route answers from Pexi's own data exactly as when Claude is unavailable
+ * (the ask comes back rate_limited), so a shopper is never left with no result. A cap trip writes one log line
+ * (src/daily-caps.ts). Only typed-price submissions get a 429 (priceCapRefused below).
+ */
+let dailyCaps = new DailyCaps();
+function refuseClaude(): true {
+  return true;
+}
 async function claudeAskRefusal(req: IncomingMessage, device: string | null): Promise<boolean> {
+  const local = isLocalRequest(req.headers, req.socket.remoteAddress);
+  const phone = device !== null && device !== UNATTRIBUTED ? device : null;
+  // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
+  if (!local) {
+    const burst = phone !== null ? claudeDeviceLimiter.check(`device:${phone}`) : null;
+    if (burst !== null && !burst.allowed) return refuseClaude();
+    const day = dailyCaps.use('claude', phone, limitKeyOf(req));
+    if (day !== null) return refuseClaude();
+  }
   if (device !== null && device !== UNATTRIBUTED) {
     // The weekly allowance applies to asks as it does to scans, for a device that proves it is who it says.
     const plus = await isPlus(device, req.headers, process.env, new Date(), plusAddressOf(req));
@@ -1753,37 +1774,15 @@ async function claudeAskRefusal(req: IncomingMessage, device: string | null): Pr
       if (!limiter) {
         limiter = new KeyedLimiter([{ ms: 7 * 24 * 60 * 60_000, limit: weekly }]);
         claudeWeeklyLimiters.set(weekly, limiter);
-/*
- * THE DAILY CAPS (src/daily-caps.ts, legal review 2026-11-26 N7): per phone and per address, set by
- * SHIN_CAP_CLAUDE_DEVICE_PER_DAY / SHIN_CAP_CLAUDE_IP_PER_DAY (40 and 100) and SHIN_CAP_PRICE_DEVICE_PER_DAY /
- * SHIN_CAP_PRICE_IP_PER_DAY (60 and 300). A Claude ask that trips a cap, or the ten-minute burst limits beside
- * them, marks its request here; the response closure turns that request's answer into a 429 with Retry-After,
- * which the apps already read on these routes, instead of a quiet 200 that looks like "no estimate".
- */
-let dailyCaps = new DailyCaps();
-const claudeCapTrips = new WeakMap<IncomingMessage, number>();
-function refuseClaude(req: IncomingMessage, retryAfterSeconds: number): true {
-  claudeCapTrips.set(req, retryAfterSeconds);
-  return true;
-}
       }
-  const local = isLocalRequest(req.headers, req.socket.remoteAddress);
-  const phone = device !== null && device !== UNATTRIBUTED ? device : null;
-  // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
-  if (!local) {
-    const burst = phone !== null ? claudeDeviceLimiter.check(`device:${phone}`) : null;
-    if (burst !== null && !burst.allowed) return refuseClaude(req, burst.retryAfterSeconds);
-    const day = dailyCaps.use('claude', phone, limitKeyOf(req));
-    if (day !== null) return refuseClaude(req, day.retryAfterSeconds);
-  }
       if (!limiter.check(`device:${device}`).allowed) return true;
     }
   }
   if (!local) {
     const addr = claudeAddressLimiter.check(`ip:${limitKeyOf(req)}`);
-    if (!addr.allowed) return refuseClaude(req, addr.retryAfterSeconds);
+    if (!addr.allowed) return refuseClaude();
     const net = claudeNetworkLimiter.check(`net:${networkOf(clientAddress(req.headers, req.socket.remoteAddress))}`);
-    if (!net.allowed) return refuseClaude(req, net.retryAfterSeconds);
+    if (!net.allowed) return refuseClaude();
   }
   return paidCallRefusal(req, false) !== null;
 }
@@ -2842,33 +2841,10 @@ export const server = createServer(async (req, res) => {
    * D-145, D-155 to D-159: a route that answers about a device asks this
    * first. A device that has bound a secret (src/device-key.ts) is answered
    * only for a request carrying that secret; a device that has not yet is
-    // A Claude ask on this request was refused by a daily cap or burst limit: the shopper is told so, plainly (src/daily-caps.ts).
-    const capRetry = status === 200 ? claudeCapTrips.get(req) : undefined;
-    if (capRetry !== undefined) {
-      res.writeHead(429, {
-        'content-type': 'application/json; charset=utf-8',
-        'cache-control': 'no-store',
-        'retry-after': String(capRetry),
-      });
-      res.end(JSON.stringify({ error: capMessage('claude'), retryAfterSeconds: capRetry, cap: 'claude' }));
-      return;
-    }
    * answered as before, so no tester's phone is locked out by the update.
    */
   const owns = (deviceId: string) => ownsDevice(deviceId, req.headers);
   const notYours = () => json(403, { error: DEVICE_REFUSAL });
-
-  // The refusal for `paidCallRefusal`: nothing has been sent to Google and nothing counted against the cap.
-  const tooManyCalls = (retryAfterSeconds: number) => {
-    res.writeHead(429, {
-      'content-type': 'application/json; charset=utf-8',
-      'cache-control': 'no-store',
-      'retry-after': String(retryAfterSeconds),
-    });
-    res.end(
-      JSON.stringify({
-        error: 'That is a lot of lookups in a short time. Give it a few minutes and try again.',
-        retryAfterSeconds,
   // A typed price or correction counts against the phone and the address; past the daily cap it is a 429 and nothing is stored.
   // Not counted for a caller on this machine itself (the operator, the suite), like every other per-caller limit here.
   const priceCapRefused = (deviceId: string): boolean => {
@@ -2883,6 +2859,18 @@ export const server = createServer(async (req, res) => {
     res.end(JSON.stringify({ error: capMessage('price'), retryAfterSeconds: refusal.retryAfterSeconds, cap: 'price' }));
     return true;
   };
+
+  // The refusal for `paidCallRefusal`: nothing has been sent to Google and nothing counted against the cap.
+  const tooManyCalls = (retryAfterSeconds: number) => {
+    res.writeHead(429, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'retry-after': String(retryAfterSeconds),
+    });
+    res.end(
+      JSON.stringify({
+        error: 'That is a lot of lookups in a short time. Give it a few minutes and try again.',
+        retryAfterSeconds,
       }),
     );
   };
@@ -3956,6 +3944,7 @@ export const server = createServer(async (req, res) => {
       deviceForLog = deviceId;
       // Item 3: a price is filed only as the device it says it came from.
       if (!owns(deviceId)) return notYours();
+      if (priceCapRefused(deviceId)) return;
 
       /*
        * THE SCAN THIS PRICE IS ABOUT. Plan item 7c.
@@ -3968,7 +3957,6 @@ export const server = createServer(async (req, res) => {
        * same thing, a correction typed about the first).
        */
       const sentScanId = Number(c.scanId);
-      if (priceCapRefused(deviceId)) return;
       const scanRow = Number.isInteger(sentScanId) && sentScanId > 0 ? getScan(sentScanId) : null;
       // Item 3: and only that device may change its scan's price or mark it wrong.
       if (scanRow && scanRow.device_id !== deviceId) return notYours();
@@ -4510,6 +4498,7 @@ export const server = createServer(async (req, res) => {
       const deviceId = typeof p.deviceId === 'string' ? p.deviceId.trim() : '';
       if (deviceId === '') return json(400, { error: 'deviceId is required' });
       if (!owns(deviceId)) return notYours();
+      if (priceCapRefused(deviceId)) return;
       deviceForLog = deviceId;
       const priceScan = Number(p.scanId);
       if (Number.isInteger(priceScan) && priceScan > 0) scanForLog = priceScan;
@@ -4548,7 +4537,6 @@ export const server = createServer(async (req, res) => {
       deviceForLog = deviceId;
       const callScan = Number(p.scanId);
       if (!Number.isInteger(callScan) || callScan <= 0) return json(200, { stored: false, why: 'that scan is not one this server recorded' });
-      if (priceCapRefused(deviceId)) return;
       scanForLog = callScan;
       return json(200, recordShopperCall(deviceId, callScan, p.call, p.beforeVerdict === true));
     }

@@ -71,39 +71,45 @@ test('the class: a refused use is not counted, keys are separate, and the trip i
   assert.equal(caps.use('claude', 'phone-a', '198.51.100.1', t0 + 100), null, 'the price cap spent the Claude allowance');
 });
 
-test('Claude answers: a phone past its daily cap gets a 429 with Retry-After, no Claude call, and one log line', async () => {
+const answered = async (r) => {
+  assert.equal(r.status, 200, 'a Claude cap must never turn an answer into an error');
+  const b = await r.json();
+  assert.equal(typeof b.range?.lowCents, 'number', 'no usable range in the answer');
+  assert.equal(typeof b.range?.highCents, 'number');
+  return b;
+};
+
+test('Claude answers: a phone past its daily cap still gets an answer from Pexi data, no Claude call, one log line', async () => {
   setCaps({ SHIN_CAP_CLAUDE_DEVICE_PER_DAY: '3' });
   const before = h.claude.asked.length;
-  const statuses = [];
-  let last;
+  const bodies = [];
   const lines = await captureLog(async () => {
-    for (let i = 0; i < 6; i += 1) {
-      last = await ask('device-cap-claude-0001', '198.51.100.21');
-      statuses.push(last.status);
-    }
+    for (let i = 0; i < 6; i += 1) bodies.push(await answered(await ask('device-cap-claude-0001', '198.51.100.21')));
   });
-  assert.deepEqual(statuses, [200, 200, 200, 429, 429, 429]);
   assert.equal(h.claude.asked.length - before, 3, 'Claude was called past the cap');
-  assert.ok(Number(last.headers.get('retry-after')) > 0, 'a 429 with no Retry-After');
-  const body = await last.json();
-  assert.equal(body.cap, 'claude');
-  assert.match(body.error, /try again tomorrow/i);
+  for (const b of bodies.slice(0, 3)) assert.equal(b.rangeSource, 'claude_typical');
+  for (const b of bodies.slice(3)) {
+    assert.notEqual(b.rangeSource, 'claude_typical', 'a capped ask was answered as if Claude had been asked');
+    assert.ok(['shin_estimate', 'fixed_prior'].includes(b.rangeSource), `capped answer came from ${b.rangeSource}`);
+    assert.equal(b.noRangeReason, 'rate_limited');
+    assert.equal(b.range.confidence, 'low');
+  }
   assert.equal(lines.length, 1, `expected one log line, got ${lines.length}`);
-  assert.match(lines[0], /claude cap of 3 a day reached for device device-c/);
+  assert.match(lines[0], /claude cap of 3 a day reached for device device-c.*skipping the Claude call/);
 });
 
-test('Claude answers: fresh phone ids from one address stop at the address cap, and another address is untouched', async () => {
+test('Claude answers: fresh phone ids from one address stop at the address cap and still get answers; another address is untouched', async () => {
   setCaps({ SHIN_CAP_CLAUDE_IP_PER_DAY: '4' });
   const before = h.claude.asked.length;
-  const statuses = [];
+  const sources = [];
   const lines = await captureLog(async () => {
-    for (let i = 0; i < 7; i += 1) statuses.push((await ask(`device-cap-fresh-${i}-0002`, '198.51.100.22')).status);
+    for (let i = 0; i < 7; i += 1) sources.push((await answered(await ask(`device-cap-fresh-${i}-0002`, '198.51.100.22'))).rangeSource);
   });
-  assert.deepEqual(statuses, [200, 200, 200, 200, 429, 429, 429]);
+  assert.deepEqual(sources.map((s) => s === 'claude_typical'), [true, true, true, true, false, false, false]);
   assert.equal(h.claude.asked.length - before, 4);
   assert.equal(lines.length, 1);
   assert.match(lines[0], /claude cap of 4 a day reached for address 198\.51\.100\.22/);
-  assert.equal((await ask('device-cap-other-0003', '192.0.2.99')).status, 200, 'an honest shopper was refused for a stranger`s use');
+  assert.equal((await answered(await ask('device-cap-other-0003', '192.0.2.99'))).rangeSource, 'claude_typical', 'an honest shopper was capped for a stranger`s use');
 });
 
 test('Claude answers: with no Claude call needed the cap is never touched', async () => {

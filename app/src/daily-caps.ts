@@ -17,8 +17,9 @@
  * one that catches that. Neither is a login. In memory, like src/rate-limit.ts: a restart forgets the
  * counts, and the monthly dollar cap (identify/src/range-ask-store.ts) is the number the bill follows.
  *
- * The refusal is a 429 with Retry-After (the apps already handle a 429 on these routes); the first time
- * a key trips on a given day, one line goes to the server log, then no more for that key that day.
+ * A typed price past its cap is a 429 with Retry-After. A Claude ask past its cap is NOT: only the Claude call is
+ * skipped and the route answers from Pexi's own data as it does when Claude is down (the owner's rule: no result is
+ * the worst outcome). Either way the first trip of a key on a given day writes one server log line, then no more.
  */
 import * as settings from '../../settings/src/index.ts';
 import { KeyedLimiter } from './rate-limit.ts';
@@ -105,15 +106,13 @@ export class DailyCaps {
       this.#logged.add(key);
       // A phone id is shortened: the line says which kind of caller, not the whole identifier.
       const shown = scope === 'device' ? `${who.slice(0, 8)}...` : who;
-      this.#log(`[daily-cap] ${kind} cap of ${limit} a day reached for ${scope} ${shown}; refusing with 429 until it frees`);
+      this.#log(`[daily-cap] ${kind} cap of ${limit} a day reached for ${scope} ${shown}; ${kind === 'claude' ? 'skipping the Claude call, answering from Pexi data' : 'refusing with 429'} until it frees`);
     }
     return { kind, scope, limit, retryAfterSeconds };
   }
 }
 
-/** The words a 429 from a cap carries. Plain, and no promise about when beyond the number of seconds. */
-export function capMessage(kind: CapKind): string {
-  return kind === 'claude'
-    ? 'Pexi has made its price estimates for this phone today. Try again tomorrow.'
-    : 'That is a lot of prices for one day. Try again tomorrow.';
+/** The words a 429 from the price cap carries. Plain, and no promise about when beyond the number of seconds. */
+export function capMessage(_kind: CapKind): string {
+  return 'That is a lot of prices for one day. Try again tomorrow.';
 }
