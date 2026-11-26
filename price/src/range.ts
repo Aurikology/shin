@@ -58,7 +58,7 @@ import { statSync } from 'node:fs';
 import { ageDays, isFutureDated, ratio } from '../../spine/src/money.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity, type ComparisonLabel } from '../../catalogue/src/units.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
-import { departmentOfSource, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
+import { departmentOfRow, NO_DEPARTMENT } from '../../catalogue/src/placement.ts';
 // width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
 import { flagWide } from './width-flag.ts';
 import { readPacks, rowSize } from './pack-size.ts';
@@ -259,9 +259,9 @@ export function atLeastWidth(
 /* ---------------------------------------------------------- departments */
 
 /** A catalogue `source`'s department, null when it names none. */
-export function departmentOf(source: string | null | undefined): string | null {
+export function departmentOf(source: string | null | undefined, rowDepartment?: string | null): string | null {
   if (!source) return null;
-  const d = departmentOfSource(source);
+  const d = departmentOfRow(source, rowDepartment);
   return d === NO_DEPARTMENT ? null : d;
 }
 
@@ -553,12 +553,14 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
   const out = new Map<string, CatalogueRow>();
   // An older catalogue may have no `source`: every row then has no known department.
   const hasSource = (db.prepare('PRAGMA table_info(product)').all() as { name: string }[]).some((c) => c.name === 'source');
+  // A catalogue built before the per-row department column has none: the source's department stands.
+  const hasDepartment = (db.prepare('PRAGMA table_info(product)').all() as { name: string }[]).some((c) => c.name === 'department');
   const all = [...new Set(codes.flatMap(spellings))];
   for (let i = 0; i < all.length; i += 500) {
     const chunk = all.slice(i, i + 500);
     const rows = db
       .prepare(
-        `SELECT code, size_value, size_unit, quantity, category_path, leaf_category, ${hasSource ? 'source' : 'NULL AS source'}
+        `SELECT code, size_value, size_unit, quantity, category_path, leaf_category, ${hasSource ? 'source' : 'NULL AS source'}, ${hasDepartment ? 'department' : 'NULL AS department'}
            FROM product WHERE code IN (${chunk.map(() => '?').join(',')})${hasSource ? ` AND ${licensedOnlySql()}` : ''}`,
       )
       .all(...chunk) as Record<string, unknown>[];
@@ -570,7 +572,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
         size: sizeOf(r.size_value, r.size_unit, r.quantity),
         leaf: typeof r.leaf_category === 'string' ? r.leaf_category : null,
         path: parsePath(r.category_path, String(r.code)),
-        department: departmentOf(typeof r.source === 'string' ? r.source : null),
+        department: departmentOf(typeof r.source === 'string' ? r.source : null, typeof r.department === 'string' ? r.department : null),
       });
     }
   }

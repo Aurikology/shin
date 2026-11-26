@@ -154,6 +154,17 @@ export function departmentOfSource(source: string): string {
   return DEPARTMENT_OF_SOURCE[source] ?? NO_DEPARTMENT;
 }
 
+/**
+ * A row's department: its own `product.department` when present (a source whose one
+ * feed spans departments, kroger-names, 2026-11-25), else its source's. Price pools read
+ * this (price/src/range.ts). The placement tree and its triggers still follow the SOURCE's
+ * department, so a row moved here stays on its source's placement node.
+ */
+export function departmentOfRow(source: string, department: string | null | undefined): string {
+  const own = typeof department === 'string' ? department.trim() : '';
+  return own !== '' ? own : departmentOfSource(source);
+}
+
 /* ------------------------------------------------------------- the guard */
 
 export class UnplacedCategoryError extends Error {

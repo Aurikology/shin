@@ -145,7 +145,13 @@ CREATE TABLE IF NOT EXISTS product (
    * this table through ALTER rather than through this statement.
    */
   name_derived     TEXT,
-  derived_source   TEXT
+  derived_source   TEXT,
+  /*
+   * A per-row department that takes precedence over the source's (placement.ts
+   * departmentOfRow), NULL for nearly every row: the source's department stands.
+   * Written by sources whose one feed spans departments (kroger-names, 2026-11-25).
+   */
+  department       TEXT
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS product_leaf ON product(leaf_category);
@@ -283,6 +289,7 @@ function addMissingColumns(db: DatabaseSync): void {
     ['category_tags_raw', 'TEXT'],
     ['category_rejected', 'TEXT'],
     ['leaf_category_raw', 'TEXT'], // the leaf_category before the migration, so --undo restores it exactly
+    ['department', 'TEXT'], // per-row department override, see the DDL above
   ];
   for (const [name, type] of wanted) {
     if (!have.has(name)) db.exec(`ALTER TABLE product ADD COLUMN ${name} ${type}`);

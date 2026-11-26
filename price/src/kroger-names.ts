@@ -38,6 +38,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { CsvReader, hammerCode } from './hammer.ts';
 import { parseQuantity } from '../../catalogue/src/units.ts';
+import { krogerDepartment } from './kroger-departments.ts';
 import * as settings from '../../settings/src/index.ts';
 
 /** `product.source` for these rows; app/src/attribution.ts credits it. */
@@ -46,6 +47,8 @@ export const SELLER = 'kroger-names';
 export interface KrogerProduct {
   readonly name: string;
   readonly code: string;
+  /** Pexi department from the file's category and subcategory; null when the category is not in the table (kroger-departments.ts). */
+  readonly department?: string | null;
 }
 
 /** UPC check digit for an 11-digit body: odd positions (1st, 3rd, ...) weigh 3. */
@@ -78,6 +81,8 @@ export interface ReadResult {
   readonly skippedOtherIdScheme: number;
   readonly skippedNoName: number;
   readonly duplicates: number;
+  /** Usable barcodes whose category is not in the mapping table, by category value. Print these; never treat them as food. */
+  readonly unmapped: Record<string, number>;
 }
 
 /** Parse the file. The price column is read past and discarded here. */
@@ -88,6 +93,7 @@ export function readKroger(csvText: string): ReadResult {
   let skippedOtherIdScheme = 0;
   let skippedNoName = 0;
   let duplicates = 0;
+  const unmapped: Record<string, number> = {};
   let header: string[] | null = null;
   const r = new CsvReader((row) => {
     if (header === null) {
@@ -111,11 +117,16 @@ export function readKroger(csvText: string): ReadResult {
       return;
     }
     seen.add(code);
-    products.push({ name, code });
+    const department = krogerDepartment(row[2] ?? '', row[1] ?? '');
+    if (department === null) {
+      const key = (row[2] ?? '').trim() || '(empty)';
+      unmapped[key] = (unmapped[key] ?? 0) + 1;
+    }
+    products.push({ name, code, department });
   });
   r.push(csvText);
   r.end();
-  return { products, rows, skippedOtherIdScheme, skippedNoName, duplicates };
+  return { products, rows, skippedOtherIdScheme, skippedNoName, duplicates, unmapped };
 }
 
 /** One catalogue row (catalogue/src/load.ts PreparedRow), shaped like hammer.ts's `catalogueRow`. No category is claimed. */
@@ -136,6 +147,7 @@ export function catalogueRow(p: KrogerProduct): Record<string, unknown> {
     image_url: null,
     sold_in_canada: 0,
     source: SELLER,
+    department: p.department ?? null,
   };
 }
 
@@ -173,6 +185,10 @@ function main(): void {
       `${parsed.skippedOtherIdScheme} skipped (id not a UPC body), ${parsed.duplicates} duplicates; ` +
       `${rows.length} not in the catalogue${catPath ? '' : ' (no catalogue given, so every barcode counts as missing)'} -> ${out}`,
   );
+  const unmappedTotal = Object.values(parsed.unmapped).reduce((a, b) => a + b, 0);
+  if (unmappedTotal > 0) {
+    console.error(`kroger-names: WARNING ${unmappedTotal} barcodes have a category with no department mapping (they keep the source department): ${JSON.stringify(parsed.unmapped)}`);
+  }
 }
 
 if (import.meta.filename === process.argv[1]) main();

@@ -44,7 +44,7 @@ test('the parse keeps names and barcodes, skips the rest, and has no price anywh
   assert.equal(r.duplicates, 1);
   assert.equal(r.skippedOtherIdScheme, 2);
   assert.equal(r.skippedNoName, 1);
-  for (const p of r.products) assert.deepEqual(Object.keys(p).sort(), ['code', 'name']);
+  for (const p of r.products) assert.deepEqual(Object.keys(p).sort(), ['code', 'department', 'name']);
 });
 
 test('a catalogue row is a name-only US row: no price, no category, not sold in Canada', () => {

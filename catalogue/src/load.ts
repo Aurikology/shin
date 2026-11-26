@@ -67,6 +67,8 @@ interface PreparedRow {
   nova_group?: number | null;
   additives_n?: number | null;
   ingredients_text?: string | null;
+  /** Per-row department override (placement.ts departmentOfRow); absent for nearly every source. */
+  department?: string | null;
 }
 
 async function main(): Promise<number> {
@@ -112,8 +114,8 @@ async function main(): Promise<number> {
     INSERT INTO product (
       code, name, name_en, name_fr, brands, quantity, size_value, size_unit,
       category_path, leaf_category, allergens, image_url, sold_in_canada, source,
-      generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      generic_name, nutriscore_grade, nova_group, additives_n, ingredients_text, department
+    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(code) DO UPDATE SET
       name = CASE WHEN product.source = excluded.source THEN excluded.name
                   ELSE COALESCE(NULLIF(TRIM(product.name), ''), excluded.name) END,
@@ -155,7 +157,9 @@ async function main(): Promise<number> {
       additives_n = CASE WHEN product.source = excluded.source THEN excluded.additives_n
                          ELSE COALESCE(product.additives_n, excluded.additives_n) END,
       ingredients_text = CASE WHEN product.source = excluded.source THEN excluded.ingredients_text
-                              ELSE COALESCE(NULLIF(TRIM(product.ingredients_text), ''), excluded.ingredients_text) END
+                              ELSE COALESCE(NULLIF(TRIM(product.ingredients_text), ''), excluded.ingredients_text) END,
+      -- A per-row department override belongs to the source that wrote it; another source's row never changes it.
+      department = CASE WHEN product.source = excluded.source THEN excluded.department ELSE product.department END
   `);
 
   const rl = createInterface({
@@ -206,6 +210,7 @@ async function main(): Promise<number> {
       r.nova_group ?? null,
       r.additives_n ?? null,
       r.ingredients_text ?? null,
+      r.department ?? null,
     );
     read += 1;
     inBatch += 1;
