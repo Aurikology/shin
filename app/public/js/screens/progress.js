@@ -46,20 +46,27 @@ export function chartSvg(points, currency) {
   const W = 320;
   const H = 140;
   const pad = 8;
-  const t0 = points[0].t;
-  const t1 = points.at(-1).t;
   const max = Math.max(...points.map((p) => p.cents), 1);
-  const x = (p) => (t1 === t0 ? W / 2 : pad + ((p.t - t0) / (t1 - t0)) * (W - pad * 2));
+  const pts = points.length === 1 ? [{ ...points[0], t: points[0].t - 1 }, points[0]] : points;
+  const t0 = pts[0].t;
+  const t1 = pts.at(-1).t;
+  // By time; when every point shares one instant (several buys marked at once), by order. Both
+  // span the chart: the old fallback put every point at the centre, so a first buy drew a vertical
+  // stroke (test/progress-chart-shape.test.mjs).
+  const xAt = (p, i) => pad + (t1 === t0 ? i / (pts.length - 1) : (p.t - t0) / (t1 - t0)) * (W - pad * 2);
   const y = (p) => H - pad - (p.cents / max) * (H - pad * 2);
-  const pts = points.length === 1 ? [{ ...points[0], t: t0 - 1 }, points[0]] : points;
-  const line = pts.map((p) => `${x(p).toFixed(1)},${y(p).toFixed(1)}`).join(' ');
-  const area = `${x(pts[0]).toFixed(1)},${H - pad} ${line} ${x(pts.at(-1)).toFixed(1)},${H - pad}`;
+  const xs = pts.map(xAt);
+  const line = pts.map((p, i) => `${xs[i].toFixed(1)},${y(p).toFixed(1)}`).join(' ');
+  const area = `${xs[0].toFixed(1)},${H - pad} ${line} ${xs.at(-1).toFixed(1)},${H - pad}`;
   const last = points.at(-1);
   return `<svg class="prog-chart" viewBox="0 0 ${W} ${H}" role="img"
       aria-label="${escapeHtml(t('prog_chart_label', { amount: money(last.cents, currency) }))}">
+      <defs><linearGradient id="prog-fade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" class="prog-fade-top"/><stop offset="1" class="prog-fade-end"/>
+      </linearGradient></defs>
       <polygon class="prog-area" points="${area}"/>
       <polyline class="prog-line" points="${line}" fill="none"/>
-      <circle class="prog-dot" cx="${x(last).toFixed(1)}" cy="${y(last).toFixed(1)}" r="4.5"/>
+      <circle class="prog-dot" cx="${xs.at(-1).toFixed(1)}" cy="${y(last).toFixed(1)}" r="4.5"/>
     </svg>
     <div class="prog-axis"><span>${escapeHtml(money(0, currency))}</span><span>${escapeHtml(money(max, currency))}</span></div>`;
 }
