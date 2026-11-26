@@ -111,7 +111,8 @@ function macChecks() {
   const r = spawnSync('git', ['diff', '--name-only', '@{upstream}..HEAD'], { cwd: root, encoding: 'utf8' });
   const touched = r.status !== 0 || (r.stdout ?? '').split('\n').some((p) => p.startsWith('mac/'));
   if (!touched) return [];
-  return [runChild('mac script tests (push touches mac/)', 'node', ['--test', 'mac/deploy/test/*.test.mjs', 'mac/test/*.test.mjs'])];
+  // Only the deploy's own suite (about a minute); mac/test is far slower and the deploy does not run it.
+  return [runChild('mac deploy tests (push touches mac/)', 'node', ['--test', 'mac/deploy/test/*.test.mjs'])];
 }
 
 function main() {

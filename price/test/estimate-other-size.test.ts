@@ -150,6 +150,40 @@ test('a normal two-size pair: the median at the target size, shown as exactly [0
   w.catalogue.close();
 });
 
+test('live miss, milk (Mac 2026-11-26): a gallon is priced from the half gallon only; the pint (8x) is too far', async () => {
+  const w = world(
+    [
+      { code: SELF, name: 'Kroger 2% Milk', brand: 'Kroger', quantity: '3.78 L' },
+      { code: SIB_A, name: 'Kroger 2% Milk', brand: 'Kroger', quantity: '1.89 L' },
+      { code: SIB_B, name: 'Kroger 2% Milk', brand: 'Kroger', quantity: '473 mL' },
+    ],
+    [obs({ code: SIB_A, priceCents: 199 }), obs({ code: SIB_B, priceCents: 169 })],
+  );
+  const r = await ask(w);
+  const b = band(199, 3780 / 1890);
+  assert.equal(r.verdict.basis, 'other_size');
+  assert.equal(r.verdict.n, 1);
+  assert.equal(r.verdict.p10Cents, b.low);
+  assert.equal(r.verdict.p90Cents, b.high);
+  assert.ok(b.low <= 319 && 319 <= b.high, 'the real $3.19 is inside');
+  w.prices.close();
+  w.catalogue.close();
+});
+
+test('only siblings more than 3x away: other_size is not used', async () => {
+  const w = world(
+    [
+      { code: SELF, name: 'Crunch Chips', brand: 'Crunch', quantity: '400 g' },
+      { code: SIB_A, name: 'Crunch Chips', brand: 'Crunch', quantity: '68 g' },
+    ],
+    [obs({ code: SIB_A, priceCents: 1349 })],
+  );
+  const r = await ask(w);
+  assert.notEqual(r.verdict.basis, 'other_size');
+  w.prices.close();
+  w.catalogue.close();
+});
+
 test('the median of two siblings is their mean, and the band is still exact', async () => {
   const w = world(
     [

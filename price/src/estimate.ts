@@ -957,6 +957,12 @@ export const OTHER_SIZE_RATIO_LOW = 0.66;
 export const OTHER_SIZE_RATIO_HIGH = 1.51;
 /** Two sizes closer than this fraction are one size, not siblings. */
 export const OTHER_SIZE_MIN_DIFF = 0.05;
+/**
+ * Sizes further apart than this factor are not siblings (Mac, 2026-11-26, live misses): a gallon of milk scaled
+ * from a pint (8x) or a quart (4x) overshot its bulk discount, and a 68 g "bar" priced as a box sat 6x from a 408 g
+ * box. Within 3x the slope holds (the half gallon gave the gallon $3.21 against $3.19).
+ */
+export const OTHER_SIZE_MAX_RATIO = 3;
 export const OTHER_SIZE_SOURCE = 'probe-b-2026-11-25';
 
 /** The product's first listed brand: a brand column may list several, comma separated. */
@@ -998,6 +1004,7 @@ function siblingPrices(
     if (!pairable(mine, theirs)) continue;
     const ratio = mine.total.baseValue / theirs.total!.baseValue;
     if (Math.max(ratio, 1 / ratio) < 1 + OTHER_SIZE_MIN_DIFF) continue;
+    if (Math.max(ratio, 1 / ratio) > OTHER_SIZE_MAX_RATIO) continue;
     out.prices.push(p.cents * ratio ** OTHER_SIZE_SLOPE);
     out.members.push(p);
   }
