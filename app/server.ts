@@ -106,7 +106,7 @@ import { listenProblem, startupProblems } from './src/startup.ts';
 import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
 import { recordAccess } from './src/access-log.ts';
 import { ADMIN_HEADER, adminAllows, closePeople, handleAdmin } from './src/admin.ts';
-import { createShutdown } from './src/shutdown.ts';
+import { createShutdown, graceFromEnv } from './src/shutdown.ts';
 import { DEVICE_REFUSAL, bindDevice, deviceHeaderOf, ownsDevice, provesDevice } from './src/device-key.ts';
 import { recordShutterRequest, shutterDir, shutterLogOn } from './src/shutter-log.ts';
 import { saveCappedShutterFrame } from './src/shutter-frame.ts';
@@ -4899,14 +4899,14 @@ server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
 
 /*
  * DRAIN, DON'T KILL (src/shutdown.ts). Every deploy is `launchctl kickstart -k`, which sends SIGTERM.
- * Stop accepting, let the requests in flight finish for up to 8 seconds (launchd's ExitTimeOut is 15,
- * mac/launchd*, so it waits for this), close the databases, exit 0. Only when this file IS the
+ * Stop accepting, let the requests in flight finish for up to 20 seconds (SHIN_DRAIN_MS overrides; launchd's
+ * ExitTimeOut is 30, mac/launchd*, so it waits for this), close the databases, exit 0. Only when this file IS the
  * program: tests import `server` into their own process and must keep Node's default signal handling.
  */
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const shutdown = createShutdown({
     servers: drainServers,
-    graceMs: 8_000,
+    graceMs: graceFromEnv(),
     closers: [
       () => {
         const db = activeScanStore()?.db;
@@ -4921,6 +4921,6 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     exit: (code) => process.exit(code),
     log: (message) => console.log(`Pexi: ${message}`),
   });
-  process.once('SIGTERM', () => void shutdown('SIGTERM'));
-  process.once('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }

@@ -5,12 +5,21 @@
  * was cut. This module is the handler's whole logic, kept apart from server.ts so a test can start a
  * real server, send it SIGTERM and watch a slow request still finish.
  *
- * The order: stop accepting new connections; let the requests already in flight finish (up to
- * `graceMs`, 8 seconds in server.ts, under launchd's ExitTimeOut of 15); then force-close whatever is
- * left, close the databases cleanly, and exit 0. A second signal while draining does nothing: the
- * drain is already as fast as it will safely go.
+ * The order: stop accepting new connections; close idle keep-alive connections; let the requests
+ * already in flight finish (up to `graceMs`, 20 seconds by default in server.ts, under launchd's
+ * ExitTimeOut of 30); then close the databases and exit 0. If the deadline passes with requests still
+ * open, or a second signal arrives while draining, the open sockets are cut, the databases are still
+ * closed, one console.error line names how many requests were open, and the exit code is 1.
  */
 import type { Server } from 'node:http';
+
+export const DEFAULT_GRACE_MS = 20_000;
+
+/** The grace period: SHIN_DRAIN_MS when it is a positive number of milliseconds, else 20 s. */
+export function graceFromEnv(env: Record<string, string | undefined> = process.env): number {
+  const n = Number(env.SHIN_DRAIN_MS);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_GRACE_MS;
+}
 
 export interface ShutdownOptions {
   /** Every listener to stop (the IPv4 and the IPv6 loopback servers). */
@@ -21,15 +30,33 @@ export interface ShutdownOptions {
   readonly closers: readonly (() => void)[];
   readonly exit: (code: number) => void;
   readonly log?: (message: string) => void;
+  /** Where the "requests still open" line goes; console.error by default. */
+  readonly error?: (message: string) => void;
 }
 
 export function createShutdown(opts: ShutdownOptions): (signal: string) => Promise<void> {
   let started = false;
+  let force: (() => void) | undefined;
   const log = opts.log ?? (() => {});
+  const error = opts.error ?? ((m: string) => console.error(m));
+
+  // Requests in flight, counted from the moment the shutdown is built so none is missed.
+  const open = new Set<object>();
+  for (const s of opts.servers) {
+    s.on('request', (_req, res) => {
+      open.add(res);
+      res.once('close', () => open.delete(res));
+    });
+  }
+
   return async (signal: string): Promise<void> => {
-    if (started) return;
+    if (started) {
+      // A second signal: stop waiting.
+      force?.();
+      return;
+    }
     started = true;
-    log(`${signal}: no new connections; letting requests in flight finish (up to ${opts.graceMs} ms).`);
+    log(`${signal}: draining. No new connections; letting ${open.size} request(s) in flight finish (up to ${opts.graceMs} ms).`);
     const closed = opts.servers.map(
       (s) =>
         new Promise<void>((resolve) => {
@@ -41,19 +68,26 @@ export function createShutdown(opts: ShutdownOptions): (signal: string) => Promi
     const sweep = setInterval(() => {
       for (const s of opts.servers) s.closeIdleConnections();
     }, 50);
-    let timedOut = false;
+    for (const s of opts.servers) s.closeIdleConnections();
+    let reason: 'deadline' | 'second signal' | undefined;
     let timer: NodeJS.Timeout | undefined;
     const limit = new Promise<void>((resolve) => {
       timer = setTimeout(() => {
-        timedOut = true;
+        reason = 'deadline';
         resolve();
       }, opts.graceMs);
+      force = () => {
+        reason ??= 'second signal';
+        resolve();
+      };
     });
     await Promise.race([Promise.all(closed), limit]);
     clearTimeout(timer);
     clearInterval(sweep);
-    if (timedOut) {
-      log(`${opts.graceMs} ms passed with requests still open; cutting them.`);
+    let code = 0;
+    if (reason) {
+      code = 1;
+      error(`Pexi: drain ended by ${reason} with ${open.size} request(s) still open; cutting them.`);
       for (const s of opts.servers) s.closeAllConnections();
     }
     for (const close of opts.closers) {
@@ -63,7 +97,7 @@ export function createShutdown(opts: ShutdownOptions): (signal: string) => Promi
         log(`a database did not close cleanly: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-    log('drained; exiting.');
-    opts.exit(0);
+    log(code === 0 ? 'drained; exiting.' : 'exiting with errors.');
+    opts.exit(code);
   };
 }

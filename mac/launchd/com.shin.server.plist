@@ -42,9 +42,9 @@
     <key>KeepAlive</key>
     <true/>
 
-    <!-- Deploys send SIGTERM; the server drains in-flight requests for up to 8 s (app/src/shutdown.ts), so launchd waits 15 s before SIGKILL. -->
+    <!-- Deploys send SIGTERM; the server drains in-flight requests for up to 20 s (SHIN_DRAIN_MS, app/src/shutdown.ts), so launchd waits 30 s before SIGKILL. -->
     <key>ExitTimeOut</key>
-    <integer>15</integer>
+    <integer>30</integer>
 
     <key>StandardOutPath</key>
     <string>__SHIN_REPO_DIR__/mac/logs/server.out.log</string>

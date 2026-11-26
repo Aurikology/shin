@@ -1,7 +1,7 @@
 /**
  * Deploys drain instead of killing. `launchctl kickstart -k` sends SIGTERM; the server used to die on
  * it, cutting any request in flight. Now it stops accepting, lets requests in flight finish (up to
- * 8 seconds), closes its databases and exits 0.
+ * 20 seconds, SHIN_DRAIN_MS overrides), closes its databases and exits 0.
  *
  * Three layers: the drain logic against a real in-process http server (runs everywhere); the real
  * server as a child process receiving a real SIGTERM (POSIX only: on Windows Node turns a "SIGTERM"
@@ -17,7 +17,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createShutdown } from '../src/shutdown.ts';
+import { createShutdown, graceFromEnv, DEFAULT_GRACE_MS } from '../src/shutdown.ts';
 
 const APP_DIR = fileURLToPath(new URL('..', import.meta.url));
 const REPO = join(APP_DIR, '..');
@@ -45,21 +45,66 @@ test('drain: a slow request in flight finishes after the signal, new connections
   assert.equal(closed, 1, 'the databases were closed once');
 });
 
-test('drain: a request that outlasts the grace period is cut, and the exit still happens', async () => {
+test('drain: a request that outlasts the deadline is cut, the databases still close, exit is 1 and the error line counts it', async () => {
   const s = await listening(() => { /* never answers */ });
   const port = s.address().port;
   const exits = [];
-  const shutdown = createShutdown({ servers: [s], graceMs: 300, closers: [], exit: (c) => exits.push(c) });
+  const errors = [];
+  let closed = 0;
+  const shutdown = createShutdown({
+    servers: [s], graceMs: 300, closers: [() => { closed += 1; }],
+    exit: (c) => exits.push(c), error: (m) => errors.push(m),
+  });
   const hung = fetch(`http://127.0.0.1:${port}/`).then(() => 'answered', () => 'cut');
   await sleep(100);
   const t0 = Date.now();
   await shutdown('SIGTERM');
   assert.ok(Date.now() - t0 < 2000);
   assert.equal(await hung, 'cut');
-  assert.deepEqual(exits, [0]);
+  assert.deepEqual(exits, [1]);
+  assert.equal(closed, 1);
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /deadline with 1 request\(s\) still open/);
 });
 
-test('drain: a failing closer does not stop the others or the exit, and a second signal does nothing', async () => {
+test('drain: a second signal while a request is open cuts it at once and exits 1', async () => {
+  const s = await listening(() => { /* never answers */ });
+  const port = s.address().port;
+  const exits = [];
+  const errors = [];
+  const shutdown = createShutdown({ servers: [s], graceMs: 60_000, closers: [], exit: (c) => exits.push(c), error: (m) => errors.push(m) });
+  const hung = fetch(`http://127.0.0.1:${port}/`).then(() => 'answered', () => 'cut');
+  await sleep(100);
+  const first = shutdown('SIGTERM');
+  await sleep(100);
+  assert.deepEqual(exits, [], 'still waiting after the first signal');
+  const t0 = Date.now();
+  await shutdown('SIGINT');
+  await first;
+  assert.ok(Date.now() - t0 < 2000);
+  assert.equal(await hung, 'cut');
+  assert.deepEqual(exits, [1]);
+  assert.match(errors[0], /second signal with 1 request\(s\) still open/);
+});
+
+test('drain: idle keep-alive connections do not hold the drain open', async () => {
+  const s = await listening((req, res) => res.end('x'));
+  const port = s.address().port;
+  const exits = [];
+  const shutdown = createShutdown({ servers: [s], graceMs: 10_000, closers: [], exit: (c) => exits.push(c) });
+  const sock = connect(port, '127.0.0.1');
+  await new Promise((r) => sock.on('connect', r));
+  sock.on('error', () => {});
+  sock.write('GET / HTTP/1.1\r\nHost: x\r\n\r\n');
+  await sleep(150); // answered, connection left open and idle
+  const t0 = Date.now();
+  await shutdown('SIGTERM');
+  assert.ok(Date.now() - t0 < 2000, 'drain finished without waiting for the idle socket');
+  assert.deepEqual(exits, [0]);
+  sock.destroy();
+});
+
+test('drain: a failing closer does not stop the others or the exit, and a repeated signal after a finished drain does nothing', async () => {
   const s = await listening((req, res) => res.end('x'));
   const exits = [];
   const ran = [];
@@ -69,25 +114,35 @@ test('drain: a failing closer does not stop the others or the exit, and a second
     closers: [() => { throw new Error('locked'); }, () => ran.push('second')],
     exit: (c) => exits.push(c),
   });
-  await Promise.all([shutdown('SIGTERM'), shutdown('SIGINT')]);
+  await shutdown('SIGTERM');
+  await shutdown('SIGINT');
   assert.deepEqual(ran, ['second']);
   assert.deepEqual(exits, [0]);
 });
 
-test('server.ts wires SIGTERM and SIGINT to the drain with an 8 second grace', () => {
+test('the grace period defaults to 20 s and SHIN_DRAIN_MS overrides it', () => {
+  assert.equal(DEFAULT_GRACE_MS, 20_000);
+  assert.equal(graceFromEnv({}), 20_000);
+  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: '1500' }), 1500);
+  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: 'soon' }), 20_000);
+  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: '-5' }), 20_000);
+});
+
+test('server.ts wires SIGTERM and SIGINT to the drain with the env-configurable grace', () => {
   const src = readFileSync(join(APP_DIR, 'server.ts'), 'utf8');
   assert.match(src, /createShutdown\(/);
-  assert.match(src, /graceMs:\s*8_?000/);
+  assert.match(src, /graceMs:\s*graceFromEnv\(\)/);
+  assert.doesNotMatch(src, /process\.once\('SIGTERM'/, 'a second signal must reach the drain');
   assert.match(src, /'SIGTERM'/);
   assert.match(src, /'SIGINT'/);
 });
 
-test('launchd gives the server longer than the drain before SIGKILL (ExitTimeOut 15)', () => {
+test('launchd gives the server longer than the drain before SIGKILL (ExitTimeOut 30)', () => {
   for (const f of ['mac/launchd/com.shin.server.plist', 'mac/launchd-daemons/com.shin.server.plist']) {
     const text = readFileSync(join(REPO, f), 'utf8');
     const m = /<key>ExitTimeOut<\/key>\s*<integer>(\d+)<\/integer>/.exec(text);
     assert.ok(m, `${f} has no ExitTimeOut`);
-    assert.ok(Number(m[1]) >= 15, `${f} ExitTimeOut is ${m[1]}, under the 8 s drain plus close time`);
+    assert.ok(Number(m[1]) >= 30, `${f} ExitTimeOut is ${m[1]}, under the 20 s drain plus close time`);
   }
 });
 

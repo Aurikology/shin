@@ -48,7 +48,7 @@
     <true/>
 
     <key>ExitTimeOut</key>
-    <integer>15</integer>
+    <integer>30</integer>
 
     <key>ThrottleInterval</key>
     <integer>10</integer>
