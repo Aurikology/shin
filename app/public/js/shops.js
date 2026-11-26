@@ -308,6 +308,20 @@ export function fold(text) {
     .replace(/[^a-z0-9一-鿿]+/g, '');
 }
 
+/**
+ * Does the folded query start at the beginning of one of the text's words? D-268 E26
+ * (bug sweep 2026-11-11): matching anywhere in the folded name made "tt" find
+ * "Giant Tiger" ("gianttiger"). Words typed without spaces still match ("nofrills"),
+ * and "T&T" folds to "tt" from its first word.
+ */
+function fromWordStart(text, q) {
+  const words = String(text ?? '').split(/[^\p{L}\p{N}]+/u).map(fold).filter(Boolean);
+  for (let i = 0; i < words.length; i++) {
+    if (words.slice(i).join('').startsWith(q)) return true;
+  }
+  return false;
+}
+
 /** The picker id of a chain: a chain is not a branch and has no OpenStreetMap node. */
 export function chainId(name) {
   return `chain:${fold(name)}`;
@@ -388,7 +402,7 @@ export function pickerShops({ query = '', known = [], nearby = [], names = chain
 
   const q = fold(query);
   if (q === '') return out;
-  const hits = out.filter((s) => fold(s.name).includes(q) || fold(s.hint).includes(q));
+  const hits = out.filter((s) => fromWordStart(s.name, q) || fromWordStart(s.hint, q));
   const typed = String(query).trim();
   if (!out.some((s) => fold(s.name) === q)) {
     hits.push({ id: textId(typed), name: typed, hint: pt('shop_not_listed'), count: 0, custom: true });

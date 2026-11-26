@@ -190,6 +190,20 @@ test('D03: the search box narrows the list, folds accents, and offers a typed na
   assert.equal(shops.pickerShops({ query: 'costco' }).some((r) => r.custom), false, '"costco" is on the list, so it is not offered again as typed text');
 });
 
+test('D-268 E26: the search matches from the start of a word, so "tt" is T&T and not Giant Tiger', () => {
+  // Bug sweep 2026-11-11 family 3 item 26: "TT" matched "Giant Tiger", because the match ran on the
+  // name with its spaces folded out ("gianttiger" holds "tt").
+  const names = (q) => shops.pickerShops({ query: q }).filter((r) => !r.custom).map((r) => r.name);
+  assert.ok(!names('tt').includes('Giant Tiger'), `"tt" still lists Giant Tiger: ${names('tt').join(', ')}`);
+  assert.ok(names('t&t').some((n) => /T&T/.test(n)), '"t&t" lost T&T');
+  assert.ok(names('tt').some((n) => /T&T/.test(n)), '"tt" lost T&T');
+  // A later word still matches, and a run of words typed without spaces still matches.
+  assert.ok(names('frills').includes('No Frills'), '"frills" lost No Frills');
+  assert.ok(names('nofrills').includes('No Frills'), '"nofrills" lost No Frills');
+  assert.ok(names('tiger').includes('Giant Tiger'), '"tiger" lost Giant Tiger');
+  assert.ok(names('foods').includes('Save-On-Foods'), '"foods" lost Save-On-Foods');
+});
+
 test('D03: a typed name that matches a listed shop exactly is that shop, not a second one', () => {
   const rows = shops.pickerShops({ query: 'Save-On-Foods' });
   assert.equal(rows.filter((r) => r.custom).length, 0);
