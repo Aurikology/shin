@@ -23,9 +23,9 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, hostname } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const JOB = /^[a-z][a-z0-9-]{0,31}$/;
 
@@ -43,16 +43,30 @@ function atomicWrite(file, text) {
   renameSync(tmp, file);
 }
 
+/**
+ * The Linux server's route (linux/alert.mjs): an HTTPS ping, used when SHIN_HC_PING_KEY or SHIN_ALERT_URL is set.
+ * `kind` is 'fail' or 'ok'. Returns a short word for the log. Never throws, never blocks longer than 60 s.
+ */
+function httpsAlert(kind, job, detail, env) {
+  if (!env.SHIN_HC_PING_KEY && !env.SHIN_ALERT_URL) return null;
+  const script = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'linux', 'alert.mjs');
+  if (!existsSync(script)) return 'no linux/alert.mjs';
+  const r = spawnSync(process.execPath, [script, kind, job, detail.slice(0, 1500)], { timeout: 60e3, stdio: 'ignore', env: { ...env, SHIN_HEALTH_DIR: healthDir(env) } });
+  return r.status === 0 ? 'https alert sent' : `https alert failed (${r.status ?? r.signal})`;
+}
+
 function defaultNotify(job, detail, env) {
-  if (env.SHIN_HEALTH_MAIL === 'off') return 'mail off';
+  const https = httpsAlert('fail', job, detail, env);
+  if (env.SHIN_HEALTH_MAIL === 'off') return https ? `${https}; mail off` : 'mail off';
   const mailbox = env.SHIN_MAILBOX_DIR || join(homedir(), 'claude-mailbox');
   const mail = join(mailbox, 'mail.mjs');
-  if (!existsSync(mail)) return 'no mailbox';
+  if (!existsSync(mail)) return https ? `${https}; no mailbox` : 'no mailbox';
   const r = spawnSync(process.execPath, [mail, 'send', '--to', 'pc', '--subject', `MAC JOB FAILED: ${job}`, '--body', detail.slice(0, 1500)], {
     timeout: 60e3,
     stdio: 'ignore',
   });
-  return r.status === 0 ? 'mailed' : `mail failed (${r.status ?? r.signal})`;
+  const sent = r.status === 0 ? 'mailed' : `mail failed (${r.status ?? r.signal})`;
+  return https ? `${https}; ${sent}` : sent;
 }
 
 /**
@@ -73,6 +87,10 @@ export function record({ job, ok, detail = '', extra = null, env = process.env, 
   if (ok) {
     rmSync(failedFile, { force: true });
     rmSync(flag, { force: true });
+    // A failing job that works again clears its outside alert (Healthchecks mails the recovery too).
+    if (wasFailed && notify === defaultNotify) {
+      try { httpsAlert('ok', job, String(detail), env); } catch {}
+    }
   } else {
     atomicWrite(failedFile, `${at} ${job} FAILED: ${detail}\n`);
     try {

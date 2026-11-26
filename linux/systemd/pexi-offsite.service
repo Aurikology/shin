@@ -17,6 +17,7 @@ EnvironmentFile=/etc/pexi/pexi.env
 Environment=SHIN_CONFIG_FILE=/etc/pexi/pexi.env
 Environment=NODE_NO_WARNINGS=1
 ExecStart=/bin/sh /opt/pexi/live/mac/14-offsite-backup.sh
+ExecStartPost=-/usr/local/bin/node /opt/pexi/live/linux/alert.mjs ok offsite
 TimeoutStartSec=1h
 Nice=10
 IOSchedulingClass=idle

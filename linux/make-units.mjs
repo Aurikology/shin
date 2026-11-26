@@ -58,6 +58,8 @@ function service(j) {
   L.push(`Environment=SHIN_CONFIG_FILE=${ENV}`);
   L.push('Environment=NODE_NO_WARNINGS=1');
   L.push(`ExecStart=${j.exec}`);
+  // A run that works clears any outside alert an earlier failed run raised (a no-op, no network, when none was raised).
+  if (j.alert !== false) L.push(`ExecStartPost=-${NODE} ${LIVE}/linux/alert.mjs ok ${j.name}`);
   if (j.post) L.push(`ExecStartPost=${j.post}`);
   L.push(`TimeoutStartSec=${j.timeout}`);
   if (j.memoryMax) L.push(`MemoryMax=${j.memoryMax}`);

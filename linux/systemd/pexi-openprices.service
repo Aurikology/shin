@@ -17,6 +17,7 @@ EnvironmentFile=/etc/pexi/pexi.env
 Environment=SHIN_CONFIG_FILE=/etc/pexi/pexi.env
 Environment=NODE_NO_WARNINGS=1
 ExecStart=/bin/sh /opt/pexi/live/mac/openprices-refresh.sh /etc/pexi/pexi.env
+ExecStartPost=-/usr/local/bin/node /opt/pexi/live/linux/alert.mjs ok openprices
 TimeoutStartSec=3h
 MemoryMax=2G
 Nice=10

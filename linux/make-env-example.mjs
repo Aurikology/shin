@@ -74,7 +74,8 @@ const EXTRA = [
   ['SHIN_INBOX_DIR', `${D}/inbox`, 'where Mac collectors drop price files for the server to ingest (linux/CUTOVER.md, "what stays on the Mac")', false],
   ['SHIN_IMPORT_TOKEN', '', 'make one: openssl rand -hex 32; the same value goes in the Mac collectors\' config as SHIN_IMPORT_TOKEN', true],
   ['SHIN_STAGE_DIR', '/opt/pexi/stage', 'where a commit is tested before it goes live', false],
-  ['SHIN_DEPLOY_REMOTE', '', 'git URL of the repo the deploy checker pulls main from (read-only deploy key)', false],
+  ['SHIN_DEPLOY_CHECK_PUBLIC', '0', 'set to 1 at cutover: the deploy check then also requires the public address to show the new process', false],
+  ['SHIN_DEPLOY_REMOTE','', 'git URL of the repo the deploy checker pulls main from (read-only deploy key)', false],
 ];
 
 const clip = (s, n = 118) => (s.length > n ? `${s.slice(0, n - 3)}...` : s);

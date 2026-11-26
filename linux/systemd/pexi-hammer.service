@@ -17,6 +17,7 @@ EnvironmentFile=/etc/pexi/pexi.env
 Environment=SHIN_CONFIG_FILE=/etc/pexi/pexi.env
 Environment=NODE_NO_WARNINGS=1
 ExecStart=/bin/sh /opt/pexi/live/mac/hammer-refresh.sh /etc/pexi/pexi.env
+ExecStartPost=-/usr/local/bin/node /opt/pexi/live/linux/alert.mjs ok hammer
 TimeoutStartSec=3h
 MemoryMax=3G
 Nice=10

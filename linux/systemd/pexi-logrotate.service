@@ -17,6 +17,7 @@ EnvironmentFile=/etc/pexi/pexi.env
 Environment=SHIN_CONFIG_FILE=/etc/pexi/pexi.env
 Environment=NODE_NO_WARNINGS=1
 ExecStart=/usr/sbin/logrotate -s /var/lib/pexi/logrotate.state /opt/pexi/live/linux/logrotate.conf
+ExecStartPost=-/usr/local/bin/node /opt/pexi/live/linux/alert.mjs ok logrotate
 ExecStartPost=/usr/local/bin/node /opt/pexi/live/mac/lib/health.mjs ok logrotate rotated by pexi-logrotate
 TimeoutStartSec=10min
 Nice=10
