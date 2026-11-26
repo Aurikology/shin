@@ -69,7 +69,7 @@ fi
 # /var/lib/pexi    live data (the Mac's ~/shin-data): databases, catalogue, photos, health markers, backups
 # /opt/pexi        code: live (what runs), stage (where a commit is tested first), state (deploy state)
 # /etc/pexi        pexi.env (mode 0600, owned by pexi), restic password file
-for d in /var/lib/pexi /var/lib/pexi/health /var/lib/pexi/backup /var/lib/pexi/inbox /opt/pexi /opt/pexi/state /var/log/pexi; do
+for d in /var/lib/pexi /var/lib/pexi/health /var/lib/pexi/backup /var/lib/pexi/inbox /var/lib/pexi/privacy /opt/pexi /opt/pexi/state /var/log/pexi; do
   do_ sudo install -d -m 0750 -o "$PEXI_USER" -g "$PEXI_USER" "$d"
 done
 do_ sudo install -d -m 0750 -o root -g "$PEXI_USER" /etc/pexi
