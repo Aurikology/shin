@@ -36,7 +36,9 @@
 .btn--row,
 .onb-opt,
 .seg-o,
-.pct {
+.pct,
+.prog-card,
+.prog-panel {
   background-image: var(--grad-surface);
   box-shadow: var(--sheen), var(--elev-1);
 }
@@ -122,14 +124,12 @@
 
 /* ----------------------------------------------------- the page bar */
 
-/* The bar floats over the page it sits on: content scrolls under frosted
-   ground rather than disappearing behind a flat one. */
+/* The bar floats over the page it sits on: a soft shadow cast upward, so the
+   rows scroll under an edge rather than into a line. Opaque on purpose: frosted
+   at 86% and then 94%, a row's text still read through under the tab labels
+   (Settings and Progress, 2026-11-26). */
 .page-bar {
-  /* 94%, not lower: at 86% a line of page text read through under the tab
-     labels (seen 2026-11-26 on Settings). The blur carries the depth. */
-  background-color: color-mix(in srgb, var(--ground) 94%, transparent);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
+  box-shadow: 0 -10px 24px -14px rgba(0, 0, 0, .55);
 }
 
 .mini-shutter {
