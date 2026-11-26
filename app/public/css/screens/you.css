@@ -66,6 +66,15 @@
   font-weight: 700;
 }
 
+/* 2026-11-26: a range row with more than six choices (great offers nine,
+   5% to 50%) squeezed each to 34px at 390 wide, so "30%" touched its own
+   border and the chosen ring was clipped. Past six it wraps to a five-wide
+   grid: two rows, every choice a full 44px target with room for its label. */
+[data-range-row].seg:has(> :nth-child(7)) {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .coverage { display: flex; flex-direction: column; gap: 10px; }
 
 /*

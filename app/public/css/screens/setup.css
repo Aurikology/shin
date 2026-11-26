@@ -144,6 +144,12 @@
 }
 
 .pcts { display: flex; gap: var(--s-2); }
+/* 2026-11-26: past six choices (great offers nine) a row wraps to a five-wide
+   grid rather than squeezing each choice under its label; you.css does the same. */
+[data-range-row].pcts:has(> :nth-child(7)) {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
 
 .pct {
   /* Four across a 390px screen with the page's own side padding, each one

@@ -1969,12 +1969,18 @@
  * destination until the first digit landed. It keeps the brand fill and drops
  * to 38%, which reads as "this is the key, it is not ready yet" rather than as
  * a key that is not there. The enabled state above is untouched.
+ *
+ * 2026-11-26: the 38% brand fill read as a muddy maroon slab on the dark sheet
+ * (Aurik, "pexi just looks flat and not good"). Same intent, cleaner signal: a
+ * brand-tinted key with a brand edge and a brand tick, at full opacity, so it
+ * is still the only pink key on the pad and plainly not lit yet. The tick is
+ * --brand on --brand-soft over the surface: a graphic, not text.
  */
 .padsheet .key-confirm:disabled {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--brand-ink, #fff);
-  opacity: .38;
+  background: var(--brand-soft);
+  border-color: rgba(229, 22, 94, .45);
+  color: var(--brand);
+  opacity: 1;
   cursor: not-allowed;
 }
 
