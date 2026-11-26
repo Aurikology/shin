@@ -10,16 +10,54 @@ import * as store from '../public/js/store.js';
 
 const read = (p) => readFileSync(new URL(p, import.meta.url), 'utf8');
 
-test('the choices start off: accepting the terms turns neither on', async () => {
+test('owner ruling 2026-11-26: accepting stores aiText yes and improve yes, each with a time; unticking stores improve no', async () => {
   const { agreementRecord, improveOn, aiTextAnswer, needsAgreement, AGREEMENT_VERSION } = await import('../public/js/screens/agree.js');
-  assert.equal(AGREEMENT_VERSION, 4, 'the document changed enough to ask again');
-  const r = agreementRecord();
-  assert.equal(r.improve, false);
-  assert.equal(r.usage, false, 'usage recording is no longer a yes by accepting');
+  assert.equal(AGREEMENT_VERSION, 5, 'the document changed enough to ask again');
+  const now = new Date('2026-11-26T12:00:00Z');
+  const r = agreementRecord(now);
+  assert.equal(r.aiText, 'yes', 'Accept covers typed searches to Claude');
+  assert.equal(r.aiTextAt, now.toISOString());
+  assert.equal(r.improve, true, 'Help improve Pexi is pre-ticked');
+  assert.equal(r.improveAt, now.toISOString());
   assert.equal(needsAgreement({ agreement: r }), false);
-  assert.equal(improveOn({ agreement: r }), false);
-  assert.equal(aiTextAnswer({ agreement: r }), null, 'accepting the terms answered the typed-words notice');
-  assert.equal(agreementRecord(new Date(), { improve: true }).improve, true, 'the switch on the first screen is what turns it on');
+  assert.equal(improveOn({ agreement: r }), true);
+  assert.equal(aiTextAnswer({ agreement: r }), 'yes');
+  const unticked = agreementRecord(now, { improve: false });
+  assert.equal(unticked.improve, false, 'unticking stores improve = no');
+  assert.equal(unticked.usage, false);
+  assert.equal(unticked.aiText, 'yes', 'unticking Help improve does not touch the Claude yes');
+  assert.equal(needsAgreement({ agreement: unticked }), false, 'a no on Help improve is still an answer');
+});
+
+test('an older acceptance sees the first screen once more', async () => {
+  const { needsAgreement, agreementRecord } = await import('../public/js/screens/agree.js');
+  const cur = agreementRecord();
+  assert.equal(needsAgreement({ agreement: { ...cur, version: 4 } }), true, 'version 4 (the screen with the notice) is asked again');
+  const noAi = { ...cur }; delete noAi.aiText;
+  assert.equal(needsAgreement({ agreement: noAi }), true, 'no aiText on file');
+  const noImprove = { ...cur }; delete noImprove.improve;
+  assert.equal(needsAgreement({ agreement: noImprove }), true, 'no improve on file');
+  assert.equal(needsAgreement({ agreement: { ...cur, aiText: 'no' } }), false, 'a no switched in Settings is an answer, not a reason to ask again');
+});
+
+test('accepting on the screen posts both values; unticking posts improve false', async () => {
+  const { accept } = await import('../public/js/screens/agree.js');
+  const device = await import('../public/js/device.js');
+  const bodies = [];
+  const api = { postConsent: async (b) => { bodies.push(b); return { stored: true }; } };
+  store.update({ agreement: null });
+  accept(api, new Date(), {});
+  assert.equal(store.get().agreement.aiText, 'yes');
+  assert.equal(store.get().agreement.improve, true);
+  store.update({ agreement: null });
+  accept(api, new Date(), { improve: false });
+  assert.equal(store.get().agreement.improve, false);
+  await new Promise((r) => setTimeout(r, 0));
+  if (device.getDeviceId()?.id) {
+    assert.equal(bodies.at(-1).accepted, true);
+    assert.equal(bodies.at(-1).aiText, true, 'the server is told typed searches may go to Claude');
+    assert.equal(bodies.at(-1).improve, false, 'the server is told improve = no');
+  }
 });
 
 test('setChoice stores the answer here and posts it with its own fields only', async () => {
@@ -51,32 +89,40 @@ test('a choice the server did not store is retried on the next launch', async ()
   assert.equal(await syncChoices({ postConsent: async () => { throw new Error('should not be called again'); } }), true);
 });
 
-test('the typed-words notice: identify waits for it before any typed word leaves', () => {
+test('the one-time typed-words notice is gone everywhere', async () => {
   const api = read('../public/js/api.js');
-  assert.match(api, /export function setTextNotice/);
-  assert.match(api, /if \(text && textNotice\) \{\s*try \{ await textNotice\(\)/);
-  assert.match(read('../public/js/choices.js'), /setTextNotice\(\(\) => askAiText\(\)\)/);
+  assert.ok(!/setTextNotice|textNotice/.test(api), 'identify no longer waits on a notice');
+  const choices = read('../public/js/choices.js');
+  assert.ok(!/askAiText|data-ai=|ai-notice|pmodal/.test(choices));
+  assert.ok(!/askAiText|ai_notice/.test(read('../public/js/screens/agree.js')));
+  assert.ok(!/ai-notice/.test(read('../public/js/screen-tags.js')));
+  const mod = await import('../public/js/screens/agree.js');
+  assert.equal(mod.askAiText, undefined);
+  const strings = read('../public/js/ui-strings.js');
+  assert.ok(!/ai_notice_/.test(strings), 'no notice strings left, in either language');
 });
 
-test('the first screen carries one optional, off switch; the notice has Allow and Not now', () => {
+test('the first screen: one plain line above Accept, and a pre-ticked Help improve Pexi switch', () => {
   const agree = read('../public/js/screens/agree.js');
-  assert.match(agree, /data-act="improve" role="switch"\s+aria-checked="false"/);
+  assert.match(agree, /data-act="improve" role="switch"\s+aria-checked="true"/);
   assert.ok(!/<input/.test(agree));
-  const choices = read('../public/js/choices.js');
-  assert.match(choices, /data-ai="yes"/);
-  assert.ok(!/document.body./.test(choices), 'the notice must mount inside #screen');
-  assert.match(choices, /data-ai="no"/);
+  assert.ok(agree.indexOf("t('agree_ai_line')") < agree.indexOf('data-act="agree-go"'), 'the line sits above the Accept button');
   const you = read('../public/js/screens/you.js');
   assert.match(you, /data-act="improve" role="switch"/);
   assert.match(you, /data-act="ai-text" role="switch"/);
 });
 
 test('every new string exists in English and in French', () => {
-  const keys = ['improve_title', 'improve_body', 'improve_change', 'ai_notice_title', 'ai_notice_body',
-    'ai_notice_allow', 'ai_notice_not_now', 'ai_notice_foot', 'you_ai_text_title', 'you_ai_text_caption'];
+  const keys = ['agree_ai_line', 'improve_title', 'improve_body', 'improve_change', 'you_ai_text_title', 'you_ai_text_caption'];
   const src = read('../public/js/ui-strings.js');
   for (const k of keys) {
     const n = src.split(`  ${k}:`).length - 1;
     assert.equal(n, 2, `${k} must be in the English table and the French one, found ${n}`);
   }
+});
+
+test('the exact line above Accept, in English and French', async () => {
+  const { TABLES } = await import('../public/js/ui-strings.js');
+  assert.equal(TABLES.en.agree_ai_line, 'Typed searches are sent to Anthropic’s Claude to estimate prices.');
+  assert.equal(TABLES.fr.agree_ai_line, 'Tes recherches écrites sont envoyées à Claude, d’Anthropic, pour estimer les prix.');
 });

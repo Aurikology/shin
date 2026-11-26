@@ -4,24 +4,23 @@
  * which a bare test harness has no browser for).
  *
  * Legal review 2026-11-26, A G1 to G3 (Apple 5.1.1(ii) and 5.1.2(i), Quebec P-39.1 s.14):
- *   - `improve`: "Help improve Pexi", usage recording beyond what answering a scan needs. Off until turned on.
- *   - `aiText`: whether typed words may go to Anthropic's Claude. Asked once, by the notice below; "Not now"
- *     still answers from Pexi's own data.
+ *   - `improve`: "Help improve Pexi", usage recording beyond what answering a scan needs. Ticked on the first
+ *     screen, switched off any time in Settings.
+ *   - `aiText`: whether typed words may go to Anthropic's Claude. Yes when the shopper accepts (the line above
+ *     the Accept button says so), switched off any time in Settings; off still answers from Pexi's own data.
  * Each answer is kept on the phone (what the screens read) and posted to the server with its time (what
  * enforces it: server.ts and src/consent.ts). A post that did not land is retried on a later launch.
  */
 import * as store from './store.js';
-import { escapeHtml } from './lib/dom.js';
-import { t } from './ui-strings.js';
 import { getDeviceId } from './device.js';
-import { postConsent as sendConsent, setTextNotice } from './api.js';
+import { postConsent as sendConsent } from './api.js';
 
 /** True when the shopper has "Help improve Pexi" on. Off for anyone who never turned it on. */
 export function improveOn(s = store.get()) {
   return s?.agreement?.improve === true;
 }
 
-/** The shopper's answer to the typed-words notice: 'yes', 'no' (Not now), or null when never asked. */
+/** The shopper's answer on typed searches going to Claude: 'yes', 'no' (switched off), or null when never answered. */
 export function aiTextAnswer(s = store.get()) {
   const v = s?.agreement?.aiText;
   return v === 'yes' || v === 'no' ? v : null;
@@ -36,8 +35,8 @@ export async function setChoice(api, patch) {
   try {
     const at = new Date().toISOString();
     const a = { ...(store.get().agreement ?? {}) };
-    if (typeof patch.improve === 'boolean') { a.improve = patch.improve; a.usage = patch.improve; }
-    if (typeof patch.aiText === 'boolean') a.aiText = patch.aiText ? 'yes' : 'no';
+    if (typeof patch.improve === 'boolean') { a.improve = patch.improve; a.usage = patch.improve; a.improveAt = at; }
+    if (typeof patch.aiText === 'boolean') { a.aiText = patch.aiText ? 'yes' : 'no'; a.aiTextAt = at; }
     a.choicesAt = at;
     delete a.choicesServerAt;
     store.update({ agreement: a });
@@ -66,58 +65,3 @@ export async function syncChoices(api = { postConsent: sendConsent }) {
     return false;
   }
 }
-
-/* ---------------------------------------------------------------- typed words to Claude */
-
-let noticeOpen = null;
-
-/**
- * The one-time notice before a shopper's typed words first go to Anthropic's Claude (Apple 5.1.2(i)). Plain
- * words, two equal choices. Resolves once the shopper has answered and the answer has gone to the server;
- * resolves at once when there is already an answer, and where there is no page to show it on. The camera's
- * typed-search path waits on this through api.js `setTextNotice`, so no typed word leaves the phone first.
- */
-export async function askAiText(api = { postConsent: sendConsent }) {
-  if (aiTextAnswer() !== null) return aiTextAnswer();
-  const host = typeof document === 'undefined' ? null : document.querySelector('#screen');
-  if (!host) return null; // no page to show it on (the badge watches #screen, so the notice mounts there)
-  if (noticeOpen) return noticeOpen;
-  noticeOpen = new Promise((resolve) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'pmodal ai-notice';
-    wrap.dataset.pmodal = 'ai-notice';
-    wrap.innerHTML = `
-      <div class="pmodal-card" role="dialog" aria-modal="true" aria-labelledby="ai-notice-h" tabindex="-1">
-        <h2 id="ai-notice-h">${escapeHtml(t('ai_notice_title'))}</h2>
-        <p class="said">${escapeHtml(t('ai_notice_body'))}</p>
-        <button type="button" class="cta" data-ai="yes">${escapeHtml(t('ai_notice_allow'))}</button>
-        <button type="button" class="btn btn--ghost" data-ai="no">${escapeHtml(t('ai_notice_not_now'))}</button>
-        <p class="pmodal-meta">${escapeHtml(t('ai_notice_foot'))}</p>
-      </div>`;
-    const page = document.querySelector('#screen .page');
-    if (page) page.inert = true;
-    host.appendChild(wrap);
-    wrap.querySelector('[data-ai="yes"]')?.focus?.({ preventScroll: true });
-    /* A screen that repaints itself wipes the notice with it. Never leave a search waiting on a notice that is
-       gone: it ends unanswered (the server reads that as no, so Pexi's own data answers) and is asked again. */
-    const watch = setInterval(() => {
-      if (wrap.isConnected) return;
-      clearInterval(watch);
-      noticeOpen = null;
-      resolve(null);
-    }, 250);
-    wrap.addEventListener('click', async (e) => {
-      const pick = e.target.closest('[data-ai]')?.dataset.ai;
-      if (!pick) return;
-      clearInterval(watch);
-      wrap.remove();
-      if (page) page.inert = false;
-      await setChoice(api, { aiText: pick === 'yes' });
-      noticeOpen = null;
-      resolve(aiTextAnswer());
-    });
-  });
-  return noticeOpen;
-}
-
-setTextNotice(() => askAiText());

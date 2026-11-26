@@ -74,12 +74,13 @@ test('one document in two languages, carrying everything the old screens and pag
   assert.match(plain(legal.legalBodyHtml('fr')), /pas une offre/);
 });
 
-test('the document promises no off switch for Claude, usage, photos or location', () => {
+test('the document promises no off switch for product details to Claude, photos or location; the two owner-chosen switches are the only ones', () => {
   const en = plain(legal.legalBodyHtml('en'));
-  assert.doesNotMatch(en, /turn (this|it) off at any time|switch (it|usage tracking) off|on the You screen/i);
+  assert.doesNotMatch(en, /turn (this|it) off at any time|switch usage tracking off|on the You screen/i);
   assert.match(en, /Sending these product details to Claude is part of using Pexi/);
+  /* Owner ruling 2026-11-26: typed words to Claude and Help improve Pexi can be switched off in Settings. */
+  assert.match(en, /switch (that|it|either one) off at any time in Settings/);
   const fr = plain(legal.legalBodyHtml('fr'));
-  assert.doesNotMatch(fr, /désactiver[^.]*à tout moment/i);
   assert.match(fr, /fait partie de l’utilisation de Pexi/);
   assert.doesNotMatch(fr, /\bvous\b/i, 'the French document uses tu, as the app does');
 });
@@ -101,13 +102,13 @@ test('the hosted terms and privacy pages are exactly what the document renders, 
 /* ------------------------------------------------------------------------------------- the screen */
 
 test('version 3: every install that accepted the old screen sees the document once more', () => {
-  assert.equal(agree.AGREEMENT_VERSION, 4);
+  assert.equal(agree.AGREEMENT_VERSION, 5);
   assert.equal(agree.needsAgreement({ agreement: { at: 'x', version: 2, claude: true, usage: true } }), true);
   assert.equal(agree.needsAgreement({}), true);
   const rec = agree.agreementRecord(new Date('2026-11-25T10:00:00Z'));
   assert.deepEqual(
     { version: rec.version, claude: rec.claude, usage: rec.usage, photos: rec.photos, location: rec.location, document: rec.document },
-    { version: 4, claude: true, usage: false, photos: true, location: true, document: legal.LEGAL_EFFECTIVE },
+    { version: 5, claude: true, usage: true, photos: true, location: true, document: legal.LEGAL_EFFECTIVE },
   );
   assert.equal(agree.needsAgreement({ agreement: rec }), false);
 });
@@ -121,8 +122,8 @@ test('first launch: the whole document and one button, Accept and continue', () 
   assert.equal((html.match(/<button/g) ?? []).length, 2, 'the Accept button and the one optional switch');
   assert.match(html, /<button[^>]*data-act="agree-go"[^>]*>Accept and continue</);
   assert.doesNotMatch(html, /type="checkbox"|type="radio"/);
-  assert.equal((html.match(/role="switch"/g) ?? []).length, 1, 'one optional switch, Help improve Pexi');
-  assert.match(html, /data-act="improve"[^>]*aria-checked="false"/, 'it starts off');
+  assert.equal((html.match(/role="switch"/g) ?? []).length, 1, 'one optional switch, Help improve Pexi, pre-ticked');
+  assert.match(html, /data-act="improve"[^>]*aria-checked="true"/, 'it starts ticked');
   assert.ok(html.includes(legal.legalBodyHtml('en')), 'the screen shows the whole document');
   assert.doesNotMatch(html, /data-act="back"|page-bar/, 'no way around it');
 });
@@ -144,7 +145,7 @@ test('pressing it is a yes to everything: the record, photos and location locall
   const { tap, calls, posted } = mount(agree.default);
   tap('agree-go');
   const rec = store.get().agreement;
-  assert.equal(rec.version, 4);
+  assert.equal(rec.version, 5);
   assert.equal(rec.claude, true);
   assert.equal(store.consent().photos, true);
   assert.equal(store.consent().location, true);
@@ -152,6 +153,55 @@ test('pressing it is a yes to everything: the record, photos and location locall
   assert.deepEqual(calls.filter(([k]) => k === 'replace').length, 1, 'it leaves the screen');
   await new Promise((r) => setTimeout(r, 0));
   if (posted.length) assert.equal(posted[0].accepted, true, 'the server is told it was accepted');
+});
+
+test('the screen shows the Claude line right above Accept, in both languages, and no notice', () => {
+  for (const [lang, line] of [['en', 'Typed searches are sent to Anthropic’s Claude to estimate prices.'],
+    ['fr', 'Tes recherches écrites sont envoyées à Claude, d’Anthropic, pour estimer les prix.']]) {
+    setLocale(lang);
+    store.update({ agreement: null });
+    const { root } = mount(agree.default);
+    const html = root.innerHTML;
+    const at = html.indexOf(line);
+    assert.ok(at > 0, `${lang}: the line is on the first screen`);
+    assert.ok(at < html.indexOf('data-act="agree-go"'), `${lang}: it sits above the Accept button`);
+    assert.doesNotMatch(html, /ai-notice|Not now|Pas maintenant/);
+  }
+  setLocale('en');
+});
+
+test('unticking Help improve Pexi before Accept stores improve = no; leaving it ticked stores yes', () => {
+  store.update({ agreement: null });
+  let m = mount(agree.default);
+  m.tap('improve');
+  m.tap('agree-go');
+  assert.equal(store.get().agreement.improve, false);
+  assert.equal(store.get().agreement.aiText, 'yes');
+  store.update({ agreement: null });
+  m = mount(agree.default);
+  m.tap('agree-go');
+  assert.equal(store.get().agreement.improve, true);
+  assert.equal(store.get().agreement.aiText, 'yes');
+});
+
+test('an install that accepted before (version 4, or no aiText or improve) is sent to this screen again', () => {
+  store.update({ agreement: { at: 'x', version: 4, claude: true, usage: false, improve: false, choicesAt: 'x' } });
+  assert.equal(agree.needsAgreement(store.get()), true);
+  store.update({ agreement: { at: 'x', version: 5, claude: true, usage: true } });
+  assert.equal(agree.needsAgreement(store.get()), true, 'version 5 without both answers on file');
+  assert.match(read('../public/js/main.js'), /router\.setGuard\(\(id\) => \(id !== 'agree' && needsAgreement/);
+});
+
+test('the document says Claude is part of accepting and Help improve is on unless unticked, both switchable in Settings', () => {
+  for (const lang of ['en', 'fr']) {
+    const body = plain(legal.legalBodyHtml(lang));
+    assert.doesNotMatch(body, lang === 'en' ? /Not now|one-time notice|off until you turn it on/ : /Pas maintenant|avis unique|tant que tu ne l’actives pas/);
+  }
+  const en = plain(legal.legalBodyHtml('en'));
+  assert.match(en, /Accepting also covers sending the words you type to Claude/);
+  assert.match(en, /Help improve Pexi, which is on unless you untick it/);
+  const fr = plain(legal.legalBodyHtml('fr'));
+  assert.match(fr, /L’acceptation couvre aussi l’envoi à Claude des mots que tu saisis/);
 });
 
 test('nothing else on the screen stores a record, and the guard stays in main.js', () => {

@@ -36,15 +36,15 @@ test('A G4: each recipient is listed with what it gets', () => {
   assert.match(fr, /reçoit donc ton achat/);
 });
 
-test('A G1 to G3: both optional choices are described, off by default, changeable in Settings, stored by the server', () => {
+test('A G1 to G3 (owner ruling 2026-11-26): Claude is part of accepting, Help improve is on unless unticked, both switchable in Settings, stored by the server', () => {
   for (const [lang, t] of [['en', en], ['fr', fr]]) {
     assert.match(t, lang === 'en' ? /Help improve Pexi/ : /Aider à améliorer Pexi/, `${lang}: Help improve Pexi`);
-    assert.match(t, lang === 'en' ? /Not now/ : /Pas maintenant/, `${lang}: the Not now answer`);
+    assert.doesNotMatch(t, lang === 'en' ? /Not now/ : /Pas maintenant/, `${lang}: the one-time notice is gone`);
     assert.match(t, /Settings|Réglages/);
   }
-  assert.match(en, /off until you turn it on/);
+  assert.match(en, /Help improve Pexi, which is on unless you untick it/);
   assert.match(en, /Pexi's server keeps your answer with the time you gave it and follows it/);
-  assert.match(en, /Not now is a full answer: Pexi still replies to your search from its own data/);
+  assert.match(en, /You can switch it off at any time in Settings: Pexi then still replies to your search from its own data/);
 });
 
 test('E gap 4: one age position, the same for every shopper, with the under-14 choices made by a parent', () => {
@@ -68,7 +68,7 @@ test('A G6: the periods in the document are the ones the sweep enforces', () => 
   assert.equal(DEVICE_ID_MONTHS, 24);
   assert.equal(SAFETY_COPY_DAYS, 30);
   assert.match(en, new RegExp(`Server request logs: ${REQUEST_LOG_DAYS} days`));
-  assert.match(en, new RegExp(`Usage events \\(only if you turned on Help improve Pexi\\): ${USAGE_EVENT_MONTHS} months`));
+  assert.match(en, new RegExp(`Usage events \\(only while Help improve Pexi is on\\): ${USAGE_EVENT_MONTHS} months`));
   assert.match(en, new RegExp(`after ${DEVICE_ID_MONTHS} months your device identifier is removed`));
   assert.match(en, new RegExp(`deleted once your phone has been unused for ${DEVICE_ID_MONTHS} months`), 'the consent, secret and subscription rows the sweep deletes');
   assert.match(en, new RegExp(`at most ${SAFETY_COPY_DAYS} days`));

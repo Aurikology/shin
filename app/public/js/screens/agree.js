@@ -25,14 +25,16 @@
  *
  * VERSION 3 (2026-11-25): every install that accepted version 2 sees the document once more.
  *
- * VERSION 4 (2026-11-26, legal review A G1 to G3, Apple 5.1.1(ii) and 5.1.2(i), Quebec P-39.1 s.14): what the
- * service does not need to answer a scan became the shopper's own choice. The one acceptance still covers what
- * the service needs. Two things moved out of it: (1) "Help improve Pexi", one optional switch on this screen,
- * OFF until turned on, changeable any time in Settings (you.js); it covers usage recording beyond answering and
- * use of it to improve Pexi. (2) Typed words going to Anthropic's Claude: a one-time plain notice, Allow or Not
- * now, shown the first time a shopper types a search (`askAiText`). Not now still answers from Pexi's own data.
- * Both are stored on the server with their times (api.postConsent), and the SERVER enforces them: no Claude
- * call with typed words and no usage event is kept without the stored yes (server.ts, src/consent.ts).
+ * VERSION 5 (2026-11-26, the owner's ruling after the legal review A G1 to G3; Apple 5.1.1(ii) and 5.1.2(i),
+ * Quebec P-39.1 s.14): the one required Accept also covers typed searches going to Anthropic's Claude, said in
+ * one plain line right above the button; tapping it stores `aiText` = yes with its time. There is no separate
+ * typed-words notice any more. Beside it sits one optional, pre-ticked "Help improve Pexi" switch (usage
+ * recording beyond answering and its use to improve Pexi); its value at Accept is stored as `improve` with a
+ * time. Settings (you.js) keeps both switches so either can be turned off any time; typed searches off still
+ * answers from Pexi's own data. Both are stored on the server with their times (api.postConsent) and the
+ * SERVER enforces them: no Claude call with typed words without a stored aiText yes, no usage event kept
+ * without a stored improve yes (server.ts, src/consent.ts). A device that accepted before (an older version,
+ * or no aiText or improve on file) is shown this screen once more.
  */
 import * as store from '../store.js';
 import { track } from '../track.js';
@@ -43,33 +45,43 @@ import { firstScreen } from '../onboarding-flow.js';
 import { getDeviceId } from '../device.js';
 import { backButton, pageBar, goBack } from '../lib/pagebar.js';
 import { legalDocument, legalBodyHtml, LEGAL_EFFECTIVE } from '../legal/document.js';
-import { improveOn, aiTextAnswer, setChoice, syncChoices, askAiText } from '../choices.js';
+import { improveOn, aiTextAnswer, setChoice, syncChoices } from '../choices.js';
 
 /* The choices live in choices.js so Settings can use them without importing this screen. */
-export { improveOn, aiTextAnswer, setChoice, syncChoices, askAiText };
+export { improveOn, aiTextAnswer, setChoice, syncChoices };
 
 /**
  * Bump when the document changes enough to ask again. 3: one document, no off switches (2026-11-25).
  * 4: the optional "Help improve Pexi" choice and the cross-border and recipient wording (2026-11-26).
+ * 5: Accept itself covers typed searches going to Claude, and Help improve Pexi is pre-ticked on this screen
+ * (the owner's ruling, 2026-11-26); every install that accepted before sees the screen once more.
  */
-export const AGREEMENT_VERSION = 4;
+export const AGREEMENT_VERSION = 5;
 
-/** True until this install has accepted the current version of the document. */
+/**
+ * True until this install has accepted the current version with both answers on file: typed searches to
+ * Claude (yes, or no once switched off in Settings) and Help improve Pexi. A device that accepted on an older
+ * version, or before those two were stored, is shown the screen once more.
+ */
 export function needsAgreement(s) {
-  return !(s?.agreement?.at && s.agreement.version >= AGREEMENT_VERSION && s.agreement.claude === true);
+  const a = s?.agreement;
+  return !(a?.at && a.version >= AGREEMENT_VERSION && a.claude === true
+    && (a.aiText === 'yes' || a.aiText === 'no') && typeof a.improve === 'boolean');
 }
 
 /**
- * The record to store and send. Pure, so a test can hold it. Accepting is a yes to what the service needs
- * (product names to Claude for estimates, the photo and rough location the shopper's phone allows). Usage
- * recording beyond that is the separate `improve` choice: false unless the shopper turned it on.
+ * The record to store and send. Pure, so a test can hold it. Accepting is a yes to what the service needs:
+ * product names and typed searches to Claude for estimates (`aiText` yes, with its time), the photo and rough
+ * location the shopper's phone allows. Usage recording beyond that is the separate `improve` choice: ticked on
+ * the first screen, so yes unless the shopper unticks it.
  */
-export function agreementRecord(now = new Date(), { improve = false } = {}) {
-  const on = improve === true;
+export function agreementRecord(now = new Date(), { improve = true } = {}) {
+  const on = improve !== false;
+  const at = now.toISOString();
   return {
-    at: now.toISOString(), version: AGREEMENT_VERSION, document: LEGAL_EFFECTIVE,
-    claude: true, usage: on, improve: on, photos: true, location: true,
-    choicesAt: now.toISOString(),
+    at, version: AGREEMENT_VERSION, document: LEGAL_EFFECTIVE,
+    claude: true, usage: on, improve: on, aiText: 'yes', photos: true, location: true,
+    choicesAt: at, aiTextAt: at, improveAt: at,
   };
 }
 
@@ -102,6 +114,7 @@ export async function syncAgreement(api) {
     const res = await api.postConsent({
       deviceId: device.id, accepted: true, photos: true, location: true,
       ...(typeof a.improve === 'boolean' ? { improve: a.improve } : {}),
+      ...(a.aiText === 'yes' || a.aiText === 'no' ? { aiText: a.aiText === 'yes' } : {}),
     });
     if (res?.stored !== true) return false;
     const after = store.get().agreement;
@@ -127,7 +140,7 @@ export default {
     const lang = locale();
     const doc = legalDocument(lang);
     const asking = needsAgreement(store.get());
-    let improve = false; // "Help improve Pexi" starts off; only the shopper's own press turns it on
+    let improve = true; // "Help improve Pexi" starts ticked; the shopper can untick it before Accept
 
     root.innerHTML = `
       <div class="page legal-page${asking ? ' agree-page' : ''}">
@@ -148,10 +161,11 @@ export default {
                 <span class="ilist-l" id="agree-improve-l">${escapeHtml(t('improve_title'))}</span>
                 <p class="fineprint">${escapeHtml(t('improve_body'))} ${escapeHtml(t('improve_change'))}</p>
               </div>
-              <button type="button" class="switch" data-act="improve" role="switch"
-                      aria-checked="false" aria-labelledby="agree-improve-l"></button>
+              <button type="button" class="switch on" data-act="improve" role="switch"
+                      aria-checked="true" aria-labelledby="agree-improve-l"></button>
             </div>
           </div>
+          <p class="fineprint agree-ai-line" data-agree="ai-line">${escapeHtml(t('agree_ai_line'))}</p>
           <button type="button" class="cta" data-act="agree-go">${escapeHtml(t('agree_button'))}</button>
         </div>`
           : pageBar('you')}

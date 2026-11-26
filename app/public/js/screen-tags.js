@@ -182,7 +182,6 @@ export const SCREEN_TAGS = {
   a116: { id: 'guide', title: 'How Pexi works, the new-user walkthrough', kind: 'screen', file: 'app/public/js/screens/guide.js', route: 'guide', how: 'First launch, after the permission screen and before the camera, once. Again from You, Help, How Pexi works. Or ?s=guide.' },
   a117: { id: 'onboarding.gender', title: 'Welcome: choose your gender', kind: 'screen', file: 'app/public/js/screens/onboarding.js', route: 'onboarding', sel: '[data-step="gender"]', how: 'Welcome flow, second screen (Aurik 2026-11-22). Optional: Prefer not to say, and Skip the rest.' },
   a118: { id: 'progress', title: 'Progress: scans, under the typical price, chart, Bought', kind: 'screen', file: 'app/public/js/screens/progress.js', route: 'progress', how: 'The Progress tab in the bar on any list screen, or the X on the camera. Or ?s=progress.' },
-  a119: { id: 'ai-notice', title: 'Let Pexi ask Claude? (typed words, one time)', kind: 'overlay', file: 'app/public/js/choices.js', route: 'camera', sel: '[data-pmodal="ai-notice"]', rank: 85, how: 'Type a product name in the search for the first time. Allow or Not now; asked once, changeable in You, Privacy and data.' },
 };
 
 /**

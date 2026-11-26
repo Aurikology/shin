@@ -1061,7 +1061,7 @@ let restoreListeners = null;
  */
 export async function launchApp({ seed: asked = {}, search = '', server: serverRoutes = {}, firstRunAnswered = true } = {}) {
   // The first-run screen (screens/agree.js) stands in front of everything, so a test of anything else starts past it.
-  const answered = { at: '2026-11-06T00:00:00.000Z', version: 99, claude: true, usage: true, aiText: 'yes' }; // 99: at or past whatever the current document version is, so a version bump never strands every test on the first screen
+  const answered = { at: '2026-11-06T00:00:00.000Z', version: 99, claude: true, usage: true, improve: true, aiText: 'yes' }; // 99: at or past whatever the current document version is, so a version bump never strands every test on the first screen
   const seed = !firstRunAnswered ? asked : {
     ...asked,
     'shin.v1': { agreement: answered, ...(typeof asked['shin.v1'] === 'string' ? JSON.parse(asked['shin.v1']) : asked['shin.v1']) },

@@ -44,13 +44,13 @@ test('both policies describe requests, complaints, the time to answer and record
   assert.match(FR, /registre/i);
 });
 
-/* 2026-11-25 (Jamin: one document, no off switches): this used to require the usage switch; the switch is gone,
-   so the pages must not promise one. */
-test('both pages say usage recording is part of Pexi and promise no switch for it', () => {
+/* Owner ruling 2026-11-26: Help improve Pexi is on unless unticked and can be switched off any time; the pages say so. */
+test('both pages say how Help improve Pexi works: on unless unticked, switch off any time in Settings', () => {
   assert.match(EN, /how you use the app/i);
-  assert.doesNotMatch(EN, /switch (usage tracking|it) off|turn (this|it) off at any time/i);
+  assert.match(EN, /Help improve Pexi, which is on unless you untick it/);
+  assert.match(EN, /switch either one off at any time in Settings/);
   assert.match(FR, /façon dont tu utilises l’application/);
-  assert.doesNotMatch(FR, /(désactiv|arrêt)[^.]*suivi/i);
+  assert.match(FR, /activée tant que tu ne la décoches pas/);
 });
 
 test('no em dash in the policy pages', () => {
