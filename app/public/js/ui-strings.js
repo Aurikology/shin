@@ -156,6 +156,11 @@ const EN = {
   scans_left_some: (f) => `${f.n} free scan${f.n === '1' ? '' : 's'} left this week`,
   scans_left_none: 'No free scans left this week',
   scans_left_get_plus: 'Get Pexi Plus',
+  /* 2026-11-25 (Aurik): the camera pill always says the scans left this week (scans-left.js meterText). */
+  meter_free_left: (f) => `${f.n} of ${f.limit} free scans left`,
+  meter_none_left: 'No free scans left this week',
+  meter_plus_left: (f) => `${f.n} of ${f.limit} Plus scans left`,
+  meter_label: 'Scans left this week. Opens Pexi Plus',
 
   /* The answer sheet, 2026-09-21: the price-match line and the one-tap
      "What did you do?" after an answer that found it cheaper elsewhere. */
@@ -992,6 +997,10 @@ const FR = {
   scans_left_some: (f) => `${f.n} scan${f.n === '1' ? '' : 's'} gratuit${f.n === '1' ? '' : 's'} restant${f.n === '1' ? '' : 's'} cette semaine`,
   scans_left_none: 'Plus aucun scan gratuit cette semaine',
   scans_left_get_plus: 'Passer à Pexi Plus',
+  meter_free_left: (f) => `${f.n} scans gratuits sur ${f.limit} restants`,
+  meter_none_left: 'Plus aucun scan gratuit cette semaine',
+  meter_plus_left: (f) => `${f.n} scans Plus sur ${f.limit} restants`,
+  meter_label: 'Scans restants cette semaine. Ouvre Pexi Plus',
 
   pm_heading: 'Correspondance de prix',
   outcome_q: 'Qu’as-tu fait ?',

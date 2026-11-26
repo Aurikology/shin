@@ -58,12 +58,51 @@ export function mountScansLeft(doc, text, onPlus) {
   return line;
 }
 
+/**
+ * The camera's scans-left pill, 2026-11-25. Aurik: *"make sure there is a feature where the users can
+ * see how many scans remaining they have"*. The sheet line above only speaks from 3 left, and the
+ * Settings row is two taps away, so the count was invisible for most of a week. The pill sits under the
+ * camera's top band whenever the server sets a limit, Plus included (its own 100), and says nothing
+ * when there is no limit. Its tap opens the Plus screen. Text only, no pop-up.
+ */
+export function meterText(q) {
+  if (!q || typeof q !== 'object') return '';
+  const { limit, remaining } = q;
+  if (!Number.isInteger(limit) || limit <= 0 || !Number.isInteger(remaining)) return '';
+  const left = Math.max(0, remaining);
+  if (q.plus === true) return t('meter_plus_left', { n: String(left), limit: String(limit) });
+  return left === 0 ? t('meter_none_left') : t('meter_free_left', { n: String(left), limit: String(limit) });
+}
+
+/** Paints one /api/quota answer into the camera pill; hides it when there is nothing to say. */
+export function paintMeter(el, q) {
+  if (!el) return;
+  const text = meterText(q);
+  el.textContent = text;
+  el.hidden = !text;
+  if (!text) { el.removeAttribute('data-level'); return; }
+  const left = Math.max(0, q.remaining);
+  el.setAttribute('data-level', left === 0 ? 'none' : (left <= WARN_AT && q.plus !== true ? 'low' : 'ok'));
+}
+
+/** Asks the server's count and paints the camera pill if one is on screen. Never throws. */
+export function refreshMeter({ api, doc = globalThis.document } = {}) {
+  if (typeof api?.quota !== 'function' || !doc?.querySelector) return Promise.resolve();
+  return Promise.resolve(api.quota()).then((q) => {
+    const el = doc.querySelector('[data-scan-meter]');
+    if (el) paintMeter(el, q);
+  }).catch(() => { /* no count, no pill */ });
+}
+
 /** Wired once from main.js. `plusActive` skips the request entirely for a subscriber. */
 export function startScansLeft({ api, go, plusActive = () => false, win = globalThis.window, doc = globalThis.document } = {}) {
   if (!win?.addEventListener || typeof api?.quota !== 'function') return;
   win.addEventListener('pexi:scan-counted', () => {
-    if (plusActive()) return;
     void Promise.resolve(api.quota()).then((q) => {
+      /* 2026-11-25: the camera pill follows every counted scan, Plus included. */
+      const meter = doc?.querySelector?.('[data-scan-meter]');
+      if (meter) paintMeter(meter, q);
+      if (plusActive()) return;
       const text = scansLeftLine(q);
       if (!text) return;
       let tries = 0;

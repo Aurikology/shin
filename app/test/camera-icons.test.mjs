@@ -78,7 +78,8 @@ test('the barcode, camera and keyboard icon buttons are all on the camera, in th
   // Amended 2026-11-22: Aurik's Cal AI camera: X (to Progress) and ? on top; a chip row (Barcode, Type name) over torch | barcode | (shutter) | a balancing gap; Saved and Settings left the camera.
   assert.deepEqual(order, ['chip-barcode', 'manual-search', 'torch', 'scan-barcode', 'shoot']);
   // Amended 2026-11-25 (Aurik, build 12: "the settings page button is an x at the top left"): the X is now the Settings gear.
-  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['you', 'guide-help']);
+  // Amended 2026-11-25 (Aurik: "users can see how many scans remaining they have"): the scans-left pill sits under the band.
+  assert.deepEqual([...TOP.matchAll(/data-act="([\w-]+)"/g)].map((m) => m[1]), ['you', 'guide-help', 'scan-meter']);
 });
 
 test('each is an inline SVG with an aria-label, no text, no image and none hidden', () => {

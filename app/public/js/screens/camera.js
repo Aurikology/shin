@@ -64,6 +64,7 @@ import { packReadOn, devOn } from '../dev-mode.js';
 import { tagsOn } from '../screen-tag-badge.js';
 import { sessionMisses, readPreview, firstRunTipPending, markFirstRunTipSeen } from '../scan-notes.js';
 import { earlyAccessPending, dismissEarlyAccess } from '../early-access.js';
+import { refreshMeter } from '../scans-left.js';
 import { createReviewPrompter, reviewBlocked } from '../review-prompt.js';
 import { APP_VERSION } from '../version.js';
 import { applyCentsKey, centsOfDigits, centsParts } from '../lib/pad-cents.js';
@@ -2776,6 +2777,11 @@ export default {
           </button>
         </div>
 
+        ${/* 2026-11-25 (Aurik): "make sure there is a feature where the users can see how many scans remaining
+             they have". Drawn hidden; scans-left.js fills it from /api/quota and shows it only when the server
+             sets a limit. Its tap opens the Plus screen. */ ''}
+        <button type="button" class="cam-meter" data-scan-meter data-act="scan-meter" aria-label="${escapeHtml(t('meter_label'))}" hidden></button>
+
         <div class="reticle" aria-hidden="true"><b></b><b></b><b></b><b></b></div>
 
         <!-- Everything the eye draws over the feed that is not the reticle: the
@@ -2841,6 +2847,8 @@ export default {
     const camShin = root.querySelector('.cam-shin');
     /* 2026-11-15: the early access banner on a first visit (early-access.js; Aurik's ask). */
     if (earlyAccessPending()) showEarlyAccess();
+    /* 2026-11-25: the scans-left pill, from the server's own count (scans-left.js). */
+    void refreshMeter({ api: ctx.api, doc: root.ownerDocument ?? globalThis.document });
 
     let stream = null;
     let eye = null;
@@ -5868,6 +5876,7 @@ export default {
        * button and opens the name field.
        */
       if (act === 'manual-search') { openManualSearch(); return; }
+      if (act === 'scan-meter') { ctx.go('paywall'); return; }
       if (act === 'early-access') { showEarlyAccess(); return; }
       if (act === 'early-access-ok') { dismissEarlyAccess(); hideEarlyAccess(); return; }
       if (act === 'scan-barcode') {

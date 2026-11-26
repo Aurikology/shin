@@ -227,6 +227,29 @@
 .cam[data-torch="on"] .torch-btn svg { fill: currentColor; }
 .torch-btn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .cam-top-spacer { width: var(--tap); flex: none; }
+/* 2026-11-25 (Aurik): the scans left this week, under the top band, centred. Quiet chrome, amber from
+   3 left, red at none; scans-left.js sets data-level. */
+.cam-meter {
+  position: absolute;
+  top: calc(max(14px, env(safe-area-inset-top)) + 52px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  min-height: var(--tap, 44px); /* R-13: a tap target is 44 px tall */
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.14);
+  background: var(--scrim);
+  backdrop-filter: blur(12px);
+  color: #fff;
+  font: 600 13px/1.2 var(--f-body, inherit);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cam-meter[hidden] { display: none; }
+.cam-meter[data-level="low"] { border-color: rgba(255,196,77,.6); color: #FFD27A; }
+.cam-meter[data-level="none"] { border-color: rgba(255,107,107,.7); color: #FFB3B3; }
+.cam-meter:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 /* Build 7 R-98: the keyboard button sits in the top band now, opposite the torch, so it is 44 + 4 = the torch band's 48. */
 .cam-top .type-btn { margin: 0 2px; }
 
