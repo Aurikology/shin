@@ -21,7 +21,7 @@
 import { SHOPPER_SOURCES } from './sources.js';
 
 /** The date printed at the top. Change it whenever the words change. */
-export const LEGAL_EFFECTIVE = '2026-11-25';
+export const LEGAL_EFFECTIVE = '2026-11-26';
 
 export const CONTACT_EMAIL = 'usepexiapp@gmail.com';
 
@@ -37,6 +37,7 @@ const EN = {
   intro: [
     'Everything about using Pexi, in one place: the Terms of Use, the Privacy Policy, what Pexi records, where its prices come from and how Pexi Plus works.',
     'Tapping Accept and continue, or using Pexi, means you agree to all of it. If you do not agree, do not use Pexi.',
+    'Two extras are yours alone to choose, and you can change either one at any time in Settings: Help improve Pexi, which is off until you turn it on, and sending the words you type to Claude, which Pexi asks about once, before your first typed search.',
   ],
   accept: 'Accept and continue',
   sourcesOpen: 'Open',
@@ -57,10 +58,10 @@ const EN = {
           ul: [
             'Pexi has no account, no sign-in, and does not ask for your name, email address, phone number or payment details.',
             "Your phone makes a random identifier for itself the first time you open Pexi. Pexi's server uses it to recognise the same phone on later requests. It is not your name, but everything Pexi records is tied to it.",
-            'Pexi records what you scan or type, what it answered, and how you use the app, and uses it to make its answers better.',
+            'Pexi records what you scan or type and what it answered, so it can answer you. If you turn on Help improve Pexi, it also records how you use the app and uses that to make Pexi better. It is off until you turn it on.',
             'When your phone lets Pexi use location, Pexi sends only a rough area about one kilometre wide, never your exact position.',
             'This version of Pexi does not upload photos or camera images.',
-            "When Pexi has no price for a product, the product's name, brand, size, category and country go to Anthropic's Claude AI to estimate a typical price. This is part of how Pexi answers.",
+            "When Pexi has no price for a product, the product's name, brand, size, category and country go to Anthropic's Claude AI to estimate a typical price. This is part of how Pexi answers. Words you type yourself go to Claude only if you say yes to a one-time notice, and if you say Not now, Pexi still answers from its own data.",
             'Pexi deletes what it records on a stated schedule. See "How long Pexi keeps it" below.',
             'If you subscribe to Pexi Plus, Apple (on iPhone) or Google Play (on Android) processes the payment and RevenueCat, a subscription service, records the purchase against the same random identifier. Pexi never sees your card, Apple ID or Google account details.',
             "Pexi does not show ads, does not use advertising or analytics companies (RevenueCat is used only to manage subscriptions), and does not track you across other companies' apps or websites.",
@@ -72,8 +73,8 @@ const EN = {
       id: 'who',
       h: 'Who can use Pexi',
       blocks: [
-        "Pexi is for people of all ages. If you are under the age of majority where you live, use Pexi with the permission of a parent or guardian, who accepts this document on your behalf. A purchase of Pexi Plus is made through the Apple ID or Google account on the device, under Apple's or Google's own rules for family members and purchases.",
-        `Pexi asks no one for a name, email address, birth date or account, and it collects the same information described here from every user, whatever their age. A parent or guardian who wants a child's information deleted can email ${CONTACT_EMAIL}, and the records tied to that device will be deleted. If you are under 14, please ask a parent or guardian before you allow location or share a price you typed.`,
+        "Pexi is for people of all ages, and one rule applies to everyone. If you are under the age of majority where you live, use Pexi with the permission of a parent or guardian, who accepts this document on your behalf. A purchase of Pexi Plus is made through the Apple ID or Google account on the device, under Apple's or Google's own rules for family members and purchases.",
+        `Pexi asks no one for a name, email address, birth date or account, and it collects the same information described here from every user, whatever their age. If you are under 14, a parent or guardian makes the choices in this document for you: allowing location, turning on Help improve Pexi, allowing your typed words to go to Claude, and sharing a price you typed. Both optional choices stay off until they say yes. A parent or guardian who wants a child's information deleted can email ${CONTACT_EMAIL}, and the records tied to that device will be deleted.`,
       ],
     },
     {
@@ -88,7 +89,8 @@ const EN = {
       h: 'AI price estimates',
       blocks: [
         "When Pexi has no price of its own for a product, it shows a typical price range generated by Anthropic's Claude AI model, labelled as estimated by AI. AI-generated content can be wrong, out of date, or based on a guess about what a product is. Treat all AI-generated content as unverified.",
-        "To make the estimate, Pexi's server sends Anthropic the product's name, brand, size, category and country. If you typed the name and Pexi did not recognise it, your typed words are the name it receives. Anthropic does not receive images, your device identifier or your location. Pexi saves the estimate. Sending these product details to Claude is part of using Pexi.",
+        "To make the estimate, Pexi's server sends Anthropic the product's name, brand, size, category and country. Anthropic does not receive images, your device identifier or your location. Pexi saves the estimate with the product details it was asked about. Sending these product details to Claude is part of using Pexi.",
+        "Words you type are different, because they can be anything you write. If you typed a name and Pexi did not recognise it, those typed words would be the name Claude receives, so Pexi asks you once, in a short notice before your first typed search, and sends them only if you tap Allow. Not now is a full answer: Pexi still replies to your search from its own data, just without the AI estimate. Pexi's server keeps your answer with the time you gave it and follows it, and you can change it at any time in Settings.",
       ],
     },
     {
@@ -96,10 +98,10 @@ const EN = {
       h: 'What Pexi records',
       blocks: [
         { lead: 'A random device identifier.', text: "Your phone generates it and keeps it on the phone, in the phone's secure storage (the Keychain on iPhone, Android's encrypted storage on Android) and in the app's own storage, together with a second random secret that proves later requests come from the same phone. Both are sent to Pexi's server with the requests the app makes. On iPhone the Keychain can outlast the app, so reinstalling Pexi on the same phone keeps the same identifier and your scan count. On Android, deleting the app normally removes the identifier, so a reinstall usually starts with a new one." },
-        { lead: 'What you scan or type.', text: "When you scan a barcode, Pexi sends the barcode digits. When you type a product name, Pexi sends the text you typed. While the camera is open, Pexi's app reads text that is visible in the camera view using text recognition that runs on your phone, and sends the recognised lines of text (not the image) to Pexi's server to find matching products. These are stored with the answer Pexi gave, whether Pexi answered or could not, any correction you made, and the time." },
+        { lead: 'What you scan or type.', text: "When you scan a barcode, Pexi sends the barcode digits. When you type a product name, Pexi sends the text you typed to its own server (and on to Claude only if you allowed that, as described under \"AI price estimates\"). While the camera is open, Pexi's app reads text that is visible in the camera view using text recognition that runs on your phone, and sends the recognised lines of text (not the image) to Pexi's server to find matching products. These are stored with the answer Pexi gave, whether Pexi answered or could not, any correction you made, and the time." },
         { lead: 'Prices, stores and ratings you enter.', text: 'If you type the price you saw on a shelf, choose a store, tell Pexi a verdict was wrong, or rate a verdict, that is stored with the scan. When you type a price or pick a product, Pexi also stores a scrambled one-way code of your network (never your IP address) to keep fake prices out, and removes it together with your device identifier.' },
-        { lead: 'How you use the app.', text: 'Pexi records when the app is opened, which screens you visit, buttons you tap, errors the app hits, and text you send, such as a search. Text you delete or leave unsent is not recorded; Pexi records only that a search was left unfinished.' },
-        { lead: 'Your acceptance.', text: 'Pexi records that you accepted this document, which version, and when.' },
+        { lead: 'How you use the app, only if you turn on Help improve Pexi.', text: 'Help improve Pexi is off until you turn it on, on the first screen or later in Settings. While it is on, Pexi records when the app is opened, which screens you visit, buttons you tap, errors the app hits, and text you send, such as a search. While it is off, Pexi\'s server stores none of that and keeps only what it needs to answer you. If the app itself crashes, it may still send the error report, which carries no device identifier. Text you delete or leave unsent is not recorded; Pexi records only that a search was left unfinished.' },
+        { lead: 'Your acceptance and your choices.', text: 'Pexi records that you accepted this document, which version, and when. It also records each time you turn Help improve Pexi or typed words to Claude on or off, with the time. Both are stored on Pexi\'s server, which follows them.' },
         { lead: 'Technical details of each request.', text: "The app version, the platform, how long an answer took, and your language and market setting. Pexi's server also logs, for every request, the time, the web address requested, the response status, your IP address, the country the request came from, and your phone's user agent text." },
         { lead: 'Purchase history, only if you subscribe.', text: "Pexi Plus is sold through Apple's in-app purchase system on iPhone and Google Play Billing on Android. The purchase is made with Apple or Google, and RevenueCat records which plan you bought, when it renews and whether it is active, under your random device identifier as the app user identifier. The app checks your subscription with RevenueCat each time it opens, and Pexi's server asks RevenueCat whether Pexi Plus is active for your device identifier, so the weekly scan limit can be lifted. Tapping Restore Purchases contacts RevenueCat and Apple or Google." },
         { lead: 'Rough location, when your phone allows it.', text: "Pexi uses location only as far as your phone's own location permission for Pexi allows, which you set in the phone's prompt or its settings. Your phone works out your position and rounds it on the phone to a grid square about one kilometre wide. Only the grid square is sent. Pexi's server stores the grid square, not your exact position, and discards any exact coordinates a request might carry. Pexi uses the grid square to suggest nearby shops, and the shop you pick is stored with the scan." },
@@ -115,8 +117,8 @@ const EN = {
           ul: [
             'To answer your scan and to look up nearby shops.',
             'To work out whether a price is good, using prices Pexi holds, including prices that people have entered. Prices you enter can be used in answers shown to other shoppers.',
-            "To improve Pexi's own price data and answers, including by using collected scans to train and tune Pexi's own price estimates.",
-            'To find and fix problems, using the usage events, errors and server logs described above.',
+            "To improve Pexi's own price data and answers, using the prices, scans and corrections collected while answering shoppers, including to tune Pexi's own price estimates. How you use the app goes into this only if you turned on Help improve Pexi.",
+            'To find and fix problems, using the errors and server logs described above, and the usage events if you turned on Help improve Pexi.',
           ],
         },
       ],
@@ -129,17 +131,17 @@ const EN = {
         {
           ul: [
             { lead: 'Open Food Facts', text: "(world.openfoodfacts.org) receives a barcode number when Pexi's own catalogue does not know the product, to look up the product's name, brand and size." },
-            { lead: 'Anthropic', text: '(the maker of the Claude AI model) receives a product\'s name, brand, size, category and country when Pexi has no price for it, as described under "AI price estimates".' },
+            { lead: 'Anthropic', text: '(the maker of the Claude AI model) receives a product\'s name, brand, size, category and country when Pexi has no price for it, and the words you typed only if you allowed that, as described under "AI price estimates". It does not receive your device identifier, your location or any image.' },
             { lead: "OpenStreetMap's Overpass service", text: 'receives the centre point of your rough grid square, only when your phone allows location, to find shops nearby.' },
             { lead: 'Cloudflare', text: "carries traffic between the app and Pexi's server, so it handles your requests in transit, including the device identifier they carry. Cloudflare also stores an encrypted backup copy of the server, which it cannot read." },
-            { lead: 'Apple', text: 'provides the App Store, handles downloads, and processes Pexi Plus payments on iPhone. Pexi receives no card or Apple ID details from Apple.' },
-            { lead: 'Google', text: 'provides Google Play, handles downloads, and processes Pexi Plus payments on Android. Pexi receives no card or Google account details from Google.' },
+            { lead: 'Apple', text: 'provides the App Store, handles downloads, and processes Pexi Plus payments on iPhone, so it receives your purchase and the account details it already holds, under Apple\'s own privacy policy. Pexi sends Apple nothing from your scans, and receives no card or Apple ID details from Apple.' },
+            { lead: 'Google', text: 'provides Google Play, handles downloads, and processes Pexi Plus payments on Android, so it receives your purchase and the account details it already holds, under Google\'s own privacy policy. Pexi sends Google nothing from your scans, and receives no card or Google account details from Google.' },
           ],
         },
-        "RevenueCat (revenuecat.com) is different from the list above: the app contacts it each time it opens, and Pexi's server contacts it to check whether Pexi Plus is active. It receives your random device identifier as the app user identifier, together with the purchase information from Apple or Google described under purchase history.",
+        "RevenueCat (revenuecat.com) is different from the list above: the app contacts it each time it opens, and Pexi's server contacts it to check whether Pexi Plus is active. It receives your random device identifier as the app user identifier, together with the purchase information from Apple or Google described under purchase history (your plan, when it renews and whether it is active), and, as with any request over the internet, your IP address.",
         'Pexi does not sell your data and does not share it with advertisers or data brokers.',
         { lead: 'Same protection from every service.', text: "Pexi shares user data only with the services named here, and each of them provides the same or equal protection of that data as this document states and as Apple's App Store Review Guidelines and Google Play's policies require." },
-        { lead: 'Outside your province.', text: "Pexi's server and most of these services are outside Quebec, and some are outside Canada, including in the United States and the European Union, where privacy law differs. Pexi limits what each one receives to what is listed above." },
+        { lead: 'Outside your province and outside Canada.', text: "Pexi's server and most of these services are outside Quebec, and some, including Anthropic, RevenueCat, Cloudflare, Apple and Google, may store or process data outside Canada, including in the United States and the European Union, where privacy law differs from Canada's. Courts, law enforcement and government authorities in those places may be able to get access to data held there under their own laws. Pexi limits what each one receives to what is listed above." },
       ],
     },
     {
@@ -149,8 +151,10 @@ const EN = {
         {
           ul: [
             { lead: 'Server request logs:', text: '90 days, then deleted.' },
-            { lead: 'Usage events:', text: '12 months, then deleted.' },
-            { lead: 'Scans, ratings and prices you entered:', text: 'after 24 months your device identifier is removed from them. What remains is a product, a price or an answer that is no longer tied to your phone, and Pexi keeps it to answer other shoppers.' },
+            { lead: 'Usage events (only if you turned on Help improve Pexi):', text: '12 months, then deleted.' },
+            { lead: 'Scans, ratings and prices you entered:', text: 'after 24 months your device identifier is removed from them. What remains is a product, a price or an answer, and any words you typed as a search, that is no longer tied to your phone, and Pexi keeps it to answer other shoppers.' },
+            { lead: 'Your saved choices, your device secret and your subscription record:', text: 'deleted once your phone has been unused for 24 months, and sooner if you ask.' },
+            { lead: 'Safety copies made when Pexi deletes something by hand:', text: 'at most 30 days.' },
           ],
         },
         'Backups of the server can hold a copy for longer until they are replaced. You can ask for deletion sooner, as described below. Deleting the app does not delete what the server already holds, and on an iPhone the identifier stays in the Keychain, so a reinstall brings it back. On Android, a reinstall usually starts with a new identifier, and the records tied to the old one stay on the server until they are deleted on the schedule above. To have the records tied to your device deleted, use Delete my data in Settings.',
@@ -164,6 +168,7 @@ const EN = {
           ul: [
             `You can ask to see, or delete, the records tied to your device. Open Settings and tap Delete my data, which prepares an email to ${CONTACT_EMAIL} that includes your device identifier so the right records can be found, or write to that address yourself. Deletion is done by hand.`,
             'If you think a price or verdict is wrong, you can say so in the app by answering the question about whether the verdict was right.',
+            'You can withdraw Help improve Pexi, or your yes to sending typed words to Claude, at any time in Settings. The app tells Pexi\'s server each time you change them, and the server follows your latest answer.',
           ],
         },
         'These are the steps Pexi follows, in plain words. Jamin Xu, named above, is responsible for them.',
@@ -180,7 +185,7 @@ const EN = {
       id: 'contrib',
       h: 'Prices and information you provide',
       blocks: [
-        "If you type a price, choose a store, correct a verdict or rate an answer, you confirm that what you provide is true to the best of your knowledge. You allow Pexi to store it and to use it, together with other shoppers' contributions, to improve Pexi's price data and to answer other shoppers, as described in this document. To make that possible, you grant Pexi a non-exclusive, worldwide, royalty-free, perpetual and irrevocable licence to store, copy, adapt, combine with other data, publish and share what you provide, including under the open data licences described under \"Data sources and licences\". This licence covers the prices, store choices, corrections and ratings you submit, never your device identifier or location. Do not submit anything unlawful, misleading or that you have no right to share.",
+        "If you type a price, choose a store, correct a verdict or rate an answer, you confirm that what you provide is true to the best of your knowledge. You allow Pexi to store it and to use it, together with other shoppers' contributions, to improve Pexi's price data and to answer other shoppers, as described in this document. To make that possible, you grant Pexi a non-exclusive, worldwide, royalty-free, perpetual and irrevocable licence to store, copy, adapt, combine with other data, publish and share what you provide, including under the open data licences described under \"Data sources and licences\". This licence covers the prices, store choices, corrections and ratings you submit, never your device identifier or location. Do not submit anything unlawful, misleading or that you have no right to share. What is not allowed is listed under \"Acceptable use\".",
       ],
     },
     {
@@ -190,8 +195,11 @@ const EN = {
         'Product details, prices and store names in Pexi include open data collected and published by other people. Each source below sets its own terms for reuse, and this is the credit those terms ask for.',
         `Data from Open Food Facts, Open Beauty Facts, Open Pet Food Facts, Open Products Facts, Open Prices and OpenStreetMap is made available under the Open Database License (ODbL). Where Pexi combines that data with other data, the resulting database, or a file of the changes, is available under the ODbL on request to ${CONTACT_EMAIL}.`,
         'Some product information is from Open Icecat: Database Right data-sheet 2026 Icecat. All rights reserved. It is provided as is, without warranty of any kind.',
+        'Contains information from Open Food Facts contributors, made available under the Open Database License (ODbL), with the individual contents under the Database Contents License. You can get the complete, current Open Food Facts database, and the other Open Food Facts projects\' databases, at world.openfoodfacts.org/data, and OpenStreetMap data at openstreetmap.org/copyright.',
+        'Adapted from Statistics Canada, Table 18-10-0245-01 Monthly average retail prices for selected products, data to September 2026, retrieved November 8, 2026. This does not constitute an endorsement by Statistics Canada of this product.',
         'Ingredients, allergens and nutrition details shown in Pexi come from these open databases, which anyone can edit, and may be missing, out of date or wrong. Always read the label on the package, especially if you have an allergy or a dietary need. Pexi does not give medical or dietary advice.',
         { sources: true },
+        { lead: 'Software licences.', text: 'The open-source software Pexi is built with, and the licence for each part, are listed on the licences page that comes with Pexi (licences.html).' },
         'Pexi is not affiliated with, endorsed by, or sponsored by any store, brand or data provider named in the app. Prices are what somebody recorded on the day shown beside them, not an offer, and not checked with the shop.',
       ],
     },
@@ -204,9 +212,11 @@ const EN = {
             'Do not use Pexi for anything unlawful.',
             "Do not try to break, overload, probe or reverse engineer Pexi or its server, or to reach another person's data.",
             "Do not use scripts or automated tools to send requests to Pexi's server.",
-            'Do not submit false prices on purpose.',
+            'Do not submit false prices, store names or corrections on purpose.',
+            'Do not enter anything abusive, hateful, threatening, sexual, or that names or targets a person, in a price, a store name, a search or a correction. Entries must be about a product price at a shop and nothing else.',
           ],
         },
+        { lead: 'Reporting a bad entry.', text: `If you see a price, store or other entry from another shopper that is wrong, abusive or should not be there, email ${CONTACT_EMAIL} with what you saw and where. Pexi reads each report and removes entries that break these rules. If a verdict looks wrong, you can also say so from the verdict itself.` },
       ],
     },
     {
@@ -277,6 +287,7 @@ const FR = {
   intro: [
     'Tout ce qui touche l’utilisation de Pexi, en un seul endroit : les conditions d’utilisation, la politique de confidentialité, ce que Pexi enregistre, d’où viennent ses prix et le fonctionnement de Pexi Plus.',
     'Toucher Accepter et continuer, ou utiliser Pexi, veut dire que tu acceptes l’ensemble de ce document. Si tu ne l’acceptes pas, n’utilise pas Pexi.',
+    'Deux options t’appartiennent, et tu peux changer l’une ou l’autre à tout moment dans Réglages : Aider à améliorer Pexi, désactivée tant que tu ne l’actives pas, et l’envoi à Claude des mots que tu saisis, dont Pexi te parle une seule fois, avant ta première recherche saisie.',
   ],
   accept: 'Accepter et continuer',
   sourcesOpen: 'Ouvrir',
@@ -297,10 +308,10 @@ const FR = {
           ul: [
             'Pexi n’a ni compte ni connexion, et ne te demande ni ton nom, ni ton adresse courriel, ni ton numéro de téléphone, ni tes renseignements de paiement.',
             'Ton téléphone crée un identifiant aléatoire la première fois que tu ouvres Pexi. Le serveur de Pexi s’en sert pour reconnaître le même téléphone lors des demandes suivantes. Ce n’est pas ton nom, mais tout ce que Pexi enregistre y est rattaché.',
-            'Pexi enregistre ce que tu scannes ou saisis, ce qu’elle a répondu et la façon dont tu utilises l’application, et s’en sert pour améliorer ses réponses.',
+            'Pexi enregistre ce que tu scannes ou saisis et ce qu’elle a répondu, pour pouvoir te répondre. Si tu actives Aider à améliorer Pexi, elle enregistre aussi la façon dont tu utilises l’application et s’en sert pour améliorer Pexi. C’est désactivé tant que tu ne l’actives pas.',
             'Quand ton téléphone permet à Pexi d’utiliser la localisation, Pexi envoie seulement une zone approximative d’environ un kilomètre de large, jamais ta position exacte.',
             'Cette version de Pexi ne téléverse ni photos ni images de la caméra.',
-            'Quand Pexi n’a aucun prix pour un produit, le nom, la marque, le format, la catégorie et le pays du produit sont envoyés à Claude, l’IA d’Anthropic, pour estimer un prix typique. Cela fait partie de la façon dont Pexi répond.',
+            'Quand Pexi n’a aucun prix pour un produit, le nom, la marque, le format, la catégorie et le pays du produit sont envoyés à Claude, l’IA d’Anthropic, pour estimer un prix typique. Cela fait partie de la façon dont Pexi répond. Les mots que tu saisis toi-même ne vont à Claude que si tu réponds oui à un avis unique, et si tu réponds Pas maintenant, Pexi répond quand même à partir de ses propres données.',
             'Pexi supprime ce qu’elle enregistre selon un calendrier précis. Consulte « Combien de temps Pexi conserve les données » plus bas.',
             'Si tu t’abonnes à Pexi Plus, Apple (sur iPhone) ou Google Play (sur Android) traite le paiement et RevenueCat, un service d’abonnement, enregistre l’achat sous le même identifiant aléatoire. Pexi ne voit jamais ta carte, ton identifiant Apple ni les détails de ton compte Google.',
             'Pexi n’affiche pas de publicité, ne fait appel à aucune entreprise de publicité ou d’analyse (RevenueCat sert uniquement à gérer les abonnements) et ne te suit pas dans les applications ou sites Web d’autres entreprises.',
@@ -312,8 +323,8 @@ const FR = {
       id: 'who',
       h: 'Qui peut utiliser Pexi',
       blocks: [
-        'Pexi s’adresse aux personnes de tous âges. Si tu n’as pas atteint l’âge de la majorité là où tu habites, utilise Pexi avec la permission d’un parent ou d’un tuteur, qui accepte ce document en ton nom. Un achat de Pexi Plus se fait au moyen de l’identifiant Apple ou du compte Google de l’appareil, selon les règles d’Apple ou de Google sur les membres de la famille et les achats.',
-        `Pexi ne demande à personne un nom, une adresse courriel, une date de naissance ni un compte, et recueille les mêmes renseignements, décrits ici, auprès de chaque utilisateur, quel que soit son âge. Un parent ou un tuteur qui veut faire supprimer les renseignements d’un enfant peut écrire à ${CONTACT_EMAIL}, et les données rattachées à cet appareil seront supprimées. Si tu as moins de 14 ans, demande à un parent ou à un tuteur avant d’autoriser la localisation ou de partager un prix que tu as saisi.`,
+        'Pexi s’adresse aux personnes de tous âges, et une seule règle vaut pour tout le monde. Si tu n’as pas atteint l’âge de la majorité là où tu habites, utilise Pexi avec la permission d’un parent ou d’un tuteur, qui accepte ce document en ton nom. Un achat de Pexi Plus se fait au moyen de l’identifiant Apple ou du compte Google de l’appareil, selon les règles d’Apple ou de Google sur les membres de la famille et les achats.',
+        `Pexi ne demande à personne un nom, une adresse courriel, une date de naissance ni un compte, et recueille les mêmes renseignements, décrits ici, auprès de chaque utilisateur, quel que soit son âge. Si tu as moins de 14 ans, un parent ou un tuteur fait à ta place les choix de ce document : autoriser la localisation, activer Aider à améliorer Pexi, permettre l’envoi de tes mots saisis à Claude et partager un prix que tu as saisi. Les deux options facultatives restent désactivées tant qu’il ou elle ne dit pas oui. Un parent ou un tuteur qui veut faire supprimer les renseignements d’un enfant peut écrire à ${CONTACT_EMAIL}, et les données rattachées à cet appareil seront supprimées.`,
       ],
     },
     {
@@ -328,7 +339,8 @@ const FR = {
       h: 'Estimations de prix par l’IA',
       blocks: [
         'Quand Pexi n’a aucun prix à elle pour un produit, elle affiche une fourchette de prix typique générée par Claude, le modèle d’intelligence artificielle d’Anthropic, indiquée comme estimée par l’IA. Le contenu généré par l’IA peut être erroné, désuet ou fondé sur une supposition quant à la nature du produit. Considère-le toujours comme non vérifié.',
-        'Pour faire l’estimation, le serveur de Pexi envoie à Anthropic le nom, la marque, le format, la catégorie et le pays du produit. Si tu as saisi le nom et que Pexi ne l’a pas reconnu, ce sont les mots que tu as saisis qui sont envoyés comme nom. Anthropic ne reçoit ni images, ni ton identifiant d’appareil, ni ta localisation. Pexi conserve l’estimation. L’envoi de ces détails de produit à Claude fait partie de l’utilisation de Pexi.',
+        'Pour faire l’estimation, le serveur de Pexi envoie à Anthropic le nom, la marque, le format, la catégorie et le pays du produit. Anthropic ne reçoit ni images, ni ton identifiant d’appareil, ni ta localisation. Pexi conserve l’estimation avec les détails du produit demandés. L’envoi de ces détails de produit à Claude fait partie de l’utilisation de Pexi.',
+        'Les mots que tu saisis sont différents, car ils peuvent être n’importe quoi. Si tu as saisi un nom que Pexi n’a pas reconnu, ces mots seraient le nom que Claude reçoit; Pexi te le demande donc une seule fois, dans un court avis avant ta première recherche saisie, et ne les envoie que si tu touches Permettre. Pas maintenant est une vraie réponse : Pexi répond quand même à ta recherche à partir de ses propres données, simplement sans l’estimation de l’IA. Le serveur de Pexi conserve ta réponse avec l’heure où tu l’as donnée et la respecte, et tu peux la changer à tout moment dans Réglages.',
       ],
     },
     {
@@ -336,10 +348,10 @@ const FR = {
       h: 'Ce que Pexi enregistre',
       blocks: [
         { lead: 'Un identifiant d’appareil aléatoire.', text: 'Ton téléphone le génère et le garde sur le téléphone, dans son stockage sécurisé (le trousseau sur iPhone, le stockage chiffré d’Android sur Android) et dans le stockage de l’application, avec un second secret aléatoire qui prouve que les demandes suivantes viennent du même téléphone. Les deux sont envoyés au serveur de Pexi avec les demandes de l’application. Sur iPhone, le trousseau peut survivre à l’application : réinstaller Pexi sur le même téléphone garde le même identifiant et ton nombre de scans. Sur Android, supprimer l’application efface normalement l’identifiant, et une réinstallation repart habituellement avec un nouveau.' },
-        { lead: 'Ce que tu scannes ou saisis.', text: 'Quand tu scannes un code-barres, Pexi envoie les chiffres du code-barres. Quand tu saisis le nom d’un produit, Pexi envoie le texte saisi. Pendant que la caméra est ouverte, l’application lit le texte visible dans l’image grâce à une reconnaissance de texte qui fonctionne sur ton téléphone, et envoie les lignes de texte reconnues (pas l’image) au serveur de Pexi pour trouver les produits correspondants. Ces éléments sont conservés avec la réponse donnée par Pexi, le fait qu’elle ait pu répondre ou non, toute correction que tu as faite et l’heure.' },
+        { lead: 'Ce que tu scannes ou saisis.', text: 'Quand tu scannes un code-barres, Pexi envoie les chiffres du code-barres. Quand tu saisis le nom d’un produit, Pexi envoie le texte saisi à son propre serveur (et à Claude seulement si tu l’as permis, comme le décrit « Estimations de prix par l’IA »). Pendant que la caméra est ouverte, l’application lit le texte visible dans l’image grâce à une reconnaissance de texte qui fonctionne sur ton téléphone, et envoie les lignes de texte reconnues (pas l’image) au serveur de Pexi pour trouver les produits correspondants. Ces éléments sont conservés avec la réponse donnée par Pexi, le fait qu’elle ait pu répondre ou non, toute correction que tu as faite et l’heure.' },
         { lead: 'Les prix, magasins et évaluations que tu saisis.', text: 'Si tu saisis le prix vu en rayon, choisis un magasin, indiques qu’un verdict était faux ou évalues un verdict, c’est conservé avec le scan. Quand tu saisis un prix ou choisis un produit, Pexi conserve aussi un code brouillé à sens unique de ton réseau (jamais ton adresse IP) pour écarter les faux prix, et le supprime en même temps que ton identifiant d’appareil.' },
-        { lead: 'Ta façon d’utiliser l’application.', text: 'Pexi enregistre quand l’application est ouverte, les écrans que tu visites, les boutons que tu touches, les erreurs de l’application et le texte que tu envoies, comme une recherche. Le texte que tu effaces ou n’envoies pas n’est pas enregistré; Pexi note seulement qu’une recherche est restée inachevée.' },
-        { lead: 'Ton acceptation.', text: 'Pexi enregistre que tu as accepté ce document, quelle version et quand.' },
+        { lead: 'Ta façon d’utiliser l’application, seulement si tu actives Aider à améliorer Pexi.', text: 'Aider à améliorer Pexi est désactivé tant que tu ne l’actives pas, sur le premier écran ou plus tard dans Réglages. Tant que c’est activé, Pexi enregistre quand l’application est ouverte, les écrans que tu visites, les boutons que tu touches, les erreurs de l’application et le texte que tu envoies, comme une recherche. Tant que c’est désactivé, le serveur de Pexi n’en conserve rien et ne garde que ce qu’il lui faut pour te répondre. Si l’application elle-même plante, elle peut quand même envoyer le rapport d’erreur, qui ne contient aucun identifiant d’appareil. Le texte que tu effaces ou n’envoies pas n’est pas enregistré; Pexi note seulement qu’une recherche est restée inachevée.' },
+        { lead: 'Ton acceptation et tes choix.', text: 'Pexi enregistre que tu as accepté ce document, quelle version et quand. Elle enregistre aussi chaque fois que tu actives ou désactives Aider à améliorer Pexi ou l’envoi des mots saisis à Claude, avec l’heure. Les deux sont conservés sur le serveur de Pexi, qui les respecte.' },
         { lead: 'Les détails techniques de chaque demande.', text: 'La version de l’application, la plateforme, le temps de réponse, ainsi que ta langue et ton marché. Le serveur de Pexi journalise aussi, pour chaque demande, l’heure, l’adresse Web demandée, le code de réponse, ton adresse IP, le pays d’où vient la demande et le texte d’agent utilisateur de ton téléphone.' },
         { lead: 'L’historique d’achat, seulement si tu t’abonnes.', text: 'Pexi Plus est vendu par le système d’achat intégré d’Apple sur iPhone et par la facturation Google Play sur Android. L’achat se fait auprès d’Apple ou de Google, et RevenueCat enregistre le forfait acheté, sa date de renouvellement et s’il est actif, sous ton identifiant d’appareil aléatoire comme identifiant d’utilisateur de l’application. L’application vérifie ton abonnement auprès de RevenueCat chaque fois qu’elle s’ouvre, et le serveur de Pexi demande à RevenueCat si Pexi Plus est actif pour ton identifiant d’appareil, afin de lever la limite hebdomadaire de scans. Toucher Restaurer les achats contacte RevenueCat et Apple ou Google.' },
         { lead: 'Une localisation approximative, quand ton téléphone le permet.', text: 'Pexi utilise la localisation seulement dans la mesure où l’autorisation de localisation de ton téléphone pour Pexi le permet, autorisation que tu règles dans l’invite du téléphone ou dans ses réglages. Ton téléphone calcule ta position et l’arrondit, sur le téléphone, à un carré de grille d’environ un kilomètre de large. Seul ce carré est envoyé. Le serveur de Pexi conserve le carré, pas ta position exacte, et jette toute coordonnée exacte qu’une demande pourrait contenir. Pexi se sert du carré pour suggérer des magasins à proximité, et le magasin que tu choisis est conservé avec le scan.' },
@@ -355,8 +367,8 @@ const FR = {
           ul: [
             'Pour répondre à ton scan et trouver les magasins à proximité.',
             'Pour déterminer si un prix est bon, à partir des prix que Pexi détient, y compris ceux saisis par des gens. Les prix que tu saisis peuvent servir aux réponses montrées à d’autres consommateurs.',
-            'Pour améliorer les données de prix et les réponses de Pexi, notamment en utilisant les scans recueillis pour entraîner et ajuster ses propres estimations de prix.',
-            'Pour trouver et corriger les problèmes, à l’aide des événements d’utilisation, des erreurs et des journaux du serveur décrits plus haut.',
+            'Pour améliorer les données de prix et les réponses de Pexi, à l’aide des prix, des scans et des corrections recueillis en répondant aux consommateurs, notamment pour ajuster ses propres estimations de prix. Ta façon d’utiliser l’application n’y entre que si tu as activé Aider à améliorer Pexi.',
+            'Pour trouver et corriger les problèmes, à l’aide des erreurs et des journaux du serveur décrits plus haut, et des événements d’utilisation si tu as activé Aider à améliorer Pexi.',
           ],
         },
       ],
@@ -369,17 +381,17 @@ const FR = {
         {
           ul: [
             { lead: 'Open Food Facts', text: '(world.openfoodfacts.org) reçoit un numéro de code-barres quand le catalogue de Pexi ne connaît pas le produit, pour trouver son nom, sa marque et son format.' },
-            { lead: 'Anthropic', text: '(le créateur du modèle d’IA Claude) reçoit le nom, la marque, le format, la catégorie et le pays d’un produit quand Pexi n’a aucun prix pour celui-ci, comme le décrit « Estimations de prix par l’IA ».' },
+            { lead: 'Anthropic', text: '(le créateur du modèle d’IA Claude) reçoit le nom, la marque, le format, la catégorie et le pays d’un produit quand Pexi n’a aucun prix pour celui-ci, et les mots que tu as saisis seulement si tu l’as permis, comme le décrit « Estimations de prix par l’IA ». Il ne reçoit ni ton identifiant d’appareil, ni ta localisation, ni aucune image.' },
             { lead: 'Le service Overpass d’OpenStreetMap', text: 'reçoit le centre de ton carré de grille approximatif, seulement quand ton téléphone permet la localisation, pour trouver des magasins à proximité.' },
             { lead: 'Cloudflare', text: 'achemine le trafic entre l’application et le serveur de Pexi; il traite donc tes demandes en transit, y compris l’identifiant d’appareil qu’elles portent. Cloudflare conserve aussi une copie de sauvegarde chiffrée du serveur, qu’il ne peut pas lire.' },
-            { lead: 'Apple', text: 'fournit l’App Store, gère les téléchargements et traite les paiements de Pexi Plus sur iPhone. Pexi ne reçoit d’Apple aucun détail de carte ni d’identifiant Apple.' },
-            { lead: 'Google', text: 'fournit Google Play, gère les téléchargements et traite les paiements de Pexi Plus sur Android. Pexi ne reçoit de Google aucun détail de carte ni de compte Google.' },
+            { lead: 'Apple', text: 'fournit l’App Store, gère les téléchargements et traite les paiements de Pexi Plus sur iPhone; il reçoit donc ton achat et les renseignements de compte qu’il détient déjà, selon sa propre politique de confidentialité. Pexi n’envoie à Apple rien de tes scans et ne reçoit d’Apple aucun détail de carte ni d’identifiant Apple.' },
+            { lead: 'Google', text: 'fournit Google Play, gère les téléchargements et traite les paiements de Pexi Plus sur Android; il reçoit donc ton achat et les renseignements de compte qu’il détient déjà, selon sa propre politique de confidentialité. Pexi n’envoie à Google rien de tes scans et ne reçoit de Google aucun détail de carte ni de compte Google.' },
           ],
         },
-        'RevenueCat (revenuecat.com) se distingue de la liste ci-dessus : l’application le contacte chaque fois qu’elle s’ouvre, et le serveur de Pexi le contacte pour vérifier si Pexi Plus est actif. Il reçoit ton identifiant d’appareil aléatoire comme identifiant d’utilisateur de l’application, avec les renseignements d’achat d’Apple ou de Google décrits sous l’historique d’achat.',
+        'RevenueCat (revenuecat.com) se distingue de la liste ci-dessus : l’application le contacte chaque fois qu’elle s’ouvre, et le serveur de Pexi le contacte pour vérifier si Pexi Plus est actif. Il reçoit ton identifiant d’appareil aléatoire comme identifiant d’utilisateur de l’application, avec les renseignements d’achat d’Apple ou de Google décrits sous l’historique d’achat (ton forfait, sa date de renouvellement et s’il est actif) et, comme pour toute demande sur Internet, ton adresse IP.',
         'Pexi ne vend pas tes données et ne les partage ni avec des annonceurs ni avec des courtiers en données.',
         { lead: 'La même protection pour chaque service.', text: 'Pexi partage des données d’utilisateurs seulement avec les services nommés ici, et chacun d’eux offre une protection identique ou équivalente de ces données, comme la décrit ce document et comme l’exigent les lignes directrices d’examen de l’App Store d’Apple et les politiques de Google Play.' },
-        { lead: 'À l’extérieur de ta province.', text: 'Le serveur de Pexi et la plupart de ces services se trouvent à l’extérieur du Québec, et certains à l’extérieur du Canada, notamment aux États-Unis et dans l’Union européenne, où les lois sur la vie privée diffèrent. Pexi limite ce que chacun reçoit à ce qui est indiqué plus haut.' },
+        { lead: 'À l’extérieur de ta province et du Canada.', text: 'Le serveur de Pexi et la plupart de ces services se trouvent à l’extérieur du Québec, et certains, dont Anthropic, RevenueCat, Cloudflare, Apple et Google, peuvent conserver ou traiter des données à l’extérieur du Canada, notamment aux États-Unis et dans l’Union européenne, où les lois sur la vie privée diffèrent de celles du Canada. Les tribunaux, les forces de l’ordre et les autorités gouvernementales de ces endroits peuvent avoir accès aux données qui s’y trouvent en vertu de leurs propres lois. Pexi limite ce que chacun reçoit à ce qui est indiqué plus haut.' },
       ],
     },
     {
@@ -389,8 +401,10 @@ const FR = {
         {
           ul: [
             { lead: 'Journaux des demandes au serveur :', text: '90 jours, puis supprimés.' },
-            { lead: 'Événements d’utilisation :', text: '12 mois, puis supprimés.' },
-            { lead: 'Scans, évaluations et prix saisis :', text: 'après 24 mois, ton identifiant d’appareil en est retiré. Ce qui reste est un produit, un prix ou une réponse qui n’est plus rattaché à ton téléphone, et Pexi le garde pour répondre à d’autres consommateurs.' },
+            { lead: 'Événements d’utilisation (seulement si tu as activé Aider à améliorer Pexi) :', text: '12 mois, puis supprimés.' },
+            { lead: 'Scans, évaluations et prix saisis :', text: 'après 24 mois, ton identifiant d’appareil en est retiré. Ce qui reste est un produit, un prix ou une réponse, et les mots que tu as saisis comme recherche, qui n’est plus rattaché à ton téléphone, et Pexi le garde pour répondre à d’autres consommateurs.' },
+            { lead: 'Tes choix enregistrés, le secret de ton appareil et ton dossier d’abonnement :', text: 'supprimés après 24 mois sans utilisation de ton téléphone, et plus tôt si tu le demandes.' },
+            { lead: 'Copies de sécurité faites quand Pexi supprime quelque chose à la main :', text: '30 jours au plus.' },
           ],
         },
         'Les sauvegardes du serveur peuvent garder une copie plus longtemps, jusqu’à leur remplacement. Tu peux demander une suppression plus tôt, comme décrit plus bas. Supprimer l’application ne supprime pas ce que le serveur détient déjà, et sur iPhone l’identifiant reste dans le trousseau, donc une réinstallation le ramène. Sur Android, une réinstallation repart habituellement avec un nouvel identifiant, et les données rattachées à l’ancien restent sur le serveur jusqu’à leur suppression selon le calendrier ci-dessus. Pour faire supprimer les données rattachées à ton appareil, utilise Supprimer mes données dans Réglages.',
@@ -404,6 +418,7 @@ const FR = {
           ul: [
             `Tu peux demander à voir ou à supprimer les données rattachées à ton appareil. Ouvre Réglages et touche Supprimer mes données, ce qui prépare un courriel à ${CONTACT_EMAIL} contenant ton identifiant d’appareil pour retrouver les bonnes données, ou écris toi-même à cette adresse. La suppression se fait à la main.`,
             'Si tu crois qu’un prix ou un verdict est faux, tu peux le dire dans l’application en répondant à la question qui demande si le verdict était juste.',
+            'Tu peux retirer Aider à améliorer Pexi, ou ton oui à l’envoi des mots saisis à Claude, à tout moment dans Réglages. L’application informe le serveur de Pexi chaque fois que tu les changes, et le serveur respecte ta dernière réponse.',
           ],
         },
         'Voici, en mots simples, les étapes que suit Pexi. Jamin Xu, nommé plus haut, en est responsable.',
@@ -420,7 +435,7 @@ const FR = {
       id: 'contrib',
       h: 'Les prix et renseignements que tu fournis',
       blocks: [
-        'Si tu saisis un prix, choisis un magasin, corriges un verdict ou évalues une réponse, tu confirmes que ce que tu fournis est véridique à ta connaissance. Tu permets à Pexi de le conserver et de l’utiliser, avec les contributions d’autres consommateurs, pour améliorer ses données de prix et répondre à d’autres consommateurs, comme le décrit ce document. À cette fin, tu accordes à Pexi une licence non exclusive, mondiale, libre de redevances, perpétuelle et irrévocable pour conserver, copier, adapter, combiner à d’autres données, publier et partager ce que tu fournis, y compris sous les licences de données ouvertes décrites sous « Sources de données et licences ». Cette licence vise les prix, les choix de magasins, les corrections et les évaluations que tu soumets, mais jamais ton identifiant d’appareil ni ta localisation. Ne soumets rien d’illégal ou de trompeur, ni rien que tu n’as pas le droit de partager.',
+        'Si tu saisis un prix, choisis un magasin, corriges un verdict ou évalues une réponse, tu confirmes que ce que tu fournis est véridique à ta connaissance. Tu permets à Pexi de le conserver et de l’utiliser, avec les contributions d’autres consommateurs, pour améliorer ses données de prix et répondre à d’autres consommateurs, comme le décrit ce document. À cette fin, tu accordes à Pexi une licence non exclusive, mondiale, libre de redevances, perpétuelle et irrévocable pour conserver, copier, adapter, combiner à d’autres données, publier et partager ce que tu fournis, y compris sous les licences de données ouvertes décrites sous « Sources de données et licences ». Cette licence vise les prix, les choix de magasins, les corrections et les évaluations que tu soumets, mais jamais ton identifiant d’appareil ni ta localisation. Ne soumets rien d’illégal ou de trompeur, ni rien que tu n’as pas le droit de partager. Ce qui n’est pas permis figure sous « Utilisation acceptable ».',
       ],
     },
     {
@@ -430,8 +445,11 @@ const FR = {
         'Les détails de produits, les prix et les noms de magasins dans Pexi comprennent des données ouvertes, recueillies et publiées par d’autres personnes. Chaque source ci-dessous fixe ses propres conditions de réutilisation, et voici le crédit que ces conditions demandent.',
         `Les données d’Open Food Facts, d’Open Beauty Facts, d’Open Pet Food Facts, d’Open Products Facts, d’Open Prices et d’OpenStreetMap sont offertes sous la licence Open Database License (ODbL). Lorsque Pexi combine ces données à d’autres, la base de données qui en résulte, ou un fichier des modifications, est offert sous la licence ODbL sur demande à ${CONTACT_EMAIL}.`,
         'Certains renseignements sur les produits proviennent d’Open Icecat : Database Right data-sheet 2026 Icecat. Tous droits réservés. Ils sont fournis tels quels, sans garantie d’aucune sorte.',
+        'Contient des renseignements des contributeurs d’Open Food Facts, offerts sous la licence Open Database License (ODbL), le contenu de chaque fiche relevant de la Database Contents License. Tu peux obtenir la base de données complète et à jour d’Open Food Facts, ainsi que celles des autres projets Open Food Facts, à world.openfoodfacts.org/data, et les données d’OpenStreetMap à openstreetmap.org/copyright.',
+        'Adapté de Statistique Canada, tableau 18-10-0245-01 (Monthly average retail prices for selected products), données jusqu’en septembre 2026, consulté le 8 novembre 2026. Cela ne constitue pas une approbation de ce produit par Statistique Canada.',
         'Les ingrédients, allergènes et renseignements nutritionnels affichés dans Pexi proviennent de ces bases de données ouvertes, que tout le monde peut modifier, et peuvent être absents, périmés ou inexacts. Lis toujours l’étiquette de l’emballage, surtout si tu as une allergie ou des besoins alimentaires particuliers. Pexi ne donne aucun conseil médical ou alimentaire.',
         { sources: true },
+        { lead: 'Licences des logiciels.', text: 'Les logiciels libres avec lesquels Pexi est conçue, et la licence de chacun, sont énumérés sur la page des licences qui accompagne Pexi (licences.html).' },
         'Pexi n’est ni affiliée à un magasin, une marque ou un fournisseur de données nommé dans l’application, ni approuvée ou commanditée par eux. Les prix sont ce que quelqu’un a noté le jour indiqué à côté, pas une offre, et ils n’ont pas été vérifiés auprès du magasin.',
       ],
     },
@@ -444,9 +462,11 @@ const FR = {
             'N’utilise pas Pexi à des fins illégales.',
             'N’essaie pas de briser, de surcharger, de sonder ou de rétroconcevoir Pexi ou son serveur, ni d’accéder aux données d’une autre personne.',
             'N’utilise pas de scripts ni d’outils automatisés pour envoyer des demandes au serveur de Pexi.',
-            'Ne soumets pas sciemment de faux prix.',
+            'Ne soumets pas sciemment de faux prix, de faux noms de magasins ni de fausses corrections.',
+            'Ne saisis rien d’injurieux, de haineux, de menaçant, de sexuel, ni rien qui nomme ou vise une personne, dans un prix, un nom de magasin, une recherche ou une correction. Les entrées doivent porter sur le prix d’un produit dans un magasin, et rien d’autre.',
           ],
         },
+        { lead: 'Signaler une mauvaise entrée.', text: `Si tu vois un prix, un magasin ou une autre entrée d’un autre consommateur qui est faux, injurieux ou qui n’a pas sa place, écris à ${CONTACT_EMAIL} en indiquant ce que tu as vu et où. Pexi lit chaque signalement et retire les entrées qui enfreignent ces règles. Si un verdict te semble faux, tu peux aussi le dire depuis le verdict lui-même.` },
       ],
     },
     {

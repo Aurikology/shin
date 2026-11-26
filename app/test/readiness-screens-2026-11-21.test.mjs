@@ -84,8 +84,9 @@ test('2. with photo identification off, the permission ask goes straight to the 
 
 test('2. the first screen says what scans are used for, both languages (2026-11-25: in the one document)', async () => {
   const { legalBodyHtml } = await import('../public/js/legal/document.js');
-  assert.match(legalBodyHtml('en'), /what you scan or type[^<]*how you use the app, and uses it to make its answers better/);
-  assert.match(legalBodyHtml('fr'), /ce que tu scannes ou saisis[^<]*améliorer ses réponses/);
+  // 2026-11-26: the usage half is the shopper's optional Help improve Pexi choice, so the line says so.
+  assert.match(legalBodyHtml('en'), /what you scan or type and what it answered[^<]*Help improve Pexi, it also records how you use the app and uses that to make Pexi better/);
+  assert.match(legalBodyHtml('fr'), /ce que tu scannes ou saisis et ce qu’elle a répondu[^<]*Aider à améliorer Pexi[^<]*améliorer Pexi/);
   assert.match(read('../public/js/screens/agree.js'), /legalBodyHtml\(lang\)/);
 });
 
