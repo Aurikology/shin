@@ -9,3 +9,6 @@
 *.sh text eol=lf
 *.mjs text eol=lf
 .githooks/* text eol=lf
+
+# The Linux server files (systemd units, env template) must be LF too.
+linux/** text eol=lf

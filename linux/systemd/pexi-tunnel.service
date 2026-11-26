@@ -1,0 +1,29 @@
+# The Cloudflare tunnel connector (launchd twin: com.shin.tunnel). One tunnel, many connectors: Cloudflare
+# sends each request to any connector that is up for the same tunnel UUID, so during the cutover this VPS and
+# the Mac must NOT both be running (linux/CUTOVER.md says in what order to start and stop them).
+# Not enabled by install-units.sh; the cutover enables it. Config: /etc/cloudflared/config.yml
+# (linux/cloudflared/config.yml.example) and the tunnel's credentials JSON copied from the Mac's ~/.cloudflared.
+
+[Unit]
+Description=Pexi Cloudflare tunnel connector
+After=network-online.target pexi-server.service
+Wants=network-online.target
+ConditionPathExists=/etc/cloudflared/config.yml
+StartLimitIntervalSec=0
+OnFailure=pexi-alert@%n.service
+
+[Service]
+Type=simple
+User=pexi
+Group=pexi
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+SyslogIdentifier=pexi-tunnel
+
+[Install]
+WantedBy=multi-user.target

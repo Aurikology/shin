@@ -1,0 +1,28 @@
+# The deploy checker (launchd twin: com.shin.checker). Run by pexi-deploy.timer every 30 s; linux/deploy.mjs
+# takes its own lock, so a slow deploy is never started twice.
+#
+# DELIBERATELY no EnvironmentFile=: the tests this runs must never see the live data paths or any secret
+# (the Mac's childEnv does the same). deploy.mjs reads the four values it needs from /etc/pexi/pexi.env itself.
+# No NoNewPrivileges: it needs `sudo systemctl restart pexi-server` (one sudoers line, linux/install-units.sh).
+# Nice and a low CPU weight so a test run cannot starve the server on the 4 cores.
+
+[Unit]
+Description=Pexi deploy checker: pull main, test, restart only when green
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pexi
+Group=pexi
+UMask=0077
+WorkingDirectory=/opt/pexi/state
+Environment=NODE_NO_WARNINGS=1
+Environment=HOME=/home/pexi
+ExecStart=/usr/bin/flock -n -E 0 /opt/pexi/state/deploy.lock /usr/local/bin/node /opt/pexi/live/linux/deploy.mjs
+TimeoutStartSec=90min
+Nice=10
+CPUWeight=20
+IOWeight=20
+MemoryHigh=3G
+SyslogIdentifier=pexi-deploy

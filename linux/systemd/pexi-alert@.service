@@ -1,0 +1,16 @@
+# Sent by OnFailure= of every pexi job: %i is the failed unit's name (e.g. pexi-backup.service).
+# Delivers one FAIL over HTTPS (linux/alert.mjs). No SMTP, no server of ours. If NO backend is configured the
+# script exits non-zero and says so in the journal: journalctl -u 'pexi-alert@*'.
+
+[Unit]
+Description=Pexi alert for %i
+
+[Service]
+Type=oneshot
+User=pexi
+Group=pexi
+EnvironmentFile=/etc/pexi/pexi.env
+Environment=NODE_NO_WARNINGS=1
+ExecStart=/usr/local/bin/node /opt/pexi/live/linux/alert.mjs unit-failed %i
+TimeoutStartSec=90
+SyslogIdentifier=pexi-alert

@@ -1,0 +1,15 @@
+# linux/cloudflared/config.yml.example -> /etc/cloudflared/config.yml on the VPS (mode 0640, group pexi).
+# The Linux twin of mac/cloudflared/config.yml.example. SAME tunnel as the Mac (shin-beta, hostname
+# relay.anjiawenda.com), so phones keep working with no app update.
+#
+# Fill in __TUNNEL_UUID__ from the Mac: `cloudflared tunnel list` (or the name of the JSON file in ~/.cloudflared).
+# Copy ~/.cloudflared/<UUID>.json from the Mac to /etc/cloudflared/<UUID>.json (mode 0640, group pexi) over scp.
+# That file is the tunnel's credential: never commit it, never paste it into a chat.
+
+tunnel: __TUNNEL_UUID__
+credentials-file: /etc/cloudflared/__TUNNEL_UUID__.json
+
+ingress:
+  - hostname: relay.anjiawenda.com
+    service: http://127.0.0.1:4173
+  - service: http_status:404

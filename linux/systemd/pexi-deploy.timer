@@ -1,0 +1,14 @@
+# Every 30 s, like StartInterval 30 of com.shin.checker. The unit is oneshot, so a run still in progress
+# (a deploy can take many minutes) simply means the next tick does nothing until it ends.
+
+[Unit]
+Description=Pexi deploy checker schedule
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=30s
+AccuracySec=1s
+Unit=pexi-deploy.service
+
+[Install]
+WantedBy=timers.target

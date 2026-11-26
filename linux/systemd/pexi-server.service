@@ -1,0 +1,41 @@
+# The Pexi server (launchd twin: com.shin.server).
+# Restart=always like KeepAlive. TimeoutStopSec=30 like ExitTimeOut: the server drains in-flight requests for
+# SHIN_DRAIN_MS (default 12 s, app/src/shutdown.ts) after SIGTERM, then exits; systemd only SIGKILLs after 30 s.
+# Listens on 127.0.0.1 and ::1 only (SHIN_BIND_HOST unset); the Cloudflare tunnel dials in from the same box.
+
+[Unit]
+Description=Pexi server
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/opt/pexi/live/app/server.ts
+# A crash loop never gives up (StartLimitIntervalSec=0), so the server always comes back; the alert is the ExecStopPost line.
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pexi
+Group=pexi
+UMask=0077
+WorkingDirectory=/opt/pexi/live/app
+EnvironmentFile=/etc/pexi/pexi.env
+Environment=NODE_NO_WARNINGS=1
+ExecStart=/opt/pexi/live/linux/run-server.sh
+ExecStopPost=/opt/pexi/live/linux/notify-stop.sh
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+LimitNOFILE=65536
+# When memory runs out the kernel should kill a collector, not the server.
+OOMScoreAdjust=-500
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pexi-server
+
+[Install]
+WantedBy=multi-user.target
