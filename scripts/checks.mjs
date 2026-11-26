@@ -76,11 +76,29 @@ function report(check) {
   return check.failed;
 }
 
+/**
+ * The two deploy checks the Mac's checker failed on 2026-11-25 (every push red for hours, found late):
+ * a typecheck per package, and the catalogue A7 scan (swallowing catch blocks in the range path).
+ * Both take seconds, so they stop the push here instead of a deploy later.
+ */
+const TSC = 'spine/node_modules/typescript/bin/tsc';
+const TYPECHECKED = ['app', 'price', 'catalogue'];
+const A7_SCRIPT =
+  "const m = await import('./catalogue/src/category-check.ts');" +
+  "const r = m.scanSwallows('.');" +
+  "for (const s of r.swallows) console.error(`${s.file}:${s.line} ${s.text}`);" +
+  "for (const f of r.unreadable) console.error(`unreadable: ${f}`);" +
+  'process.exit(r.swallows.length + r.unreadable.length > 0 ? 1 : 0);';
+
 function runFastChecks() {
   return [
     runChild('node --test scripts/test/', 'node', ['--test', 'scripts/test/**/*.test.mjs']),
     runChild('node .claude/hooks/selftest.mjs', 'node', ['.claude/hooks/selftest.mjs']),
     guardFilesCheck(),
+    ...TYPECHECKED.filter((p) => existsSync(join(root, p, 'tsconfig.json'))).map((p) =>
+      runChild(`typecheck ${p}`, 'node', [TSC, '--noEmit', '-p', `${p}/tsconfig.json`]),
+    ),
+    runChild('catalogue A7: no swallowing catch blocks', 'node', ['--input-type=module', '-e', A7_SCRIPT]),
   ];
 }
 
