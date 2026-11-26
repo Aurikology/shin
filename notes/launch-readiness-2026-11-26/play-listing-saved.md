@@ -1,5 +1,5 @@
 Saved as drafts in Google Play Console on 2026-11-26. NOT sent for review.
-Counts below are characters of the text; the console showed en full 2413 (same as below) and fr full 2884 (it counts line breaks differently for that text); short descriptions 70 and 75 match.
+Counts below are characters of the text; these match the console (en 2413, fr 2884).
 The short description differs from the draft: the draft’s "good deal" wording triggered the console’s price/promotion keyword warning. fr-CA uses the default listing graphics.
 
 ## English (United States), default
