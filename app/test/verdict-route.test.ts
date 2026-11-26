@@ -52,6 +52,7 @@ const SLOW_COLA = withCheck('062699000021');
 const WIRE_COLA = withCheck('062699000022');
 const STORE_ONLY = withCheck('062699000030'); // a store prices it, the catalogue lacks it (case 2)
 const US_ONLY = withCheck('062699000050'); // D-280 probe C: priced only in USD, asked by a CAD shopper
+const US_NAMELESS = withCheck('062699000051'); // no catalogue row and no CAD price: only a USD row names it
 const MISSING = withCheck('062699000099'); // nothing knows it (case 6)
 const ROW_COLA = withCheck('062699000023'); // D-235: the Claude range answer, row checked against the wire
 const POOL_SELF = withCheck('062699000040'); // D-235: no price of its own, answered from its leaf's pool
@@ -137,6 +138,11 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
     imageUrl: null, inStock: null, storeName: 'usshop store', storeCity: 'Seattle', basePriceCents: null,
   });
   [300, 320, 340, 360, 380, 400].forEach((c, i) => price(POOL_OTHERS[i]!, `snack${i}`, c));
+  recordObservation(prices, {
+    code: US_NAMELESS, seller: 'usshop', sellerSku: 'SKU-US-3', sellerName: 'Maple Candy 200 g', sellerBrand: 'Sugarbush', priceCents: 500, kind: 'regular',
+    unitPriceCents: null, unitLabel: null, currency: 'USD', country: 'US', region: null, joinMethod: 'gtin', seenOn: today, url: null,
+    imageUrl: null, inStock: null, storeName: 'usshop store', storeCity: 'Seattle', basePriceCents: null,
+  });
   prices.close();
 }
 
@@ -402,6 +408,25 @@ test('D-235: a store-only barcode (named outside the catalogue) records the rung
   assert.equal(row.verdict_zone, body.verdict.shopper.zone);
   assert.equal(row.range_source, 'shin_prices');
   assert.equal(row.range_basis, body.verdict.basis);
+});
+
+test('a CAD shopper on a barcode with no catalogue row and no CAD price, known only from USD rows, gets a named cross_border answer', async () => {
+  const { body } = await identify(US_NAMELESS, '&shelfPriceCents=600');
+  assert.equal(body.outcome, 'not_in_catalogue');
+  assert.deepEqual(body.storeIdentity, { name: 'Maple Candy 200 g', brand: 'Sugarbush', size: '200 g', barcode: US_NAMELESS });
+  const v = body.verdict;
+  assert.equal(v.basis, 'cross_border');
+  assert.equal(v.currency, 'CAD');
+  // USD 500 x [0.83, 1.70]
+  assert.equal(v.p10Cents, 415);
+  assert.equal(v.p90Cents, 850);
+  assert.ok(v.shopper, 'the typed price is placed on the range');
+  assert.equal(body.range.lowCents, 415);
+  assert.equal(body.range.highCents, 850);
+  const row = scanRow(body.scanId);
+  assert.equal(row.outcome, 'answered');
+  assert.equal(row.estimate_basis, 'cross_border');
+  assert.ok(!JSON.stringify(body).includes('crossBorder'), 'the cross-border trace reached the shopper');
 });
 
 test('case 6: a barcode nothing knows asks for the name, with no verdict and no Claude ask', async () => {

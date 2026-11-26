@@ -732,7 +732,7 @@ function readRowsForCode(db: DatabaseSync, currency: string, asOf: string, barco
 function crossBorderOf(
   item: { currency: string; barcode: string | null; asOf: string },
   prices: DatabaseSync | undefined | null,
-): EstimateTrace['crossBorder'] {
+): { trace: NonNullable<EstimateTrace['crossBorder']>; newest: Row } | null {
   const other = item.currency === 'CAD' ? 'USD' : item.currency === 'USD' ? 'CAD' : null;
   if (!other || !item.barcode || !prices) return null;
   const selfKey = codeKey(item.barcode);
@@ -740,16 +740,21 @@ function crossBorderOf(
   const shops = latestPerShop(own).filter((s) => s.age <= CROSS_BORDER_WINDOW_DAYS);
   if (shops.length === 0) return null;
   const medianOtherCents = medianOf(shops.map((s) => s.cents));
+  // The row that names the product here: the newest one with a name (a row with none names nothing).
+  const newest = [...shops].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0)).find((r) => r.name !== '') ?? shops[0]!;
   // Other = USD, item = CAD: CAD = USD x [0.83, 1.70]. Other = CAD, item = USD: USD = CAD / [1.70, 0.83]. Rounded to whole cents.
   const lo = other === 'USD' ? medianOtherCents * CROSS_BORDER_RATIO_LOW : medianOtherCents / CROSS_BORDER_RATIO_HIGH;
   const hi = other === 'USD' ? medianOtherCents * CROSS_BORDER_RATIO_HIGH : medianOtherCents / CROSS_BORDER_RATIO_LOW;
   return {
-    fromCurrency: other,
-    n: shops.length,
-    medianOtherCents,
-    lowCents: Math.max(1, Math.round(lo)),
-    highCents: Math.max(1, Math.round(hi)),
-    ratioSource: CROSS_BORDER_SOURCE,
+    newest,
+    trace: {
+      fromCurrency: other,
+      n: shops.length,
+      medianOtherCents,
+      lowCents: Math.max(1, Math.round(lo)),
+      highCents: Math.max(1, Math.round(hi)),
+      ratioSource: CROSS_BORDER_SOURCE,
+    },
   };
 }
 
@@ -1367,9 +1372,37 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   let ownAll = selfKey ? ownRowsOf(rows, selfKey) : [];
   const ownNewest = [...ownAll].sort((a, b) => (a.seenOn < b.seenOn ? 1 : a.seenOn > b.seenOn ? -1 : 0))[0] ?? null;
 
+  /*
+   * The barcode's prices in the other of USD/CAD (D-280 probe C), read at most once and only when asked: the
+   * cross_border rung below, the trace, and the name of a barcode no catalogue row and no price here names.
+   */
+  let crossBorder: EstimateTrace['crossBorder'] = null;
+  let crossBorderNewest = null as Row | null;
+  let crossBorderRead = false;
+  const readCrossBorder = (): EstimateTrace['crossBorder'] => {
+    if (!crossBorderRead) {
+      crossBorderRead = true;
+      try {
+        const found = crossBorderOf({ currency, barcode, asOf: item.asOf }, deps.prices);
+        crossBorder = found ? found.trace : null;
+        crossBorderNewest = found ? found.newest : null;
+      } catch (err) {
+        console.error(`[cross-border-fault] threw ${barcode ?? ''} - ${err instanceof Error ? err.message : String(err)}`);
+        crossBorder = null;
+        crossBorderNewest = null;
+      }
+    }
+    return crossBorder;
+  };
+
   /* ---- identity: the catalogue first, else the store's own product name (design case 2) */
-  const name = str(item.name) ?? selfCat?.name ?? ownNewest?.name ?? null;
-  const brand = str(item.brand) ?? selfCat?.brand ?? ownNewest?.brand ?? null;
+  // A barcode named nowhere here (no item name, no catalogue row, no price row in this currency) is named by the
+  // other currency's rows when it has any: the product is the same one, and it then reaches the cross_border rung.
+  const nameKnownHere = str(item.name) ?? selfCat?.name ?? ownNewest?.name ?? null;
+  if (!nameKnownHere && barcode) readCrossBorder();
+  const named: Row | null = nameKnownHere ? null : crossBorderNewest;
+  const name = nameKnownHere ?? str(named?.name) ?? null;
+  const brand = str(item.brand) ?? selfCat?.brand ?? ownNewest?.brand ?? named?.brand ?? null;
   let path: readonly string[] = item.categoryPath && item.categoryPath.length > 0 ? item.categoryPath : selfCat?.path ?? [];
   let leaf: string | null = str(item.leafCategory) ?? selfCat?.leaf ?? path[path.length - 1] ?? null;
   let sorted: EstimateTrace['sorted'] = null;
@@ -1434,7 +1467,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       target = packs.size;
       sizeText = packs.sizeText ?? sizeLabel(packs.size);
     } else {
-      const fromName = sizeFromName(name);
+      // The name's tail, else the size the other currency's row carries for this barcode.
+      const fromName = sizeFromName(name) ?? (named?.size ? { q: named.size, text: named.sizeText ?? sizeLabel(named.size) } : null);
       target = fromName?.q ?? null;
       sizeText = fromName?.text ?? null;
     }
@@ -1518,20 +1552,6 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
    * ---- cross-border (D-280 probe C): the same barcode's prices in the other of USD/CAD, times the fitted ratio
    * band. Only when the item has no prices of its own here, and before every rung below. Its range is exact.
    */
-  let crossBorder: EstimateTrace['crossBorder'] = null;
-  let crossBorderRead = false;
-  const readCrossBorder = (): EstimateTrace['crossBorder'] => {
-    if (!crossBorderRead) {
-      crossBorderRead = true;
-      try {
-        crossBorder = crossBorderOf({ currency, barcode, asOf: item.asOf }, deps.prices);
-      } catch (err) {
-        console.error(`[cross-border-fault] threw ${barcode ?? ''} - ${err instanceof Error ? err.message : String(err)}`);
-        crossBorder = null;
-      }
-    }
-    return crossBorder;
-  };
   let crossBorderRange: { low: number; high: number } | null = null;
   if (basis === null) {
     const cb = readCrossBorder();

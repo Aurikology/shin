@@ -828,7 +828,9 @@ export async function answerBarcodeFromCatalogue(
         },
         deps.identity ?? BARCODE_IN_HAND,
       );
-      if (est && est.verdict.dots.length > 0 && est.trace.name) {
+      // A barcode named only by the other currency's rows (price/src/estimate.ts names it from them) has no dots here:
+      // its verdict is the cross_border range, and it is named all the same.
+      if (est && est.trace.name && (est.verdict.dots.length > 0 || est.verdict.basis === 'cross_border')) {
         verdict = est.verdict;
         storeIdentity = { name: est.trace.name, brand: est.trace.brand, size: est.trace.size, barcode: barcode.gtin };
         storeEstimate = est;

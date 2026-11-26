@@ -133,6 +133,21 @@ test('not applicable without a barcode or outside USD and CAD, and a later rung 
   db.close();
 });
 
+test('a barcode with no name, no catalogue row and no CAD price is named by the USD rows, and still gets the cross_border range', async () => {
+  const db = fixture([usd('a', 1000, { sellerName: 'Skipper Tuna 170g', sellerBrand: 'Skipper' }), usd('b', 1100, { sellerName: 'Skipper Tuna 170g', sellerBrand: 'Skipper' })]);
+  const r = await estimate({ barcode: CODE, asOf, currency: 'CAD' }, null, { prices: db });
+  assert.equal(r.trace.name, 'Skipper Tuna 170g');
+  assert.equal(r.trace.brand, 'Skipper');
+  assert.equal(r.trace.size, '170g');
+  assert.equal(r.verdict.basis, 'cross_border');
+  assert.equal(r.verdict.p10Cents, r.trace.crossBorder!.lowCents);
+  // With no rows in either currency nothing names it, as before.
+  const none = await estimate({ barcode: CODE, asOf, currency: 'CAD' }, null, { prices: fixture([]) });
+  assert.equal(none.trace.name, null);
+  assert.notEqual(none.verdict.basis, 'cross_border');
+  db.close();
+});
+
 test('the shopper-facing verdict never carries the key crossBorder, only the trace does', async () => {
   const db = fixture([usd('a', 1000), usd('b', 1100), usd('c', 1200)]);
   const r = await estimate(itemIn('CAD'), { cents: 1200, currency: 'CAD' }, { prices: db });
