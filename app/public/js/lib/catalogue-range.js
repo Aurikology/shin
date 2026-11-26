@@ -40,7 +40,8 @@ const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 // The last four are the server's last rungs (requirement 3.1): an estimate from the item's
 // category or department, and the fixed wide bell when Pexi holds nothing at all.
 const ESTIMATE_BASES = ['category_prior', 'department_prior', 'national_average'];
-export const BASES = Object.freeze(['this_product', 'leaf_category', 'parent_category', 'gemini_typical', ...ESTIMATE_BASES, 'fixed_prior']);
+// `cross_border`: the same barcode's prices on the other side of the border, scaled (price/src/estimate.ts).
+export const BASES = Object.freeze(['this_product', 'leaf_category', 'parent_category', 'gemini_typical', ...ESTIMATE_BASES, 'cross_border', 'fixed_prior']);
 
 /**
  * A usable range off the wire, or null. A range with a missing bound, a low
@@ -134,6 +135,7 @@ export function provenanceOf(range, identity = null) {
     return { key: r.n === 1 ? 'cat_basis_shin_one' : 'cat_basis_shin', facts: { n: String(r.n) } };
   }
   if (r.basis === 'fixed_prior') return { key: 'cat_basis_broad', facts: {} };
+  if (r.basis === 'cross_border') return { key: 'cat_basis_cross_border', facts: {} };
   if (r.basis === 'national_average') {
     const na = r.nationalAverage;
     if (!na || typeof na.place !== 'string' || typeof na.month !== 'string') return { key: 'cat_basis_statcan_bare', facts: {} };

@@ -280,6 +280,7 @@ const EN = {
   cat_basis_statcan_sized: (f) => `Based on Statistics Canada's average for ${f.place}, ${statcanMonth(f.month, 'en-CA')}, for ${f.product}, adjusted to regular shelf prices`,
   cat_basis_statcan_bare: "Based on Statistics Canada's average, adjusted to regular shelf prices",
   cat_basis_category_bare: 'From similar products',
+  cat_basis_cross_border: "From this item's prices across the border",
   cat_basis_ai: 'Estimated by AI',
   cat_basis_broad: "Pexi's broad guess for items like this", // 2026-11-21 (business rank 10): say what Pexi knows, not what it lacks
   /* D-240: the short label a saved or past range answer wears instead of a verdict word. Never a typical price. */
@@ -363,6 +364,7 @@ const EN = {
   vd_why_own_count: (f) => `${f.n} ${Number(f.n) === 1 ? 'price' : 'prices'} found, blended with its category`,
   /* R-56: where the estimate came from, in plain words. */
   vd_prov_own_prices: (f) => `${f.prices} ${Number(f.prices) === 1 ? 'price' : 'prices'} from ${f.shops} ${Number(f.shops) === 1 ? 'shop' : 'shops'}${f.ago ? `, newest ${f.ago}` : ''}`,
+  vd_prov_cross_border: "This item's prices across the border, converted",
   vd_prov_other_size: 'Same product, other size, scaled',
   vd_prov_leaf_category: 'Typical for its category',
   vd_prov_parent_category: 'Typical for its wider category',
@@ -387,6 +389,7 @@ const EN = {
   vd_tell_price: 'Tell me the price',
   /* D13: a low-confidence answer still answers, and says in a few words why it is thin, as its half detent's one basis line (RULINGS.md "Always answer"; "V1 verdict screen mechanics"). */
   vd_why_own_prices: 'few prices for this item',
+  vd_why_cross_border: "based on this item's prices across the border",
   vd_why_other_size: 'worked out from another size of this item',
   vd_why_leaf_category: 'based on similar items, not this one',
   vd_why_parent_category: 'based on a wide group of items',
@@ -416,6 +419,7 @@ const EN = {
   vd_basis_blend: (f) => `Pexi's estimate blends this item's prices${f.n ? ` at ${f.n} shop${f.n === '1' ? '' : 's'}` : ''} with its category.`,
   /* Said in plain words when the 10-to-90 range is wider than about five times (D13). */
   vd_basis_own_prices: "this item's own prices",
+  vd_basis_cross_border: "this item's prices across the border",
   vd_basis_other_size: 'the same product in another size',
   vd_basis_leaf_category: 'similar products',
   vd_basis_parent_category: 'products in a wider category',
@@ -1088,6 +1092,7 @@ const FR = {
   cat_basis_statcan_sized: (f) => `D’après la moyenne de Statistique Canada pour ${f.place}, ${statcanMonth(f.month, 'fr-CA')}, pour ${f.product}, ajustée aux prix courants en magasin`,
   cat_basis_statcan_bare: 'D’après la moyenne de Statistique Canada, ajustée aux prix courants en magasin',
   cat_basis_category_bare: 'D’après des produits semblables',
+  cat_basis_cross_border: 'D’après les prix de cet article de l’autre côté de la frontière',
   cat_basis_ai: 'Estimé par l’IA',
   cat_basis_broad: 'L’estimation large de Pexi pour ce genre d’article',
   range_word_broad: 'Une estimation large',
@@ -1152,6 +1157,7 @@ const FR = {
   vd_conf_low: 'Pas tout à fait sûr',
   vd_why_own_count: (f) => (Number(f.n) === 1 ? '1 prix trouvé, combiné avec sa catégorie' : `${f.n} prix trouvés, combinés avec sa catégorie`),
   vd_prov_own_prices: (f) => `${f.prices} prix de ${f.shops} ${Number(f.shops) === 1 ? 'magasin' : 'magasins'}${f.ago ? `, le plus récent ${f.ago}` : ''}`,
+  vd_prov_cross_border: 'Les prix de cet article de l’autre côté de la frontière, convertis',
   vd_prov_other_size: 'Même produit, autre format, mis à l’échelle',
   vd_prov_leaf_category: 'Habituel pour sa catégorie',
   vd_prov_parent_category: 'Habituel pour sa catégorie plus large',
@@ -1170,6 +1176,7 @@ const FR = {
   vd_based_on_items: (f) => `Selon ${Number(f.n).toLocaleString('fr-CA')} ${Number(f.n) === 1 ? 'produit semblable' : 'produits semblables'}`,
   vd_tell_price: 'Dis-moi le prix',
   vd_why_own_prices: 'peu de prix pour ce produit',
+  vd_why_cross_border: 'd’après les prix de cet article de l’autre côté de la frontière',
   vd_why_other_size: 'calculé d’après un autre format de ce produit',
   vd_why_leaf_category: 'd’après des produits semblables, pas celui-ci',
   vd_why_parent_category: 'd’après un large groupe de produits',
@@ -1194,6 +1201,7 @@ const FR = {
   vd_basis: (f) => `Estimation de Pexi, d’après ${f.from}${f.n ? ` (${f.n} prix)` : ''}`,
   vd_basis_blend: (f) => `L’estimation de Pexi combine les prix de ce produit${f.n ? ` dans ${f.n} magasin${f.n === '1' ? '' : 's'}` : ''} avec sa catégorie.`,
   vd_basis_own_prices: 'les prix de ce produit',
+  vd_basis_cross_border: 'les prix de cet article de l’autre côté de la frontière',
   vd_basis_other_size: 'le même produit dans un autre format',
   vd_basis_leaf_category: 'des produits semblables',
   vd_basis_parent_category: 'des produits d’une catégorie plus large',

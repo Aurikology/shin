@@ -1,7 +1,8 @@
 /**
- * SHADOW cross-border range (D-280 probe C, 2026-11-25): the estimate's trace carries `crossBorder`, this
+ * Cross-border range (D-280 probe C, 2026-11-25): the estimate's trace carries `crossBorder`, this
  * barcode's own regular prices in the other of USD/CAD and the range they imply (median x 0.83 to 1.70, or
- * divided by 1.70 to 0.83 the other way). It is recorded beside the answer and changes nothing in the verdict.
+ * divided by 1.70 to 0.83 the other way). With own prices in the shopper's currency it is only recorded beside
+ * the answer; with none it is the verdict (estimate-cross-border-rung.test.ts).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -64,7 +65,7 @@ test('one price per shop (the latest), and sale, future-dated and out-of-window 
     usd('a', 1000, { seenOn: '2026-11-02' }),
     usd('b', 400, { kind: 'promotional' }), // a sale
     usd('c', 450, { seenOn: '2026-12-25' }), // future-dated
-    usd('d', 450, { seenOn: '2026-01-01' }), // older than the 90-day window
+    usd('d', 450, { seenOn: '2024-01-01' }), // older than the 730-day window
   ]);
   const r = await estimate(itemIn('CAD'), null, { prices: db });
   assert.equal(r.trace.crossBorder?.n, 1);

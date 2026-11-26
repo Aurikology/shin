@@ -51,6 +51,7 @@ const COLA = withCheck('062699000020'); // nobody prices colas: the Claude rung
 const SLOW_COLA = withCheck('062699000021');
 const WIRE_COLA = withCheck('062699000022');
 const STORE_ONLY = withCheck('062699000030'); // a store prices it, the catalogue lacks it (case 2)
+const US_ONLY = withCheck('062699000050'); // D-280 probe C: priced only in USD, asked by a CAD shopper
 const MISSING = withCheck('062699000099'); // nothing knows it (case 6)
 const ROW_COLA = withCheck('062699000023'); // D-235: the Claude range answer, row checked against the wire
 const POOL_SELF = withCheck('062699000040'); // D-235: no price of its own, answered from its leaf's pool
@@ -71,6 +72,7 @@ const catDb = openCatalogue(':memory:');
     VALUES (?,?,?,NULL,?,?,?,?,?,?,'[]',1,'test')`);
   insert.run(OWN, 'Own Vodka', 'Own Vodka', 'Owner', '750 ml', 750, 'ml', VODKA_PATH, 'en:vodkas');
   VODKAS.forEach((code, i) => insert.run(code, `Vodka Number ${i}`, `Vodka Number ${i}`, `Brand${i}`, '750 ml', 750, 'ml', VODKA_PATH, 'en:vodkas'));
+  insert.run(US_ONLY, 'Maple Syrup', 'Maple Syrup', 'Sugarbush', '500 ml', 500, 'ml', '["en:condiments","en:syrups"]', 'en:syrups');
   insert.run(COLA, 'Cola Classic', 'Cola Classic', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
   insert.run(SLOW_COLA, 'Cola Slow', 'Cola Slow', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
   insert.run(WIRE_COLA, 'Cola Wire', 'Cola Wire', 'Fizzco', '2 L', 2000, 'ml', COLA_PATH, 'en:colas');
@@ -129,6 +131,11 @@ const { openPrices, recordObservation } = await import('../../price/src/store.ts
   });
   [2000, 2200, 2500, 2800, 3000].forEach((c, i) => price(VODKAS[i]!, `shop${i}`, c));
   price(STORE_ONLY, 'bcldb', 2600, 'Vodka Number 750 ml');
+  recordObservation(prices, {
+    code: US_ONLY, seller: 'usshop', sellerSku: 'SKU-US-2', sellerName: 'Maple Syrup 500 ml', sellerBrand: null, priceCents: 1000, kind: 'regular',
+    unitPriceCents: null, unitLabel: null, currency: 'USD', country: 'US', region: null, joinMethod: 'gtin', seenOn: today, url: null,
+    imageUrl: null, inStock: null, storeName: 'usshop store', storeCity: 'Seattle', basePriceCents: null,
+  });
   [300, 320, 340, 360, 380, 400].forEach((c, i) => price(POOL_OTHERS[i]!, `snack${i}`, c));
   prices.close();
 }
@@ -273,7 +280,7 @@ test('wire: real server verdicts have the field names and value types of the scr
   }
   sameShape(claude, fixtures.LOW_CONFIDENCE, 'verdict(claude)');
   // The fixtures' enumerations: the server speaks only these words.
-  assert.ok(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior'].includes(priced.basis));
+  assert.ok(['own_prices', 'other_size', 'leaf_category', 'parent_category', 'brand_markup', 'claude_typical', 'category_prior', 'department_prior', 'cross_border'].includes(priced.basis));
   assert.ok(['great', 'good', 'reasonable', 'bad'].includes(priced.shopper.zone));
 });
 
@@ -300,6 +307,25 @@ test('case 1 and 14: a catalogue barcode with one own price is blended with its 
   });
   assert.ok(!JSON.stringify(body).includes('crossBorder'), 'the shadow range reached the shopper');
   assert.equal(row.estimate_sigma_log, v.sigmaLog);
+});
+
+test('D-280 probe C: a CAD shopper on a barcode priced only in USD is answered from it (cross_border), range exact, and the scan row records it', async () => {
+  const { body } = await identify(US_ONLY, '&shelfPriceCents=1200');
+  const v = body.verdict;
+  assert.equal(v.basis, 'cross_border');
+  assert.equal(v.currency, 'CAD');
+  // USD 1000 x [0.83, 1.70]
+  assert.equal(v.p10Cents, 830);
+  assert.equal(v.p90Cents, 1700);
+  assert.equal(v.confidence, 'low');
+  assert.ok(v.notes.includes('few_prices'));
+  assert.ok(!JSON.stringify(body).includes('crossBorder'), 'the cross-border trace reached the shopper');
+  const row = scanRow(body.scanId);
+  assert.equal(row.estimate_basis, 'cross_border');
+  assert.equal(row.range_basis, 'cross_border');
+  assert.deepEqual(JSON.parse(row.estimate_cross_border as string), {
+    fromCurrency: 'USD', n: 1, medianOtherCents: 1000, lowCents: 830, highCents: 1700, ratioSource: 'probe-c-2026-11-25',
+  });
 });
 
 test('case 33: the shopper own thresholds replace the defaults', async () => {

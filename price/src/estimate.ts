@@ -159,6 +159,7 @@ export const EMPTY_PRIOR = { centreCents: 1000, sigmaLog: 1 } as const;
 
 export type Basis =
   | 'own_prices'
+  | 'cross_border'
   | 'other_size'
   | 'leaf_category'
   | 'parent_category'
@@ -167,7 +168,7 @@ export type Basis =
   | 'claude_typical'
   | 'category_prior'
   | 'department_prior';
-export type SpreadFrom = 'own_prices' | 'shop_spread' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
+export type SpreadFrom = 'own_prices' | 'cross_border' | 'shop_spread' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
 /**
@@ -405,8 +406,9 @@ export interface EstimateTrace {
    */
   readonly noPrices: { readonly why: string } | null;
   /**
-   * SHADOW (D-280 probe C): this barcode's own regular prices in the other of USD/CAD, and the range they imply
-   * here (median x the probe's p10 and p90 ratios). Recorded beside the answer, never shown, never in the verdict.
+   * D-280 probe C: this barcode's own regular prices in the other of USD/CAD, and the range they imply
+   * here (median x the probe's p10 and p90 ratios). When the item has no prices of its own in the shopper's
+   * currency this range IS the verdict (basis `cross_border`); otherwise it is only recorded beside the answer.
    * Null with no barcode, no such prices, or a currency other than USD and CAD.
    */
   readonly crossBorder?: {
@@ -698,17 +700,19 @@ function ownRowsOf(rows: readonly Row[], selfKey: string): Row[] {
 }
 
 /**
- * SHADOW cross-border range (D-280 probe C, Mac, 2026-11-25): for 808 barcodes priced in both USD and CAD, the
+ * Cross-border range (D-280 probe C, Mac, 2026-11-25; a rung of the ladder since the 730-day scoring of the same day): for 808 barcodes priced in both USD and CAD, the
  * ratio CAD/USD of each barcode's median regular price had median 1.22, p10 0.83, p90 1.70 (train half, n=394).
  * Predicting one currency's price as the other's median x [0.83, 1.70] (CAD to USD: divided by [1.70, 0.83])
  * hit the true price 83-86% of the time at width 2.04, against the live path's 48% (US to CA) and 39% (CA to US)
- * at width 3.01. Recorded beside live answers; never shown, never read by the verdict.
+ * at width 3.01. Scored again on 414 items with a 730-day window: 84.5% (USD to CAD) and 84.1% (CAD to USD) at width
+ * 2.05, against the live verdict's 51.4% and 42.8% at 3.01. The ratio band was fitted on all-time medians, so the
+ * window is 730 days. The verdict's shown range for this basis is exactly [lowCents, highCents].
  */
 export const CROSS_BORDER_RATIO_LOW = 0.83;
 export const CROSS_BORDER_RATIO_HIGH = 1.7;
 export const CROSS_BORDER_SOURCE = 'probe-c-2026-11-25';
-/** Only prices this old or newer (days, the range card's window) count: the own-price rung's "fresh" shops. */
-export const CROSS_BORDER_WINDOW_DAYS = WINDOW_DAYS;
+/** Only prices this old or newer (days) count: the ratio band was fitted on all-time medians, so two years. */
+export const CROSS_BORDER_WINDOW_DAYS = 730;
 
 /**
  * Reads the rows of ONE barcode in one currency: an indexed lookup on `observation(code, seen_on)`, a few rows,
@@ -1446,6 +1450,40 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     tried.push({ rung: 'own_prices', outcome: selfKey ? 'too_few' : 'not_applicable', n: 0 });
   }
 
+  /*
+   * ---- cross-border (D-280 probe C): the same barcode's prices in the other of USD/CAD, times the fitted ratio
+   * band. Only when the item has no prices of its own here, and before every rung below. Its range is exact.
+   */
+  let crossBorder: EstimateTrace['crossBorder'] = null;
+  let crossBorderRead = false;
+  const readCrossBorder = (): EstimateTrace['crossBorder'] => {
+    if (!crossBorderRead) {
+      crossBorderRead = true;
+      try {
+        crossBorder = crossBorderOf({ currency, barcode, asOf: item.asOf }, deps.prices);
+      } catch (err) {
+        console.error(`[cross-border-fault] threw ${barcode ?? ''} - ${err instanceof Error ? err.message : String(err)}`);
+        crossBorder = null;
+      }
+    }
+    return crossBorder;
+  };
+  let crossBorderRange: { low: number; high: number } | null = null;
+  if (basis === null) {
+    const cb = readCrossBorder();
+    if (cb) {
+      basis = 'cross_border';
+      crossBorderRange = { low: cb.lowCents, high: cb.highCents };
+      // The geometric mean of the two ends: the verdict's p10 and p90 then land exactly on them (sigma below).
+      mu = (Math.log(cb.lowCents) + Math.log(cb.highCents)) / 2;
+      n = cb.n;
+      tried.push({ rung: 'cross_border', outcome: 'used', n, detail: `${cb.fromCurrency} ${cb.medianOtherCents}` });
+    } else {
+      const applicable = !!barcode && (currency === 'USD' || currency === 'CAD') && !!deps.prices;
+      tried.push({ rung: 'cross_border', outcome: applicable ? 'too_few' : 'not_applicable', n: 0 });
+    }
+  }
+
   /* ---- same product, other sizes; the bigger pack is a side note only (design call 2) */
   const pKey = productKey(name, brand);
   const sameProduct = pKey && target ? scoped.filter((p) => p.barcoded && p.size?.family === target!.family && productKey(p.name, p.brand) === pKey) : [];
@@ -1736,8 +1774,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
    * sale, so a centre from its category, Claude or a prior is raised to its dearest sale price; and with no
    * regular price of its own the answer is not sure (the confidence below).
    */
+  // The cross-border range is shown exactly as scored, so a sale-only item's centre is not raised there (its confidence is low anyway).
   const saleOnly = basis !== 'own_prices' && ownAll.length > 0 && ownAll.every((r) => r.sale);
-  if (saleOnly) {
+  if (saleOnly && basis !== 'cross_border') {
     const dearestSale = Math.max(...latestPerShop(ownAll).map((r) => r.cents));
     if (Math.log(dearestSale) > mu) mu = Math.log(dearestSale);
   }
@@ -1773,9 +1812,14 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const catSpread = aside.stats.size > 0 ? leafSpread ?? parentSpread : catStats;
   let sigma: number;
   let spreadFrom: SpreadFrom;
+  const crossSpread = crossBorderRange !== null;
   const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? weightedStatsOf(ownWeighted) : null;
   const fewShops = basis === 'own_prices' && !ownSpread;
-  if (ownSpread) {
+  if (crossBorderRange) {
+    // The bell is the range: p10 and p90 are exactly its two ends (the floors and widenings below are skipped).
+    sigma = Math.max(Math.log(crossBorderRange.high / crossBorderRange.low) / (2 * Z10), 0.001);
+    spreadFrom = 'cross_border';
+  } else if (ownSpread) {
     sigma = ownSpread.sigma;
     spreadFrom = 'own_prices';
   } else if (fewShops) {
@@ -1802,15 +1846,17 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   }
   // Never below the category's spread (equal provincial prices cannot collapse the bell), never below 0.05.
   // D-270 A4: a spread from 3+ shops' own prices is theirs alone, floored only at 0.05.
-  sigma = Math.max(sigma, ownSpread || fewShops ? 0 : catSpread?.sigma ?? 0, MIN_SIGMA);
+  if (!crossSpread) sigma = Math.max(sigma, ownSpread || fewShops ? 0 : catSpread?.sigma ?? 0, MIN_SIGMA);
   if (evidenceAge !== null && evidenceAge > OLD_DAYS) notes.add('old_prices');
-  if (notes.has('old_prices')) sigma *= WIDEN;
-  if (notes.has('other_region')) sigma *= WIDEN;
-  // Statistics Canada's size-assumed spread is measured, not this rule of thumb, so it is not widened twice.
-  if (notes.has('size_assumed') && spreadFrom !== 'national_average') sigma *= WIDEN;
-  // RULINGS "A price range is never wider than one product's prices across shops": the doubt beyond this
-  // is said by the confidence, not by a range too wide to tell the shopper anything.
-  sigma = Math.min(sigma, MAX_SIGMA);
+  if (!crossSpread) {
+    if (notes.has('old_prices')) sigma *= WIDEN;
+    if (notes.has('other_region')) sigma *= WIDEN;
+    // Statistics Canada's size-assumed spread is measured, not this rule of thumb, so it is not widened twice.
+    if (notes.has('size_assumed') && spreadFrom !== 'national_average') sigma *= WIDEN;
+    // RULINGS "A price range is never wider than one product's prices across shops": the doubt beyond this
+    // is said by the confidence, not by a range too wide to tell the shopper anything.
+    sigma = Math.min(sigma, MAX_SIGMA);
+  }
 
   /* ---- confidence (design call 5) */
   let confidence: Confidence = 'low';
@@ -1829,7 +1875,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const bandWidth = Math.exp(2 * Z10 * sigma);
   if (bandWidth > TARGET_WIDTH * TARGET_WIDTH) confidence = 'low';
   else if (bandWidth > TARGET_WIDTH && confidence === 'high') confidence = 'medium';
-  if ((basis === 'own_prices' || basis === 'other_size') && n < 3) notes.add('few_prices');
+  if ((basis === 'own_prices' || basis === 'cross_border' || basis === 'other_size') && n < 3) notes.add('few_prices');
   if ((basis === 'category_prior' || basis === 'department_prior') && n < MIN_CATEGORY_PRODUCTS) notes.add('few_prices');
   // D-258: "Few prices behind this" and "Fairly sure" never sit side by side. One or two prices (one or
   // two shops) still answer and still set the centre; the confidence says how thin that is.
@@ -1900,13 +1946,8 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
     thresholds,
     notes: [...notes],
   };
-  // SHADOW (D-280 probe C): computed last, from its own indexed read, and kept out of everything above.
-  let crossBorder: EstimateTrace['crossBorder'] = null;
-  try {
-    crossBorder = crossBorderOf({ currency, barcode, asOf: item.asOf }, deps.prices);
-  } catch {
-    crossBorder = null;
-  }
+  // D-280 probe C: recorded for every answer (the rung above read it once; an item that never reached the rung reads it here).
+  readCrossBorder();
   return {
     verdict,
     trace: { tried, claude: claudeTrace, conflict, sorted, nationalAverage: national, name, brand, size: sizeText, ownShops: basis === 'own_prices' ? ownShops.length : 0, widePool: aside.pool, tooThin, noPrices, crossBorder },
