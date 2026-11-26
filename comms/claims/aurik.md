@@ -1,1 +1,0 @@
-aurik · Aurik's PC · screen bugs still open from the 2026-11-11 walk (D-268 family 3 rest, D-266 phone half): re-checked against today's code, then fixed one commit each through fix-loop · app/public/js/screens/, app/public/js/ui-strings.js, app/test/ · started 2026-11-26 · updated 2026-11-26

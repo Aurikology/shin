@@ -40,6 +40,7 @@ to 1.4x of its typical catches 80%; skips 23% of lines): `research/gemini-price-
 
 ## What is being worked on: the tester launch
 
+- **Build 14 asked of the Mac 2026-11-26** (from feb5785): carries the shop-search word-start fix 0fb382a (D-268 E26). The 11-11 screen walk is re-checked against the code: what is left is two phone looks (D-268 items 18, 27).
 - **Build 13 is live in TestFlight (2026-11-26):** processed, "Ready to Submit", 1 install in "Family and team"
   (Jamin's console sweep, `notes/launch-readiness-2026-11-26/consoles.md`; Aurik confirmed). It carries the build 12
   phone review fixes (D-281 to D-285) and the scans-left line. Its commit and .ipa size were not reported back to the
