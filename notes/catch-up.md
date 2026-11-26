@@ -14,6 +14,31 @@ state, and RULINGS.md/NOW.md win on any disagreement.
 
 ---
 
+## 2026-11-26 (Aurik's PC): the UI depth pass
+
+### To do
+
+- **Aurik or Jamin: the App Store Connect API key.** Build 14 archived on the Mac but Apple refused the
+  upload twice ("Unauthenticated", key 98VUK7UL9Y). Check App Store Connect, Users and Access,
+  Integrations; a revoked or expired key needs a new one on the Mac. Until then no build carries anything
+  below. The next build should come from newest main.
+- **Whoever installs the next build:** look at the camera's glass buttons, the price pad and Progress on
+  the phone. None of this has been seen on an iPhone, only in Chromium at iPhone 13 size.
+
+### What changed
+
+- **New stylesheet, loaded last: `app/public/css/screens/depth.css`** (Aurik: "pexi just looks flat").
+  It owns shadows, glass and light falloff, using new tokens in tokens.css (sheen, grad-*, elev-1..3,
+  glow-brand, glass, ambient). It only adds background-image and box-shadow over the fills other files
+  set, so contrast is measured on the same flat colours as before. A screen file never needs to know it.
+- The camera's glass controls now blur on iPhones before iOS 18 (they lacked -webkit-backdrop-filter).
+- Fixed: the pad's shop row is announced with the shop it shows (D-286), range rows with nine choices
+  wrap (D-287), a first Bought mark draws a real line on Progress (D-289), the bad-buys note's off-palette
+  red (D-290). The a11y sweep is at 0 problems; its pixel check reads gradients correctly now.
+
+Read by: Aurik
+
+---
 ## 2026-11-14 (Jamin's PC): build 7 used in a store; screen problems for Aurik
 
 ### To do

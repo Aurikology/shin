@@ -1,1 +1,0 @@
-aurik · Aurik's PC · UI depth and polish pass (Aurik 2026-11-26: 'pexi just looks flat'): elevation tokens, screens/depth.css, small layout fixes on the pad, settings and onboarding; CSS and screen markup only, no server · app/public/css/, app/public/js/screens/ (markup only), scripts/a11y-sweep.mjs · started 2026-11-26 · updated 2026-11-26
