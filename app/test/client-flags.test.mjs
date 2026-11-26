@@ -46,9 +46,11 @@ const { t } = await import('../public/js/ui-strings.js');
 const youModule = await import('../public/js/screens/you.js');
 
 // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW); the other three stay off.
-test('the four MVP switches exist; photo ID, languages and market are off, the welcome is on', () => {
+// Amended 2026-11-26 (legal review C, Charter ss.50.2, 52.1, 55): French is ON, so a Quebec phone gets the app and the terms in French.
+test('the four MVP switches exist; photo ID and market are off, the welcome and French are on', () => {
   assert.equal(FLAGS.onboarding, true, 'FLAGS.onboarding is not on');
-  for (const k of ['photoId', 'languages', 'market']) {
+  assert.equal(FLAGS.languages, true, 'FLAGS.languages is not on: a French phone would get English');
+  for (const k of ['photoId', 'market']) {
     assert.equal(FLAGS[k], false, `FLAGS.${k} is not off`);
   }
 });
@@ -68,16 +70,26 @@ test('onboarding off: a fresh install goes Permissions, Camera (Consent only wit
   assert.equal(firstScreen({}, { onboarding: true }), 'onboarding', 'the flag no longer switches the welcome back on');
 });
 
-test('languages off: English, whatever was stored or the phone asks for; on again restores French', () => {
-  storage.setItem('shin.locale', 'fr');
+test('languages on: a French phone gets French, a stored choice wins; off pins English, whatever was stored or the phone asks for', () => {
   Object.defineProperty(globalThis, 'navigator', { value: { language: 'fr-CA', languages: ['fr-CA'] }, writable: true, configurable: true });
-  applyFlags({ ...FLAGS, languages: true, market: true });
-  assert.equal(locale.locale(), 'fr', 'the unpinned build does not read the stored choice');
+  storage.removeItem('shin.locale');
   applyFlags();
+  assert.equal(locale.localePinned(), false, 'the shipped build pins the locale');
+  assert.equal(locale.locale(), 'fr', 'a French phone does not get French by default');
+  assert.notEqual(t('try_again'), 'Try again', 'the chrome is still English on a French phone');
+  storage.setItem('shin.locale', 'en');
+  assert.equal(locale.locale(), 'en', 'the shopper\'s own pick no longer wins');
+  Object.defineProperty(globalThis, 'navigator', { value: { language: 'en-CA', languages: ['en-CA'] }, writable: true, configurable: true });
+  storage.removeItem('shin.locale');
+  assert.equal(locale.locale(), 'en', 'an English phone does not get English');
+  /* The switch still reverses: off pins English over everything. */
+  storage.setItem('shin.locale', 'fr');
+  applyFlags({ ...FLAGS, languages: false });
   assert.equal(locale.locale(), 'en', 'the locale is not pinned to English');
   assert.equal(locale.localePinned(), true);
   assert.equal(t('try_again'), 'Try again', 'the chrome is not English');
   storage.setItem('shin.locale', 'en');
+  applyFlags();
 });
 
 test('market off: Canada on screen and on the wire, whatever was picked; on again restores the pick', async () => {
@@ -111,11 +123,14 @@ function youMarkup(win) {
 }
 
 // Amended 2026-11-22: Aurik switched the welcome flow back on as five screens (onboarding-flow.js FLOW), so the welcome replay row is drawn again (You, Help).
-test('You: no language row and no market row while those are off; the welcome replay is there; Manage subscription is there', () => {
+test('You: no market row while it is off, the language row while French is on; the welcome replay is there; Manage subscription is there', () => {
+  applyFlags({ ...FLAGS, languages: false });
+  const off = youMarkup();
+  assert.ok(!off.includes('data-locale='), 'the language row is drawn with the languages flag off');
   applyFlags();
   const html = youMarkup();
   assert.ok(html.length > 500, 'the You screen did not render');
-  assert.ok(!html.includes('data-locale='), 'the language row is still drawn');
+  assert.ok(html.includes('data-locale="fr"'), 'the language row is missing with French on');
   assert.ok(!html.includes('data-act="market"'), 'the market picker row is still drawn');
   assert.ok(html.includes('data-act="welcome"'), 'the welcome replay row is gone while the welcome is on');
   /* D29: in a plain browser the store page is a dead end, so no Manage row. */
