@@ -386,7 +386,7 @@ test('a client that cannot send a frame still gets typing, and the reason (no fr
   assert.match(String(row.range_miss_reason), /no_frame/);
 });
 
-test('the frame is written to disk only with photo consent (and is written with it, so the check can fail)', async () => {
+test('no frame is written to disk, with photo consent or without (legal review 2026-11-26: the store refuses photos)', async () => {
   const before = photoFiles().length;
   const no = await sendFrame(CONSENT_NO, 'sne-no-consent');
   assert.equal(no.status, 200);
@@ -400,8 +400,9 @@ test('the frame is written to disk only with photo consent (and is written with 
   assert.equal(c.status, 200);
   const yes = await sendFrame(CONSENT_YES, 'sne-consent');
   assert.equal(yes.status, 200);
-  assert.equal(photoFiles().length, before + 1, 'control failed: a consenting device kept no frame, so the check above proves nothing');
-  assert.equal(typeof scanRow(yes.body.scanId).photo_path, 'string');
+  // The consenting device is the control: it still gets its answer, and the store keeps nothing.
+  assert.equal(photoFiles().length, before, 'a frame was written to disk for a consenting device');
+  assert.equal(scanRow(yes.body.scanId).photo_path, null);
 });
 
 test('the frame route refuses a body with no frame, and a catalogue hit never reaches it', async () => {

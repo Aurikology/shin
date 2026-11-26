@@ -76,6 +76,10 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_RATE_CODE_PER_DAY', default: '1500', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_10MIN', default: '90', ruling: 'Server-side guards and limits' },
   { env: 'SHIN_RATE_IP_PER_DAY', default: '600', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_CAP_CLAUDE_DEVICE_PER_DAY', default: '40 (Claude-backed answers per phone per day; the 429 says when it frees)', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_CAP_CLAUDE_IP_PER_DAY', default: '100 (Claude-backed answers per address per day; an IPv6 address counted as its /64)', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_CAP_PRICE_DEVICE_PER_DAY', default: '60 (typed prices and corrections one phone may send in a day)', ruling: 'Server-side guards and limits' },
+  { env: 'SHIN_CAP_PRICE_IP_PER_DAY', default: '300 (typed prices and corrections one address may send in a day)', ruling: 'Server-side guards and limits' },
   // -- Catalogue first; Claude, with no web search, is the capped price-range fallback -----
   { env: 'SHIN_CATALOGUE_FIRST', default: "on since 2026-09-28; only '0', 'off' or 'false' turns it off", ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
   { env: 'SHIN_RANGE_ASK_MONTHLY_CAP', default: '10000 (asks per UTC month, raised from 1000 on 2026-11-21 with the move to Claude Haiku 5.5; no day may use more than twice its even share of what is left, at least 50; 0 turns the ask off)', ruling: 'Catalogue first; Claude, with no web search, is the capped price-range fallback' },
@@ -180,6 +184,18 @@ export function SHIN_RATE_IP_PER_10MIN(env: NodeJS.ProcessEnv = process.env): st
 }
 export function SHIN_RATE_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_RATE_IP_PER_DAY');
+}
+export function SHIN_CAP_CLAUDE_DEVICE_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_CAP_CLAUDE_DEVICE_PER_DAY');
+}
+export function SHIN_CAP_CLAUDE_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_CAP_CLAUDE_IP_PER_DAY');
+}
+export function SHIN_CAP_PRICE_DEVICE_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_CAP_PRICE_DEVICE_PER_DAY');
+}
+export function SHIN_CAP_PRICE_IP_PER_DAY(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_CAP_PRICE_IP_PER_DAY');
 }
 export function SHIN_BARCODE_OWN_PRICES(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_BARCODE_OWN_PRICES');

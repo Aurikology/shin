@@ -103,7 +103,8 @@ import { DailyBudget, FRESH_ID_FREE_SCANS, FRESH_ID_SPENT_PHONES, FRESH_ID_WINDO
 import { logError } from './src/errlog.ts';
 import { cleanClientError, ClientErrorBudget } from './src/client-errors.ts';
 import { listenProblem, startupProblems } from './src/startup.ts';
-import { sweepRequestLog, sweepScanData, sweepShopperPrices } from './src/retention.ts';
+import { DailyCaps, capMessage } from './src/daily-caps.ts';
+import { safetyCopyDir, sweepPeople, sweepRequestLog, sweepSafetyCopies, sweepScanData, sweepShopperPrices, sweepUserCatalogue } from './src/retention.ts';
 import { recordAccess } from './src/access-log.ts';
 import { ADMIN_HEADER, adminAllows, closePeople, handleAdmin } from './src/admin.ts';
 import { createShutdown, graceFromEnv } from './src/shutdown.ts';
@@ -950,9 +951,10 @@ function wrongGuessRefusal(req: IncomingMessage, what: 'invite' | 'admin'): { re
   return null;
 }
 export function resetPaidCallLimitersForTests(env: NodeJS.ProcessEnv = process.env): void {
-  claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }], 'claude-device');
+  claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }], 'claude-device');
   claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }], 'claude-network');
   claudeWeeklyLimiters.clear();
+  dailyCaps = new DailyCaps(env);
   storesAddressLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 300 }]);
   packAddressLimiter = new KeyedLimiter(PACK_PULL_WINDOWS, 'pack-address');
   guessAddressLimiter = new KeyedLimiter(GUESS_WINDOWS_PER_ADDRESS);
@@ -1730,7 +1732,7 @@ const MAX_NAME_CHARS_TO_CLAUDE = 160;
  * Then the address and invite-code buckets as before. Not a security boundary and in memory, like the
  * rest of rate-limit.ts: the monthly cap is what the bill follows.
  */
-let claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }, { ms: 24 * 60 * 60_000, limit: 40 }], 'claude-device');
+let claudeDeviceLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 12 }], 'claude-device');
 let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { ms: 24 * 60 * 60_000, limit: 250 }], 'claude-network');
 /*
  * Per address (IPv4 address, IPv6 /64), a day (abuse review 2026-11-21, finding 5; gap 56): a shopper asks
@@ -1738,13 +1740,11 @@ let claudeNetworkLimiter = new KeyedLimiter([{ ms: 10 * 60_000, limit: 100 }, { 
  * cannot spend more than 100 of the month's asks a day. The month itself is also spread over its days
  * (identify/src/range-ask-store.ts, the daily share), so even many addresses together cost a day, not the month.
  */
-const CLAUDE_ADDRESS_WINDOWS = [{ ms: 10 * 60_000, limit: 30 }, { ms: 24 * 60 * 60_000, limit: 100 }];
+const CLAUDE_ADDRESS_WINDOWS = [{ ms: 10 * 60_000, limit: 30 }];
 let claudeAddressLimiter = new KeyedLimiter(CLAUDE_ADDRESS_WINDOWS, 'claude-address');
 const claudeWeeklyLimiters = new Map<number, KeyedLimiter>();
 async function claudeAskRefusal(req: IncomingMessage, device: string | null): Promise<boolean> {
   if (device !== null && device !== UNATTRIBUTED) {
-    // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
-    if (!isLocalRequest(req.headers, req.socket.remoteAddress) && !claudeDeviceLimiter.check(`device:${device}`).allowed) return true;
     // The weekly allowance applies to asks as it does to scans, for a device that proves it is who it says.
     const plus = await isPlus(device, req.headers, process.env, new Date(), plusAddressOf(req));
     const weekly = plus ? plusScanLimit() : freeScanLimit();
@@ -1753,13 +1753,37 @@ async function claudeAskRefusal(req: IncomingMessage, device: string | null): Pr
       if (!limiter) {
         limiter = new KeyedLimiter([{ ms: 7 * 24 * 60 * 60_000, limit: weekly }]);
         claudeWeeklyLimiters.set(weekly, limiter);
+/*
+ * THE DAILY CAPS (src/daily-caps.ts, legal review 2026-11-26 N7): per phone and per address, set by
+ * SHIN_CAP_CLAUDE_DEVICE_PER_DAY / SHIN_CAP_CLAUDE_IP_PER_DAY (40 and 100) and SHIN_CAP_PRICE_DEVICE_PER_DAY /
+ * SHIN_CAP_PRICE_IP_PER_DAY (60 and 300). A Claude ask that trips a cap, or the ten-minute burst limits beside
+ * them, marks its request here; the response closure turns that request's answer into a 429 with Retry-After,
+ * which the apps already read on these routes, instead of a quiet 200 that looks like "no estimate".
+ */
+let dailyCaps = new DailyCaps();
+const claudeCapTrips = new WeakMap<IncomingMessage, number>();
+function refuseClaude(req: IncomingMessage, retryAfterSeconds: number): true {
+  claudeCapTrips.set(req, retryAfterSeconds);
+  return true;
+}
       }
+  const local = isLocalRequest(req.headers, req.socket.remoteAddress);
+  const phone = device !== null && device !== UNATTRIBUTED ? device : null;
+  // Like every per-caller limit here, not counted for a caller on this machine itself (the operator, the suite).
+  if (!local) {
+    const burst = phone !== null ? claudeDeviceLimiter.check(`device:${phone}`) : null;
+    if (burst !== null && !burst.allowed) return refuseClaude(req, burst.retryAfterSeconds);
+    const day = dailyCaps.use('claude', phone, limitKeyOf(req));
+    if (day !== null) return refuseClaude(req, day.retryAfterSeconds);
+  }
       if (!limiter.check(`device:${device}`).allowed) return true;
     }
   }
-  if (!isLocalRequest(req.headers, req.socket.remoteAddress)) {
-    if (!claudeAddressLimiter.check(`ip:${limitKeyOf(req)}`).allowed) return true;
-    if (!claudeNetworkLimiter.check(`net:${networkOf(clientAddress(req.headers, req.socket.remoteAddress))}`).allowed) return true;
+  if (!local) {
+    const addr = claudeAddressLimiter.check(`ip:${limitKeyOf(req)}`);
+    if (!addr.allowed) return refuseClaude(req, addr.retryAfterSeconds);
+    const net = claudeNetworkLimiter.check(`net:${networkOf(clientAddress(req.headers, req.socket.remoteAddress))}`);
+    if (!net.allowed) return refuseClaude(req, net.retryAfterSeconds);
   }
   return paidCallRefusal(req, false) !== null;
 }
@@ -2818,6 +2842,17 @@ export const server = createServer(async (req, res) => {
    * D-145, D-155 to D-159: a route that answers about a device asks this
    * first. A device that has bound a secret (src/device-key.ts) is answered
    * only for a request carrying that secret; a device that has not yet is
+    // A Claude ask on this request was refused by a daily cap or burst limit: the shopper is told so, plainly (src/daily-caps.ts).
+    const capRetry = status === 200 ? claudeCapTrips.get(req) : undefined;
+    if (capRetry !== undefined) {
+      res.writeHead(429, {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+        'retry-after': String(capRetry),
+      });
+      res.end(JSON.stringify({ error: capMessage('claude'), retryAfterSeconds: capRetry, cap: 'claude' }));
+      return;
+    }
    * answered as before, so no tester's phone is locked out by the update.
    */
   const owns = (deviceId: string) => ownsDevice(deviceId, req.headers);
@@ -2834,6 +2869,20 @@ export const server = createServer(async (req, res) => {
       JSON.stringify({
         error: 'That is a lot of lookups in a short time. Give it a few minutes and try again.',
         retryAfterSeconds,
+  // A typed price or correction counts against the phone and the address; past the daily cap it is a 429 and nothing is stored.
+  // Not counted for a caller on this machine itself (the operator, the suite), like every other per-caller limit here.
+  const priceCapRefused = (deviceId: string): boolean => {
+    if (isLocalRequest(req.headers, req.socket.remoteAddress)) return false;
+    const refusal = dailyCaps.use('price', deviceId.slice(0, 64), limitKeyOf(req));
+    if (refusal === null) return false;
+    res.writeHead(429, {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      'retry-after': String(refusal.retryAfterSeconds),
+    });
+    res.end(JSON.stringify({ error: capMessage('price'), retryAfterSeconds: refusal.retryAfterSeconds, cap: 'price' }));
+    return true;
+  };
       }),
     );
   };
@@ -3919,6 +3968,7 @@ export const server = createServer(async (req, res) => {
        * same thing, a correction typed about the first).
        */
       const sentScanId = Number(c.scanId);
+      if (priceCapRefused(deviceId)) return;
       const scanRow = Number.isInteger(sentScanId) && sentScanId > 0 ? getScan(sentScanId) : null;
       // Item 3: and only that device may change its scan's price or mark it wrong.
       if (scanRow && scanRow.device_id !== deviceId) return notYours();
@@ -4498,6 +4548,7 @@ export const server = createServer(async (req, res) => {
       deviceForLog = deviceId;
       const callScan = Number(p.scanId);
       if (!Number.isInteger(callScan) || callScan <= 0) return json(200, { stored: false, why: 'that scan is not one this server recorded' });
+      if (priceCapRefused(deviceId)) return;
       scanForLog = callScan;
       return json(200, recordShopperCall(deviceId, callScan, p.call, p.beforeVerdict === true));
     }
@@ -4876,10 +4927,23 @@ server.listen(PORT, BIND_HOST !== '' ? BIND_HOST : '127.0.0.1', () => {
      */
     const kept = sweepScanData();
     const shopperPrices = sweepShopperPrices();
-    if (kept.eventsDeleted > 0 || kept.deviceIdsRemoved > 0 || shopperPrices.removed > 0) {
-      console.log(`Retention: deleted ${kept.eventsDeleted} usage event(s); took the device id off ${kept.deviceIdsRemoved} scan row(s) and ${shopperPrices.removed} shopper price(s).`);
+    // The rest of what holds a device id or a person's label: the testers' list, the typed shelf prices in the
+    // user catalogue, and the safety copies made by hand deletions (src/retention.ts).
+    const people = sweepPeople();
+    const typedShelf = sweepUserCatalogue(USER_CATALOGUE_PATH);
+    const safety = sweepSafetyCopies(safetyCopyDir());
+    if (kept.eventsDeleted > 0 || kept.deviceIdsRemoved > 0 || shopperPrices.removed > 0 || kept.deviceRecordsDeleted > 0 || people.deleted > 0 || typedShelf.removed > 0 || safety.deleted > 0 || kept.geminiBodiesCleared > 0) {
+      console.log(
+        `Retention: deleted ${kept.eventsDeleted} usage event(s); took the device id off ${kept.deviceIdsRemoved} scan row(s), ${shopperPrices.removed} shopper price(s) and ${typedShelf.removed} typed shelf price(s); deleted ${kept.deviceRecordsDeleted} idle device record(s), ${people.deleted} tester row(s) and ${safety.deleted} safety copy(ies); cleared the words of ${kept.geminiBodiesCleared} old model call(s).`,
+      );
     }
-    const retentionFailures = [...kept.failed, ...(shopperPrices.failed ? [`corrections: ${shopperPrices.failed}`] : [])];
+    const retentionFailures = [
+      ...kept.failed,
+      ...(shopperPrices.failed ? [`corrections: ${shopperPrices.failed}`] : []),
+      ...(people.failed ? [`people: ${people.failed}`] : []),
+      ...(typedShelf.failed ? [`user_observation: ${typedShelf.failed}`] : []),
+      ...(safety.failed ? [`safety copies: ${safety.failed}`] : []),
+    ];
     if (retentionFailures.length > 0) logError({ where: 'retention.sweep', err: new Error(retentionFailures.join('; ')) });
     // R45: the sweep's result is on /api/health's `watch`, so a failing or never-running sweep is not only a log line.
     retentionMarks.note('scan_data', retentionFailures.length > 0 ? retentionFailures.join('; ') : null);

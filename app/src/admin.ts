@@ -50,7 +50,7 @@ function scansPath(env: NodeJS.ProcessEnv): string {
   return resolve(settings.SHIN_SCANS(env)?.trim() || join(dataDir(env), 'scans.db'));
 }
 
-function peoplePath(env: NodeJS.ProcessEnv = process.env): string {
+export function peoplePath(env: NodeJS.ProcessEnv = process.env): string {
   return resolve(settings.SHIN_PEOPLE_DB(env)?.trim() || join(dataDir(env), 'people.db'));
 }
 

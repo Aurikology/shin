@@ -1,5 +1,7 @@
 /**
- * Where a scanned photograph is kept, and when it stops being kept.
+ * NO PHOTOGRAPH IS KEPT (2026-11-26): `savePhoto` refuses and `sweepPhotos` deletes every file. The text below is the history of the old retention window.
+ *
+ * Where a scanned photograph was kept, and when it stopped being kept.
  *
  * Plan items 9a and 39d, and they are one file because a retention rule that
  * lives anywhere other than beside the code that writes the file is a rule
@@ -62,8 +64,7 @@
  */
 
 import * as settings from '../../settings/src/index.ts';
-import { mkdirSync, rmSync, statSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { readdirSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { activeScanStore, openScanStore, updateScan } from './scans.ts';
@@ -113,35 +114,20 @@ export function legacyPhotosDir(): string {
 }
 
 /**
- * Writes one photograph and returns the path stored on the scan row, or null.
+ * Pexi keeps no photographs (decision 2026-11-26, legal review): the app sends none, the routes
+ * refuse them, and this is the last door. It writes nothing and returns null, which a caller reads
+ * as "not stored", the same value a device that did not consent always got. Whatever turns photo
+ * identification on later has to change this function on purpose, in a commit that says so.
  *
- * NEVER THROWS, and the null matters: a disk that is full or a folder that
- * will not create must not turn a scan that was answered correctly into an
- * error on somebody's screen. The scan row keeps a null `photo_path`, which is
- * the same value it has for a device that did not consent, and the difference
- * between the two is in the consent table where it belongs.
- *
- * THE PATH STORED IS RELATIVE to the photos folder, never absolute. An
- * absolute path in a database row is a row that stops resolving the day the
- * server moves from the Windows laptop to the Mac to a rented box, which plan
- * item 1 says will happen twice.
+ * NEVER THROWS, and has no side effect to fail on.
  */
 export async function savePhoto(
-  scanId: number,
-  bytes: Buffer,
-  kind: 'png' | 'jpeg',
-  env: NodeJS.ProcessEnv = process.env,
+  _scanId: number,
+  _bytes: Buffer,
+  _kind: 'png' | 'jpeg',
+  _env: NodeJS.ProcessEnv = process.env,
 ): Promise<string | null> {
-  const name = `${scanId}.${kind === 'png' ? 'png' : 'jpg'}`;
-  try {
-    const dir = photosDir(env);
-    mkdirSync(dir, { recursive: true });
-    await writeFile(join(dir, name), bytes);
-    return name;
-  } catch (err) {
-    logError({ where: 'photos.save', scanId, err });
-    return null;
-  }
+  return null;
 }
 
 /** The absolute path of a stored photo, from the relative name on the scan row. */
@@ -150,80 +136,82 @@ export function photoPath(relative: string, env: NodeJS.ProcessEnv = process.env
 }
 
 export interface SweepResult {
-  /** Rows whose photo was older than the cutoff. */
+  /** Scan rows that still named a photo. */
   readonly considered: number;
-  /** Files that are gone from disk after this call. */
+  /** Files removed from the photos folder (rows' photos and any file nobody names). */
   readonly deleted: number;
   /** Rows whose `photo_path` was cleared. */
   readonly cleared: number;
-  /** The moment before which a photo is too old to keep, or null when nothing is. */
+  /** Always null now: there is no age at which a photo is kept. Kept so older readers still compile. */
   readonly cutoff: string | null;
-  /** True when retention is unset and this call looked at nothing on purpose. */
+  /** Always false now. Kept so older readers still compile. */
   readonly keptForever: boolean;
 }
 
-interface AgedRow {
+interface PhotoRow {
   id: number;
   photo_path: string;
 }
 
-/**
- * Deletes every photograph older than the retention window and clears the path
- * on its scan row.
- *
- * DRIVEN BY THE DATABASE, NOT BY THE DIRECTORY. The rows are the record of
- * what we hold; a directory walk would find files whose row was deleted and
- * would be at the mercy of a filesystem timestamp that a backup restore
- * rewrites. `scanned_at` is the time the person scanned, which is the time the
- * ninety days is counted from and the only time the privacy statement can
- * honestly describe.
- *
- * A MISSING FILE IS A SUCCESS. `rmSync` with `force` does not complain about a
- * file that is already gone, and the row is cleared either way: the state this
- * function exists to produce is "no photograph and no path", and a file
- * somebody deleted by hand has done half the work.
- *
- * NEVER THROWS. It runs at start and on a timer, where the only thing a throw
- * could do is take down a server that was otherwise fine.
- *
- * DOES NOTHING WHEN RETENTION IS UNSET. `retentionDays` returning `null` means
- * forever, and "forever" is not a very long cutoff, it is no cutoff: this
- * returns immediately with `keptForever: true` and never opens the database
- * looking for rows to age out, because there is no age that qualifies.
- */
-export function sweepPhotos(now: Date = new Date(), env: NodeJS.ProcessEnv = process.env): SweepResult {
-  const days = retentionDays(env);
-  if (days === null) {
-    return { considered: 0, deleted: 0, cleared: 0, cutoff: null, keptForever: true };
+/** Removes everything inside `dir` (files and folders) and returns how many files went. Never throws. */
+function emptyFolder(dir: string): number {
+  let removed = 0;
+  let names: string[] = [];
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return 0;
   }
-  const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000).toISOString();
+  for (const name of names) {
+    const target = join(dir, name);
+    try {
+      const st = statSync(target);
+      if (st.isDirectory()) removed += emptyFolder(target);
+      else removed += 1;
+      rmSync(target, { recursive: true, force: true });
+    } catch (err) {
+      logError({ where: 'photos.sweep', err });
+    }
+  }
+  return removed;
+}
+
+/**
+ * Deletes every photograph the server holds, whatever its age, and clears the path on the scan rows
+ * that named one. Runs at start and daily. The rows go first-found by the database (so a row's file
+ * is removed even if it sits outside the folder walk), then the folder is emptied of anything else,
+ * the beta's old shelf frames included.
+ *
+ * `now` and `env` are kept so callers and tests keep their shape; nothing is dated.
+ *
+ * NEVER THROWS: one file that will not delete is logged and the rest go.
+ */
+export function sweepPhotos(_now: Date = new Date(), env: NodeJS.ProcessEnv = process.env): SweepResult {
   const store = activeScanStore() ?? openScanStore();
   let deleted = 0;
   let cleared = 0;
-  let rows: AgedRow[] = [];
+  let rows: PhotoRow[] = [];
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
-    rows = store.db
-      .prepare('SELECT id, photo_path FROM scan WHERE photo_path IS NOT NULL AND scanned_at < ?')
-      .all(cutoff) as unknown as AgedRow[];
+    rows = store.db.prepare('SELECT id, photo_path FROM scan WHERE photo_path IS NOT NULL').all() as unknown as PhotoRow[];
   } catch (err) {
     logError({ where: 'photos.sweep', err });
-    return { considered: 0, deleted: 0, cleared: 0, cutoff, keptForever: false };
   }
-
   for (const row of rows) {
     try {
-      rmSync(photoPath(row.photo_path, env), { force: true });
-      deleted += 1;
+      const file = photoPath(row.photo_path, env);
+      if (statSync(file, { throwIfNoEntry: false })?.isFile()) {
+        rmSync(file, { force: true });
+        deleted += 1;
+      }
     } catch (err) {
-      // Logged and carried on: one file that will not delete (a lock, a
-      // permission) must not stop the other eighty-nine from going.
       logError({ where: 'photos.sweep', scanId: row.id, err });
       continue;
     }
     if (updateScan(row.id, { photoPath: null })) cleared += 1;
   }
-  return { considered: rows.length, deleted, cleared, cutoff, keptForever: false };
+  deleted += emptyFolder(photosDir(env));
+  return { considered: rows.length, deleted, cleared, cutoff: null, keptForever: false };
 }
 
 /** Whether a stored photo is still on disk. Test and inspection helper. */

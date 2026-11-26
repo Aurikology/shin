@@ -5,7 +5,8 @@
 import { test, after } from 'node:test';
 import { cameraSource } from './camera-source.mjs';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { DatabaseSync } from 'node:sqlite';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -16,7 +17,7 @@ process.env.SHIN_ACCESS_LOG = join(dir, 'access.log');
 
 const { openScanStore, recordScan, getScan } = await import('../src/scans.ts');
 const { recordEvent } = await import('../src/events.ts');
-const { sweepScanData, sweepRequestLog, sweepShopperPrices, REQUEST_LOG_DAYS, USAGE_EVENT_MONTHS, DEVICE_ID_MONTHS } = await import('../src/retention.ts');
+const { sweepPeople, sweepUserCatalogue, sweepSafetyCopies, SAFETY_COPY_DAYS, sweepScanData, sweepRequestLog, sweepShopperPrices, REQUEST_LOG_DAYS, USAGE_EVENT_MONTHS, DEVICE_ID_MONTHS } = await import('../src/retention.ts');
 const { openCorrectionStore, recordCorrection } = await import('../../price/src/corrections.ts');
 const { saveShopperPrice, shopperPriceCount } = await import('../../price/src/shopper-prices.ts');
 
@@ -173,5 +174,118 @@ test('item 8: the published policy states the periods this file enforces', () =>
 test('item 8: the sweep is on the daily timer', () => {
   const server = readFileSync(new URL('../server.ts', import.meta.url), 'utf8');
   const closure = server.slice(server.indexOf('const sweep = () => {'), server.indexOf('sweep();'));
-  for (const call of ['sweepScanData(', 'sweepShopperPrices(', 'sweepRequestLog(']) assert.ok(closure.includes(call), `${call} is not on the timer`);
+  for (const call of ['sweepScanData(', 'sweepShopperPrices(', 'sweepRequestLog(', 'sweepPeople(', 'sweepUserCatalogue(', 'sweepSafetyCopies(']) assert.ok(closure.includes(call), `${call} is not on the timer`);
+});
+
+/* ---- the tables and files the sweep used to skip (legal review 2026-11-26, A-G6, N2 to N5) ---- */
+
+const IDLE_OLD = '2020-01-01T00:00:00.000Z';
+const has = (table: string, device: string) => store.db!.prepare(`SELECT 1 FROM ${table} WHERE device_id = ?`).get(device) !== undefined;
+
+function deviceTables(): void {
+  store.db!.exec(`CREATE TABLE IF NOT EXISTS device_key (device_id TEXT PRIMARY KEY, key_hash BLOB NOT NULL, bound_at TEXT NOT NULL)`);
+  store.db!.exec(`CREATE TABLE IF NOT EXISTS plus_seen (device_id TEXT PRIMARY KEY, seen_at TEXT NOT NULL)`);
+}
+
+const RECORDS: { table: string; insert: (device: string, at: string) => void }[] = [
+  { table: 'consent', insert: (d, at) => store.db!.prepare('INSERT INTO consent (device_id, photos, location, updated_at) VALUES (?, 1, 1, ?)').run(d, at) },
+  { table: 'device_key', insert: (d, at) => store.db!.prepare('INSERT INTO device_key (device_id, key_hash, bound_at) VALUES (?, zeroblob(4), ?)').run(d, at) },
+  { table: 'device_preference', insert: (d, at) => store.db!.prepare('INSERT INTO device_preference (device_id, updated_at) VALUES (?, ?)').run(d, at) },
+  { table: 'device_user', insert: (d, at) => store.db!.prepare("INSERT INTO device_user (device_id, user_id, linked_at) VALUES (?, 'u', ?)").run(d, at) },
+  { table: 'plus_seen', insert: (d, at) => store.db!.prepare('INSERT INTO plus_seen (device_id, seen_at) VALUES (?, ?)').run(d, at) },
+];
+
+for (const { table, insert } of RECORDS) {
+  test(`legal A-G6: ${table} rows idle for 24 months are deleted, a recent row stays`, () => {
+    deviceTables();
+    insert(`idle-${table}`, IDLE_OLD);
+    insert(`recent-${table}`, '2026-06-01T00:00:00.000Z');
+    const r = sweepScanData(NOW);
+    assert.deepEqual(r.failed, []);
+    assert.equal(has(table, `idle-${table}`), false, `${table}: an idle row past 24 months is still there`);
+    assert.equal(has(table, `recent-${table}`), true, `${table}: a row inside 24 months was deleted`);
+    assert.ok(r.deviceRecordsDeleted >= 1);
+  });
+}
+
+test('legal A-G6: a device still in use keeps its secret and consent even when those rows are old', () => {
+  deviceTables();
+  recordScan({ deviceId: 'busy-phone', kind: 'barcode', query: '9', resolvedLabel: 'Tea', outcome: 'answered', source: 'catalogue' });
+  RECORDS[0]!.insert('busy-phone', IDLE_OLD);
+  RECORDS[1]!.insert('busy-phone', IDLE_OLD);
+  sweepScanData(NOW);
+  assert.equal(has('consent', 'busy-phone'), true, 'the consent of a phone that scanned in the window was deleted');
+  assert.equal(has('device_key', 'busy-phone'), true, 'the secret of a phone that scanned in the window was deleted');
+});
+
+test('legal A-G6: the testers list (people.db) drops a device not seen for 24 months', () => {
+  const people = join(dir, 'people.db');
+  process.env.SHIN_PEOPLE_DB = people;
+  const db = new DatabaseSync(people);
+  db.exec('CREATE TABLE device_person (device_id TEXT NOT NULL, person TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, PRIMARY KEY (device_id, person))');
+  db.prepare('INSERT INTO device_person VALUES (?, ?, ?, ?)').run('p-old', 'Sam', IDLE_OLD, IDLE_OLD);
+  db.prepare('INSERT INTO device_person VALUES (?, ?, ?, ?)').run('p-new', 'Ana', IDLE_OLD, '2026-10-01T00:00:00.000Z');
+  db.close();
+  const r = sweepPeople(NOW);
+  assert.deepEqual(r, { deleted: 1, failed: null });
+  const check = new DatabaseSync(people, { readOnly: true });
+  const left = (check.prepare('SELECT device_id FROM device_person').all() as { device_id: string }[]).map((x) => x.device_id);
+  check.close();
+  assert.deepEqual(left, ['p-new']);
+  delete process.env.SHIN_PEOPLE_DB;
+});
+
+test('legal N2: a typed shelf price in the user catalogue past 24 months loses its device key and network code, and stays a price', () => {
+  const path = join(dir, 'user-catalogue.db');
+  const db = new DatabaseSync(path);
+  db.exec('CREATE TABLE user_observation (id INTEGER PRIMARY KEY, observed_at TEXT NOT NULL, price_cents INTEGER, device_key TEXT, net_hash TEXT)');
+  db.prepare('INSERT INTO user_observation VALUES (1, ?, 499, ?, ?)').run(IDLE_OLD, 'dev-secret', 'net-1');
+  db.prepare('INSERT INTO user_observation VALUES (2, ?, 599, ?, ?)').run('2026-10-01T00:00:00.000Z', 'dev-new', 'net-2');
+  db.close();
+  const r = sweepUserCatalogue(path, NOW);
+  assert.deepEqual(r, { removed: 1, failed: null });
+  const check = new DatabaseSync(path, { readOnly: true });
+  const rows = check.prepare('SELECT * FROM user_observation ORDER BY id').all() as { price_cents: number; device_key: string; net_hash: string | null }[];
+  check.close();
+  assert.equal(rows[0]!.device_key, 'removed:1');
+  assert.equal(rows[0]!.net_hash, null);
+  assert.equal(rows[0]!.price_cents, 499);
+  assert.equal(rows[1]!.device_key, 'dev-new');
+  assert.equal(rows[1]!.net_hash, 'net-2');
+});
+
+test('legal N4: safety copies from hand deletions are kept at most 30 days', () => {
+  const safety = join(dir, 'deleted');
+  mkdirSync(safety, { recursive: true });
+  const old = join(safety, 'user-store-deleted-old.json');
+  const fresh = join(safety, 'user-store-deleted-fresh.json');
+  writeFileSync(old, '[]');
+  writeFileSync(fresh, '[]');
+  const days = (n: number) => new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+  utimesSync(old, days(SAFETY_COPY_DAYS + 1), days(SAFETY_COPY_DAYS + 1));
+  utimesSync(fresh, days(SAFETY_COPY_DAYS - 1), days(SAFETY_COPY_DAYS - 1));
+  const r = sweepSafetyCopies(safety, NOW);
+  assert.deepEqual(r, { deleted: 1, failed: null });
+  assert.equal(existsSync(old), false);
+  assert.equal(existsSync(fresh), true);
+});
+
+test('legal N5: old Gemini calls lose their stored request and reply words, and keep their counts', () => {
+  store.db!.prepare(
+    `INSERT INTO gemini_call (device_id, model, model_family, model_via, scan_type, requested_at, ms, request_json, system_text,
+       prompt_text, input_ref, response_raw, answer_text, input_tokens, output_tokens)
+     VALUES ('g-dev', 'gemini-x', 'gemini', 'api', 'barcode', '2026-10-01T00:00:00.000Z', 900, '{"contents":"whole body"}', 'sys',
+       'the exact prompt', 'ref', 'whole reply', 'answer', 120, 45)`,
+  ).run();
+  const r = sweepScanData(NOW);
+  assert.deepEqual(r.failed, []);
+  assert.ok(r.geminiBodiesCleared >= 1);
+  const row = store.db!.prepare("SELECT * FROM gemini_call WHERE device_id = 'g-dev'").get() as Record<string, unknown>;
+  assert.equal(row.request_json, '');
+  assert.equal(row.prompt_text, '');
+  for (const col of ['system_text', 'input_ref', 'response_raw', 'answer_text']) assert.equal(row[col], null, `${col} still holds words`);
+  assert.equal(row.input_tokens, 120);
+  assert.equal(row.output_tokens, 45);
+  assert.equal(row.ms, 900);
+  assert.equal(sweepScanData(NOW).geminiBodiesCleared, 0, 'a blank row is touched again');
 });

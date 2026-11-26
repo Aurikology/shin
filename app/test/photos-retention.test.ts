@@ -1,16 +1,11 @@
 /**
- * The photograph retention sweep, pinned without a server.
- *
- * These three tests used to run through the photo route in `server-photo-record.test.ts`. That
- * route no longer reads a photograph (RULINGS.md, "Pexi uses Gemini for nothing, and photo scanning
- * is not a shipped feature"), but `sweepPhotos` still runs on the daily timer over whatever
- * photographs are on disk, so the retention rules it keeps stay pinned here: a photo past the
- * window is deleted and its path cleared, the scan row survives, and with no window set nothing is
- * ever swept. The clock is injected, so this proves the shipped function and runs in milliseconds.
+ * The photograph rule, pinned without a server: Pexi keeps no photographs. The store refuses a new
+ * one, and the daily sweep deletes every file it finds (a scan row's, an orphan, an old shelf frame)
+ * whatever its age, with no retention window to configure.
  */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -20,7 +15,7 @@ process.env.SHIN_PHOTOS = join(dir, 'photos');
 delete process.env.SHIN_PHOTO_RETENTION_DAYS;
 
 const { openScanStore, recordScan, getScan, updateScan } = await import('../src/scans.ts');
-const { savePhoto, photoExists, sweepPhotos } = await import('../src/photos.ts');
+const { savePhoto, photoExists, sweepPhotos, photosDir } = await import('../src/photos.ts');
 
 openScanStore(process.env.SHIN_SCANS);
 
@@ -37,59 +32,49 @@ const PNG_1x1 = Buffer.from(
   'base64',
 );
 
-/** A photo scan row with a stored file, the way the shelf and frame routes leave one. */
-async function photoScan(device: string): Promise<{ scanId: number; kept: string }> {
+/** A scan row that names a file already on disk, the way the beta's old photo and shelf routes left one. */
+function oldPhotoScan(device: string, name: string): { scanId: number; file: string } {
   const scanId = recordScan({ deviceId: device, kind: 'photo', query: '', outcome: 'answered' });
   assert.ok(scanId !== null, 'the scan row was not written');
-  const kept = await savePhoto(scanId, PNG_1x1, 'png');
-  assert.ok(kept, 'the photo was not stored');
-  updateScan(scanId, { photoPath: kept });
-  assert.ok(photoExists(kept));
-  return { scanId, kept };
+  mkdirSync(photosDir(), { recursive: true });
+  const file = join(photosDir(), name);
+  writeFileSync(file, PNG_1x1);
+  updateScan(scanId, { photoPath: name });
+  assert.ok(photoExists(name));
+  return { scanId, file };
 }
 
-test('a photograph past a configured retention window is deleted and its path is cleared', async () => {
-  const { scanId, kept } = await photoScan('p-39d');
+test('the store refuses a new photograph: nothing is written, whatever the consent or the window', async () => {
+  const scanId = recordScan({ deviceId: 'p-refuse', kind: 'photo', query: '', outcome: 'answered' }) as number;
   process.env.SHIN_PHOTO_RETENTION_DAYS = '90';
   try {
-    // Eighty-nine days on: still inside the window, still there.
-    const soon = new Date(Date.now() + 89 * 24 * 60 * 60 * 1000);
-    assert.equal(sweepPhotos(soon).deleted, 0);
-    assert.ok(photoExists(kept), 'a photo was deleted a day early');
-
-    // Ninety-one days on: gone from disk and gone from the row.
-    const later = new Date(Date.now() + 91 * 24 * 60 * 60 * 1000);
-    const result = sweepPhotos(later);
-    assert.ok(result.deleted >= 1);
-    assert.ok(!photoExists(kept), 'the file outlived the retention window');
-    assert.equal(getScan(scanId)!.photo_path, null, 'the row still claims a file that is gone');
-    // The scan itself survives. The photograph is the part with a date on it.
-    assert.equal(getScan(scanId)!.kind, 'photo');
+    assert.equal(await savePhoto(scanId, PNG_1x1, 'png'), null);
+    assert.equal(await savePhoto(scanId, PNG_1x1, 'jpeg'), null);
   } finally {
     delete process.env.SHIN_PHOTO_RETENTION_DAYS;
   }
+  assert.ok(!photoExists(`${scanId}.png`));
+  assert.ok(!photoExists(`${scanId}.jpg`));
+  assert.deepEqual(existsSync(photosDir()) ? readdirSync(photosDir()) : [], []);
 });
 
-test('with no retention window set, a photo is never swept, however far the clock runs', async () => {
-  const { scanId, kept } = await photoScan('p-39d-forever');
+test('the sweep deletes a photograph of any age, with no retention window set, and clears its path', () => {
+  const { scanId, file } = oldPhotoScan('p-any-age', 'fresh-today.png');
   delete process.env.SHIN_PHOTO_RETENTION_DAYS;
-  // A thousand days out. Forever means forever, not a long default.
-  const farFuture = new Date(Date.now() + 1000 * 24 * 60 * 60 * 1000);
-  const result = sweepPhotos(farFuture);
-  assert.equal(result.deleted, 0);
-  assert.equal(result.considered, 0);
-  assert.equal(result.keptForever, true);
-  assert.ok(photoExists(kept), 'a photo was swept with no retention window configured');
-  assert.equal(getScan(scanId)!.photo_path, kept);
+  const result = sweepPhotos(new Date());
+  assert.ok(result.deleted >= 1);
+  assert.ok(!existsSync(file), 'a photograph is still on disk');
+  assert.equal(getScan(scanId)!.photo_path, null, 'the row still claims a file that is gone');
+  assert.equal(getScan(scanId)!.kind, 'photo', 'the scan itself survives');
 });
 
-test('the retention window is a setting, so the privacy wording and the behaviour move together', async () => {
-  const { scanId } = await photoScan('p-39d-short');
-  process.env.SHIN_PHOTO_RETENTION_DAYS = '1';
-  try {
-    sweepPhotos(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
-    assert.equal(getScan(scanId)!.photo_path, null);
-  } finally {
-    delete process.env.SHIN_PHOTO_RETENTION_DAYS;
-  }
+test('the sweep also removes files no scan row names, shelf frames included', () => {
+  const orphan = join(photosDir(), 'orphan.jpg');
+  const shelfDir = join(photosDir(), 'shelf', '2026-09-01', 'some-device');
+  mkdirSync(shelfDir, { recursive: true });
+  writeFileSync(orphan, PNG_1x1);
+  writeFileSync(join(shelfDir, 'frame.jpg'), PNG_1x1);
+  const result = sweepPhotos(new Date());
+  assert.ok(result.deleted >= 2);
+  assert.deepEqual(readdirSync(photosDir()), [], 'something is left in the photos folder');
 });
