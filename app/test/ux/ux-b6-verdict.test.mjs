@@ -100,7 +100,7 @@ test('R-40 order: verdict word, asking price, typical-price line, bell, item nam
     ['the bell', /BELL/],
     ['the one button', /Save it/],
   ], 'R-40 high confidence');
-  assert.doesNotMatch(flow, /Certain|Fairly sure|Not fully confident/, 'a confidence label is on the first position');
+  assert.doesNotMatch(flow, /Very sure|Certain|Fairly sure|Not fully confident/, 'a confidence label is on the first position');
   assert.match(flow, /\d+% (?:under|over)/, "the typical-price line carries the shopper's percent difference");
 });
 
@@ -300,12 +300,13 @@ const DOT_TAG = /<[a-z]+\b[^>]*(?:conf[\w-]*dot|dot[\w-]*conf)[^>]*>/gi;
 const lit = (tag) => /\b(?:filled|on)\b/.test(attr(tag, 'class') ?? '') || /data-(?:filled|on)="true"/.test(tag);
 
 const LEVELS = [
-  ['high', FX.HIGH, /Certain/, 3],
+  // Amended 2026-11-25: f23fd5e (Jamin) renamed the high word "Certain" to "Very sure".
+  ['high', FX.HIGH, /Very sure/, 3],
   ['medium', FX.MEDIUM, /Fairly sure/, 2],
   ['low', FX.LOW, /Not fully confident/, 1],
 ];
 
-test('R-45 pass: the half position says the confidence in a word: Certain, Fairly sure, Not fully confident', () => {
+test('R-45 pass: the half position says the confidence in a word: Very sure, Fairly sure, Not fully confident', () => {
   for (const [level, v, re] of LEVELS) {
     assert.match(plain(parts(render(v)).half), re, `${level}: the confidence word is missing`);
     assert.doesNotMatch(peekFlow(render(v)), re, `${level}: the confidence word is on the first position`);
@@ -322,7 +323,7 @@ test('R-45 pass: a three-dot meter sits with the word, lit 3 / 2 / 1 for high / 
 });
 
 test('R-45 pass 10 px / 6 px: each dot is 10 px across with 6 px between', () => {
-  const region = confRegion(render(FX.HIGH), /Certain/);
+  const region = confRegion(render(FX.HIGH), /Very sure/);
   const first = (region.match(DOT_TAG) ?? [])[0];
   assert.ok(first, 'no confidence dot to measure');
   const tok = (attr(first, 'class') ?? '').split(/\s+/).find((c) => /dot/.test(c));
