@@ -30,3 +30,6 @@
 
 /* Build 7: the sweep (touch, type, lists, motion), last so nothing before it can undo it. */
 @import url('/css/screens/ux-sweep.css');
+
+/* 2026-11-26: depth (shadows, glass, light falloff), last, because it only adds layers over the fills above. */
+@import url('/css/screens/depth.css');

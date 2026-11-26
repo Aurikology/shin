@@ -160,6 +160,33 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 28px -14px rgba(0, 0, 0, .7);
   --shadow-lift: 0 2px 8px rgba(0, 0, 0, .5), 0 20px 44px -22px rgba(0, 0, 0, .85);
 
+  /* --- depth, added 2026-11-26 (Aurik: "pexi just looks flat") ---
+     Every surface used to be one flat fill with a 1px hairline, so a card, a
+     key and the page behind them read as the same plane. These give each
+     level a light source: a top edge that catches light (--sheen), a fill
+     that falls off toward the bottom (--grad-*), and a shadow sized to how
+     far the thing floats (--elev-*). Applied in screens/depth.css only.
+     CONTRAST: the gradients only ever move a fill AWAY from the text drawn on
+     it (darker under light ink here, lighter under dark ink in light theme),
+     so no measured ratio in this file or tokens.test.mjs can drop. */
+  --sheen: inset 0 1px 0 rgba(255, 255, 255, .07);
+  --sheen-strong: inset 0 1px 0 rgba(255, 255, 255, .14);
+  --grad-surface: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, .16) 100%);
+  --grad-raised: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, .22) 100%);
+  /* Starts AT the brand and only darkens, so white on it never drops under the
+     4.56 white measures on the flat brand. */
+  --grad-brand: linear-gradient(180deg, #E5165E 0%, #C40E4C 100%);
+  --elev-1: 0 1px 2px rgba(0, 0, 0, .35), 0 4px 14px -6px rgba(0, 0, 0, .55);
+  --elev-2: 0 2px 4px rgba(0, 0, 0, .35), 0 10px 24px -10px rgba(0, 0, 0, .7);
+  --elev-3: 0 4px 10px rgba(0, 0, 0, .35), 0 22px 44px -18px rgba(0, 0, 0, .8);
+  --glow-brand: 0 8px 22px -8px rgba(229, 22, 94, .65);
+  --glass: rgba(16, 18, 22, .52);
+  --glass-edge: rgba(255, 255, 255, .16);
+  --glass-blur: blur(20px) saturate(170%);
+  /* The page's ambient light: the brand, faint, from above. Pages only; the
+     verdict sheet never sees it (brand is never a verdict). */
+  --ambient: radial-gradient(130% 55% at 50% -12%, rgba(229, 22, 94, .13) 0%, rgba(229, 22, 94, 0) 62%);
+
   /* --- face sizes, docs/design/AVATAR.md section 3. Never below face-row anywhere. --- */
   --face-verdict: 96px;
   --face-working: 76px;
@@ -231,6 +258,18 @@
 
     --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
     --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
+
+    /* Depth in light theme: light from above means the fill brightens toward
+       the top, which moves it away from the dark ink drawn on it. */
+    --sheen: inset 0 1px 0 rgba(255, 255, 255, .9);
+    --sheen-strong: inset 0 1px 0 rgba(255, 255, 255, 1);
+    --grad-surface: linear-gradient(180deg, rgba(255, 255, 255, .6) 0%, rgba(255, 255, 255, 0) 100%);
+    --grad-raised: linear-gradient(180deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 100%);
+    --elev-1: 0 1px 2px rgba(20, 22, 26, .06), 0 4px 12px -6px rgba(20, 22, 26, .14);
+    --elev-2: 0 1px 3px rgba(20, 22, 26, .08), 0 10px 22px -12px rgba(20, 22, 26, .22);
+    --elev-3: 0 2px 6px rgba(20, 22, 26, .08), 0 20px 40px -20px rgba(20, 22, 26, .3);
+    --glow-brand: 0 8px 20px -8px rgba(229, 22, 94, .45);
+    --ambient: radial-gradient(130% 55% at 50% -12%, rgba(229, 22, 94, .08) 0%, rgba(229, 22, 94, 0) 62%);
   }
 }
 
@@ -275,6 +314,17 @@
 
   --shadow: 0 1px 2px rgba(20, 22, 26, .06), 0 8px 24px -14px rgba(20, 22, 26, .2);
   --shadow-lift: 0 2px 8px rgba(20, 22, 26, .08), 0 20px 44px -22px rgba(20, 22, 26, .3);
+
+  /* Same values as the media-query block above; they move together. */
+  --sheen: inset 0 1px 0 rgba(255, 255, 255, .9);
+  --sheen-strong: inset 0 1px 0 rgba(255, 255, 255, 1);
+  --grad-surface: linear-gradient(180deg, rgba(255, 255, 255, .6) 0%, rgba(255, 255, 255, 0) 100%);
+  --grad-raised: linear-gradient(180deg, rgba(255, 255, 255, .55) 0%, rgba(255, 255, 255, 0) 100%);
+  --elev-1: 0 1px 2px rgba(20, 22, 26, .06), 0 4px 12px -6px rgba(20, 22, 26, .14);
+  --elev-2: 0 1px 3px rgba(20, 22, 26, .08), 0 10px 22px -12px rgba(20, 22, 26, .22);
+  --elev-3: 0 2px 6px rgba(20, 22, 26, .08), 0 20px 40px -20px rgba(20, 22, 26, .3);
+  --glow-brand: 0 8px 20px -8px rgba(229, 22, 94, .45);
+  --ambient: radial-gradient(130% 55% at 50% -12%, rgba(229, 22, 94, .08) 0%, rgba(229, 22, 94, 0) 62%);
 }
 
 /* DESIGN.md section 2 gives the price hero a second size on a narrow phone.

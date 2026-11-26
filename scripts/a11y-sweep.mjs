@@ -87,11 +87,15 @@ async function measure(sel) {
     const top = [...cnt.entries()].sort((x, y) => y[1] - x[1]);
     const bg = rgb(top[0][0]); const lb = L(bg); const total = d.length / 4;
     let fg = bg; let bd = 0;
-    for (const [k, n] of top) { if (n < total * 0.01) continue; const dd = Math.abs(L(rgb(k)) - lb); if (dd > bd) { bd = dd; fg = rgb(k); } }
+    // 0.3%, was 1% until 2026-11-26: on a gradient fill (screens/depth.css) the fill's own bands each
+    // cover over 1% and a thin digit under 1% was skipped, so a band was read as the text (keys at
+    // 1.16:1 whose digits had gained contrast). The glyph is always the colour furthest from the ground,
+    // so a finer floor finds it; anti-aliasing sits between the two and never wins.
+    for (const [k, n] of top) { if (n < total * 0.003) continue; const dd = Math.abs(L(rgb(k)) - lb); if (dd > bd) { bd = dd; fg = rgb(k); } }
     const lt = L(fg);
     return { bg, fg, ratio: +((Math.max(lt, lb) + 0.05) / (Math.min(lt, lb) + 0.05)).toFixed(2) };
   }, buf.toString('base64'));
-  // A thin font can cover under 1% of its box, leaving fg === bg: unmeasured, not a pass or a fail.
+  // A thin font can cover under 0.3% of its box, leaving fg === bg: unmeasured, not a pass or a fail.
   if (st.fg.join() === st.bg.join()) return { ...info, ...st, unmeasured: true };
   const large = info.size >= 24 || (info.size >= 18.66 && info.weight >= 700);
   return { ...info, ...st, floor: large ? 3 : 4.5 };

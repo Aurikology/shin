@@ -1,0 +1,130 @@
+/*
+ * Depth: the one place that says how far each thing floats. Added 2026-11-26
+ * (Aurik: "right now pexi just looks flat and not good").
+ *
+ * What was flat, measured on the iPhone 13 screenshots that day: every card,
+ * row, key, option and chip was one solid fill with a 1px hairline and no
+ * shadow, so the page, a card on it and a key on that card all read as the
+ * same plane. The camera's glass controls had no -webkit- prefix on their blur,
+ * which Safari before 18 ignores, so on most iPhones they were flat tinted
+ * discs with nothing blurred behind them.
+ *
+ * The rules this file keeps:
+ *   - It changes fills only through background-IMAGE layered over the flat
+ *     background-color the other files set. The flat colour stays the one the
+ *     contrast tests measure, and the gradients (tokens.css, "depth") only move
+ *     a fill away from the ink drawn on it.
+ *   - Nothing moves. No transform, no transition, no animation: build 7's
+ *     motion rules (R-86, R-87) stay exactly as they are.
+ *   - The brand light (--ambient, --glow-brand) is for pages and the brand's
+ *     own controls. Nothing here touches the verdict sheet's tier field.
+ *   - Imported last (screens.css), so a screen file never has to know.
+ */
+
+/* ------------------------------------------------------------- pages */
+
+.page {
+  background-image: var(--ambient);
+  background-repeat: no-repeat;
+}
+
+/* ------------------------------------------------------------- cards */
+
+.ilist,
+.row,
+.rowbtn,
+.btn--row,
+.onb-opt,
+.seg-o {
+  background-image: var(--grad-surface);
+  box-shadow: var(--sheen), var(--elev-1);
+}
+
+/* A chosen option is lit, not just outlined: the brand fill gets its own
+   falloff and a soft brand glow under it. */
+.onb-opt.on {
+  background-image: var(--grad-brand);
+  box-shadow: var(--sheen-strong), var(--glow-brand);
+}
+
+/* A chosen segment keeps its ruling (border and ink, no fill, you.css) and
+   gains only a step of lift over its neighbours. */
+.seg-o.on {
+  box-shadow: var(--sheen-strong), var(--elev-2);
+}
+
+/* ------------------------------------------------------ the price pad */
+
+.btn--key,
+.modbtn,
+.pad-shop {
+  background-image: var(--grad-raised);
+  box-shadow: var(--sheen), var(--elev-1);
+}
+
+.btn--key.key-confirm,
+.modbtn.on {
+  background-image: var(--grad-brand);
+  box-shadow: var(--sheen-strong), var(--glow-brand);
+}
+
+/* Disabled is .34 opacity (components.css); a glow under a control that
+   cannot be pressed reads as a control that can. */
+.btn--key:disabled,
+.modbtn:disabled {
+  box-shadow: none;
+}
+
+/* ------------------------------------------------- committing actions */
+
+.cta:not(:disabled),
+.btn--primary:not(:disabled) {
+  box-shadow: var(--sheen-strong), var(--elev-2);
+}
+
+/* ------------------------------------------------ camera: real glass */
+
+/*
+ * The camera is dark in both themes, so its glass is not themed: --glass and
+ * --glass-edge are declared once in tokens.css and never overridden. The torch
+ * keeps its amber when on (camera.css, more specific) and the chosen mode chip
+ * keeps its white.
+ */
+.cam-round,
+.cam-chip,
+.torch-btn {
+  background-color: var(--glass);
+  border-color: var(--glass-edge);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 6px 18px -8px rgba(0, 0, 0, .6);
+}
+
+.cam-chip.on {
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .08), 0 8px 20px -8px rgba(0, 0, 0, .55);
+}
+
+/* The barcode button floats over the feed: a real shadow under its ring. The
+   ready and looking states (camera.css) replace this with their brand rings. */
+.scan-code-btn {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, .28), 0 10px 26px -8px rgba(0, 0, 0, .65);
+}
+
+.cam-shin .bubble,
+.scan-note {
+  box-shadow: var(--sheen), var(--elev-3);
+}
+
+/* ----------------------------------------------------- the page bar */
+
+/* The bar floats over the page it sits on: content scrolls under frosted
+   ground rather than disappearing behind a flat one. */
+.page-bar {
+  background-color: color-mix(in srgb, var(--ground) 86%, transparent);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+}
+
+.mini-shutter {
+  box-shadow: 0 0 0 3px var(--brand), var(--glow-brand);
+}
