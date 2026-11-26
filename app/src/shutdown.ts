@@ -13,9 +13,10 @@
  */
 import type { Server } from 'node:http';
 
-export const DEFAULT_GRACE_MS = 20_000;
+// 12 s: the installed launchd ExitTimeOut is still 15 (the 30 in mac/launchd needs an admin reload), so the drain must finish first.
+export const DEFAULT_GRACE_MS = 12_000;
 
-/** The grace period: SHIN_DRAIN_MS when it is a positive number of milliseconds, else 20 s. */
+/** The grace period: SHIN_DRAIN_MS when it is a positive number of milliseconds, else 12 s. */
 export function graceFromEnv(env: Record<string, string | undefined> = process.env): number {
   const n = Number(env.SHIN_DRAIN_MS);
   return Number.isFinite(n) && n > 0 ? n : DEFAULT_GRACE_MS;

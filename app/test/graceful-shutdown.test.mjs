@@ -120,12 +120,12 @@ test('drain: a failing closer does not stop the others or the exit, and a repeat
   assert.deepEqual(exits, [0]);
 });
 
-test('the grace period defaults to 20 s and SHIN_DRAIN_MS overrides it', () => {
-  assert.equal(DEFAULT_GRACE_MS, 20_000);
-  assert.equal(graceFromEnv({}), 20_000);
+test('the grace period defaults to 12 s and SHIN_DRAIN_MS overrides it', () => {
+  assert.equal(DEFAULT_GRACE_MS, 12_000);
+  assert.equal(graceFromEnv({}), 12_000);
   assert.equal(graceFromEnv({ SHIN_DRAIN_MS: '1500' }), 1500);
-  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: 'soon' }), 20_000);
-  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: '-5' }), 20_000);
+  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: 'soon' }), 12_000);
+  assert.equal(graceFromEnv({ SHIN_DRAIN_MS: '-5' }), 12_000);
 });
 
 test('server.ts wires SIGTERM and SIGINT to the drain with the env-configurable grace', () => {
