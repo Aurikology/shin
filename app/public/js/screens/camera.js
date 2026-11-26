@@ -2189,9 +2189,10 @@ function padShopRow(shop, allowed) {
   // exists. `allowed` is kept in the signature for the callers that pass it.
   void allowed;
   const value = shop?.name ? escapeHtml(shop.name) : escapeHtml(t('cam_shop_choose'));
+  // No aria-label (2026-11-26): it replaced the visible text, so VoiceOver read "Shop" and never
+  // the shop the price is filed at. The row's own text, "Shop Loblaws", is the name.
   return `
-        <button type="button" class="ilist-row pad-shop" data-act="pad-shop"
-                aria-label="${escapeHtml(t('cam_shop'))}">
+        <button type="button" class="ilist-row pad-shop" data-act="pad-shop">
           <span class="ilist-l">${escapeHtml(t('cam_shop'))}</span>
           <span class="ilist-v">${value}</span>
         </button>`;
