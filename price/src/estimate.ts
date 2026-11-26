@@ -14,8 +14,12 @@
  *                    years, each weighted by age (`ageWeight`, D-267 A3);
  *                    weighted median of shops; under 3 shops blended with the category centre,
  *                    mu = (n * mu_own + k * mu_cat) / (n + k), k = 1.
- *   other_size       the same product (normalised brand and name) in another
- *                    size inside the pack-size band, unit price scaled here.
+ *   cross_border     the same barcode's prices in the other of USD/CAD, times the
+ *                    fitted ratio band; its shown range is exactly that band.
+ *   other_size       siblings: the same first brand and name stem, same currency
+ *                    and size dimension, size 5% or more apart, multipacks only
+ *                    paired with multipacks (pack-count.ts). Median of
+ *                    price x (size ratio)^0.69, shown as exactly [0.66, 1.51] x it.
  *   leaf_category    5+ priced products in the leaf, same unit family, pack-size
  *                    band, scaled to this size; median.
  *   parent_category  the same one level up.
@@ -68,6 +72,7 @@ import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 import { SHOPPER_VOICE_BELOW_SHOPS, SHOPPER_VOICE_FLOOR_FRESH_DAYS, SHOPPER_VOICE_FLOOR_RATIO } from './shopper-prices.ts';
 import { readPacks, sameSize } from './pack-size.ts';
+import { pairable, packSide, stripPackCounts } from './pack-count.ts';
 // Loaded on first use, not at import: size-fill.ts pulls in the catalogue schema and its vector
 // extension, and every server path that imports this file would pay for that at startup.
 type FillFromName = (typeof import('../../catalogue/src/size-fill.ts'))['fillFromName'];
@@ -168,7 +173,7 @@ export type Basis =
   | 'claude_typical'
   | 'category_prior'
   | 'department_prior';
-export type SpreadFrom = 'own_prices' | 'cross_border' | 'shop_spread' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
+export type SpreadFrom = 'own_prices' | 'cross_border' | 'other_size' | 'shop_spread' | 'leaf_category' | 'parent_category' | 'national_average' | 'claude' | 'prior';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Zone = 'great' | 'good' | 'reasonable' | 'bad';
 /**
@@ -934,6 +939,65 @@ export function productKey(name: string | null, brand: string | null): string | 
   return `${b.join(' ')}|${t.join(' ')}`;
 }
 
+/**
+ * Sibling sizes (D-280 probe B, Mac, 2026-11-25, offline and provisional): over 2,914 same-product pairs of
+ * different size the price moved with size to the power 0.69 (a log-log slope, not the 1.0 of a straight unit
+ * price), and the p10 and p90 of the residuals were x0.66 and x1.51. Scored on the Kroger holdout that range hit
+ * 83.6% at width 2.28, against the live path's 74.6% at 2.83 on the same items. Coverage is thin (4 to 7% of
+ * items, median one sibling). The verdict's shown range for this basis is exactly [low, high] below.
+ */
+export const OTHER_SIZE_SLOPE = 0.69;
+export const OTHER_SIZE_RATIO_LOW = 0.66;
+export const OTHER_SIZE_RATIO_HIGH = 1.51;
+/** Two sizes closer than this fraction are one size, not siblings. */
+export const OTHER_SIZE_MIN_DIFF = 0.05;
+export const OTHER_SIZE_SOURCE = 'probe-b-2026-11-25';
+
+/** The product's first listed brand: a brand column may list several, comma separated. */
+function firstBrand(brand: string | null): string | null {
+  const first = (brand ?? '').split(',')[0]?.trim();
+  return first ? first : null;
+}
+
+/** Brand and name stem with size words and pack counts out, so a 6-pack and a 12-pack of one product share it. */
+function siblingKey(name: string | null, brand: string | null): string | null {
+  return name ? productKey(stripPackCounts(name), firstBrand(brand)) : null;
+}
+
+/** Standard median: the mean of the two middle values when there is an even number. */
+function middle(values: readonly number[]): number {
+  const s = [...values].sort((a, b) => a - b);
+  const h = s.length >> 1;
+  return s.length % 2 ? s[h]! : (s[h - 1]! + s[h]!) / 2;
+}
+
+/**
+ * Each sibling's price at the target's size, in cents: sibling price x (target size / sibling size)^0.69. Sizes
+ * are whole-pack totals (pack-count.ts); a sibling that cannot be paired, or whose size is within 5%, gives none.
+ */
+function siblingPrices(
+  products: readonly Product[],
+  target: { name: string | null; brand: string | null; sizeText: string | null; size: ComparisonQuantity | null },
+): { prices: number[]; members: Product[] } {
+  const out = { prices: [] as number[], members: [] as Product[] };
+  const key = siblingKey(target.name, target.brand);
+  const brand = brandKey(firstBrand(target.brand));
+  if (!key) return out;
+  const mine = packSide(target.name, target.sizeText, target.size);
+  if (!mine.total) return out;
+  for (const p of products) {
+    if (!p.barcoded || brandKey(firstBrand(p.brand)) !== brand) continue;
+    if (siblingKey(p.name, p.brand) !== key) continue;
+    const theirs = packSide(p.name, p.sizeText, p.size);
+    if (!pairable(mine, theirs)) continue;
+    const ratio = mine.total.baseValue / theirs.total!.baseValue;
+    if (Math.max(ratio, 1 / ratio) < 1 + OTHER_SIZE_MIN_DIFF) continue;
+    out.prices.push(p.cents * ratio ** OTHER_SIZE_SLOPE);
+    out.members.push(p);
+  }
+  return out;
+}
+
 function brandKey(brand: string | null): string | null {
   const w = words(brand ?? '');
   return w.length ? w.join(' ') : null;
@@ -1505,17 +1569,23 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
       biggerPackPerUnit = best.perUnit;
     }
   }
+  // Sibling sizes (probe B): the median of the siblings' prices at this size, shown as exactly [0.66, 1.51] x it.
+  let otherSizeRange: { low: number; high: number } | null = null;
   if (basis === null) {
-    const pts = poolPoints(sameProduct, target, true);
-    if (pts.length > 0) {
-      const s = statsOf(pts)!;
+    const sib = target ? siblingPrices(scoped, { name, brand, sizeText, size: target }) : { prices: [], members: [] };
+    if (sib.prices.length > 0) {
+      const m = middle(sib.prices);
+      const low = Math.max(1, Math.round(m * OTHER_SIZE_RATIO_LOW));
+      const high = Math.max(low, Math.round(m * OTHER_SIZE_RATIO_HIGH));
       basis = 'other_size';
-      basisMembers = sameProduct;
-      mu = s.mu;
-      n = s.n;
-      evidenceAge = s.newestAge;
+      basisMembers = sib.members;
+      otherSizeRange = { low, high };
+      // The geometric mean of the two ends: the verdict's p10 and p90 then land exactly on them (sigma below).
+      mu = (Math.log(low) + Math.log(high)) / 2;
+      n = sib.prices.length;
+      evidenceAge = Math.min(...sib.members.map((p) => p.newestAge));
       scaled = true;
-      tried.push({ rung: 'other_size', outcome: 'used', n });
+      tried.push({ rung: 'other_size', outcome: 'used', n, detail: `median ${Math.round(m)}` });
     } else {
       tried.push({ rung: 'other_size', outcome: pKey && target ? 'too_few' : 'not_applicable', n: 0 });
     }
@@ -1776,7 +1846,7 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
    */
   // The cross-border range is shown exactly as scored, so a sale-only item's centre is not raised there (its confidence is low anyway).
   const saleOnly = basis !== 'own_prices' && ownAll.length > 0 && ownAll.every((r) => r.sale);
-  if (saleOnly && basis !== 'cross_border') {
+  if (saleOnly && basis !== 'cross_border' && basis !== 'other_size') {
     const dearestSale = Math.max(...latestPerShop(ownAll).map((r) => r.cents));
     if (Math.log(dearestSale) > mu) mu = Math.log(dearestSale);
   }
@@ -1812,13 +1882,15 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
   const catSpread = aside.stats.size > 0 ? leafSpread ?? parentSpread : catStats;
   let sigma: number;
   let spreadFrom: SpreadFrom;
-  const crossSpread = crossBorderRange !== null;
+  // The scored ranges (cross_border, other_size) are shown exactly: the bell is the range.
+  const exactRange = crossBorderRange ?? otherSizeRange;
+  const crossSpread = exactRange !== null;
   const ownSpread = basis === 'own_prices' && ownShops.length >= OWN_SPREAD_SHOPS ? weightedStatsOf(ownWeighted) : null;
   const fewShops = basis === 'own_prices' && !ownSpread;
-  if (crossBorderRange) {
+  if (exactRange) {
     // The bell is the range: p10 and p90 are exactly its two ends (the floors and widenings below are skipped).
-    sigma = Math.max(Math.log(crossBorderRange.high / crossBorderRange.low) / (2 * Z10), 0.001);
-    spreadFrom = 'cross_border';
+    sigma = Math.max(Math.log(exactRange.high / exactRange.low) / (2 * Z10), 0.001);
+    spreadFrom = crossBorderRange ? 'cross_border' : 'other_size';
   } else if (ownSpread) {
     sigma = ownSpread.sigma;
     spreadFrom = 'own_prices';

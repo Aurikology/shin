@@ -242,7 +242,8 @@ test('A11: a bigger pack priced only in another province is not offered to a sho
 });
 
 test('A11: a bigger pack that is dearer per 100 g than this one is not offered', async () => {
-  const { verdict } = await estimate(item(), null, chipsWorld({ priceCents: 2000 }));
+  // 1 kg at 60.00 is 600 per 100 g; the sibling curve centres this 200 g item near 11.58 (579 per 100 g), so it is dearer.
+  const { verdict } = await estimate(item(), null, chipsWorld({ priceCents: 6000 }));
   assert.equal(verdict.biggerPack, null);
 });
 
