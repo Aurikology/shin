@@ -312,43 +312,9 @@ prune_old_backups() {
   done
 }
 
-# AGE LIMIT (legal review 2026-11-26): the privacy document says a backup is "replaced" and the off-site
-# copy keeps 15 days (14-offsite-backup.sh), so a night folder older than SHIN_BACKUP_MAX_DAYS (default 15,
-# at most 30) is deleted whatever the count, because a copy of shoppers' device ids is personal data and
-# the count rule above does not run on a failed night. The two newest folders are always kept, so a run of
-# bad nights can never leave nothing to restore from. Same pattern guard as above: only a folder named
-# with this script's own timestamp is ever touched.
-MAX_DAYS="${SHIN_BACKUP_MAX_DAYS:-15}"
-case "$MAX_DAYS" in
-  ''|*[!0-9]*) MAX_DAYS=15 ;;
-esac
-[ "$MAX_DAYS" -ge 1 ] || MAX_DAYS=15
-[ "$MAX_DAYS" -le 30 ] || MAX_DAYS=30
-prune_aged_backups() {
-  # BSD date (the Mac) takes -v, GNU date (Git Bash on the PC) takes -d.
-  _cutoff=$(date -v-"${MAX_DAYS}"d +%Y%m%d-%H%M%S 2>/dev/null || date -d "$MAX_DAYS days ago" +%Y%m%d-%H%M%S 2>/dev/null || true)
-  [ -n "$_cutoff" ] || { echo "07-backup.sh: cannot work out the age cutoff; no backup removed by age" >&2; return 0; }
-  _cutoff_n="${_cutoff%-*}${_cutoff#*-}"
-  _count=0
-  for _d in $(ls -1 "$SHIN_BACKUP_DIR" 2>/dev/null | LC_ALL=C sort -r); do
-    case "$_d" in
-      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9])
-        _count=$((_count + 1))
-        _n="${_d%-*}${_d#*-}"
-        if [ "$_count" -gt 2 ] && [ "$_n" -lt "$_cutoff_n" ] && [ -d "$SHIN_BACKUP_DIR/$_d" ]; then
-          echo "07-backup.sh: removing backup $SHIN_BACKUP_DIR/$_d, older than $MAX_DAYS days"
-          rm -rf -- "$SHIN_BACKUP_DIR/$_d"
-        fi
-        ;;
-      *) ;;
-    esac
-  done
-}
-
-# A failed night does NOT prune by count: the older folders are the last good copies, and a
-# bad night must never be the thing that pushes one of them out (R52). It does prune by age.
+# A failed night does NOT prune: the older folders are the last good copies, and a
+# bad night must never be the thing that pushes one of them out (R52).
 if [ "$FAILED" -ne 0 ]; then
-  prune_aged_backups
   _names=$(awk -F'\t' '$1=="failed"{printf "%s ", $2}' "$MANIFEST")
   echo "07-backup.sh: one or more backups FAILED -- see above. Partial backup left at: $DEST (nothing pruned)" >&2
   BACKUP_DONE=1
@@ -357,7 +323,6 @@ if [ "$FAILED" -ne 0 ]; then
 fi
 
 prune_old_backups
-prune_aged_backups
 
 echo "07-backup.sh: OK -- backup complete: $DEST"
 echo "07-backup.sh: manifest: $MANIFEST"

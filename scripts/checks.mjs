@@ -99,7 +99,19 @@ function runFastChecks() {
       runChild(`typecheck ${p}`, 'node', [TSC, '--noEmit', '-p', `${p}/tsconfig.json`]),
     ),
     runChild('catalogue A7: no swallowing catch blocks', 'node', ['--input-type=module', '-e', A7_SCRIPT]),
+    ...macChecks(),
   ];
+}
+
+/**
+ * The Mac deploy also runs the mac/ script tests (2026-11-26: a backup change broke two of them and every
+ * deploy stayed red for an hour). They take about a minute, so they run only when the push touches mac/.
+ */
+function macChecks() {
+  const r = spawnSync('git', ['diff', '--name-only', '@{upstream}..HEAD'], { cwd: root, encoding: 'utf8' });
+  const touched = r.status !== 0 || (r.stdout ?? '').split('\n').some((p) => p.startsWith('mac/'));
+  if (!touched) return [];
+  return [runChild('mac script tests (push touches mac/)', 'node', ['--test', 'mac/deploy/test/*.test.mjs', 'mac/test/*.test.mjs'])];
 }
 
 function main() {
