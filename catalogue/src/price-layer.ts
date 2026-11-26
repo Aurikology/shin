@@ -54,6 +54,7 @@
 
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
+import { sellerAllowedSql } from './source-rights.ts';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 import { ensurePlacementSchema, pathOfNode, placementCallCount, placementHash, DEPARTMENT_TAG } from './placement.ts';
@@ -761,7 +762,7 @@ function arg(name: string, argv: readonly string[]): string | undefined {
 /** Per code, the middle regular CAD price (lower middle on an even count) from a price database's observation table. */
 export function pricesFromObservations(prices: DatabaseSync): Map<string, number> {
   const per = new Map<string, number[]>();
-  for (const r of prices.prepare(`SELECT code, price_cents FROM observation WHERE code IS NOT NULL AND kind = 'regular' AND currency = 'CAD'`).iterate() as Iterable<{ code: string; price_cents: unknown }>) {
+  for (const r of prices.prepare(`SELECT code, price_cents FROM observation WHERE code IS NOT NULL AND kind = 'regular' AND currency = 'CAD'${sellerAllowedSql()}`).iterate() as Iterable<{ code: string; price_cents: unknown }>) {
     if (typeof r.price_cents !== 'number' || !Number.isInteger(r.price_cents) || r.price_cents <= 0) {
       throw new Error(`price-layer: observation for ${r.code} has price_cents ${String(r.price_cents)}, not a positive integer`);
     }

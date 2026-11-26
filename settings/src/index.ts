@@ -99,6 +99,8 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'SHIN_SCANS', default: 'data/scans.db', ruling: 'operational' },
   { env: 'SHIN_PRICES', default: 'price/data/prices.db', ruling: 'operational' },
   { env: 'SHIN_GAPS', default: 'data/gaps.db', ruling: 'operational' },
+  { env: 'SHIN_EXCLUDED_SOURCES', default: "unset -> no source excluded; comma-separated switch names (kroger, hammer, openfoodfacts, icecat, ...; table in catalogue/src/source-rights.ts) remove that source's price and catalogue rows from every shopper answer, read once at start", ruling: 'operational' },
+  { env: 'SHIN_ICECAT_NO_AI', default: "unset -> off; '1' keeps Icecat rows out of the placement run's embeddings, word-search neighbours and Claude chooser (Open Icecat licence clause 10); the earlier vector and Claude-range guards are always on", ruling: 'operational' },
   { env: 'SHIN_OVERPASS', default: 'https://overpass-api.de/api/interpreter', ruling: 'operational' },
   { env: 'SHIN_CORRECTIONS', default: 'price/data/corrections.db', ruling: 'operational' },
   { env: 'SHIN_PYTHON', default: "'python' on Windows, 'python3' elsewhere (printout intake's PDF reader)", ruling: 'operational' },
@@ -246,6 +248,12 @@ export function SHIN_SCANS(env: NodeJS.ProcessEnv = process.env): string | undef
 }
 export function SHIN_PRICES(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_PRICES');
+}
+export function SHIN_EXCLUDED_SOURCES(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_EXCLUDED_SOURCES');
+}
+export function SHIN_ICECAT_NO_AI(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_ICECAT_NO_AI');
 }
 export function SHIN_GAPS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_GAPS');

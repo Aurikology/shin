@@ -67,7 +67,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { ageDays, isFutureDated } from '../../spine/src/money.ts';
 import { departmentFromPath, departmentOf, fileStamp, nearestRankIndex, parentOf, readAge, MIN_CATEGORY_PRODUCTS, WINDOW_DAYS } from './range.ts';
 import { flagWide, TARGET_WIDTH } from './width-flag.ts';
-import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
+import { isExcludedSeller, licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 import type { Taxonomy } from '../../catalogue/src/category-taxonomy.ts';
 import { parseQuantity, toComparison, type ComparisonQuantity } from '../../catalogue/src/units.ts';
 import { SHOPPER_VOICE_BELOW_SHOPS, SHOPPER_VOICE_FLOOR_FRESH_DAYS, SHOPPER_VOICE_FLOOR_RATIO } from './shopper-prices.ts';
@@ -538,6 +538,7 @@ function readRows(db: DatabaseSync, currency: string, asOf: string, codes?: read
     const seen = str(r.seen_on);
     const seller = str(r.seller);
     if (price === null || seen === null || seller === null) continue;
+    if (isExcludedSeller(seller)) continue; // the kill switch (source-rights.ts): an objecting source's rows are not read
     if (reservedHost(str(r.url))) continue;
     let age: number;
     try {

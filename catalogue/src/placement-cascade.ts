@@ -58,6 +58,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { upcAOf, upcEOf } from './upc.ts';
 import { Catalogue } from './search.ts';
 import type { Embedder } from './embed.ts';
+import { aiBarredSources, isAiBarredSource } from './source-rights.ts';
 import { countPaths, DEPARTMENT_OF_SOURCE, departmentOfSource, ensurePlacementSchema, NO_DEPARTMENT, placeOnNode } from './placement.ts';
 
 /** 2.3's bar. Named and NOT calibrated (no hand labels exist yet). */
@@ -329,12 +330,23 @@ export interface TextQuery {
   readonly text: string;
 }
 
-/** The sources of each department, for the word search's `sources` filter. */
-export function sourcesOf(department: string): string[] {
+/** Every source of a department, whatever the Icecat switch says. */
+export function allSourcesOf(department: string): string[] {
   return Object.entries(DEPARTMENT_OF_SOURCE)
     .filter(([, d]) => d === department)
     .map(([s]) => s)
     .sort();
+}
+
+/**
+ * The sources of each department that may feed the word search, the name embeddings and their
+ * neighbours: all of them, minus the ones SHIN_ICECAT_NO_AI keeps out of learning paths
+ * (source-rights.ts; none while the switch is off). May be empty (electronics is only Icecat), and an
+ * empty list to the search means "every source", so callers must test for it.
+ */
+export function sourcesOf(department: string): string[] {
+  const barred = aiBarredSources();
+  return allSourcesOf(department).filter((s) => !barred.includes(s));
 }
 
 /** An embedder for a Catalogue that must never embed (the vector arm is off). */
@@ -357,6 +369,11 @@ export async function searchBatch(db: DatabaseSync, queries: readonly TextQuery[
   const cat = new Catalogue(db, NO_EMBEDDER, null);
   const out: [string, string[]][] = [];
   for (const q of queries) {
+    // No source of this department may feed the search (an empty list would search them all).
+    if (sourcesOf(q.department).length === 0) {
+      out.push([q.code, []]);
+      continue;
+    }
     const res = await cat.search({ text: q.text, vectors: false, limit: TEXT_SEARCH_LIMIT, recordMiss: false, sources: sourcesOf(q.department) });
     out.push([q.code, res.candidates.map((c) => c.code).filter((c) => c !== q.code)]);
   }
@@ -501,6 +518,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
   let unchanged = 0;
   const claudeSlotReached: Record<string, number> = {};
   const claudeSlotNoCandidates: Record<string, number> = {};
+  const claudeSlotBarred: Record<string, number> = {};
   let last = 0;
   for (;;) {
     const rows = select.all(last) as unknown as ItemRow[];
@@ -529,7 +547,9 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
         }
       }
       if (!decided) {
-        if (opts.claude) {
+        if (opts.claude && isAiBarredSource(r.source)) {
+          claudeSlotBarred[department] = (claudeSlotBarred[department] ?? 0) + 1; // SHIN_ICECAT_NO_AI: this item's name is not sent
+        } else if (opts.claude) {
           // The fixed list is the routes' own top candidates (CLAUDE_CANDIDATES at most), never the whole department.
           const ids: number[] = [];
           for (const route of routes) {
@@ -609,6 +629,7 @@ export async function runCascade(db: DatabaseSync, opts: CascadeOptions): Promis
   log(`placement-cascade: considered ${considered}, moved ${moved}, unchanged ${unchanged}; bar ${bar} (UNCALIBRATED: no hand labels yet)`);
   log(`placement-cascade: placed by route per department ${JSON.stringify(byRoute)}`);
   log(`placement-cascade: reached the Claude slot with no chooser wired ${JSON.stringify(claudeSlotReached)}`);
+  if (Object.keys(claudeSlotBarred).length > 0) log(`placement-cascade: SHIN_ICECAT_NO_AI kept these items from the Claude slot ${JSON.stringify(claudeSlotBarred)}`);
   if (opts.claude) log(`placement-cascade: reached the Claude slot with no candidate to offer (not sent) ${JSON.stringify(claudeSlotNoCandidates)}`);
   log(
     `placement-cascade: top level only ${top} of ${all} (${(summary.topLevelOnly.share * 100).toFixed(2)}%), bar ${TOP_LEVEL_SHARE_BAR * 100}%: ${summary.topLevelOnly.meetsBar ? 'meets' : 'FAILS'}; per department ${JSON.stringify(

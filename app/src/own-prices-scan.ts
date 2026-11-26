@@ -8,11 +8,15 @@
  * (scripts/load/bench-typed-search.mjs). `own-prices-worker.ts` runs it on another thread instead.
  */
 import type { DatabaseSync } from 'node:sqlite';
+import { sellerAllowedSql } from '../../catalogue/src/source-rights.ts';
 
-/** An extra condition that keeps printed-flyer rows (capture_tile_id set) out of a name match. */
+/**
+ * An extra condition that keeps printed-flyer rows (capture_tile_id set) out of a name match, and
+ * the rows of a source the kill switch removed (source-rights.ts; nothing is added when it is empty).
+ */
 export function notPrintout(db: DatabaseSync): string {
   const cols = db.prepare('PRAGMA table_info(observation)').all() as { name: string }[];
-  return cols.some((c) => c.name === 'capture_tile_id') ? ' AND capture_tile_id IS NULL' : '';
+  return (cols.some((c) => c.name === 'capture_tile_id') ? ' AND capture_tile_id IS NULL' : '') + sellerAllowedSql();
 }
 
 export interface PriceNameRow {

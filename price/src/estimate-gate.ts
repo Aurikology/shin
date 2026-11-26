@@ -23,6 +23,7 @@
  */
 import type { DatabaseSync } from 'node:sqlite';
 import { existsSync, readFileSync } from 'node:fs';
+import { sellerAllowedSql } from '../../catalogue/src/source-rights.ts';
 
 /** A category with this many observed prices or more reads no estimates. */
 export const ESTIMATE_GATE_OBSERVED = 5;
@@ -103,7 +104,7 @@ export function observedPricesIn(prices: DatabaseSync, catalogue: DatabaseSync, 
   for (let i = 0; i < codes.length; i += 500) {
     const chunk = codes.slice(i, i + 500);
     const row = prices
-      .prepare(`SELECT COUNT(*) AS n FROM observation WHERE code IN (${chunk.map(() => '?').join(',')}) AND kind <> 'promotional' ${notSale} ${verified}`)
+      .prepare(`SELECT COUNT(*) AS n FROM observation WHERE code IN (${chunk.map(() => '?').join(',')}) AND kind <> 'promotional' ${notSale} ${verified}${sellerAllowedSql()}`)
       .get(...chunk) as { n: number };
     n += row.n;
   }

@@ -62,7 +62,7 @@ import { departmentOfRow, NO_DEPARTMENT } from '../../catalogue/src/placement.ts
 // width-flag.ts imports nearestRankIndex from this file; both are function declarations, so the cycle is safe.
 import { flagWide } from './width-flag.ts';
 import { readPacks, rowSize } from './pack-size.ts';
-import { licensedOnlySql } from '../../catalogue/src/source-rights.ts';
+import { isExcludedSeller, licensedOnlySql } from '../../catalogue/src/source-rights.ts';
 
 /* ------------------------------------------------------------ thresholds */
 
@@ -397,6 +397,7 @@ function readObservations(db: DatabaseSync, codes: readonly string[] | null, cur
     const seen = r.seen_on;
     if (typeof cents !== 'number' || !Number.isInteger(cents) || cents <= 0) continue;
     if (typeof seen !== 'string' || typeof r.code !== 'string' || typeof r.seller !== 'string') continue;
+    if (isExcludedSeller(r.seller)) continue; // the kill switch (source-rights.ts)
     if (reservedHost(typeof r.url === 'string' ? r.url : null)) continue;
     // isFutureDated reads a date it cannot parse as future-dated, so this row would be dropped
     // without a word; say so first. The price is still not used.

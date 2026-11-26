@@ -40,7 +40,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { embedSymmetric, type Embedder } from './embed.ts';
 import { topKSlice, type TopK } from './knn.ts';
 import { departmentOfSource } from './placement.ts';
-import { sourcesOf } from './placement-cascade.ts';
+import { allSourcesOf, sourcesOf } from './placement-cascade.ts';
+import { isAiBarredSource } from './source-rights.ts';
 import { confirmationExamples } from './placement-feedback.ts';
 
 export const NAME_TEXT_RECIPE = 'brands | name_en | name_fr (or name) | generic_name; no category; e5 "query: " both sides; v1';
@@ -109,7 +110,9 @@ export interface Wanted {
 /** Everything in a department that should have a vector: its products with a name, and confirmations of its items. */
 export function wanted(catalogue: DatabaseSync, department: string): { items: Wanted[]; noText: number; noTextExamples: string[] } {
   const sources = sourcesOf(department);
-  if (sources.length === 0) throw new Error(`name-meaning: department ${department} has no sources`);
+  if (allSourcesOf(department).length === 0) throw new Error(`name-meaning: department ${department} has no sources`);
+  // Every source of the department is one SHIN_ICECAT_NO_AI keeps out of embeddings: nothing is embedded.
+  if (sources.length === 0) return { items: [], noText: 0, noTextExamples: [] };
   const items: Wanted[] = [];
   let noText = 0;
   const noTextExamples: string[] = [];
@@ -128,7 +131,7 @@ export function wanted(catalogue: DatabaseSync, department: string): { items: Wa
   const srcOf = catalogue.prepare('SELECT source FROM product WHERE code = ?');
   for (const c of confirmationExamples(catalogue)) {
     const s = srcOf.get(c.code) as { source: string } | undefined;
-    if (s && departmentOfSource(s.source) === department) items.push({ key: c.key, text: c.text });
+    if (s && departmentOfSource(s.source) === department && !isAiBarredSource(s.source)) items.push({ key: c.key, text: c.text });
   }
   return { items, noText, noTextExamples };
 }

@@ -30,6 +30,7 @@ import { cpus } from 'node:os';
 import { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_ALIASES_PATH, DEFAULT_TAXONOMY_PATH, loadDepartmentTaxonomies, loadTaxonomy, type Taxonomy } from './category-taxonomy.ts';
 import { buildPlacement, departmentOfSource, NO_DEPARTMENT } from './placement.ts';
+import { isAiBarredSource } from './source-rights.ts';
 import { FOOD_LABEL_MAP_PATH, loadFoodLabelMap, type FoodLabelMap } from './food-label-link.ts';
 import {
   assertNotLiveCatalogue,
@@ -91,7 +92,7 @@ export async function main(argv: readonly string[]): Promise<number> {
       const leaves = labelledLeaves(db);
       if (!argv.includes('--no-text')) {
         const queries: TextQuery[] = targets
-          .filter((t) => departmentOfSource(t.source) !== NO_DEPARTMENT)
+          .filter((t) => departmentOfSource(t.source) !== NO_DEPARTMENT && !isAiBarredSource(t.source))
           .map((t) => ({ code: t.code, department: departmentOfSource(t.source), text: [t.brands, t.name_en || t.name_fr || t.name].filter(Boolean).join(' ') }));
         const table = await textNeighbours(db, queries, { workers, dbPath, log });
         routes.push(neighbourRoute('text', table, (key) => leaves.get(key) ?? null));

@@ -28,6 +28,7 @@
 
 import { DatabaseSync } from 'node:sqlite';
 import { PRICES_DB_PATH } from './store.ts';
+import { sellerAllowedSql } from '../../catalogue/src/source-rights.ts';
 import type { PriceLookup, PricedProduct } from '../../catalogue/src/alternatives.ts';
 
 /**
@@ -108,7 +109,7 @@ export const lookupPrices: PriceLookup = async (codes) => {
          */
         `SELECT code, seller, price_cents, seen_on, store_name, store_city, join_method
            FROM observation
-          WHERE code IN (${placeholders}) AND code IS NOT NULL
+          WHERE code IN (${placeholders}) AND code IS NOT NULL${sellerAllowedSql()}
           ORDER BY code, seen_on DESC, seller ASC`,
       )
       .all(...chunk) as unknown as PriceRow[];
