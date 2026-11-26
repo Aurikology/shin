@@ -13,7 +13,7 @@ Pexi: Grocery Price Checker
 Scan a barcode, add the shelf price, and know in seconds if it's a good deal.
 ```
 
-## Full description (2340 of 4000)
+## Full description (2166 of 4000)
 
 ```
 Is this a good price? Pexi tells you in seconds, right at the shelf.
@@ -32,7 +32,7 @@ WHAT YOU GET
 - Light, dark or system theme.
 
 HOW PEXI KNOWS
-Pexi compares your price with the prices it holds for that product and for similar products, with new prices every week. Prices come from open data published by other organisations and from prices shoppers using Pexi have entered. Pexi knows everyday groceries best, and more products arrive every week. When Pexi has no shop price for a product, it shows an estimated range and labels it as an estimate. If a verdict looks wrong, tell Pexi and fix the price: the next shopper gets the better answer.
+Pexi compares your price with the prices it holds for that product and for similar products. Prices come from open data published by other organisations and from prices shoppers using Pexi have entered. When Pexi has no shop price for a product, it shows an estimated range and labels it as an estimate. If a verdict looks wrong, tell Pexi and fix the price: the next shopper gets the better answer.
 
 NO ACCOUNT, NO SIGN-IN
 Open the app and start scanning. The camera reads barcodes on your phone, and Pexi does not upload your photos. You review the Terms, Privacy and Data once when you first open the app, and you can read it again any time in Settings. You can ask for your data to be deleted from Settings.
@@ -42,7 +42,6 @@ Pexi is free, with 10 barcode scans a week and free typed searches. Pexi Plus gi
 
 GOOD TO KNOW
 - Pexi needs an internet connection to answer.
-- Prices and estimates are for information. Check the price at the till.
 - Pexi is not affiliated with any store or brand.
 
 Questions? usepexiapp@gmail.com
