@@ -323,13 +323,13 @@ test('case 11: a bigger pack is a side note, never folded into the bell', async 
   ]);
   const { verdict } = await estimate(item(), null, { prices, catalogue, askClaude: noClaude });
   assert.equal(verdict.basis, 'other_size');
-  // Siblings (probe B): 300 g at 4.50 gives 340.2 at 200 g, 1 kg at 10.00 gives 329.3 (price x size ratio^0.69); the
-  // median 334.8 is shown as exactly [0.66, 1.51] x it. The 1 kg pack still stands apart as the bigger-pack note.
-  assert.equal(verdict.p10Cents, 221);
-  assert.equal(verdict.p90Cents, 506);
-  assert.equal(verdict.centreCents, 334);
+  // Siblings (probe B): 300 g at 4.50 gives 340.2 at 200 g (price x size ratio^0.69), shown as exactly
+  // [0.66, 1.51] x it. The 1 kg pack is 5x away, past the 3x sibling limit, so it only stands apart as the bigger-pack note.
+  assert.equal(verdict.p10Cents, 225);
+  assert.equal(verdict.p90Cents, 514);
+  assert.equal(verdict.centreCents, 340);
   assert.equal(verdict.spreadFrom, 'other_size');
-  assert.equal(verdict.n, 2);
+  assert.equal(verdict.n, 1);
   assert.deepEqual(verdict.biggerPack, { quantity: '1 kg', perUnitCents: 100, store: 'Costco' });
   // D-270 A3: with no category its bell is the empty prior's (p90/p10 about 13x), so it is not "Fairly sure".
   assert.equal(verdict.confidence, 'low');
