@@ -120,7 +120,7 @@ test('5.6: consent is off by default, so a device that never answered keeps no a
 
 test('5.6: exact positions sent every way a client can send them reach no storage; the coarse cell does', async () => {
   const device = 'pos-yes';
-  const consent = await h.post('/api/consent', { deviceId: device, photos: false, location: true });
+  const consent = await h.post('/api/consent', { deviceId: device, photos: false, location: true, improve: true }); // improve: events are kept only with the shopper's Help improve Pexi yes (2026-11-26)
   assert.equal(consent.body.stored, true);
 
   // Identify by query string, with an over-precise cell and the four exact fields an old client sent.

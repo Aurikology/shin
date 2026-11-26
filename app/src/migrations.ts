@@ -965,6 +965,22 @@ export const SCAN_MIGRATIONS: readonly Migration[] = [
       addColumnIfMissing(db, 'scan', 'estimate_cross_border', 'TEXT');
     },
   },
+  {
+    version: 25,
+    name: 'consent keeps two optional choices with their times: help improve Pexi, and typed text to Claude (legal review A G1 to G3)',
+    apply(db) {
+      /*
+       * 2026-11-26. Apple 5.1.1(ii) and 5.1.2(i), Quebec P-39.1 s.14: what the service does not need to answer a
+       * scan is its own choice, off until the shopper says yes, withdrawable any time. NULL is "never asked"
+       * and reads as no on the server. `improve` gates usage recording beyond the answer (the event table);
+       * `ai_text` gates a typed search going to Anthropic's Claude. Each carries the time it was last set.
+       */
+      addColumnIfMissing(db, 'consent', 'improve', 'INTEGER CHECK (improve IN (0, 1))');
+      addColumnIfMissing(db, 'consent', 'improve_at', 'TEXT');
+      addColumnIfMissing(db, 'consent', 'ai_text', 'INTEGER CHECK (ai_text IN (0, 1))');
+      addColumnIfMissing(db, 'consent', 'ai_text_at', 'TEXT');
+    },
+  },
 ];
 
 /**

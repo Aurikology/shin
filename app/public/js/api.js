@@ -484,6 +484,10 @@ export function price(query) {
  * body, so the server has nothing to reject as too large.
  */
 export async function identify({ gtin, text, brand, sizeValue, sizeUnit, shelfPriceCents, preview, canSendFrame } = {}) {
+  /* Apple 5.1.2(i): typed words are asked about once, before they can reach Claude. Not now still answers. */
+  if (text && textNotice) {
+    try { await textNotice(); } catch { /* the notice failing leaves the answer unasked; the server treats that as no */ }
+  }
   const params = new URLSearchParams();
   if (gtin) params.set('gtin', gtin);
   /* RULINGS.md "A scan never ends with no result": the camera holds the frame of
@@ -1027,8 +1031,20 @@ export function getConsent(deviceId) {
  * Privacy and Data document (screens/agree.js), which sends `accepted: true`: the server reads that as yes
  * to photos and rough location. Quiet on failure; agree.js retries on a later launch until it is stored.
  */
-export function postConsent({ deviceId, photos, location, accepted }) {
-  return postSoft('/api/consent', { deviceId, photos, location, accepted }, { stored: false });
+export function postConsent({ deviceId, photos, location, accepted, improve, aiText }) {
+  /* 2026-11-26: `improve` (Help improve Pexi) and `aiText` (typed words may go to Claude) are the two optional
+     choices; a field left out leaves the server's stored answer as it was. */
+  return postSoft('/api/consent', { deviceId, photos, location, accepted, improve, aiText }, { stored: false });
+}
+
+/**
+ * The one-time notice before a shopper's typed words first go to Claude (screens/agree.js registers it).
+ * `identify` waits on it when it carries typed text, so the shopper's answer is stored on the server before
+ * the request that would use it. A hook rather than an import so this file keeps no screen dependency.
+ */
+let textNotice = null;
+export function setTextNotice(fn) {
+  textNotice = typeof fn === 'function' ? fn : null;
 }
 
 /* -------------------------------------------------------------- item 10: event */

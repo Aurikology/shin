@@ -110,6 +110,7 @@ export async function boot({ env = {}, products = 0, consent = true } = {}) {
   };
 
   const mod = await import('../server.ts');
+  const { writeChoices } = await import('../src/consent.ts');
   const { server } = mod;
   if (!server.listening) await new Promise((r) => server.once('listening', () => r()));
   const port = server.address().port;
@@ -132,7 +133,12 @@ export async function boot({ env = {}, products = 0, consent = true } = {}) {
     });
   return {
     dir, base, port, mod, codes, claude, catDb,
-    get: (p, headers) => call('GET', p, { headers }),
+    /* 2026-11-26: a typed search reaches Claude only for a device whose stored typed-words choice is yes (src/consent.ts). A test that sends the phone's x-shin-claude header on a typed search stands for a shopper who allowed it, so the choice is written first, in process, off the request path and the limiters. The server still checks it. */
+    get: async (p, headers) => {
+      const typedFor = headers?.['x-shin-claude'] === '1' && /[?&]text=/.test(p) ? /[?&]deviceId=([^&]+)/.exec(p) : null;
+      if (typedFor) writeChoices(decodeURIComponent(typedFor[1]), { aiText: true });
+      return call('GET', p, { headers });
+    },
     post: (p, body, headers) => call('POST', p, { headers, body }),
     postRaw: (p, raw, headers) => call('POST', p, { headers, raw }),
     /** The headers a phone sends: its id and its secret. */

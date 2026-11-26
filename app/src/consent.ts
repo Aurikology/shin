@@ -58,6 +58,21 @@ export interface Consent {
   readonly location: boolean;
   /** ISO timestamp of the last answer, or null when there has never been one. */
   readonly updatedAt: string | null;
+  /**
+   * "Help improve Pexi" (2026-11-26, legal review A G1/G2): usage recording beyond what answering a scan needs,
+   * and use of it to improve Pexi. Optional, off until the shopper says yes, withdrawable any time.
+   */
+  readonly improve: boolean;
+  /** When `improve` was last set, or null when it never was. */
+  readonly improveAt: string | null;
+  /**
+   * Whether a typed search may go to Anthropic's Claude (Apple 5.1.2(i), legal review A G3): true is the yes on
+   * the one-time notice, false is "not now" (Pexi's own data answers), null is "never asked", which the server
+   * treats as no and the phone treats as "show the notice".
+   */
+  readonly aiText: boolean | null;
+  /** When `aiText` was last set, or null. */
+  readonly aiTextAt: string | null;
 }
 
 /**
@@ -65,18 +80,22 @@ export interface Consent {
  * device with no id: a read that fails could be hiding a written no, so it
  * fails toward keeping less, the direction that can never break an opt-out.
  */
-const NOTHING: Consent = { photos: false, location: false, updatedAt: null };
+const NOTHING: Consent = { photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null };
 
 /**
  * What a device with no row reads as: nothing agreed to. See the
  * header. Exported so the tests and the client mirror name one value.
  */
-export const DEFAULT_CONSENT: Consent = { photos: false, location: false, updatedAt: null };
+export const DEFAULT_CONSENT: Consent = { photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null };
 
 interface ConsentRow {
   photos: number;
   location: number;
   updated_at: string;
+  improve: number | null;
+  improve_at: string | null;
+  ai_text: number | null;
+  ai_text_at: string | null;
 }
 
 /**
@@ -95,10 +114,18 @@ export function readConsent(deviceId: string): Consent {
   try {
     if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
     const row = store.db
-      .prepare('SELECT photos, location, updated_at FROM consent WHERE device_id = ?')
+      .prepare('SELECT photos, location, updated_at, improve, improve_at, ai_text, ai_text_at FROM consent WHERE device_id = ?')
       .get(id) as unknown as ConsentRow | undefined;
     if (!row) return DEFAULT_CONSENT;
-    return { photos: row.photos === 1, location: row.location === 1, updatedAt: row.updated_at };
+    return {
+      photos: row.photos === 1,
+      location: row.location === 1,
+      updatedAt: row.updated_at,
+      improve: row.improve === 1,
+      improveAt: row.improve_at ?? null,
+      aiText: row.ai_text === null || row.ai_text === undefined ? null : row.ai_text === 1,
+      aiTextAt: row.ai_text_at ?? null,
+    };
   } catch (err) {
     store.dropped += 1;
     store.droppedWhy = err instanceof Error ? err.message : String(err);
@@ -145,3 +172,58 @@ export function keepPhoto(deviceId: string): boolean {
 export function keepLocation(deviceId: string): boolean {
   return readConsent(deviceId).location;
 }
+
+/**
+ * Records the two optional choices (2026-11-26): "Help improve Pexi" and "a typed search may go to Claude".
+ * A field left out is left as it was, so changing one never changes the other, and never touches the
+ * photos and location answers above. Each one that is given is stored with the time it was given, which is
+ * the record a withdrawal needs. A device with no row gets one reading photos off and location off, the
+ * same as having no row. Returns whether it was written; false must reach the phone, because a shopper who
+ * just withdrew has to know whether the refusal is in force.
+ */
+export function writeChoices(
+  deviceId: string,
+  choices: { improve?: boolean; aiText?: boolean },
+  now: Date = new Date(),
+): boolean {
+  const id = deviceId?.trim();
+  if (!id) return false;
+  const store = activeScanStore() ?? openScanStore();
+  try {
+    if (!store.db) throw new Error(store.droppedWhy || 'scan store is not open');
+    const at = now.toISOString();
+    store.db
+      .prepare('INSERT OR IGNORE INTO consent (device_id, photos, location, updated_at) VALUES (?, 0, 0, ?)')
+      .run(id, at);
+    if (typeof choices.improve === 'boolean') {
+      store.db.prepare('UPDATE consent SET improve = ?, improve_at = ? WHERE device_id = ?').run(choices.improve ? 1 : 0, at, id);
+    }
+    if (typeof choices.aiText === 'boolean') {
+      store.db.prepare('UPDATE consent SET ai_text = ?, ai_text_at = ? WHERE device_id = ?').run(choices.aiText ? 1 : 0, at, id);
+    }
+    return true;
+  } catch (err) {
+    store.dropped += 1;
+    store.droppedWhy = err instanceof Error ? err.message : String(err);
+    return false;
+  }
+}
+
+/**
+ * May usage be recorded for this device beyond what answering needs (the event table)? Only a stored yes.
+ * A device with no row, a failed read, or a withdrawn choice is a no.
+ */
+export function keepUsage(deviceId: string): boolean {
+  return readConsent(deviceId).improve;
+}
+
+/** May this device's typed search go to Anthropic's Claude? Only a stored yes; never asked reads as no. */
+export function mayAskClaudeWithText(deviceId: string): boolean {
+  return readConsent(deviceId).aiText === true;
+}
+
+/**
+ * Event types that are the record of a choice itself. They are kept even when usage recording is off,
+ * because a withdrawal that left no trace could not be shown to have been honoured.
+ */
+export const CHOICE_EVENT_TYPES: readonly string[] = ['agreement', 'consent_change', 'choice_change'];

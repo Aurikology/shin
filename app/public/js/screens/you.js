@@ -35,6 +35,7 @@
 import { PERSONALITIES, personalityCopy, setPersonality, personality, say } from '../voice.js';
 import { faceSvg, shinSay } from '../shin.js';
 import * as store from '../store.js';
+import { improveOn, aiTextAnswer, setChoice } from '../choices.js';
 import { escapeHtml, on } from '../lib/dom.js';
 import { wireRadioGroup } from '../lib/radiogroup.js';
 import { storagePersists } from '../lib/persistence.js';
@@ -383,6 +384,27 @@ export default {
                switches and the data paragraph are gone. Everything they said is in the Terms, Privacy and
                Data document, accepted once on first launch; the row below reopens it read-only (Apple
                5.1.1(i): the privacy policy stays reachable in the app). */ ''}
+          ${/* 2026-11-26 (legal review A G1 to G3; Apple 5.1.1(ii), 5.1.2(i)): the two optional choices live
+               here, where the shopper can change them any time. Both read the answer on this phone and write it
+               to the server with the time (screens/agree.js `setChoice`); the server is what enforces them. */ ''}
+          <div class="ilist consent-list">
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l" id="you-improve-l">${escapeHtml(t('improve_title'))}</span>
+                <p class="fineprint">${escapeHtml(t('improve_body'))}</p>
+              </div>
+              <button type="button" class="switch${improveOn() ? ' on' : ''}" data-act="improve" role="switch"
+                      aria-checked="${improveOn()}" aria-labelledby="you-improve-l"></button>
+            </div>
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l" id="you-ai-text-l">${escapeHtml(t('you_ai_text_title'))}</span>
+                <p class="fineprint">${escapeHtml(t('you_ai_text_caption'))}</p>
+              </div>
+              <button type="button" class="switch${aiTextAnswer() === 'yes' ? ' on' : ''}" data-act="ai-text" role="switch"
+                      aria-checked="${aiTextAnswer() === 'yes'}" aria-labelledby="you-ai-text-l"></button>
+            </div>
+          </div>
           <div class="ilist">
             <button type="button" class="ilist-row" data-act="legal">
               <span class="ilist-l">${escapeHtml(t('legal_title'))}</span>
@@ -610,6 +632,15 @@ export default {
       if (e.target.closest('[data-act="buzz"]')) {
         store.setBuzz(!store.buzzOn());
         paintBuzz();
+        return;
+      }
+      for (const [act, key] of [['improve', 'improve'], ['ai-text', 'aiText']]) {
+        const sw = e.target.closest(`[data-act="${act}"]`);
+        if (!sw || !root.contains(sw)) continue;
+        const next = sw.getAttribute('aria-checked') !== 'true';
+        sw.setAttribute('aria-checked', String(next));
+        sw.classList.toggle('on', next);
+        void setChoice(ctx.api, { [key]: next });
         return;
       }
       if (e.target.closest('[data-tags-switch]')) {

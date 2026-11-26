@@ -79,10 +79,10 @@ test('a device that was never asked keeps neither photos nor location (D-148)', 
   // The standing ruling "Location and photo consent default off until
   // answered". The photo default was on from 2026-09-19 until D-148.
   openScanStore(fresh());
-  assert.deepEqual(readConsent('never-asked'), { photos: false, location: false, updatedAt: null });
+  assert.deepEqual(readConsent('never-asked'), DEFAULT_CONSENT);
   assert.equal(keepPhoto('never-asked'), false, 'a photo is kept for a device that was never asked');
   assert.equal(keepLocation('never-asked'), false, 'location moved with the photo default');
-  assert.deepEqual(DEFAULT_CONSENT, { photos: false, location: false, updatedAt: null });
+  assert.deepEqual(DEFAULT_CONSENT, { photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null });
 });
 
 test('a written no is never overridden by the default', () => {

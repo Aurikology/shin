@@ -101,13 +101,13 @@ test('the hosted terms and privacy pages are exactly what the document renders, 
 /* ------------------------------------------------------------------------------------- the screen */
 
 test('version 3: every install that accepted the old screen sees the document once more', () => {
-  assert.equal(agree.AGREEMENT_VERSION, 3);
+  assert.equal(agree.AGREEMENT_VERSION, 4);
   assert.equal(agree.needsAgreement({ agreement: { at: 'x', version: 2, claude: true, usage: true } }), true);
   assert.equal(agree.needsAgreement({}), true);
   const rec = agree.agreementRecord(new Date('2026-11-25T10:00:00Z'));
   assert.deepEqual(
     { version: rec.version, claude: rec.claude, usage: rec.usage, photos: rec.photos, location: rec.location, document: rec.document },
-    { version: 3, claude: true, usage: true, photos: true, location: true, document: legal.LEGAL_EFFECTIVE },
+    { version: 4, claude: true, usage: false, photos: true, location: true, document: legal.LEGAL_EFFECTIVE },
   );
   assert.equal(agree.needsAgreement({ agreement: rec }), false);
 });
@@ -118,9 +118,11 @@ test('first launch: the whole document and one button, Accept and continue', () 
   store.update({ agreement: null });
   const { root } = mount(agree.default);
   const html = root.innerHTML;
-  assert.equal((html.match(/<button/g) ?? []).length, 1, 'one action');
+  assert.equal((html.match(/<button/g) ?? []).length, 2, 'the Accept button and the one optional switch');
   assert.match(html, /<button[^>]*data-act="agree-go"[^>]*>Accept and continue</);
-  assert.doesNotMatch(html, /type="checkbox"|type="radio"|role="switch"/);
+  assert.doesNotMatch(html, /type="checkbox"|type="radio"/);
+  assert.equal((html.match(/role="switch"/g) ?? []).length, 1, 'one optional switch, Help improve Pexi');
+  assert.match(html, /data-act="improve"[^>]*aria-checked="false"/, 'it starts off');
   assert.ok(html.includes(legal.legalBodyHtml('en')), 'the screen shows the whole document');
   assert.doesNotMatch(html, /data-act="back"|page-bar/, 'no way around it');
 });
@@ -142,7 +144,7 @@ test('pressing it is a yes to everything: the record, photos and location locall
   const { tap, calls, posted } = mount(agree.default);
   tap('agree-go');
   const rec = store.get().agreement;
-  assert.equal(rec.version, 3);
+  assert.equal(rec.version, 4);
   assert.equal(rec.claude, true);
   assert.equal(store.consent().photos, true);
   assert.equal(store.consent().location, true);
@@ -183,7 +185,7 @@ test('an accept with no signal reaches the server on a later launch, once', asyn
   assert.equal(await syncAgreement(offline), false);
   assert.equal(await syncAgreement(online), true);
   assert.ok(store.get().agreement.serverAt);
-  assert.equal(await syncAgreement(online), false, 'already stored: no second post');
+  assert.equal(await syncAgreement(online), true, 'already stored: nothing left to send');
   assert.equal(n, 2);
 });
 
@@ -227,5 +229,5 @@ test('the server writes yes for an accepted device, and keeps nothing for one th
   assert.match(server, /const accepted = k\.accepted === true;/);
   assert.match(server, /const photos = accepted \|\| k\.photos === true;/);
   assert.match(server, /const location = accepted \|\| k\.location === true;/);
-  assert.match(read('../src/consent.ts'), /export const DEFAULT_CONSENT: Consent = \{ photos: false, location: false, updatedAt: null \};/);
+  assert.match(read('../src/consent.ts'), /export const DEFAULT_CONSENT: Consent = \{ photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null \};/);
 });

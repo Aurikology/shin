@@ -24,6 +24,15 @@
  * events queue as `agreement`, which survives having no signal.
  *
  * VERSION 3 (2026-11-25): every install that accepted version 2 sees the document once more.
+ *
+ * VERSION 4 (2026-11-26, legal review A G1 to G3, Apple 5.1.1(ii) and 5.1.2(i), Quebec P-39.1 s.14): what the
+ * service does not need to answer a scan became the shopper's own choice. The one acceptance still covers what
+ * the service needs. Two things moved out of it: (1) "Help improve Pexi", one optional switch on this screen,
+ * OFF until turned on, changeable any time in Settings (you.js); it covers usage recording beyond answering and
+ * use of it to improve Pexi. (2) Typed words going to Anthropic's Claude: a one-time plain notice, Allow or Not
+ * now, shown the first time a shopper types a search (`askAiText`). Not now still answers from Pexi's own data.
+ * Both are stored on the server with their times (api.postConsent), and the SERVER enforces them: no Claude
+ * call with typed words and no usage event is kept without the stored yes (server.ts, src/consent.ts).
  */
 import * as store from '../store.js';
 import { track } from '../track.js';
@@ -34,26 +43,42 @@ import { firstScreen } from '../onboarding-flow.js';
 import { getDeviceId } from '../device.js';
 import { backButton, pageBar, goBack } from '../lib/pagebar.js';
 import { legalDocument, legalBodyHtml, LEGAL_EFFECTIVE } from '../legal/document.js';
+import { improveOn, aiTextAnswer, setChoice, syncChoices, askAiText } from '../choices.js';
 
-/** Bump when the document changes enough to ask again. 3: one document, no off switches (2026-11-25). */
-export const AGREEMENT_VERSION = 3;
+/* The choices live in choices.js so Settings can use them without importing this screen. */
+export { improveOn, aiTextAnswer, setChoice, syncChoices, askAiText };
+
+/**
+ * Bump when the document changes enough to ask again. 3: one document, no off switches (2026-11-25).
+ * 4: the optional "Help improve Pexi" choice and the cross-border and recipient wording (2026-11-26).
+ */
+export const AGREEMENT_VERSION = 4;
 
 /** True until this install has accepted the current version of the document. */
 export function needsAgreement(s) {
   return !(s?.agreement?.at && s.agreement.version >= AGREEMENT_VERSION && s.agreement.claude === true);
 }
 
-/** The record to store and send. Pure, so a test can hold it. Accepting is a yes to every use in the document. */
-export function agreementRecord(now = new Date()) {
-  return { at: now.toISOString(), version: AGREEMENT_VERSION, document: LEGAL_EFFECTIVE, claude: true, usage: true, photos: true, location: true };
+/**
+ * The record to store and send. Pure, so a test can hold it. Accepting is a yes to what the service needs
+ * (product names to Claude for estimates, the photo and rough location the shopper's phone allows). Usage
+ * recording beyond that is the separate `improve` choice: false unless the shopper turned it on.
+ */
+export function agreementRecord(now = new Date(), { improve = false } = {}) {
+  const on = improve === true;
+  return {
+    at: now.toISOString(), version: AGREEMENT_VERSION, document: LEGAL_EFFECTIVE,
+    claude: true, usage: on, improve: on, photos: true, location: true,
+    choicesAt: now.toISOString(),
+  };
 }
 
 /**
  * Everything the press does. Local first (the flags every check in the app reads at once), then the
  * server's consent row, then the event. Exported so a test can run it without a DOM.
  */
-export function accept(api, now = new Date()) {
-  const record = agreementRecord(now);
+export function accept(api, now = new Date(), choices = {}) {
+  const record = agreementRecord(now, choices);
   store.update({ agreement: record });
   store.setConsent({ photos: true, location: true });
   void syncAgreement(api);
@@ -69,12 +94,24 @@ export function accept(api, now = new Date()) {
 export async function syncAgreement(api) {
   try {
     const s = store.get();
-    if (needsAgreement(s) || s.agreement.serverAt) return false;
+    if (needsAgreement(s)) return false;
+    if (s.agreement.serverAt) return await syncChoices(api);
     const device = getDeviceId();
     if (!device?.id || !api?.postConsent) return false;
-    const res = await api.postConsent({ deviceId: device.id, accepted: true, photos: true, location: true });
+    const a = s.agreement;
+    const res = await api.postConsent({
+      deviceId: device.id, accepted: true, photos: true, location: true,
+      ...(typeof a.improve === 'boolean' ? { improve: a.improve } : {}),
+    });
     if (res?.stored !== true) return false;
-    store.update({ agreement: { ...store.get().agreement, serverAt: new Date().toISOString() } });
+    const after = store.get().agreement;
+    store.update({
+      agreement: {
+        ...after,
+        serverAt: new Date().toISOString(),
+        ...(after.choicesAt === a.choicesAt ? { choicesServerAt: a.choicesAt } : {}),
+      },
+    });
     return true;
   } catch {
     return false;
@@ -90,6 +127,7 @@ export default {
     const lang = locale();
     const doc = legalDocument(lang);
     const asking = needsAgreement(store.get());
+    let improve = false; // "Help improve Pexi" starts off; only the shopper's own press turns it on
 
     root.innerHTML = `
       <div class="page legal-page${asking ? ' agree-page' : ''}">
@@ -104,6 +142,16 @@ export default {
 
         ${asking
           ? `<div class="page-foot">
+          <div class="ilist consent-list">
+            <div class="ilist-row consent-row">
+              <div class="consent-text">
+                <span class="ilist-l" id="agree-improve-l">${escapeHtml(t('improve_title'))}</span>
+                <p class="fineprint">${escapeHtml(t('improve_body'))} ${escapeHtml(t('improve_change'))}</p>
+              </div>
+              <button type="button" class="switch" data-act="improve" role="switch"
+                      aria-checked="false" aria-labelledby="agree-improve-l"></button>
+            </div>
+          </div>
           <button type="button" class="cta" data-act="agree-go">${escapeHtml(t('agree_button'))}</button>
         </div>`
           : pageBar('you')}
@@ -112,8 +160,15 @@ export default {
     /* The listener sits on #screen, which the router keeps; aborted on leave so repeat visits add none. */
     const ac = new AbortController();
     on(root, 'click', (e) => {
+      if (e.target.closest('[data-act="improve"]')) {
+        improve = !improve;
+        const sw = root.querySelector('[data-act="improve"]');
+        sw?.setAttribute('aria-checked', String(improve));
+        sw?.classList.toggle('on', improve);
+        return;
+      }
       if (e.target.closest('[data-act="agree-go"]')) {
-        accept(ctx.api);
+        accept(ctx.api, new Date(), { improve });
         ctx.replace(firstScreen(store.get()));
         return;
       }

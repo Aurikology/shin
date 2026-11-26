@@ -157,7 +157,8 @@ test('D14: a device asking for its own scans gets only its own figures, never th
 });
 
 test('D-158: events are stored only for the device that sent them', async () => {
-  await post('/api/consent', { deviceId: A_ID, photos: false, location: false }, A);
+  await post('/api/consent', { deviceId: A_ID, photos: false, location: false, improve: true }, A);
+  await post('/api/consent', { deviceId: 'dev-bbbbbbbb-1', photos: false, location: false, improve: true }, B); // events are kept only with Help improve Pexi on (2026-11-26)
   assert.equal((await post('/api/event', { deviceId: A_ID, type: 'forged' }, B)).status, 403);
   const batch = await post(
     '/api/events/batch',
@@ -204,7 +205,7 @@ test('a phone from before the secret keeps working until it sends one', async ()
 
 test('D-148: a device that never answered reads photo consent off', async () => {
   const r = await get('/api/consent?deviceId=never-answered-1', phone('never-answered-1', 'never-key-0000000000'));
-  assert.deepEqual(await r.json(), { photos: false, location: false, updatedAt: null });
+  assert.deepEqual(await r.json(), { photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null });
 });
 
 test('D-148: the shelf route keeps nothing while photo identification is off, consent or not', async () => {

@@ -177,6 +177,7 @@ The answer sheet used to show the verdict tags a38 to a40 and its could-not-answ
 | a116 | How Pexi works, the new-user walkthrough | First launch, after the permission screen and before the camera, once. Again from You, Help, How Pexi works. Or ?s=guide. | `app/public/js/screens/guide.js` |
 | a117 | Welcome: choose your gender | Welcome flow, second screen (Aurik 2026-11-22). Optional: Prefer not to say, and Skip the rest. | `app/public/js/screens/onboarding.js` |
 | a118 | Progress: scans, under the typical price, chart, Bought | The Progress tab in the bar on any list screen, or the X on the camera. Or ?s=progress. | `app/public/js/screens/progress.js` |
+| a119 | Let Pexi ask Claude? (typed words, one time) | Type a product name in the search for the first time. Allow or Not now; asked once, changeable in You, Privacy and data. | `app/public/js/choices.js` |
 
 ## Not tagged, with reason
 

@@ -91,7 +91,7 @@ import { lookupOpenFoodFactsWithReason } from './src/open-food-facts.ts';
 import { activeGapLog, recordGap } from '../catalogue/src/gaps.ts';
 import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
-import { keepLocation, keepPhoto, readConsent, writeConsent } from './src/consent.ts';
+import { CHOICE_EVENT_TYPES, keepLocation, keepPhoto, keepUsage, mayAskClaudeWithText, readConsent, writeChoices, writeConsent } from './src/consent.ts';
 import { deleteRating, isRating, isRatingReason, rateScan, ratingFor, scanExists } from './src/ratings.ts';
 import { deviceFromHeaders, entitlementLookupHealth, entitlementStartupWarning, firstCountedScanAt, freeScanLimit, isPlus, plusScanLimit, isScanOutcome, quotaFor, recordScanOutcome, scanLimitRefusal, usageFor } from './src/scan-quota.ts';
 import { inEventTransaction, recordEvent, serialisePayload } from './src/events.ts';
@@ -1677,8 +1677,20 @@ async function withCatalogueFirstDeps<T>(
  * Undefined without the shopper's yes (Jamin's App Store list, item 9; screens/agree.js): the
  * product name stays here and the answer is the broad-guess range every unpriced item can get.
  */
-function claudeRangeAsk(req: IncomingMessage, device: string | null = null): RangeAsk | undefined {
+function claudeRangeAsk(req: IncomingMessage, device: string | null = null, typedText = false): RangeAsk | undefined {
   if (!claudeAllowed(req)) return undefined;
+  /*
+   * 2026-11-26 (Apple 5.1.2(i), legal review A G3): words a shopper TYPED reach Claude only after the shopper's
+   * own yes to the one-time notice, which the phone stores with its time (`consent.ts` `aiText`). Not the
+   * accept press, not a header the phone asserts: the stored answer, read here by device id. No yes, never
+   * asked, "not now" or an unattributed request is no, and the typed search is answered from Pexi's own data
+   * (an undefined ask is exactly what a phone that never accepted gets). A scanned barcode's name is not typed
+   * text, so those routes do not pass `typedText`. The suite's fake provider counts as a yes unless a test
+   * asks for the real check, the same switch `claudeAllowed` uses.
+   */
+  if (typedText && !(catalogueFirstTest !== null && catalogueFirstTest !== undefined && catalogueFirstTest.requireClaudeConsent !== true)) {
+    if (device === null || device === UNATTRIBUTED || !mayAskClaudeWithText(device)) return undefined;
+  }
   return async (rawIdentity) => {
     // Checked here, not at the top of the route: only this call can cost money.
     if (await claudeAskRefusal(req, device)) return { ok: false, reason: 'rate_limited' as const };
@@ -3367,7 +3379,7 @@ export const server = createServer(async (req, res) => {
         const typedAnswer = await typedFromOwnData(text, device, telemetry, where, identifyStarted, null, {
           shopper: shopperFrom(pick('shelfPriceCents'), pick('thresholds')),
           market: marketOfContext(contextFrom(pick)),
-          askRange: claudeRangeAsk(req, device),
+          askRange: claudeRangeAsk(req, device, true),
         });
         if (typeof typedAnswer.scanId === 'number') scanForLog = typedAnswer.scanId;
         return json(200, typedAnswer);
@@ -3889,7 +3901,7 @@ export const server = createServer(async (req, res) => {
           {
             shopper: shopperFrom(q.askingCents ?? q.shelfPriceCents, q.thresholds),
             market: marketOfContext(contextFrom((key) => q[key])),
-            askRange: claudeRangeAsk(req, pricedDevice),
+            askRange: claudeRangeAsk(req, pricedDevice, true),
           },
           searchGtin ?? null,
         );
@@ -4291,14 +4303,27 @@ export const server = createServer(async (req, res) => {
       const accepted = k.accepted === true;
       const photos = accepted || k.photos === true;
       const location = accepted || k.location === true;
-      const stored = writeConsent(deviceId, photos, location);
+      /*
+       * 2026-11-26 (legal review A G1 to G3): two optional choices ride the same door, each stored with its time.
+       * `improve` (Help improve Pexi) and `aiText` (a typed search may go to Claude) are only ever the literal
+       * `true` or `false`; anything else, or a field left out, leaves the stored answer as it was. A body that
+       * carries only choices must not rewrite the photos and location answers to no, so those are written only
+       * when the body speaks of them.
+       */
+      const choices: { improve?: boolean; aiText?: boolean } = {};
+      if (typeof k.improve === 'boolean') choices.improve = k.improve;
+      if (typeof k.aiText === 'boolean') choices.aiText = k.aiText;
+      const speaksOfAcceptance = 'accepted' in k || 'photos' in k || 'location' in k;
+      const hasChoices = Object.keys(choices).length > 0;
+      const stored = (speaksOfAcceptance || !hasChoices ? writeConsent(deviceId, photos, location) : true) && (!hasChoices || writeChoices(deviceId, choices));
+      if (stored && hasChoices) recordEvent({ deviceId, type: 'choice_change', payload: choices });
       if (!stored) {
         // Reported rather than swallowed. A person who just turned photo
         // consent on and was told nothing would go on believing their photos
         // are being kept when they are not, and the reverse is worse.
         return json(200, { stored: false, why: 'that choice could not be written down, so nothing changed' });
       }
-      recordEvent({ deviceId, type: 'consent_change', payload: { photos, location } });
+      if (speaksOfAcceptance || !hasChoices) recordEvent({ deviceId, type: 'consent_change', payload: { photos, location } });
       return json(200, { stored: true });
     }
 
@@ -4337,6 +4362,8 @@ export const server = createServer(async (req, res) => {
       if ('why' in payload) return json(400, { error: payload.why });
       if (!eventDiskHasRoom()) return json(507, { error: 'the server is low on disk space' });
       if (!eventAllowance(req, [deviceId])(deviceId)) return json(200, { stored: false });
+      // 2026-11-26: usage recording is the shopper's optional "Help improve Pexi" choice, stored by `/api/consent`. Without that yes only a choice's own record is kept.
+      if (!CHOICE_EVENT_TYPES.includes(type) && !keepUsage(deviceId)) return json(200, { stored: false, why: 'usage_recording_is_off' });
       const id = recordEvent({ deviceId, type, payload: e.payload });
       return json(200, id === null ? { stored: false } : { stored: true });
     }
@@ -4418,9 +4445,20 @@ export const server = createServer(async (req, res) => {
       // Abuse review 2026-11-21, finding 4: a day's events per phone and per address, so made-up phones cannot fill the disk.
       const allowed = eventAllowance(req, valid.map((v) => v.deviceId));
       /* R93: one transaction for the whole batch, so it is one disk sync and not up to 200. */
+      /* 2026-11-26: usage recording is the shopper's optional "Help improve Pexi" choice. Read once per phone per batch; only a choice's own record gets past without the yes. */
+      const usageYes = new Map<string, boolean>();
+      const mayKeepUsage = (deviceId: string): boolean => {
+        let yes = usageYes.get(deviceId);
+        if (yes === undefined) {
+          yes = keepUsage(deviceId);
+          usageYes.set(deviceId, yes);
+        }
+        return yes;
+      };
       inEventTransaction(() => {
       for (const v of valid) {
         if (!allowed(v.deviceId)) { dropped += 1; continue; }
+        if (!CHOICE_EVENT_TYPES.includes(v.type) && !mayKeepUsage(v.deviceId)) { dropped += 1; continue; }
         const id = recordEvent(v);
         if (id === null) dropped += 1;
         else stored += 1;

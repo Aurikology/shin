@@ -152,7 +152,7 @@ test('consent defaults to photos off and location off, for a device that has nev
   // with the ruling. consent.ts's header.
   const res = await get('/api/consent?deviceId=d-consent-new');
   assert.equal(res.status, 200);
-  assert.deepEqual(await res.json(), { photos: false, location: false, updatedAt: null });
+  assert.deepEqual(await res.json(), { photos: false, location: false, updatedAt: null, improve: false, improveAt: null, aiText: null, aiTextAt: null });
 });
 
 test('no cell is written for a device that never touched consent, because the default is off', async () => {
@@ -237,6 +237,10 @@ test('anything that is not literally true reads as no', async () => {
     photos: false,
     location: false,
     updatedAt: (await (await get('/api/consent?deviceId=d-truthy')).json() as { updatedAt: string }).updatedAt,
+    improve: false,
+    improveAt: null,
+    aiText: null,
+    aiTextAt: null,
   });
 });
 
@@ -350,7 +354,12 @@ test('D14: an invented device id gets an empty result for itself and no fleet fi
 
 /* ------------------------------- 10, events ------------------------------ */
 
+/* 2026-11-26: usage events are kept only for a device that turned on Help improve Pexi (test/consent-choices.test.ts). Its record of the choice is an event too, so these tests read only the usage ones. */
+const allowUsage = async (deviceId: string) => { await post('/api/consent', { deviceId, improve: true }); };
+const usage = (deviceId: string) => readEvents({ deviceId }).filter((r) => r.type !== 'choice_change');
+
 test('a client event is stored and comes back in the export reader', async () => {
+  await allowUsage('d-event');
   const res = await post('/api/event', {
     deviceId: 'd-event',
     type: 'app_opened',
@@ -358,7 +367,7 @@ test('a client event is stored and comes back in the export reader', async () =>
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { stored: true });
-  const rows = readEvents({ deviceId: 'd-event' });
+  const rows = usage('d-event');
   assert.equal(rows.length, 1);
   assert.equal(rows[0].type, 'app_opened');
   assert.deepEqual(JSON.parse(rows[0].payload!), { cold: true });
@@ -378,6 +387,7 @@ test('a payload too big for the log is refused with a sentence, not stored trunc
 /* ------------------------- 10, track.js's own door ------------------------ */
 
 test('a batch of events is stored one at a time through the same path as /api/event', async () => {
+  await allowUsage('d-batch');
   const res = await post('/api/events/batch', {
     events: [
       { deviceId: 'd-batch', type: 'app_open', payload: { standalone: false } },
@@ -387,12 +397,13 @@ test('a batch of events is stored one at a time through the same path as /api/ev
   });
   assert.equal(res.status, 200);
   assert.deepEqual(await res.json(), { stored: 3, dropped: 0, received: 3 });
-  const rows = readEvents({ deviceId: 'd-batch' });
+  const rows = usage('d-batch');
   assert.equal(rows.length, 3);
   assert.deepEqual(rows.map((r) => r.type).sort(), ['app_open', 'screen_view', 'tap']);
 });
 
 test('one malformed event in a batch is dropped, and the other 199 are not', async () => {
+  await allowUsage('d-batch-partial');
   const events = [
     { deviceId: 'd-batch-partial', type: 'tap', payload: {} }, // no deviceId/type below, dropped
     { type: 'tap' }, // missing deviceId
@@ -404,10 +415,11 @@ test('one malformed event in a batch is dropped, and the other 199 are not', asy
   assert.equal(seen.received, 200);
   assert.equal(seen.dropped, 1, 'the one malformed event was not the only thing dropped');
   assert.equal(seen.stored, 199);
-  assert.equal(readEvents({ deviceId: 'd-batch-partial' }).length, 199);
+  assert.equal(usage('d-batch-partial').length, 199);
 });
 
 test('a batch over the per-request cap is truncated, not refused', async () => {
+  await allowUsage('d-batch-cap');
   const events = Array.from({ length: 250 }, (_, i) => ({ deviceId: 'd-batch-cap', type: 'tap', payload: { i } }));
   const res = await post('/api/events/batch', { events });
   assert.equal(res.status, 200);
@@ -415,7 +427,7 @@ test('a batch over the per-request cap is truncated, not refused', async () => {
   // received names what the client sent; stored is capped at 200 regardless.
   assert.equal(seen.received, 250);
   assert.equal(seen.stored, 200);
-  assert.equal(readEvents({ deviceId: 'd-batch-cap' }).length, 200);
+  assert.equal(usage('d-batch-cap').length, 200);
 });
 
 test('events is required and must be an array', async () => {
