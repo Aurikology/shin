@@ -216,5 +216,12 @@ Not as a flat rule, but it comes close. The policy says "request the minimum sco
 
 ## Part 5. Counts
 
-Rows: E1-E111 plus F1-F52 = 163 rows (E47 and E57 are notes on omissions; E97, E98 are notes with no claim in E; E97, E98, E47, E57 are not counted as verdict rows).
-Verdict tally is in the final report message; recount command: `grep -c "| VERIFIED" ` and so on over this file.
+Rows: 163 (E1-E111, F1-F52), counted by the verdict in each row's third column.
+
+- VERIFIED: 143 (includes rows marked "with a scope note", "truncated", "approx", "moved", "now", and E99, which is verified for the repo only)
+- WRONG: 6 (E13, E86, E87, E96, E105, E109; E96 and E109 are wrong only in line numbers)
+- UNVERIFIABLE: 10 (E26, E29, E30, E51, E60, E64, E68, F14, F40, F48)
+- Notes with no verdict: 4 (E47, E57, E97, E98)
+
+Code facts spot-checked in C:\shin: about 20 (E96-E111, F45-F52, and the build-time key mechanism), roughly one in three.
+Limits: the Android RevenueCat key in the shipped build 2 is on your word, not checked here (the only local AAB, 2026-11-21, has an empty key). Apple's Schedule 2, Google Play search and RevenueCat's acceptable-use policy were not reachable or not read.
