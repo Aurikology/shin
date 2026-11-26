@@ -56,6 +56,12 @@ case "$KEEP" in
   ''|*[!0-9]*) echo "16-rotate-logs.sh: SHIN_LOG_KEEP_DAYS must be a whole number, got '$KEEP'" >&2; exit 1 ;;
 esac
 [ "$KEEP" -ge 1 ] || { echo "16-rotate-logs.sh: SHIN_LOG_KEEP_DAYS must be at least 1" >&2; exit 1; }
+# The privacy document keeps request logs 90 days at most (app/src/retention.ts), and these logs carry the
+# same request lines, so no setting can keep an archive longer than that.
+if [ "$KEEP" -gt 90 ]; then
+  echo "16-rotate-logs.sh: SHIN_LOG_KEEP_DAYS=$KEEP is over the 90 days the privacy document promises; using 90" >&2
+  KEEP=90
+fi
 OLDER=$((KEEP - 1)) # find -mtime +N means "more than N whole days old", i.e. KEEP days or older when N = KEEP-1
 
 if [ -n "${SHIN_LOG_DIRS:-}" ]; then

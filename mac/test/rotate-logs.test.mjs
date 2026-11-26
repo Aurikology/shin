@@ -125,3 +125,19 @@ test('keep-days can be changed with SHIN_LOG_KEEP_DAYS', () => {
   assert.equal(r.status, 0, r.out);
   assert.ok(!existsSync(p));
 });
+
+test('legal 2026-11-26: no setting keeps an archive past the 90 days the privacy document promises', () => {
+  const t = setup();
+  const mk = (name, days) => {
+    const p = join(t.logs, name);
+    writeFileSync(p, 'x');
+    utimesSync(p, ago(days), ago(days));
+    return p;
+  };
+  const old = mk('server.out.log.20260801-050000.gz', 95);
+  const inside = mk('server.out.log.20261001-050000.gz', 60);
+  const r = t.run([], { SHIN_LOG_KEEP_DAYS: '400' });
+  assert.equal(r.status, 0, r.out);
+  assert.ok(!existsSync(old), 'an archive 95 days old survived SHIN_LOG_KEEP_DAYS=400');
+  assert.ok(existsSync(inside), 'a 60-day-old archive was deleted');
+});
