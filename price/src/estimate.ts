@@ -1794,6 +1794,9 @@ export async function estimate(item: EstimateItem, shopper: ShopperInput | null,
         } else if (u && 'pack' in u) {
           if (target && target.family === u.pack.family) factor = sameSize(target, u.pack) ? 1 : target.baseValue / u.pack.baseValue;
           else if (!target) assumed = true;
+        } else if (!target) {
+          // No unit stated (or "each") for an item with no size: Claude priced some size it chose. Same as a pack it named.
+          assumed = true;
         }
         if (unusable) {
           claudeTrace = { ok: false, reason: unusable };

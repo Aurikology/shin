@@ -148,6 +148,20 @@ test('A7: a Claude range for a pack size it chose, on an item with no size, says
   near(verdict.sigmaLog, Math.round(own * WIDEN * 10000) / 10000, 2e-4, 'sigma');
 });
 
+test('A7: a Claude range with no unit stated, on an item with no size, says the size was assumed and widens (Kraft dinner, 3.3x)', async () => {
+  const w = lone(null, 'Kraft dinner');
+  const lo = 90;
+  const hi = 120;
+  for (const unit of [undefined, 'each']) {
+    const { verdict } = await estimate(item(), { cents: 350 }, { ...w, askClaude: claudeSays({ lowCents: lo, highCents: hi, unit, confidence: 'high' }) });
+    assert.equal(verdict.basis, 'claude_typical');
+    assert.ok(verdict.notes.includes('size_assumed'), `unit ${unit}: notes ${verdict.notes.join(',')}`);
+    assert.equal(verdict.confidence, 'low');
+    const own = (Math.log(hi) - Math.log(lo)) / (2 * Z10);
+    near(verdict.sigmaLog, Math.round(own * WIDEN * 10000) / 10000, 2e-4, `unit ${unit}: sigma`);
+  }
+});
+
 test('A7: a Claude range for another pack size is scaled to this item size', async () => {
   const w = lone('450 g');
   const { verdict } = await estimate(item(), null, { ...w, askClaude: claudeSays({ lowCents: 150, highCents: 300, unit: 'one 225 g box', confidence: 'medium' }) });
