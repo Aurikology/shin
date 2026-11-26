@@ -43,7 +43,11 @@
  *               button, never sends a photo, and a press with no barcode read
  *               says "Point me at the barcode" (screens/camera.js).
  * `languages`   the French table and the language row. Off, the locale is
- *               pinned to English whatever the phone asks for.
+ *               pinned to English whatever the phone asks for. ON since
+ *               2026-11-26 (legal review C, R6 to R9): the Charter of the
+ *               French language ss.50.2, 52.1 and 55 want the interface and
+ *               the terms in French for a Quebec shopper. On, the locale is
+ *               the stored choice, then the phone's language, then English.
  * `market`      the country picker. Off, the market is pinned to Canada, where
  *               the testers are; barcode lookup is global already, so this is
  *               one line to reverse.
@@ -80,6 +84,6 @@ export const FLAGS = {
   placeholderLabels: false,
   onboarding: true, // Aurik 2026-11-22: on again, as the concise five-screen flow (onboarding-flow.js FLOW)
   photoId: false,
-  languages: false,
+  languages: true, // 2026-11-26: on. Quebec Charter ss.50.2, 52.1, 55; the phone's language picks French
   market: false,
 };
