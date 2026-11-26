@@ -606,7 +606,7 @@ function parsePath(v: unknown): string[] {
   }
 }
 
-function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, CatRow> {
+export function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, CatRow> {
   const out = new Map<string, CatRow>();
   if (codes.length === 0) return out;
   const have = new Set((db.prepare('PRAGMA table_info(product)').all() as { name: string }[]).map((c) => c.name));
@@ -617,7 +617,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
     const rows = db
       .prepare(
         `SELECT code, name, ${col('name_en')}, ${col('brands')}, ${col('quantity')}, ${col('size_value')}, ${col('size_unit')},
-                ${col('category_path')}, ${col('leaf_category')}, ${col('source')}
+                ${col('category_path')}, ${col('leaf_category')}, ${col('source')}, ${col('department')}
            FROM product WHERE code IN (${chunk.map(() => '?').join(',')})${have.has('source') ? ` AND ${licensedOnlySql()}` : ''}`,
       )
       .all(...chunk) as Record<string, unknown>[];
@@ -638,7 +638,7 @@ function readCatalogue(db: DatabaseSync, codes: readonly string[]): Map<string, 
         sizeText: quantity ?? (fromCols ? `${fromCols.original.value} ${fromCols.original.unit}` : null),
         leaf: str(r.leaf_category) ?? path[path.length - 1] ?? null,
         path,
-        department: departmentOf(str(r.source)),
+        department: departmentOf(str(r.source), str(r.department)),
       });
     }
   }
