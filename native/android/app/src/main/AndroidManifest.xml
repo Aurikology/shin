@@ -47,14 +47,14 @@
          drive the Vibrator, which needs this. CONFIRM goes through the web view
          and needs nothing. -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Location: approximate only. The app asks the web view for a position without high accuracy
-         (geocell.js, permissions-panel.js) and only a rough area about 1 km wide leaves the phone,
-         so ACCESS_FINE_LOCATION is deliberately not declared (Google Play: request coarse instead of
-         fine). Capacitor 8's BridgeWebChromeClient asks for coarse AND fine together and, when fine
-         is refused, still allows the page on Android 12 and later (API 31+) if coarse is granted.
-         On Android 7 to 11 (API 24 to 30) it treats that as a refusal, so the web-view location
-         read fails there and the app carries on without shops nearby. Test on a device. -->
+    <!-- Location: approximate wherever Android lets the shopper choose it. The app asks the web view for a
+         position without high accuracy (geocell.js, permissions-panel.js) and only a rough area about 1 km
+         wide leaves the phone. Capacitor 8's BridgeWebChromeClient asks for coarse AND fine together: on
+         Android 12+ (API 31+) coarse alone is accepted, so fine is not declared there; on Android 7 to 11
+         (API 24 to 30) a missing fine counts as a refusal and nearby shops would be lost, and those
+         versions offer no approximate choice anyway, so fine is declared only up to API 30. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.camera" android:required="true" />
