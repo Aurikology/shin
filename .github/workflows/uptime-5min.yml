@@ -1,0 +1,62 @@
+# Outside uptime check for the live Pexi server: every 5 minutes, from GitHub's machines, independent of the server box.
+#
+# Calls the public health address (relay.anjiawenda.com, through Cloudflare, so it tests the tunnel and the server together).
+# A run FAILS when the address does not answer HTTP 200 with {"ok":true} inside 10 s, three tries 20 s apart (a tunnel blip is
+# not an outage; a minute of failure is). GitHub emails the account for a failed scheduled run: that is the alarm.
+# A failure also writes the reason into the run's summary.
+#
+# One layer of three. GitHub can delay a schedule under load (readiness R02, 2026-11-18: delayed by hours), so the other two
+# are the box's own dead-man ping every 60 s to Healthchecks (pexi-deadman.timer, linux/README.md) and server-alarm.yml (every
+# 30 minutes, the full phone-route probe). A free UptimeRobot monitor on the same URL is the cheapest fourth clock.
+#
+# Prove it can fail: Actions > uptime-5min > Run workflow with url set to https://relay.anjiawenda.com/api/does-not-exist
+# (any 404) and the run goes red and the email arrives. Do this once after the move.
+
+name: uptime-5min
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Health address to check (default: the live one)'
+        required: false
+        default: 'https://relay.anjiawenda.com/api/health'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime-5min
+  cancel-in-progress: true
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Public health answers ok
+        env:
+          URL: ${{ github.event.inputs.url || 'https://relay.anjiawenda.com/api/health' }}
+        run: |
+          set -u
+          why="never ran"
+          for try in 1 2 3; do
+            code=$(curl -sS -o body.json -w '%{http_code}' --max-time 10 -H 'cache-control: no-cache' "$URL" 2> err.txt) || code="000"
+            if [ "$code" = "200" ] && jq -e '.ok == true' body.json >/dev/null 2>&1; then
+              echo "try $try: HTTP 200, ok:true"
+              exit 0
+            fi
+            why="try $try: HTTP $code; $(tr '\n' ' ' < err.txt | cut -c1-150); body: $(head -c 200 body.json 2>/dev/null | tr '\n' ' ')"
+            echo "$why"
+            [ "$try" -lt 3 ] && sleep 20
+          done
+          echo "::error title=DOWN::Pexi health check failed 3 times: $why"
+          {
+            echo "## Pexi is not answering"
+            echo "URL: $URL"
+            echo "Last result: $why"
+            echo "Check: the box (journalctl -u pexi-server), the tunnel (systemctl status pexi-tunnel), then OVH status."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
