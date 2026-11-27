@@ -451,7 +451,7 @@ export interface BarcodeDeps {
    * The steps after a catalogue miss (RULINGS.md "A scan never ends with no result"): a live Open Food Facts
    * lookup, a saved Claude reading, the frame read by Claude. The server wires them; absent, a miss is a miss.
    */
-  readonly nameElsewhere?: (gtin: string) => Promise<NameElsewhereResult>;
+  readonly nameElsewhere?: (gtin: string, opts?: { readonly freeOnly?: boolean }) => Promise<NameElsewhereResult>;
   /**
    * Learned barcode links (docs/decisions.md 2026-11-15): the catalogue code shoppers' picks have tied to a barcode
    * the catalogue lacks (`learnedPickFor`, scans.ts, holds the trust rule), or null. Asked only on a catalogue miss
@@ -757,7 +757,9 @@ export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeD
     console.error('catalogue preview lookup failed:', err);
     return null;
   }
-  return isRow(hit) ? shownIdentity(identityOf(normaliseRow(hit))) : null;
+  if (isRow(hit)) return shownIdentity(identityOf(normaliseRow(hit)));
+  // An 8-digit code read as UPC-E that the catalogue does not hold: its EAN-8 reading may be the one it has (barcode.ts `alternate`).
+  return barcode.alternate ? catalogueHitIdentity(barcode.alternate, lookup) : null;
 }
 
 /**
@@ -767,6 +769,21 @@ export function catalogueHitIdentity(barcode: CanonicalBarcode, lookup: BarcodeD
 export async function answerBarcodeFromCatalogue(
   barcode: CanonicalBarcode,
   deps: BarcodeDeps,
+): Promise<{ answer: CatalogueAnswer; record: CatalogueRecord }> {
+  const first = await answerOneReading(barcode, deps, false);
+  const alt = barcode.alternate;
+  // An 8-digit code that reads as a UPC-E and as an EAN-8: when the UPC-E expansion found nothing anywhere (catalogue,
+  // store price, US index, Open Food Facts, saved reading), the EAN-8 reading gets the same free steps before "not found".
+  if (!alt || first.answer.verdict || (first.answer.outcome !== 'not_in_catalogue' && first.answer.outcome !== 'frame_wanted')) return first;
+  const second = await answerOneReading(alt, deps, true);
+  return second.answer.outcome === 'catalogue_hit' || second.answer.outcome === 'named_outside_catalogue' ? second : first;
+}
+
+/** One reading of a barcode, answered. `freeOnly`: the retry of a second reading, which never spends a Claude call. */
+async function answerOneReading(
+  barcode: CanonicalBarcode,
+  deps: BarcodeDeps,
+  freeOnly: boolean,
 ): Promise<{ answer: CatalogueAnswer; record: CatalogueRecord }> {
   const embedded = barcode.how === 'variable_measure' ? (barcode.variableMeasure?.embeddedPriceCents ?? null) : null;
   const shelfPrice = embedded !== null ? { cents: embedded, from: 'weighed_label' as const } : null;
@@ -853,7 +870,7 @@ export async function answerBarcodeFromCatalogue(
     if (!verdict && deps.nameElsewhere) {
       let named: NameElsewhereResult;
       try {
-        named = await deps.nameElsewhere(barcode.gtin);
+        named = await deps.nameElsewhere(barcode.gtin, freeOnly ? { freeOnly: true } : undefined);
       } catch (err) {
         warnCatalogueFault('name_elsewhere_failed', `${barcode.gtin} ${err instanceof Error ? err.message : String(err)}`);
         named = { ok: false, reasons: ['name_elsewhere_threw'], frameWanted: false };

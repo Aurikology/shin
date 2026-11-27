@@ -88,6 +88,14 @@ export interface CanonicalBarcode {
   readonly variableMeasure: VariableMeasure | null;
   /** Present only when `how` is `plu`: the loose-produce code this reading stands for (price/src/plu.ts). `gtin` is its one key. */
   readonly plu?: PluRef;
+  /**
+   * Present only when `how` is `upc_e_expanded` and the same 8 digits ALSO pass the EAN-8 check: the EAN-8 reading
+   * (`how: 'as_read'`). UPC-E stays the first reading, because Shin scans North American shelves, but about one 8-digit
+   * code in ten passes both checks, so a catalogue, index and Open Food Facts miss on the UPC-E expansion is retried as
+   * this one before the shopper is told nothing was found (catalogue-first.ts `answerBarcodeFromCatalogue`).
+   * The reverse needs no field: a code that passes only the EAN-8 check is already read as an EAN-8.
+   */
+  readonly alternate?: CanonicalBarcode;
 }
 
 /** The GS1 mod-10 check digit that completes `body`, found with the one existing validator. */
@@ -141,7 +149,10 @@ function interpret(digits: string, how: 'as_read' | 'zero_padded', allowUpcE: bo
   // Valid as both EAN-8 and UPC-E: UPC-E wins, because Shin scans North American shelves, where a short code starting 0 or 1 is a UPC-E (EAN-8 prefix 0 is restricted-circulation, and US-issued EAN-8s are rare).
   if (allowUpcE && /^[01]\d{7}$/.test(digits)) {
     const upca = upcEExpanded(digits);
-    if (upca) return { gtin: upca, how: 'upc_e_expanded', variableMeasure: null };
+    if (upca) {
+      const asEan8: CanonicalBarcode | null = isValidGtin(digits) ? { gtin: digits, how: 'as_read', variableMeasure: null } : null;
+      return { gtin: upca, how: 'upc_e_expanded', variableMeasure: null, ...(asEan8 ? { alternate: asEan8 } : {}) };
+    }
   }
   if (!isValidGtin(digits)) return null;
   const weighed = variableMeasure(digits);
