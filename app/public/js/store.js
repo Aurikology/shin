@@ -241,11 +241,12 @@ function newId() {
  * exist at all, and `market` may be missing or malformed.
  */
 function migrate(s) {
-  const history = Array.isArray(s.history)
-    ? s.history.map((h) => (h && typeof h.id === 'string' ? h : { ...h, id: newId() }))
-    : [];
-  const watchlist = Array.isArray(s.watchlist) ? s.watchlist : [];
-  const removed = Array.isArray(s.removed) ? s.removed : [];
+  /* 2026-11-27: an entry that is not an object carries nothing to show and is dropped here. Kept, a null in
+     `removed` threw in purgeExpired and the whole save read as corrupt; a null in `watchlist` threw on Save. */
+  const entries = (list) => (Array.isArray(list) ? list.filter((e) => e && typeof e === 'object' && !Array.isArray(e)) : []);
+  const history = entries(s.history).map((h) => (typeof h.id === 'string' ? h : { ...h, id: newId() }));
+  const watchlist = entries(s.watchlist);
+  const removed = entries(s.removed);
   const market = s.market && typeof s.market === 'object'
     && typeof s.market.country === 'string' && typeof s.market.currency === 'string'
     ? s.market
@@ -277,7 +278,7 @@ function migrate(s) {
     : { ...EMPTY.consent };
   const consentSeen = s.consentSeen === true;
   const permissionsSeen = s.permissionsSeen === true;
-  const ratings = Array.isArray(s.ratings) ? s.ratings : [];
+  const ratings = entries(s.ratings);
   /* A state saved before the shop shortlist has no `shops` at all. Both halves
      are rebuilt defensively rather than trusted: this blob is on a device and
      a half-written one must not take the pad down. */

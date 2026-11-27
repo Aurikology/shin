@@ -114,3 +114,24 @@ test('reload asks storage again, so a retry can actually recover', async () => {
   assert.equal(store.loadFault(), null);
   assert.equal(store.get().watchlist.length, 1);
 });
+
+test('one blank entry in a saved list costs that entry, not the whole save', async () => {
+  /*
+   * 2026-11-27 (storage fuzz on Aurik's PC): a null in `removed` threw inside purgeExpired, so the whole
+   * blob read as corrupt: the person landed on the first-run screen with nothing saved, and the next
+   * update wrote EMPTY over their data. A null in `watchlist` loaded, then threw on the next Save tap.
+   */
+  const blob = {
+    watchlist: [null, { id: 'w1', label: 'Neilson milk', savedAt: '2026-11-20T00:00:00.000Z' }, 7],
+    history: [null, 'x', { id: 'h1', at: '2026-11-20T00:00:00.000Z' }],
+    removed: [null, { id: 'r1', kind: 'scan', removedAt: new Date().toISOString() }],
+    ratings: [null, { id: 'g1' }],
+  };
+  const s = await loadStore(fakeStorage({ 'shin.v1': JSON.stringify(blob) }));
+  assert.equal(s.loadFault(), null, 'a blank entry made the whole save read as unreadable');
+  assert.deepEqual(s.get().watchlist.map((w) => w.id), ['w1']);
+  assert.deepEqual(s.get().history.map((h) => h.id), ['h1']);
+  assert.deepEqual(s.get().removed.map((r) => r.id), ['r1']);
+  assert.deepEqual(s.get().ratings.map((r) => r.id), ['g1']);
+  assert.doesNotThrow(() => s.toggleWatch({ id: 'w2', label: 'Kraft Dinner' }));
+});
