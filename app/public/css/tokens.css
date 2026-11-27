@@ -181,6 +181,10 @@
   --elev-3: 0 4px 10px rgba(0, 0, 0, .35), 0 22px 44px -18px rgba(0, 0, 0, .8);
   --glow-brand: 0 8px 22px -8px rgba(229, 22, 94, .65);
   --glass: rgba(16, 18, 22, .52);
+  /* Glass that carries words. Over a white shelf --glass composites to about
+     #838486 and white on it is 3.8:1; from .57 up white holds 4.5:1 over pure
+     white, and .74 keeps it near 7:1 (camera-glass-ink.test.mjs). */
+  --glass-ink: rgba(16, 18, 22, .74);
   --glass-edge: rgba(255, 255, 255, .16);
   --glass-blur: blur(20px) saturate(170%);
   /* The page's ambient light: the brand, faint, from above. Pages only; the

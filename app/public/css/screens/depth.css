@@ -111,15 +111,50 @@
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, .08), 0 8px 20px -8px rgba(0, 0, 0, .55);
 }
 
+/*
+ * Glass with words on it. The chips, the tip line and Pexi's bubble sit over
+ * whatever the shopper points at, often a white label, so they take the denser
+ * --glass-ink. The tip line and the bubble used the page's own surface before
+ * (--surface, --raised): in light theme a white slab and a cream bubble on a
+ * dark camera, next to dark glass chips (2026-11-26, rendered over a real
+ * product photo). The camera is dark in both themes; so is everything on it.
+ */
+.cam-chip:not(.on) {
+  background-color: var(--glass-ink);
+}
+.scan-note,
+.cam-shin .bubble {
+  background-color: var(--glass-ink);
+  border: 1px solid var(--glass-edge);
+  color: #fff;
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12), 0 10px 28px -10px rgba(0, 0, 0, .6);
+}
+.cam-shin .bubble-text { color: #fff; }
+/* The tail was a rotated square half hidden behind an opaque bubble. Behind
+   glass the hidden half shows as a darker diamond, so on the camera it is a
+   plain triangle that stops at the bubble's edge. */
+.cam-shin .shin-say .bubble::before {
+  left: -7px;
+  width: 7px;
+  margin-top: -6px;
+  background: var(--glass-ink);
+  border: none;
+  border-radius: 0;
+  transform: none;
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+.cam-shin .shin-say[data-side="right"] .bubble::before {
+  left: auto;
+  right: -7px;
+  clip-path: polygon(100% 50%, 0 0, 0 100%);
+}
+
 /* The barcode button floats over the feed: a real shadow under its ring. The
    ready and looking states (camera.css) replace this with their brand rings. */
 .scan-code-btn {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, .28), 0 10px 26px -8px rgba(0, 0, 0, .65);
-}
-
-.cam-shin .bubble,
-.scan-note {
-  box-shadow: var(--sheen), var(--elev-3);
 }
 
 /* ----------------------------------------------------- the page bar */
