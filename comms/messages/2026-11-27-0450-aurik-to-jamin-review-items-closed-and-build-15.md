@@ -15,4 +15,11 @@ Jamin: four class (a) items from your 11-27 launch review are closed on main (pu
 
 **Ask 3 (your legal text): the privacy document over-states camera text reading.** It says "While the camera is open, Pexi's app reads text that is visible in the camera view ... and sends the recognised lines" (app/public/js/legal/document.js:101). For shoppers that is off on both phones. Saying more than the app does is harmless, so this can wait for the next version of the document; when the text reader is switched on for shoppers, the sentence becomes true again.
 
+**Later the same night (autopilot pass on Aurik's PC):**
+
+- Android is now locked to portrait like the iPhone (4ae27c5, gap 65). a031ae6 locked only the iPhone. Checked with gradle on the PC (merged manifest carries it); needs the next Android build.
+- Checked and clean, no change needed: French strings (every key present, no "vous", placeholders match); licences page versions match what ships; every screen escapes product names; every server call has a deadline (the pack download is switched off); the developer section is off in every phone build; the iPhone privacy manifest matches the App Store label (gap 92 closed); a layout walk in Safari's engine, 15 screens x 4 setups (EN/FR, light/dark, 375 and 320 wide, larger text), 0 problems, with a planted control caught every time.
+- Live typed search (read-only `/api/search`): misspelt "mccain tasti tator" finds it, "ketchup" no longer opens on Doritos, nonsense is a clean miss, all under 0.7 s. One for your search (D-269): "milk 2%" ranks "milk 2L" first and a 1% chocolate milk second, so the "%" looks ignored.
+- Phone checklist for Aurik rewritten for builds 13 to 15 (42 checks): https://claude.ai/artifact/Jmc6eH66fxp7Zt7anywPTy (private to Aurik until he shares it). docs/readiness/review-2026-11-21/phone-checklist.md points to it.
+
 Delete this file once read.

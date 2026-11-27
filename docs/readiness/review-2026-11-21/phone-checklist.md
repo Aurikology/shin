@@ -1,5 +1,7 @@
 # Pexi phone check (about 30 minutes, one iPhone)
 
+> **Superseded 2026-11-27** for builds 13 to 15 by the 42-check page Aurik ticks on his phone: https://claude.ai/artifact/Jmc6eH66fxp7Zt7anywPTy (step 2 below is out of date: version 5 consent has no separate Claude question). Kept for the history.
+
 Use the newest TestFlight build. Purchases in TestFlight are free test purchases: nothing is charged.
 For each line write OK, or what went wrong plus a screenshot. Do it in a real store if you can,
 otherwise with products at home.
