@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# linux/provision.sh -- first-boot setup of the Pexi server on Ubuntu 24.04 LTS (OVHcloud VPS-2, Beauharnois).
+# linux/provision.sh -- first-boot setup of the Pexi server on Ubuntu 24.04 LTS (Oracle Cloud Always Free ARM, us-chicago-1; also fits an x86 VPS).
 #
 #   bash linux/provision.sh              run once as the image's default user (it uses sudo); safe to re-run
 #   bash linux/provision.sh --dry-run    print what it would do, change nothing
@@ -170,7 +170,13 @@ EOF
 
 # ---- 5. firewall ----------------------------------------------------------------------------------
 say "firewall (deny incoming, allow SSH only)"
-if [ "$DRY" = 1 ]; then
+# Oracle Cloud's Ubuntu images ship their own iptables rules (/etc/iptables/rules.v4, loaded by
+# netfilter-persistent) that already reject every inbound port but 22; ufw on top of them is a commonly reported
+# conflict (community reports, not checked in Oracle's docs). There the existing rules ARE the firewall: show them and leave ufw off.
+if [ -f /etc/iptables/rules.v4 ] && grep -q "REJECT" /etc/iptables/rules.v4; then
+  echo "   Oracle image firewall found (/etc/iptables/rules.v4); keeping it, not enabling ufw"
+  sudo iptables -S INPUT | sed 's/^/   /'
+elif [ "$DRY" = 1 ]; then
   echo "   [dry-run] ufw default deny incoming / allow outgoing / allow OpenSSH / enable"
 else
   sudo ufw default deny incoming >/dev/null

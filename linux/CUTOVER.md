@@ -1,17 +1,25 @@
-# Cutover: Pexi's live server from the home Mac to the OVH VPS
+# Cutover: Pexi's live server from the home Mac to the VPS
+
+Target since 2026-11-27: Oracle Cloud Always Free ARM (VM.Standard.A1.Flex, Ubuntu 24.04 aarch64, us-chicago-1), claimed
+by linux/oracle-claim.py; fallback after 2026-12-10 is a paid x86 VPS (Vultr Toronto). OVH notes below are history.
+Oracle specifics: the default user is `ubuntu`; the image's own iptables rules are the firewall (provision.sh keeps them
+and skips ufw); inbound is also limited by the VCN security list (pexi-vcn), which only needs SSH because traffic arrives
+through the Cloudflare tunnel; the boot volume is 100 GB. An arm64 container rehearsal on 2026-11-27 passed npm ci and
+loaded onnxruntime-node, sqlite-vec and sharp (emulated, provisional); GNU tar failed under emulation only.
 
 Written before the server exists. Nothing here has been run on a real Ubuntu 24.04 box: every command is unverified until
 step 1 to 8 are done once on the new machine. Steps 1 to 9 change nothing the app's users can see. Only step 10 moves
 traffic, and step 12 is the way back.
 
-Names used below: `VPS` is the new box (`ssh ubuntu@<VPS-IP>`, the image's default user; replace the user if OVH gives another),
+Names used below: `VPS` is the new box (`ssh ubuntu@<VPS-IP>`, the image's default user),
 `MAC` is the home Mac (`ssh worker@<MAC>`), data folder on the Mac `/Users/worker/shin-data`, on the VPS `/var/lib/pexi`.
 Expected total: about 2 hours of work, of which the user-visible write freeze is about 10 minutes.
 
 ## Gates (Jamin, before step 10)
 
-1. **Privacy text.** The privacy page must name the new host and drop "outside Quebec" before traffic moves
-   (the data now sits at OVH Beauharnois, Quebec). This is his call and his wording; the cutover does not edit it.
+1. **Privacy text.** The privacy page must name the new host before traffic moves: on Oracle the data sits in
+   Chicago, USA (outside Quebec and outside Canada). The HOSTING flag in app/public/js/legal/document.js needs a US
+   variant; his call and his wording; the cutover does not edit it.
 2. **Off-site backup target** chosen (`SHIN_RESTIC_REPOSITORY`), same one the Mac uses, so the VPS jobs keep writing to it.
 3. **A Healthchecks.io project ping key** (`SHIN_HC_PING_KEY`) and the dead-man ping URL (`SHIN_DEADMAN_URL`).
 4. A **read-only deploy key** on the GitHub repo (step 3).
