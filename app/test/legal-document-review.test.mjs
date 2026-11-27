@@ -97,3 +97,11 @@ test('no em dash and no vous in the new words', () => {
   assert.doesNotMatch(en + fr, /—/);
   assert.doesNotMatch(fr, /\bvous\b/i);
 });
+
+test('LEG-8: the produce sticker list (ankane/plu, MIT) carries its copyright and permission notice', () => {
+  const page = readFileSync(new URL('../public/licences.html', import.meta.url), 'utf8');
+  const mit = page.slice(page.indexOf('<h2>MIT License</h2>'), page.indexOf('<h2>Google ML Kit</h2>'));
+  assert.match(page, /<td>ankane\/plu[^<]*<div class="note">[^<]*produce/i, 'a table row names the list');
+  assert.match(mit, /ankane\/plu/, 'the MIT section says it applies to the list');
+  assert.match(mit, /Copyright \(c\) 2013-2026 Andrew Kane/, 'the copyright line the licence asks for');
+});
