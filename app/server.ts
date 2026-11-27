@@ -88,6 +88,7 @@ import { PRICES_DB_PATH } from '../price/src/store.ts';
 import { loadTable as loadStatcanTable, nationalAverageFor } from '../price/src/statcan.ts';
 import type { Provider } from '../identify/src/provider.ts';
 import { lookupOpenFoodFactsWithReason } from './src/open-food-facts.ts';
+import { lookupUsName } from './src/us-names-index.ts';
 import { activeGapLog, recordGap } from '../catalogue/src/gaps.ts';
 import { rangeFaults } from '../price/src/range.ts';
 import { summariseScans, summariseDeviceScans, UNATTRIBUTED } from './src/scan-summary.ts';
@@ -1918,8 +1919,12 @@ function nameElsewhereFor(opts: {
   /** Set when the pack read is refused for this request (`packReadRefusal`): the reason step (2) did not run. */
   refusedWhy?: string | null;
 }): NonNullable<BarcodeDeps['nameElsewhere']> {
-  return async (gtin) => {
+  return async (gtin, step) => {
     const reasons: string[] = [];
+    // (0) The offline US names index (catalogue/src/fetch_us_names.py): no network, no rate gate. A hit is named exactly
+    // as a live Open Food Facts name is, because the index is a copy of Open Food Facts' own names.
+    const us = lookupUsName(gtin);
+    if (us) return { ok: true, named: { name: us.name, brand: us.brand, size: us.size, source: 'open_food_facts' } };
     const off = await lookupOpenFoodFactsWithReason(gtin);
     if (off.product) {
       return { ok: true, named: { name: off.product.name, brand: off.product.brand, size: off.product.size, source: 'open_food_facts' } };
@@ -1928,6 +1933,8 @@ function nameElsewhereFor(opts: {
     const { savedPackReading, DEFAULT_PACK_STORE_PATH } = await import('../identify/src/pack-read.ts');
     const saved = savedPackReading(packReadSettings().storePath ?? DEFAULT_PACK_STORE_PATH, gtin);
     if (saved) return { ok: true, named: { name: saved.name, brand: saved.brand, size: saved.size, source: 'claude_reading' } };
+    // The second reading of an 8-digit code (barcode.ts `alternate`) never spends a Claude call or asks for the frame again.
+    if (step?.freeOnly) return { ok: false, reasons, frameWanted: false };
     if (!opts.frame || !opts.readFrame) {
       if (opts.refusedWhy) return { ok: false, reasons: [...reasons, opts.refusedWhy], frameWanted: false };
       if (opts.canSendFrame && opts.readFrame) return { ok: false, reasons: [...reasons, 'frame_wanted'], frameWanted: true };

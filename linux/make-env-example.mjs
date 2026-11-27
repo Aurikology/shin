@@ -35,6 +35,7 @@ const VALUE = {
   PORT: '4173',
   SHIN_DATA_DIR: D,
   SHIN_CATALOGUE: `${D}/catalogue.db`,
+  SHIN_US_NAMES_INDEX: `${D}/us-names.db`,
   SHIN_SCANS: `${D}/scans.db`,
   SHIN_CORRECTIONS: `${D}/corrections.db`,
   SHIN_PRICES: `${D}/prices.db`,

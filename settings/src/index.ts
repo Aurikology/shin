@@ -94,6 +94,7 @@ export const SETTINGS: readonly SettingKey[] = [
   { env: 'PORT', default: '4173', ruling: 'operational' },
   { env: 'SHIN_BIND_HOST', default: "unset -> loopback only (127.0.0.1 and ::1); '0.0.0.0' or '::' opens the LAN on purpose", ruling: 'operational' },
   { env: 'SHIN_CATALOGUE', default: 'data/catalogue.db (repo-relative)', ruling: 'operational' },
+  { env: 'SHIN_US_NAMES_INDEX', default: 'catalogue/data/us-names.db (repo-relative; built by catalogue/src/fetch_us_names.py; missing file = skipped, logged once)', ruling: 'A scan never ends with no result' },
   { env: 'SHIN_VECTORS', default: 'unset -> decided from embedded row count', ruling: 'operational' },
   { env: 'SHIN_USER_CATALOGUE', default: 'derived from SHIN_SCANS, or data/user-catalogue.db', ruling: 'operational' },
   { env: 'SHIN_SCANS', default: 'data/scans.db', ruling: 'operational' },
@@ -236,6 +237,9 @@ export function SHIN_BIND_HOST(env: NodeJS.ProcessEnv = process.env): string | u
 }
 export function SHIN_CATALOGUE(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_CATALOGUE');
+}
+export function SHIN_US_NAMES_INDEX(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  return raw(env, 'SHIN_US_NAMES_INDEX');
 }
 export function SHIN_VECTORS(env: NodeJS.ProcessEnv = process.env): string | undefined {
   return raw(env, 'SHIN_VECTORS');
