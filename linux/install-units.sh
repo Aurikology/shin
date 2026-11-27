@@ -2,7 +2,7 @@
 # linux/install-units.sh -- install (or refresh) the systemd units from the live clone. Run with sudo.
 #
 #   sudo bash /opt/pexi/live/linux/install-units.sh                     core units, collectors left off
-#   sudo bash /opt/pexi/live/linux/install-units.sh --with-collectors   also enable kroger, hammer, openprices timers
+#   sudo bash /opt/pexi/live/linux/install-units.sh --with-collectors   also enable kroger, hammer, openprices, bcldb timers
 #   sudo bash /opt/pexi/live/linux/install-units.sh --dry-run
 #
 # Enables: pexi-server, pexi-deploy.timer, integrity, backup, offsite, logrotate, restoretest, deadman timers.
@@ -59,7 +59,7 @@ fi
 
 echo "== enable timers"
 TIMERS="pexi-deploy pexi-integrity pexi-backup pexi-offsite pexi-logrotate pexi-restoretest pexi-deadman"
-[ "$COLLECTORS" = 1 ] && TIMERS="$TIMERS pexi-kroger pexi-hammer pexi-openprices"
+[ "$COLLECTORS" = 1 ] && TIMERS="$TIMERS pexi-kroger pexi-hammer pexi-openprices pexi-bcldb"
 for t in $TIMERS; do run systemctl enable --now "$t.timer"; done
 
 echo "== server"

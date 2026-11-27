@@ -44,6 +44,7 @@ ok_collectors=""
 probe kroger "https://api.kroger.com/v1/products?filter.term=milk" && ok_collectors="$ok_collectors kroger"
 probe openprices "https://prices.openfoodfacts.org/api/v1/prices?size=1" && ok_collectors="$ok_collectors openprices"
 probe hammer "https://jacobfilipp.com/hammerdata/hammer-5-csv.zip" && ok_collectors="$ok_collectors hammer"
+probe bcldb "https://catalogue.data.gov.bc.ca/api/3/action/package_show?id=e43be180-7511-4e6f-84d3-ad6c9f5c3e2b" && ok_collectors="$ok_collectors bcldb"
 
 echo "== retailer sites the Mac crawlers use (informational: these stay on the Mac either way)"
 probe metro "https://www.metro.ca/" || true
