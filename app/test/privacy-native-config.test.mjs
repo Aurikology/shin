@@ -78,6 +78,14 @@ test('the iPhone app is locked to portrait', () => {
   assert.deepEqual([...m[1].matchAll(/<string>([^<]+)<\/string>/g)].map((x) => x[1]), ['UIInterfaceOrientationPortrait']);
 });
 
+test('the Android app is locked to portrait too, as the iPhone is', () => {
+  // 2026-11-27: a031ae6 locked the iPhone (gap 65, "landscape allowed but not laid out") and Android was missed.
+  const manifest = read('../../native/android/app/src/main/AndroidManifest.xml');
+  const main = /<activity\b[^>]*android:name="\.MainActivity"[^>]*>/.exec(manifest)?.[0] ?? '';
+  assert.ok(main, 'no MainActivity in the manifest');
+  assert.match(main, /android:screenOrientation="portrait"/);
+});
+
 test('the age-rating notes flag tobacco beside alcohol for the re-answer', () => {
   const listing = read('../../docs/store/listing.md');
   const section = listing.split('## Age rating')[1] ?? '';
