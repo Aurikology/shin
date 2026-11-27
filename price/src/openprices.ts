@@ -155,7 +155,7 @@ export async function fetchPage(currency: string, page: number): Promise<ApiPage
       /* R35: Open Food Facts asks every client to name itself. The 400 ms gap between pages is the rate limit. */
       const res = await fetch(url, {
         signal: AbortSignal.timeout(15_000),
-        headers: { 'user-agent': 'Pexi-server/1.0 (grocery price scanner, Canada)', accept: 'application/json' },
+        headers: { 'user-agent': 'Pexi-server/1.0 (grocery price scanner, Canada; usepexiapp@gmail.com)', accept: 'application/json' },
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return (await res.json()) as ApiPage;
